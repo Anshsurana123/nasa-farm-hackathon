@@ -1,0 +1,27 @@
+id: dhaincha
+name: Dhaincha (Sesbania green manure)
+family: fabaceae
+group: cover
+season_type: [warm]
+gdd_to_maturity: 800
+base_temp_c: 12
+optimal_temp_c: [25, 35]
+max_temp_c: 42
+min_temp_c: 15
+duration_days: [45, 60]
+water_requirement_mm: [200, 300]
+kc: [0.40, 1.00, 1.00]
+root_depth_m: 0.8
+drought_tolerance: 3
+heat_tolerance: 4
+waterlogging_tolerance: 5
+n_fixation_kg_ha: 80
+n_demand_kg_ha: 0
+residue_t_ha: 5
+residue_cn_ratio: 18
+typical_yield_t_ha: [0, 0]
+aquacrop_name: null
+good_predecessors: [wheat]
+bad_predecessors: []
+notes: "Zaid green manure incorporated before rice transplanting; no grain yield, value = N + SOC."
+sources: ["PAU Package of Practices Kharif (green manuring)"]

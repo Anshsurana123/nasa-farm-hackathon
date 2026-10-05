@@ -1,0 +1,27 @@
+id: potato
+name: Potato (autumn)
+family: solanaceae
+group: tuber
+season_type: [cool]
+gdd_to_maturity: 1200
+base_temp_c: 7
+optimal_temp_c: [15, 22]
+max_temp_c: 32
+min_temp_c: -2
+duration_days: [90, 120]
+water_requirement_mm: [400, 600]
+kc: [0.50, 1.15, 0.75]
+root_depth_m: 0.5
+drought_tolerance: 2
+heat_tolerance: 1
+waterlogging_tolerance: 1
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 180
+residue_t_ha: 1
+residue_cn_ratio: 20
+typical_yield_t_ha: [20, 30]
+aquacrop_name: Potato
+good_predecessors: [maize, moong, cereal_rye]
+bad_predecessors: [potato]
+notes: "Sown Oct, harvested Jan; allows a following spring crop. High-value, high input, volatile prices."
+sources: ["FAO-56 Table 12", "PAU Package of Practices Vegetables"]

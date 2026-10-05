@@ -1,0 +1,27 @@
+id: pigeon_pea
+name: Pigeon pea (arhar / tur)
+family: fabaceae
+group: legume
+season_type: [warm]
+gdd_to_maturity: 2200
+base_temp_c: 10
+optimal_temp_c: [20, 32]
+max_temp_c: 40
+min_temp_c: 10
+duration_days: [140, 200]
+water_requirement_mm: [350, 650]
+kc: [0.40, 1.10, 0.45]
+root_depth_m: 1.8
+drought_tolerance: 5
+heat_tolerance: 4
+waterlogging_tolerance: 1
+n_fixation_kg_ha: 60
+n_demand_kg_ha: 20
+residue_t_ha: 4
+residue_cn_ratio: 35
+typical_yield_t_ha: [0.8, 1.5]
+aquacrop_name: null
+good_predecessors: [wheat, sorghum, maize]
+bad_predecessors: [pigeon_pea]
+notes: "Deep-rooted, drought-tolerant legume; short-duration varieties (~140 d) fit Punjab kharif. Key for the Kenya golden field (often intercropped with maize)."
+sources: ["FAO ECOCROP", "ICRISAT pigeonpea production guides"]

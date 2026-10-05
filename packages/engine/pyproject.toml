@@ -1,0 +1,31 @@
+[project]
+name = "terraloop-engine"
+version = "0.1.0"
+description = "TerraLoop decision engine: field profiling, simulation, rotation optimisation"
+requires-python = ">=3.11"
+dependencies = [
+    "terraloop-schemas",
+    "pydantic>=2.6",
+    "httpx>=0.27",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# Install only when working on that workstream (heavy deps).
+gee = ["earthengine-api>=1.0"]
+earthdata = ["earthaccess>=0.10", "xarray>=2024.1", "rioxarray>=0.15", "netCDF4>=1.6"]
+sim = ["aquacrop>=3.0"]
+opt = ["pymoo>=0.6.1", "scikit-learn>=1.4", "lightgbm>=4.3"]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv.sources]
+terraloop-schemas = { workspace = true }
+
+[tool.setuptools.packages.find]
+include = ["terraloop_engine*"]

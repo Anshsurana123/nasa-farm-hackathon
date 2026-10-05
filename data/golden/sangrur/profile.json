@@ -1,0 +1,138 @@
+{
+  "field": {
+    "lat": 30.2,
+    "lon": 75.92,
+    "polygon": null,
+    "name": "Sangrur, Punjab (hero field)"
+  },
+  "climate": {
+    "baseline_period": "1985-2004",
+    "recent_period": "2005-2024",
+    "mean_tmax_c": 33.52,
+    "mean_tmin_c": 19.11,
+    "annual_precip_mm": 422.9,
+    "recent_annual_precip_mm": 569.6,
+    "precip_change_pct": 34.7,
+    "tmax_change_c": -1.05,
+    "heat_days_per_year": 179.4,
+    "recent_heat_days_per_year": 164.2,
+    "frost_days_per_year": 0.1,
+    "longest_dry_spell_days_mean": 16.1,
+    "annual_et0_mm": 1829.6,
+    "gdd_base10_per_year": 4969.0,
+    "monthly_precip_mm": [
+      16.9,
+      19.3,
+      18.9,
+      12.5,
+      23.7,
+      62.4,
+      130.4,
+      111.0,
+      79.7,
+      10.6,
+      3.5,
+      7.3
+    ],
+    "monthly_tmax_c": [
+      21.7,
+      25.5,
+      31.8,
+      38.2,
+      42.5,
+      42.7,
+      39.0,
+      37.0,
+      36.4,
+      34.2,
+      29.0,
+      23.9
+    ],
+    "monthly_tmin_c": [
+      6.6,
+      9.3,
+      14.7,
+      20.8,
+      26.6,
+      29.6,
+      29.0,
+      27.0,
+      24.1,
+      18.9,
+      13.6,
+      8.7
+    ],
+    "wettest_months": [
+      6,
+      7,
+      8,
+      9
+    ],
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": null,
+        "url": "https://power.larc.nasa.gov/"
+      }
+    ]
+  },
+  "water": {
+    "root_zone_moisture_percentile": null,
+    "groundwater_trend_cm_per_year": null,
+    "climatic_water_balance_mm": -1333.4,
+    "irrigation_detected": null,
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": null,
+        "url": "https://power.larc.nasa.gov/"
+      }
+    ]
+  },
+  "soil": {
+    "texture_class": "clay loam",
+    "sand_pct": 34.0,
+    "silt_pct": 37.5,
+    "clay_pct": 28.4,
+    "soc_g_per_kg": 11.0,
+    "ph": 7.9,
+    "bulk_density_g_cm3": 1.47,
+    "cec_cmol_kg": 20.4,
+    "nitrogen_g_kg": 1.11,
+    "field_capacity_vol": 0.321,
+    "wilting_point_vol": 0.18,
+    "slope_pct": null,
+    "source": "modelled",
+    "provenance": [
+      {
+        "source": "ISRIC SoilGrids 2.0",
+        "product": "Topsoil 0-30 cm weighted mean",
+        "period": null,
+        "resolution": "250 m",
+        "doi": "10.5194/soil-7-217-2021",
+        "url": "https://soilgrids.org/"
+      }
+    ]
+  },
+  "hazards": {
+    "drought_frequency": 0.25,
+    "extreme_rain_days_per_year": 0.28,
+    "heat_stress_probability": 1.0,
+    "frost_risk": 0.05,
+    "erosion_risk_class": "low",
+    "residue_burning_detected": null
+  },
+  "seasons_per_year": null,
+  "crop_history": [],
+  "agro_climatic_notes": [
+    "Annual rainfall has increased by 35% between periods.",
+    "Evaporative demand exceeds rainfall by 1333 mm/yr: crops depend on irrigation; water-efficient rotations matter.",
+    "Rainy-season dry spells average 16 days: drought-tolerant options reduce risk."
+  ]
+}

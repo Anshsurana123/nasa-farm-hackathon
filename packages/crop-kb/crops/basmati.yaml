@@ -1,0 +1,27 @@
+id: basmati
+name: Basmati rice
+family: poaceae
+group: cereal
+season_type: [warm]
+gdd_to_maturity: 2100
+base_temp_c: 10
+optimal_temp_c: [25, 32]
+max_temp_c: 40
+min_temp_c: 15
+duration_days: [130, 155]
+water_requirement_mm: [1100, 1500]
+kc: [1.05, 1.20, 0.75]
+root_depth_m: 0.5
+drought_tolerance: 1
+heat_tolerance: 3
+waterlogging_tolerance: 5
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 80
+residue_t_ha: 6
+residue_cn_ratio: 60
+typical_yield_t_ha: [3.5, 5.0]
+aquacrop_name: PaddyRice
+good_predecessors: [dhaincha, moong]
+bad_predecessors: []
+notes: "Later transplanting (July) uses more monsoon rain; export market price, no MSP."
+sources: ["PAU Package of Practices Kharif", "FAO-56 Table 12"]

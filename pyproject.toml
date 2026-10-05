@@ -1,0 +1,32 @@
+[project]
+name = "terraloop"
+version = "0.1.0"
+description = "TerraLoop - NASA Earth-observation crop rotation decision support (NASA Space Apps)"
+requires-python = ">=3.11"
+dependencies = [
+    "terraloop-schemas",
+    "terraloop-engine",
+    "terraloop-api",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.5", "httpx>=0.27"]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/schemas", "packages/engine", "apps/api"]
+
+[tool.uv.sources]
+terraloop-schemas = { workspace = true }
+terraloop-engine = { workspace = true }
+terraloop-api = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["network: test hits live external APIs (deselect with -m 'not network')"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"

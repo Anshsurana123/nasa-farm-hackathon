@@ -1,0 +1,27 @@
+id: cotton
+name: Cotton
+family: malvaceae
+group: fibre
+season_type: [warm]
+gdd_to_maturity: 1250
+base_temp_c: 15.5
+optimal_temp_c: [25, 35]
+max_temp_c: 42
+min_temp_c: 15
+duration_days: [160, 190]
+water_requirement_mm: [700, 1300]
+kc: [0.35, 1.18, 0.60]
+root_depth_m: 1.4
+drought_tolerance: 4
+heat_tolerance: 4
+waterlogging_tolerance: 1
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 120
+residue_t_ha: 4
+residue_cn_ratio: 50
+typical_yield_t_ha: [1.5, 2.5]
+aquacrop_name: Cotton
+good_predecessors: [wheat, chickpea]
+bad_predecessors: [cotton]
+notes: "South-west Punjab (Bathinda, Mansa, Fazilka). Sown late April-May, so it overlaps the zaid slot (TASK-O01b: model cotton as occupying zaid+kharif). Yield is seed cotton."
+sources: ["FAO-56 Table 12", "PAU Package of Practices Kharif"]

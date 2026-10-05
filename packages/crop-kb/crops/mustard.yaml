@@ -1,0 +1,27 @@
+id: mustard
+name: Mustard / rapeseed
+family: brassicaceae
+group: oilseed
+season_type: [cool]
+gdd_to_maturity: 1500
+base_temp_c: 5
+optimal_temp_c: [12, 22]
+max_temp_c: 32
+min_temp_c: -3
+duration_days: [120, 150]
+water_requirement_mm: [250, 400]
+kc: [0.35, 1.07, 0.35]
+root_depth_m: 1.2
+drought_tolerance: 3
+heat_tolerance: 2
+waterlogging_tolerance: 2
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 100
+residue_t_ha: 3
+residue_cn_ratio: 50
+typical_yield_t_ha: [1.5, 2.0]
+aquacrop_name: null
+good_predecessors: [maize, rice_puddled, rice_dsr, cotton]
+bad_predecessors: [mustard]
+notes: "Low-water rabi alternative; brassica break crop reduces cereal disease carry-over."
+sources: ["FAO-56 Table 12 (rapeseed/canola)", "PAU Package of Practices Rabi"]

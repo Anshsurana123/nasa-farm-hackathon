@@ -1,0 +1,27 @@
+id: common_bean
+name: Common bean
+family: fabaceae
+group: legume
+season_type: [warm]
+gdd_to_maturity: 1100
+base_temp_c: 10
+optimal_temp_c: [18, 27]
+max_temp_c: 35
+min_temp_c: 8
+duration_days: [80, 110]
+water_requirement_mm: [300, 500]
+kc: [0.40, 1.15, 0.35]
+root_depth_m: 0.8
+drought_tolerance: 2
+heat_tolerance: 2
+waterlogging_tolerance: 1
+n_fixation_kg_ha: 40
+n_demand_kg_ha: 30
+residue_t_ha: 1.5
+residue_cn_ratio: 25
+typical_yield_t_ha: [0.8, 1.5]
+aquacrop_name: null
+good_predecessors: [maize, sorghum]
+bad_predecessors: [common_bean]
+notes: "Staple legume for East African maize-bean systems (Kenya golden field)."
+sources: ["FAO-56 Table 12 (dry beans)", "FAO ECOCROP"]

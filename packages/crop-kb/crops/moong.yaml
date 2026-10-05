@@ -1,0 +1,27 @@
+id: moong
+name: Mung bean (moong)
+family: fabaceae
+group: legume
+season_type: [warm]
+gdd_to_maturity: 1000
+base_temp_c: 10
+optimal_temp_c: [25, 35]
+max_temp_c: 42
+min_temp_c: 15
+duration_days: [60, 75]
+water_requirement_mm: [250, 350]
+kc: [0.40, 1.05, 0.35]
+root_depth_m: 0.7
+drought_tolerance: 4
+heat_tolerance: 4
+waterlogging_tolerance: 1
+n_fixation_kg_ha: 50
+n_demand_kg_ha: 20
+residue_t_ha: 1.5
+residue_cn_ratio: 20
+typical_yield_t_ha: [0.8, 1.2]
+aquacrop_name: null
+good_predecessors: [wheat]
+bad_predecessors: []
+notes: "Summer (zaid) moong fits the April-June gap between wheat and rice; residue incorporation adds N for the next crop."
+sources: ["FAO-56 Table 12 (mung bean)", "PAU Package of Practices Kharif (summer moong)"]

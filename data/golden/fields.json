@@ -1,0 +1,52 @@
+[
+  {
+    "id": "sangrur",
+    "name": "Sangrur, Punjab (hero field)",
+    "lat": 30.2,
+    "lon": 75.92,
+    "region": "punjab",
+    "story": "Intensive rice-wheat, severe groundwater decline (GRACE), stubble burning (FIRMS).",
+    "baseline_rotation": "rice_puddled > wheat > fallow",
+    "verified_cropland": false
+  },
+  {
+    "id": "ludhiana",
+    "name": "Ludhiana, Punjab",
+    "lat": 30.82,
+    "lon": 75.68,
+    "region": "punjab",
+    "story": "Rice-wheat near Punjab Agricultural University; expert-validation field.",
+    "baseline_rotation": "rice_puddled > wheat > fallow",
+    "verified_cropland": false
+  },
+  {
+    "id": "bathinda",
+    "name": "Bathinda, Punjab",
+    "lat": 30.12,
+    "lon": 74.86,
+    "region": "punjab",
+    "story": "South-west cotton belt, sandier soils, saline groundwater; recommendations should differ.",
+    "baseline_rotation": "cotton > wheat",
+    "verified_cropland": false
+  },
+  {
+    "id": "iowa",
+    "name": "Story County, Iowa, USA",
+    "lat": 42.05,
+    "lon": -93.55,
+    "region": "us_cornbelt",
+    "story": "Corn-soy, erosion and SOC loss; cover crops.",
+    "baseline_rotation": "maize > soybean",
+    "verified_cropland": false
+  },
+  {
+    "id": "machakos",
+    "name": "Machakos, Kenya",
+    "lat": -1.45,
+    "lon": 37.4,
+    "region": "east_africa",
+    "story": "Smallholder maize-bean, erratic bimodal rains (IMERG/SMAP); drought-tolerant legumes.",
+    "baseline_rotation": "maize > common_bean",
+    "verified_cropland": false
+  }
+]

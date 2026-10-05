@@ -1,0 +1,27 @@
+id: lentil
+name: Lentil (masur)
+family: fabaceae
+group: legume
+season_type: [cool]
+gdd_to_maturity: 1400
+base_temp_c: 5
+optimal_temp_c: [12, 24]
+max_temp_c: 33
+min_temp_c: -3
+duration_days: [120, 150]
+water_requirement_mm: [250, 350]
+kc: [0.40, 1.10, 0.30]
+root_depth_m: 0.8
+drought_tolerance: 4
+heat_tolerance: 2
+waterlogging_tolerance: 1
+n_fixation_kg_ha: 50
+n_demand_kg_ha: 20
+residue_t_ha: 1.5
+residue_cn_ratio: 25
+typical_yield_t_ha: [1.0, 1.5]
+aquacrop_name: null
+good_predecessors: [maize, rice_dsr, rice_puddled]
+bad_predecessors: [lentil, chickpea]
+notes: "Rabi pulse; lower water and N than wheat."
+sources: ["FAO-56 Table 12", "PAU Package of Practices Rabi"]

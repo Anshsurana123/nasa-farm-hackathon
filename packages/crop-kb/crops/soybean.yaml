@@ -1,0 +1,27 @@
+id: soybean
+name: Soybean
+family: fabaceae
+group: legume
+season_type: [warm]
+gdd_to_maturity: 1400
+base_temp_c: 10
+optimal_temp_c: [22, 30]
+max_temp_c: 38
+min_temp_c: 10
+duration_days: [100, 130]
+water_requirement_mm: [450, 700]
+kc: [0.40, 1.15, 0.50]
+root_depth_m: 1.0
+drought_tolerance: 3
+heat_tolerance: 3
+waterlogging_tolerance: 2
+n_fixation_kg_ha: 80
+n_demand_kg_ha: 30
+residue_t_ha: 3
+residue_cn_ratio: 30
+typical_yield_t_ha: [2.0, 3.5]
+aquacrop_name: Soybean
+good_predecessors: [maize, wheat]
+bad_predecessors: [soybean]
+notes: "Kharif legume alternative to rice; core crop of the Iowa corn-soy golden field."
+sources: ["FAO-56 Table 12", "Iowa State Univ. Extension"]

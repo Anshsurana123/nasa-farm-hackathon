@@ -1,0 +1,27 @@
+id: chickpea
+name: Chickpea (gram)
+family: fabaceae
+group: legume
+season_type: [cool]
+gdd_to_maturity: 1600
+base_temp_c: 5
+optimal_temp_c: [12, 25]
+max_temp_c: 35
+min_temp_c: -3
+duration_days: [130, 160]
+water_requirement_mm: [250, 350]
+kc: [0.40, 1.00, 0.35]
+root_depth_m: 1.0
+drought_tolerance: 4
+heat_tolerance: 2
+waterlogging_tolerance: 1
+n_fixation_kg_ha: 60
+n_demand_kg_ha: 20
+residue_t_ha: 1.5
+residue_cn_ratio: 25
+typical_yield_t_ha: [1.0, 1.8]
+aquacrop_name: null
+good_predecessors: [maize, rice_dsr, sorghum, pearl_millet]
+bad_predecessors: [chickpea, lentil]
+notes: "Rainfed-capable rabi legume; suits lighter soils of south-west Punjab."
+sources: ["FAO-56 Table 12", "PAU Package of Practices Rabi"]

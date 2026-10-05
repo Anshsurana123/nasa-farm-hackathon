@@ -1,0 +1,22 @@
+[project]
+name = "terraloop-api"
+version = "0.1.0"
+description = "TerraLoop FastAPI service"
+requires-python = ">=3.11"
+dependencies = [
+    "terraloop-engine",
+    "terraloop-schemas",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv.sources]
+terraloop-schemas = { workspace = true }
+terraloop-engine = { workspace = true }
+
+[tool.setuptools.packages.find]
+include = ["terraloop_api*"]

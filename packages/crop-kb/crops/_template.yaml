@@ -1,0 +1,29 @@
+# TEMPLATE - copy to <crop_id>.yaml (file name MUST equal id). Files starting with "_" are ignored.
+# Every numeric value must be traceable: add the reference to `sources`.
+id: example_crop
+name: Example Crop
+family: poaceae            # see CropFamily enum in packages/schemas/terraloop_schemas/models.py
+group: cereal              # cereal | legume | oilseed | tuber | vegetable | fibre | cover | fodder
+season_type: [warm]        # warm (kharif/zaid/summer) and/or cool (rabi/winter)
+gdd_to_maturity: 1500      # growing degree days above base_temp_c (daily mean capped at 30 C)
+base_temp_c: 10
+optimal_temp_c: [22, 30]   # monthly mean temperature range for best growth
+max_temp_c: 40             # monthly mean Tmax above (this + 3) => unsuitable
+min_temp_c: 10             # monthly mean Tmin below this => unsuitable
+duration_days: [90, 120]   # sowing -> harvest
+water_requirement_mm: [400, 600]  # seasonal crop ET (ETc)
+kc: [0.3, 1.2, 0.35]       # FAO-56 Kc ini, mid, end
+root_depth_m: 1.0
+drought_tolerance: 3       # 1 (very sensitive) .. 5 (very tolerant)
+heat_tolerance: 3
+waterlogging_tolerance: 3
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 100
+residue_t_ha: 4
+residue_cn_ratio: 60
+typical_yield_t_ha: [3, 5]
+aquacrop_name: null        # built-in AquaCrop crop name, or null if params must be supplied
+good_predecessors: []
+bad_predecessors: []
+notes: ""
+sources: ["FAO-56 Table 12 (Kc)", "FAO-56 Table 22 (root depth)"]

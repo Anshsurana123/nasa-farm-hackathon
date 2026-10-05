@@ -1,0 +1,27 @@
+id: berseem
+name: Berseem (Egyptian clover, fodder)
+family: fabaceae
+group: fodder
+season_type: [cool]
+gdd_to_maturity: 1800
+base_temp_c: 5
+optimal_temp_c: [12, 25]
+max_temp_c: 35
+min_temp_c: -2
+duration_days: [150, 180]
+water_requirement_mm: [500, 700]
+kc: [0.40, 1.00, 0.95]
+root_depth_m: 0.8
+drought_tolerance: 2
+heat_tolerance: 2
+waterlogging_tolerance: 3
+n_fixation_kg_ha: 100
+n_demand_kg_ha: 20
+residue_t_ha: 2
+residue_cn_ratio: 15
+typical_yield_t_ha: [60, 90]
+aquacrop_name: null
+good_predecessors: [maize, rice_puddled, rice_dsr]
+bad_predecessors: [berseem]
+notes: "Multi-cut green fodder; relevant only if FarmConstraints.has_livestock. Yield = green fodder."
+sources: ["PAU Package of Practices Rabi (fodder)"]

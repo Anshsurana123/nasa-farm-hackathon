@@ -1,0 +1,27 @@
+id: sorghum
+name: Sorghum
+family: poaceae
+group: cereal
+season_type: [warm]
+gdd_to_maturity: 1500
+base_temp_c: 10
+optimal_temp_c: [25, 32]
+max_temp_c: 42
+min_temp_c: 12
+duration_days: [100, 130]
+water_requirement_mm: [400, 600]
+kc: [0.30, 1.05, 0.55]
+root_depth_m: 1.5
+drought_tolerance: 5
+heat_tolerance: 5
+waterlogging_tolerance: 2
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 90
+residue_t_ha: 6
+residue_cn_ratio: 70
+typical_yield_t_ha: [2.0, 4.5]
+aquacrop_name: Sorghum
+good_predecessors: [pigeon_pea, common_bean, chickpea, soybean]
+bad_predecessors: [sorghum]
+notes: "Drought-resilient staple for the Kenya golden field; fodder option in Punjab."
+sources: ["FAO-56 Table 12", "FAO ECOCROP"]
