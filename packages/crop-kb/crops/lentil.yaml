@@ -21,7 +21,7 @@ residue_t_ha: 1.5
 residue_cn_ratio: 25
 typical_yield_t_ha: [1.0, 1.5]
 aquacrop_name: null
-good_predecessors: [maize, rice_dsr, rice_puddled]
+good_predecessors: [maize, rice_dsr, rice_puddled, pearl_millet, sorghum]
 bad_predecessors: [lentil, chickpea]
-notes: "Rabi pulse; lower water and N than wheat."
-sources: ["FAO-56 Table 12", "PAU Package of Practices Rabi"]
+notes: "Low-water rabi pulse ideally suited for rainfed, sub-montane Kandi tracts (Hoshiarpur, Ropar, Gurdaspur) and lighter well-drained soils of Punjab (varieties LL 699, LL 931). Requires only 1-2 irrigations (saving >250 mm water vs wheat) and matures by mid-March, completely evading late heat stress. Leaves 25-30 kg/ha residual N; highly susceptible to waterlogging and collar rot if over-irrigated."
+sources: ["FAO-56 Table 12 (lentil)", "PAU Package of Practices Rabi", "ICARDA Lentil Production Guidelines"]

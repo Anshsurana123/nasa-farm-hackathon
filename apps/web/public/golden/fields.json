@@ -7,7 +7,7 @@
     "region": "punjab",
     "story": "Intensive rice-wheat, severe groundwater decline (GRACE), stubble burning (FIRMS).",
     "baseline_rotation": "rice_puddled > wheat > fallow",
-    "verified_cropland": false
+    "verified_cropland": true
   },
   {
     "id": "ludhiana",
@@ -17,7 +17,7 @@
     "region": "punjab",
     "story": "Rice-wheat near Punjab Agricultural University; expert-validation field.",
     "baseline_rotation": "rice_puddled > wheat > fallow",
-    "verified_cropland": false
+    "verified_cropland": true
   },
   {
     "id": "bathinda",
@@ -27,7 +27,7 @@
     "region": "punjab",
     "story": "South-west cotton belt, sandier soils, saline groundwater; recommendations should differ.",
     "baseline_rotation": "cotton > wheat",
-    "verified_cropland": false
+    "verified_cropland": true
   },
   {
     "id": "iowa",
@@ -37,7 +37,7 @@
     "region": "us_cornbelt",
     "story": "Corn-soy, erosion and SOC loss; cover crops.",
     "baseline_rotation": "maize > soybean",
-    "verified_cropland": false
+    "verified_cropland": true
   },
   {
     "id": "machakos",
@@ -47,6 +47,16 @@
     "region": "east_africa",
     "story": "Smallholder maize-bean, erratic bimodal rains (IMERG/SMAP); drought-tolerant legumes.",
     "baseline_rotation": "maize > common_bean",
-    "verified_cropland": false
+    "verified_cropland": true
+  },
+  {
+    "id": "fresno",
+    "name": "Fresno County, California, USA",
+    "lat": 36.75,
+    "lon": -119.8,
+    "region": "california",
+    "story": "San Joaquin Valley intensive agriculture, severe aquifer overdraft (GRACE -2.8 cm/yr), Mediterranean dry summer.",
+    "baseline_rotation": "maize > wheat",
+    "verified_cropland": true
   }
 ]

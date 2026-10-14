@@ -71,6 +71,19 @@ export interface HazardSummary {
   frost_risk?: number | null;
   erosion_risk_class?: "low" | "moderate" | "high" | "very_high" | null;
   residue_burning_detected?: boolean | null;
+  terminal_heat_days_per_year?: number | null;
+}
+
+export interface InferredSeason {
+  year: number;
+  season_index: number;
+  start?: string | null;
+  peak?: string | null;
+  end?: string | null;
+  crop_group?: string | null;
+  crop_id?: string | null;
+  confidence: number;
+  confirmed_by_farmer?: boolean;
 }
 
 export interface FieldProfile {
@@ -80,8 +93,10 @@ export interface FieldProfile {
   soil: SoilSummary;
   hazards: HazardSummary;
   seasons_per_year?: number | null;
-  crop_history: unknown[];
+  crop_history: InferredSeason[];
   agro_climatic_notes: string[];
+  currency?: string;
+  currency_symbol?: string;
 }
 
 export interface GoldenField {
@@ -94,3 +109,80 @@ export interface GoldenField {
   baseline_rotation: string;
   verified_cropland: boolean;
 }
+
+export interface Priorities {
+  profit: number;
+  water_savings: number;
+  soil_health: number;
+  low_risk: number;
+  low_labour: number;
+  food_security: number;
+}
+
+export interface FarmConstraints {
+  area_ha: number;
+  irrigation: "none" | "limited" | "full";
+  irrigation_cap_mm?: number | null;
+  must_grow: string[];
+  exclude: string[];
+  has_livestock: boolean;
+  rotation_years: number;
+}
+
+export interface RotationStep {
+  year_index: number;
+  season_index: number;
+  crop_id: string;
+  sowing_doy?: number | null;
+  practices: string[];
+}
+
+export interface Rotation {
+  id: string;
+  steps: RotationStep[];
+  label?: string | null;
+  is_baseline: boolean;
+}
+
+export interface SimulationResult {
+  rotation_id: string;
+  scenario_set_id: string;
+  yield_t_ha: Record<string, number[]>;
+  irrigation_mm: number[];
+  profit_per_ha: number[];
+  soc_delta_t_ha_10yr: number;
+  erosion_t_ha_yr: number;
+  n_balance_kg_ha_yr: number;
+  living_root_days_pct: number;
+  family_diversity_index: number;
+  soil_health_score: number;
+  profit_p10: number;
+  profit_p50: number;
+  profit_p90: number;
+  cvar_profit_10: number;
+}
+
+export interface StrategyRecommendation {
+  rank: number;
+  rotation: Rotation;
+  results: SimulationResult[];
+  objective_scores: Record<string, number>;
+  vs_baseline: Record<string, number>;
+  why: string[];
+  provenance: DataProvenance[];
+  currency?: string;
+  currency_symbol?: string;
+}
+
+export interface RecommendRequest {
+  field: FieldGeometry;
+  priorities?: Priorities;
+  constraints?: FarmConstraints;
+}
+
+export interface GeocodeResult {
+  lat: number;
+  lon: number;
+  name: string;
+}
+

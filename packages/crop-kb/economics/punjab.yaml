@@ -1,0 +1,173 @@
+# Punjab Agricultural Economics Data
+# Sources: CACP Reports on Price Policy 2023-24/2024-25, PAU Farm Management Studies
+currency: INR
+usd_exchange_rate: 83.0
+
+crops:
+  rice_puddled:
+    price_per_tonne: 22030
+    price_usd_per_tonne: 265.4
+    cost_per_ha: 38000
+    cost_usd_per_ha: 457.8
+    market_risk: 0.10  # Assured government MSP procurement
+    sources: ["CACP Kharif Price Policy 2023-24 (Paddy Common MSP Rs 2,183/q, Grade A Rs 2,203/q)", "PAU Cost of Cultivation Studies"]
+
+  rice_dsr:
+    price_per_tonne: 22030
+    price_usd_per_tonne: 265.4
+    cost_per_ha: 33000
+    cost_usd_per_ha: 397.6
+    market_risk: 0.10
+    sources: ["CACP Kharif Price Policy 2023-24", "PAU Package of Practices (DSR labor/diesel savings ~Rs 4,000-5,000/ha)"]
+
+  basmati:
+    price_per_tonne: 38000
+    price_usd_per_tonne: 457.8
+    cost_per_ha: 42000
+    cost_usd_per_ha: 506.0
+    market_risk: 0.25  # Open market export demand fluctuations
+    sources: ["Agmarknet Punjab Mandi arrivals 2023-24", "APEDA Basmati Export Price Bulletin"]
+
+  wheat:
+    price_per_tonne: 22750
+    price_usd_per_tonne: 274.1
+    cost_per_ha: 30000
+    cost_usd_per_ha: 361.4
+    market_risk: 0.08  # Assured FCI procurement
+    sources: ["CACP Rabi Price Policy 2024-25 (Wheat MSP Rs 2,275/q)", "DES Ministry of Agriculture Cost of Cultivation Punjab"]
+
+  maize:
+    price_per_tonne: 20900
+    price_usd_per_tonne: 251.8
+    cost_per_ha: 32000
+    cost_usd_per_ha: 385.5
+    market_risk: 0.20
+    sources: ["CACP Kharif Price Policy 2023-24 (Maize MSP Rs 2,090/q)", "PAU Farm Accounts"]
+
+  moong:
+    price_per_tonne: 85580
+    price_usd_per_tonne: 1031.1
+    cost_per_ha: 22000
+    cost_usd_per_ha: 265.1
+    market_risk: 0.15
+    sources: ["CACP Kharif Price Policy 2023-24 (Moong MSP Rs 8,558/q)", "Punjab Mandi Board Records"]
+
+  cotton:
+    price_per_tonne: 70200
+    price_usd_per_tonne: 845.8
+    cost_per_ha: 45000
+    cost_usd_per_ha: 542.2
+    market_risk: 0.22
+    sources: ["CACP Kharif Price Policy 2023-24 (Medium Staple Cotton Rs 6,620/q, Long Staple Rs 7,020/q)", "CCI Cotton Procurement"]
+
+  mustard:
+    price_per_tonne: 56500
+    price_usd_per_tonne: 680.7
+    cost_per_ha: 25000
+    cost_usd_per_ha: 301.2
+    market_risk: 0.12
+    sources: ["CACP Rabi Price Policy 2024-25 (Rapeseed/Mustard MSP Rs 5,650/q)", "PAU Oilseed Agronomy"]
+
+  potato:
+    price_per_tonne: 12000
+    price_usd_per_tonne: 144.6
+    cost_per_ha: 90000
+    cost_usd_per_ha: 1084.3
+    market_risk: 0.40  # High perishability and seasonal gluts
+    sources: ["Punjab Potato Growers Association", "Horticulture Department Punjab Annual Report"]
+
+  chickpea:
+    price_per_tonne: 54400
+    price_usd_per_tonne: 655.4
+    cost_per_ha: 24000
+    cost_usd_per_ha: 289.2
+    market_risk: 0.12
+    sources: ["CACP Rabi Price Policy 2024-25 (Gram MSP Rs 5,440/q)", "ICAR-IIPR Kanpur"]
+
+  sunflower:
+    price_per_tonne: 67600
+    price_usd_per_tonne: 814.5
+    cost_per_ha: 28000
+    cost_usd_per_ha: 337.3
+    market_risk: 0.18
+    sources: ["CACP Kharif/Spring Price Policy (Sunflower MSP Rs 6,760/q)", "PAU Spring Sunflower Studies"]
+
+  barley:
+    price_per_tonne: 18500
+    price_usd_per_tonne: 222.9
+    cost_per_ha: 25000
+    cost_usd_per_ha: 301.2
+    market_risk: 0.15
+    sources: ["CACP Rabi Price Policy (Barley MSP Rs 1,850/q)", "ICAR-IIWBR Karnal"]
+
+  sorghum:
+    price_per_tonne: 31800
+    price_usd_per_tonne: 383.1
+    cost_per_ha: 26000
+    cost_usd_per_ha: 313.3
+    market_risk: 0.20
+    sources: ["CACP Kharif Price Policy (Jowar Hybrid Rs 3,180/q)"]
+
+  pearl_millet:
+    price_per_tonne: 25000
+    price_usd_per_tonne: 301.2
+    cost_per_ha: 22000
+    cost_usd_per_ha: 265.1
+    market_risk: 0.15
+    sources: ["CACP Kharif Price Policy (Bajra MSP Rs 2,500/q)"]
+
+  soybean:
+    price_per_tonne: 46000
+    price_usd_per_tonne: 554.2
+    cost_per_ha: 30000
+    cost_usd_per_ha: 361.4
+    market_risk: 0.15
+    sources: ["CACP Kharif Price Policy (Soybean MSP Rs 4,600/q)"]
+
+  lentil:
+    price_per_tonne: 64250
+    price_usd_per_tonne: 774.1
+    cost_per_ha: 24000
+    cost_usd_per_ha: 289.2
+    market_risk: 0.12
+    sources: ["CACP Rabi Price Policy (Masur MSP Rs 6,425/q)"]
+
+  pigeon_pea:
+    price_per_tonne: 70000
+    price_usd_per_tonne: 843.4
+    cost_per_ha: 28000
+    cost_usd_per_ha: 337.3
+    market_risk: 0.15
+    sources: ["CACP Kharif Price Policy (Tur/Arhar MSP Rs 7,000/q)"]
+
+  common_bean:
+    price_per_tonne: 65000
+    price_usd_per_tonne: 783.1
+    cost_per_ha: 26000
+    cost_usd_per_ha: 313.3
+    market_risk: 0.25
+    sources: ["Wholesale Mandi Price Analysis (Rajma / Dry Bean)"]
+
+  berseem:
+    price_per_tonne: 3500  # Fresh green fodder valuation
+    price_usd_per_tonne: 42.2
+    cost_per_ha: 32000
+    cost_usd_per_ha: 385.5
+    market_risk: 0.10
+    sources: ["PAU Dairy Economics Bulletin (Green fodder value Rs 350/q, yield 60-80 t/ha)"]
+
+  dhaincha:
+    price_per_tonne: 0  # Green manure incorporated into soil
+    price_usd_per_tonne: 0.0
+    cost_per_ha: 8000   # Seed and light irrigation cost
+    cost_usd_per_ha: 96.4
+    market_risk: 0.0
+    sources: ["PAU Package of Practices (Green Manuring economics)"]
+
+  cereal_rye:
+    price_per_tonne: 0  # Cover crop terminated
+    price_usd_per_tonne: 0.0
+    cost_per_ha: 7500   # Drilling + termination seed/chemical cost
+    cost_usd_per_ha: 90.4
+    market_risk: 0.0
+    sources: ["Iowa State Extension Cover Crop Budgeting"]

@@ -1,0 +1,173 @@
+# Global Agricultural Commodity & Cost Benchmarks
+# Sources: World Bank Commodity Price Data (The Pink Sheet), FAOSTAT, USDA ERS Global
+currency: USD
+usd_exchange_rate: 1.0
+
+crops:
+  maize:
+    price_per_tonne: 210.0
+    price_usd_per_tonne: 210.0
+    cost_per_ha: 1100.0
+    cost_usd_per_ha: 1100.0
+    market_risk: 0.16
+    sources: ["World Bank Commodities (Maize, US No. 2 yellow)", "FAOSTAT Global Average"]
+
+  soybean:
+    price_per_tonne: 450.0
+    price_usd_per_tonne: 450.0
+    cost_per_ha: 920.0
+    cost_usd_per_ha: 920.0
+    market_risk: 0.15
+    sources: ["World Bank Commodities (Soybeans, US)", "USDA ERS"]
+
+  wheat:
+    price_per_tonne: 250.0
+    price_usd_per_tonne: 250.0
+    cost_per_ha: 880.0
+    cost_usd_per_ha: 880.0
+    market_risk: 0.15
+    sources: ["World Bank Commodities (Wheat, US HRW)", "FAOSTAT"]
+
+  cotton:
+    price_per_tonne: 1750.0
+    price_usd_per_tonne: 1750.0
+    cost_per_ha: 1600.0
+    cost_usd_per_ha: 1600.0
+    market_risk: 0.20
+    sources: ["Cotlook A Index", "ICAC World Cotton Statistics"]
+
+  chickpea:
+    price_per_tonne: 780.0
+    price_usd_per_tonne: 780.0
+    cost_per_ha: 850.0
+    cost_usd_per_ha: 850.0
+    market_risk: 0.17
+    sources: ["FAOSTAT Pulses Review", "Global Pulse Confederation"]
+
+  lentil:
+    price_per_tonne: 720.0
+    price_usd_per_tonne: 720.0
+    cost_per_ha: 750.0
+    cost_usd_per_ha: 750.0
+    market_risk: 0.16
+    sources: ["Global Pulse Confederation", "Statistics Canada"]
+
+  common_bean:
+    price_per_tonne: 800.0
+    price_usd_per_tonne: 800.0
+    cost_per_ha: 780.0
+    cost_usd_per_ha: 780.0
+    market_risk: 0.18
+    sources: ["CIAT Bean Market Analysis", "FAOSTAT"]
+
+  pigeon_pea:
+    price_per_tonne: 680.0
+    price_usd_per_tonne: 680.0
+    cost_per_ha: 600.0
+    cost_usd_per_ha: 600.0
+    market_risk: 0.19
+    sources: ["ICRISAT Pulse Economics", "East Africa Grain Council"]
+
+  sorghum:
+    price_per_tonne: 195.0
+    price_usd_per_tonne: 195.0
+    cost_per_ha: 650.0
+    cost_usd_per_ha: 650.0
+    market_risk: 0.17
+    sources: ["World Bank Commodities (Sorghum)", "USDA ERS"]
+
+  pearl_millet:
+    price_per_tonne: 220.0
+    price_usd_per_tonne: 220.0
+    cost_per_ha: 550.0
+    cost_usd_per_ha: 550.0
+    market_risk: 0.18
+    sources: ["ICRISAT Millet Economics", "FAOSTAT"]
+
+  barley:
+    price_per_tonne: 215.0
+    price_usd_per_tonne: 215.0
+    cost_per_ha: 780.0
+    cost_usd_per_ha: 780.0
+    market_risk: 0.15
+    sources: ["World Bank Commodities (Barley)", "Eurostat"]
+
+  sunflower:
+    price_per_tonne: 480.0
+    price_usd_per_tonne: 480.0
+    cost_per_ha: 720.0
+    cost_usd_per_ha: 720.0
+    market_risk: 0.16
+    sources: ["Oil World Sunflower Seed Index", "FAOSTAT"]
+
+  mustard:
+    price_per_tonne: 540.0
+    price_usd_per_tonne: 540.0
+    cost_per_ha: 620.0
+    cost_usd_per_ha: 620.0
+    market_risk: 0.17
+    sources: ["Canola/Rapeseed Council Benchmarks", "FAOSTAT"]
+
+  potato:
+    price_per_tonne: 280.0
+    price_usd_per_tonne: 280.0
+    cost_per_ha: 2800.0
+    cost_usd_per_ha: 2800.0
+    market_risk: 0.22
+    sources: ["World Potato Markets", "USDA Potato Summary"]
+
+  rice_puddled:
+    price_per_tonne: 380.0
+    price_usd_per_tonne: 380.0
+    cost_per_ha: 1400.0
+    cost_usd_per_ha: 1400.0
+    market_risk: 0.16
+    sources: ["FAO All Rice Price Index", "IRRI Rice Economics"]
+
+  rice_dsr:
+    price_per_tonne: 380.0
+    price_usd_per_tonne: 380.0
+    cost_per_ha: 1250.0
+    cost_usd_per_ha: 1250.0
+    market_risk: 0.16
+    sources: ["IRRI Direct Seeded Rice Economics"]
+
+  basmati:
+    price_per_tonne: 680.0
+    price_usd_per_tonne: 680.0
+    cost_per_ha: 1350.0
+    cost_usd_per_ha: 1350.0
+    market_risk: 0.18
+    sources: ["International Basmati Export Prices"]
+
+  moong:
+    price_per_tonne: 850.0
+    price_usd_per_tonne: 850.0
+    cost_per_ha: 650.0
+    cost_usd_per_ha: 650.0
+    market_risk: 0.18
+    sources: ["Global Pulse Confederation Green Gram Reviews"]
+
+  cereal_rye:
+    price_per_tonne: 210.0
+    price_usd_per_tonne: 210.0
+    cost_per_ha: 420.0
+    cost_usd_per_ha: 420.0
+    market_risk: 0.14
+    sources: ["Midwest Cover Crop Council", "USDA SARE Cover Crop Economics"]
+
+  berseem:
+    price_per_tonne: 65.0
+    price_usd_per_tonne: 65.0
+    cost_per_ha: 550.0
+    cost_usd_per_ha: 550.0
+    market_risk: 0.15
+    sources: ["FAO Grassland & Forage Branch"]
+
+  dhaincha:
+    price_per_tonne: 40.0
+    price_usd_per_tonne: 40.0
+    cost_per_ha: 220.0
+    cost_usd_per_ha: 220.0
+    market_risk: 0.12
+    sources: ["Green Manure / Agroecology Soil Amendment Budgets"]

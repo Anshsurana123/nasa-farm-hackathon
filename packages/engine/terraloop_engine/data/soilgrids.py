@@ -38,7 +38,10 @@ def _query(lat: float, lon: float) -> dict:
     params += [("property", p) for p in PROPERTIES]
     params += [("depth", d) for d in TOPSOIL_DEPTHS]
     params.append(("value", "mean"))
-    with httpx.Client(timeout=60) as client:
+    import os
+
+    timeout = float(os.environ.get("SOILGRIDS_TIMEOUT", "8.0"))
+    with httpx.Client(timeout=timeout) as client:
         resp = client.get(BASE_URL, params=params)
         resp.raise_for_status()
         return resp.json()

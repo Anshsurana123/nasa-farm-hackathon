@@ -17,11 +17,11 @@ heat_tolerance: 4
 waterlogging_tolerance: 1
 n_fixation_kg_ha: 60
 n_demand_kg_ha: 20
-residue_t_ha: 4
+residue_t_ha: 4.0
 residue_cn_ratio: 35
 typical_yield_t_ha: [0.8, 1.5]
 aquacrop_name: null
-good_predecessors: [wheat, sorghum, maize]
+good_predecessors: [wheat, barley, mustard]
 bad_predecessors: [pigeon_pea]
-notes: "Deep-rooted, drought-tolerant legume; short-duration varieties (~140 d) fit Punjab kharif. Key for the Kenya golden field (often intercropped with maize)."
-sources: ["FAO ECOCROP", "ICRISAT pigeonpea production guides"]
+notes: "Deep-rooted, drought-tolerant pulse. In Punjab, extra-short duration varieties (AL 882, PAU 881, ~140 d) sown mid-May mature in time for timely November wheat sowing, offering an effective escape from the rice mono-cropping trap. Powerful taproot (up to 2 m) breaks hard subsoil plough pans, improves percolation, and fixes atmospheric nitrogen. Essential crop for the Machakos Kenya golden field, commonly intercropped with maize."
+sources: ["FAO ECOCROP", "PAU Package of Practices Kharif", "ICRISAT Pigeonpea Production Manual", "KALRO Dryland Farming Guides"]

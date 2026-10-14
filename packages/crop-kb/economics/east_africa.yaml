@@ -1,0 +1,69 @@
+# East Africa Smallholder Economics Data
+# Sources: Tegemeo Institute of Agricultural Policy (Kenya), ICRISAT, East Africa Grain Council
+currency: USD
+usd_exchange_rate: 1.0
+
+crops:
+  maize:
+    price_per_tonne: 260.0
+    price_usd_per_tonne: 260.0
+    cost_per_ha: 420.0
+    cost_usd_per_ha: 420.0
+    market_risk: 0.18
+    sources: ["Tegemeo Agricultural Monitoring Project", "Kenya Ministry of Agriculture"]
+
+  pigeon_pea:
+    price_per_tonne: 650.0
+    price_usd_per_tonne: 650.0
+    cost_per_ha: 320.0
+    cost_usd_per_ha: 320.0
+    market_risk: 0.17
+    sources: ["ICRISAT Eastern and Southern Africa Pulse Economics"]
+
+  common_bean:
+    price_per_tonne: 780.0
+    price_usd_per_tonne: 780.0
+    cost_per_ha: 380.0
+    cost_usd_per_ha: 380.0
+    market_risk: 0.19
+    sources: ["CIAT Pan-Africa Bean Research Alliance (PABRA)"]
+
+  sorghum:
+    price_per_tonne: 240.0
+    price_usd_per_tonne: 240.0
+    cost_per_ha: 310.0
+    cost_usd_per_ha: 310.0
+    market_risk: 0.15
+    sources: ["KALRO Dryland Agricultural Research Budgets"]
+
+  pearl_millet:
+    price_per_tonne: 250.0
+    price_usd_per_tonne: 250.0
+    cost_per_ha: 290.0
+    cost_usd_per_ha: 290.0
+    market_risk: 0.16
+    sources: ["ICRISAT Semi-Arid Food Grains Project"]
+
+  chickpea:
+    price_per_tonne: 720.0
+    price_usd_per_tonne: 720.0
+    cost_per_ha: 340.0
+    cost_usd_per_ha: 340.0
+    market_risk: 0.17
+    sources: ["ICRISAT East Africa Chickpea Pilot Studies"]
+
+  moong:
+    price_per_tonne: 800.0
+    price_usd_per_tonne: 800.0
+    cost_per_ha: 330.0
+    cost_usd_per_ha: 330.0
+    market_risk: 0.18
+    sources: ["East Africa Green Gram Value Chain Reviews"]
+
+  wheat:
+    price_per_tonne: 290.0
+    price_usd_per_tonne: 290.0
+    cost_per_ha: 550.0
+    cost_usd_per_ha: 550.0
+    market_risk: 0.18
+    sources: ["Cereal Growers Association (Kenya)"]

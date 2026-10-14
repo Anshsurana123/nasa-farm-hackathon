@@ -17,11 +17,11 @@ heat_tolerance: 2
 waterlogging_tolerance: 3
 n_fixation_kg_ha: 100
 n_demand_kg_ha: 20
-residue_t_ha: 2
+residue_t_ha: 2.0
 residue_cn_ratio: 15
-typical_yield_t_ha: [60, 90]
+typical_yield_t_ha: [60.0, 90.0]   # multi-cut green succulent fodder (5-6 cuts)
 aquacrop_name: null
-good_predecessors: [maize, rice_puddled, rice_dsr]
+good_predecessors: [maize, rice_puddled, rice_dsr, sorghum, pearl_millet]
 bad_predecessors: [berseem]
-notes: "Multi-cut green fodder; relevant only if FarmConstraints.has_livestock. Yield = green fodder."
-sources: ["PAU Package of Practices Rabi (fodder)"]
+notes: "King of rabi fodders in Punjab dairy farming (varieties BL 42, BL 43, BL 10). Yields 5-6 succulent cuts from November through May; often mixed with Chinese sarson or oats in the first cutting for early bulk. Exceptionally high biological nitrogen fixation leaves substantial residual N, rejuvenating depleted rice-wheat soils; valid only when FarmConstraints.has_livestock is active."
+sources: ["PAU Package of Practices Rabi (fodder)", "FAO-56 Table 12 (clover)", "NDDB National Fodder Handbook"]

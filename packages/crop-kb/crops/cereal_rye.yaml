@@ -7,21 +7,21 @@ gdd_to_maturity: 900
 base_temp_c: 0
 optimal_temp_c: [8, 20]
 max_temp_c: 30
-min_temp_c: -25
-duration_days: [120, 200]
+min_temp_c: -30
+duration_days: [140, 210]
 water_requirement_mm: [150, 300]
 kc: [0.40, 1.00, 0.90]
-root_depth_m: 1.0
+root_depth_m: 1.2
 drought_tolerance: 4
 heat_tolerance: 2
 waterlogging_tolerance: 3
 n_fixation_kg_ha: 0
 n_demand_kg_ha: 0
-residue_t_ha: 4
-residue_cn_ratio: 40
+residue_t_ha: 4.5
+residue_cn_ratio: 45
 typical_yield_t_ha: [0, 0]
 aquacrop_name: null
-good_predecessors: [maize, soybean]
+good_predecessors: [maize, soybean, cotton, potato, sorghum]
 bad_predecessors: []
-notes: "Winter cover crop for the Iowa golden field: erosion control, N scavenging, SOC. Terminated before planting; no harvest."
-sources: ["USDA-NRCS Cover Crop guidance", "SARE Managing Cover Crops Profitably"]
+notes: "Gold-standard winter cover crop for conservation agriculture in cold temperate zones (Iowa Corn Belt golden field: maize-soybean rotation). Seeded post-harvest in late Sept-October; overwinters down to -30°C and breaks dormancy early spring. Its dense, fibrous root network slashes winter/spring RUSLE soil erosion by 40-70% and scavenges 30-70 kg/ha of residual tile-drain nitrate-N, preventing downstream water pollution. Produces 3-5 t/ha dry biomass to build SOC. Must be terminated via roller-crimper or herbicide 10-14 days prior to maize planting to prevent nitrogen immobilization (high C:N residue penalty) and soil moisture deficit, though soybean can be planted green directly into standing rye."
+sources: ["USDA-NRCS Conservation Practice Standard 340 (Cover Crop)", "Iowa State University Extension PMR 1002 (Cereal Rye for Field Crops)", "SARE Managing Cover Crops Profitably (3rd ed.)", "Midwest Cover Crops Council Field Guide"]

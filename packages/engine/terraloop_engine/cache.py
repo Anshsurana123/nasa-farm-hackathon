@@ -8,11 +8,14 @@ from __future__ import annotations
 
 import functools
 import hashlib
+import io
 import json
 import os
 from collections.abc import Callable
 from pathlib import Path
-from typing import TypeVar
+from typing import Any, TypeVar
+
+import pandas as pd
 
 T = TypeVar("T")
 
@@ -25,6 +28,41 @@ def cache_dir() -> Path:
     return p
 
 
+def _serialize(obj: Any) -> Any:
+    if isinstance(obj, pd.DataFrame):
+        return {
+            "__pd_type__": "DataFrame",
+            "data": json.loads(obj.to_json(orient="split", date_format="iso")),
+        }
+    if isinstance(obj, pd.Series):
+        return {
+            "__pd_type__": "Series",
+            "name": str(obj.name) if obj.name is not None else None,
+            "data": json.loads(obj.to_json(orient="split", date_format="iso")),
+        }
+    if isinstance(obj, tuple):
+        return {
+            "__pd_type__": "tuple",
+            "items": [_serialize(x) for x in obj],
+        }
+    return obj
+
+
+def _deserialize(obj: Any) -> Any:
+    if isinstance(obj, dict) and "__pd_type__" in obj:
+        t = obj["__pd_type__"]
+        if t == "DataFrame":
+            return pd.read_json(io.StringIO(json.dumps(obj["data"])), orient="split")
+        if t == "Series":
+            s = pd.read_json(io.StringIO(json.dumps(obj["data"])), typ="series", orient="split")
+            if obj.get("name"):
+                s.name = obj["name"]
+            return s
+        if t == "tuple":
+            return tuple(_deserialize(x) for x in obj["items"])
+    return obj
+
+
 def disk_cache(namespace: str) -> Callable[[Callable[..., T]], Callable[..., T]]:
     def decorator(fn: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(fn)
@@ -33,10 +71,12 @@ def disk_cache(namespace: str) -> Callable[[Callable[..., T]], Callable[..., T]]
             digest = hashlib.sha1(key.encode()).hexdigest()[:16]
             path = cache_dir() / namespace / f"{digest}.json"
             if path.exists():
-                return json.loads(path.read_text(encoding="utf-8"))
+                raw = json.loads(path.read_text(encoding="utf-8"))
+                return _deserialize(raw)
             result = fn(*args, **kwargs)
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(result), encoding="utf-8")
+            serializable = _serialize(result)
+            path.write_text(json.dumps(serializable), encoding="utf-8")
             return result
 
         return wrapper

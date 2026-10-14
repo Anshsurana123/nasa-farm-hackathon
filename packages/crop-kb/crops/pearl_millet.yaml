@@ -17,11 +17,11 @@ heat_tolerance: 5
 waterlogging_tolerance: 1
 n_fixation_kg_ha: 0
 n_demand_kg_ha: 60
-residue_t_ha: 4
+residue_t_ha: 4.0
 residue_cn_ratio: 70
 typical_yield_t_ha: [1.5, 2.5]
 aquacrop_name: null
-good_predecessors: [chickpea, mustard, wheat]
+good_predecessors: [chickpea, mustard, wheat, barley, moong]
 bad_predecessors: [pearl_millet]
-notes: "Most heat/drought-tolerant cereal in the KB; sandy soils of south-west Punjab."
-sources: ["FAO-56 Table 12 (millet)", "FAO ECOCROP"]
+notes: "Highest heat- and drought-tolerant cereal in the database; perfectly suited to light, sandy loam and low-fertility soils of south-west Punjab (PCB 165, FBC 16). C4 photosynthesis maintains biomass accumulation at ambient temperatures exceeding 40°C; short duration (75-85 days) allows drought escape. Dual-purpose grain and high-biomass nutritious dry stover."
+sources: ["FAO-56 Table 12 (millet)", "PAU Package of Practices Kharif", "ICRISAT Pearl Millet Production Bulletins", "FAO ECOCROP"]

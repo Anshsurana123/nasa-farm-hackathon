@@ -1,0 +1,14 @@
+crop_id: moong
+base_crop: Soybean
+wp: 16.0
+hi0: 0.32
+ccx: 0.80
+cgc: 0.12
+cdc: 0.10
+z_max: 0.70
+t_base: 10.0
+t_upper: 35.0
+ky: 0.85
+p_up: [0.45, 0.60, 0.75]
+notes: "Short-duration summer/kharif legume; based on FAO-66 Fabaceae parameterisation."
+sources: ["FAO Irrigation and Drainage Paper 66", "PAU Ludhiana pulse agronomy"]

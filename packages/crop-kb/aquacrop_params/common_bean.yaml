@@ -1,0 +1,14 @@
+crop_id: common_bean
+base_crop: Soybean
+wp: 16.0
+hi0: 0.35
+ccx: 0.80
+cgc: 0.11
+cdc: 0.09
+z_max: 0.80
+t_base: 10.0
+t_upper: 32.0
+ky: 1.05
+p_up: [0.45, 0.60, 0.75]
+notes: "Bush common bean; shallow root system, drought-sensitive during flowering."
+sources: ["CIAT Bean Water Requirements Guide", "FAO-56 Table 12"]

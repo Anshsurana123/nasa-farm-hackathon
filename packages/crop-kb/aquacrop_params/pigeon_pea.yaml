@@ -1,0 +1,14 @@
+crop_id: pigeon_pea
+base_crop: Soybean
+wp: 18.0
+hi0: 0.26
+ccx: 0.85
+cgc: 0.06
+cdc: 0.05
+z_max: 1.80
+t_base: 10.0
+t_upper: 38.0
+ky: 0.80
+p_up: [0.55, 0.70, 0.85]
+notes: "Deep-rooted semi-perennial kharif legume; deep subsoil water extraction."
+sources: ["ICRISAT Pigeonpea Physiology Manual", "FAO-66 Fabaceae"]

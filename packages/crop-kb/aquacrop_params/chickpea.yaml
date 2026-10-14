@@ -1,0 +1,14 @@
+crop_id: chickpea
+base_crop: Soybean
+wp: 16.5
+hi0: 0.35
+ccx: 0.75
+cgc: 0.08
+cdc: 0.07
+z_max: 1.00
+t_base: 5.0
+t_upper: 32.0
+ky: 0.80
+p_up: [0.50, 0.65, 0.80]
+notes: "Rabi cool-season grain legume; adapted to dryland and terminal drought conditions."
+sources: ["FAO Irrigation and Drainage Paper 66", "ICRISAT Chickpea Physiology"]

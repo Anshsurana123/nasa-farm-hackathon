@@ -1,0 +1,14 @@
+crop_id: dhaincha
+base_crop: Soybean
+wp: 17.0
+hi0: 0.0
+ccx: 0.90
+cgc: 0.16
+cdc: 0.00
+z_max: 1.00
+t_base: 12.0
+t_upper: 42.0
+ky: 0.70
+p_up: [0.50, 0.65, 0.80]
+notes: "Fast-growing summer green manure (Sesbania); incorporated green at 45-50 days."
+sources: ["PAU Package of Practices Kharif", "FAO Green Manuring"]

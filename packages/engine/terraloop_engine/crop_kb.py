@@ -39,3 +39,27 @@ def get_crop(crop_id: str) -> CropSpec:
     if crop_id not in crops:
         raise KeyError(f"Unknown crop '{crop_id}'. Known: {sorted(crops)}")
     return crops[crop_id]
+
+
+_DEFAULT_PARAMS_DIR = Path(__file__).resolve().parents[2] / "crop-kb" / "aquacrop_params"
+
+
+def aquacrop_params_dir() -> Path:
+    return Path(os.environ.get("TERRALOOP_AQUACROP_PARAMS", _DEFAULT_PARAMS_DIR))
+
+
+@functools.lru_cache(maxsize=1)
+def load_all_aquacrop_overrides() -> dict[str, dict]:
+    overrides: dict[str, dict] = {}
+    pdir = aquacrop_params_dir()
+    if pdir.exists():
+        for path in sorted(pdir.glob("*.yaml")):
+            raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+            if isinstance(raw, dict) and "crop_id" in raw:
+                overrides[raw["crop_id"]] = raw
+    return overrides
+
+
+def load_aquacrop_override(crop_id: str) -> dict | None:
+    return load_all_aquacrop_overrides().get(crop_id)
+

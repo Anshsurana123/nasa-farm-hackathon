@@ -1,0 +1,14 @@
+crop_id: berseem
+base_crop: Soybean
+wp: 15.0
+hi0: 0.0
+ccx: 0.92
+cgc: 0.10
+cdc: 0.04
+z_max: 0.90
+t_base: 5.0
+t_upper: 30.0
+ky: 0.90
+p_up: [0.45, 0.55, 0.70]
+notes: "Multi-cut rabi forage clover; harvested as vegetative biomass (hi0=0)."
+sources: ["PAU Package of Practices (Fodders)", "FAO Forage Legumes"]

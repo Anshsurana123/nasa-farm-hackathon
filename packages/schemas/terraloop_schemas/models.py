@@ -89,6 +89,10 @@ class HazardSummary(BaseModel):
     frost_risk: float | None = None
     erosion_risk_class: Literal["low", "moderate", "high", "very_high"] | None = None
     residue_burning_detected: bool | None = Field(None, description="FIRMS active fire on field")
+    terminal_heat_days_per_year: float | None = Field(
+        None,
+        description="Days with Tmax > 32 C during wheat grain-fill (1 Mar - 15 Apr in NH, 1 Sep - 15 Oct in SH)",
+    )
 
 
 class InferredSeason(BaseModel):
@@ -112,6 +116,8 @@ class FieldProfile(BaseModel):
     seasons_per_year: int | None = None
     crop_history: list[InferredSeason] = []
     agro_climatic_notes: list[str] = []
+    currency: str = "USD"
+    currency_symbol: str = "$"
 
 
 # ---------------------------------------------------------------------------
@@ -246,3 +252,5 @@ class StrategyRecommendation(BaseModel):
     )
     why: list[str] = []
     provenance: list[DataProvenance] = []
+    currency: str = "USD"
+    currency_symbol: str = "$"

@@ -17,11 +17,11 @@ heat_tolerance: 3
 waterlogging_tolerance: 2
 n_fixation_kg_ha: 80
 n_demand_kg_ha: 30
-residue_t_ha: 3
+residue_t_ha: 3.0
 residue_cn_ratio: 30
 typical_yield_t_ha: [2.0, 3.5]
 aquacrop_name: Soybean
-good_predecessors: [maize, wheat]
+good_predecessors: [maize, wheat, barley]
 bad_predecessors: [soybean]
-notes: "Kharif legume alternative to rice; core crop of the Iowa corn-soy golden field."
-sources: ["FAO-56 Table 12", "Iowa State Univ. Extension"]
+notes: "Kharif legume alternative to puddled rice in Punjab (varieties SL 958, SL 525) and core crop of the Iowa corn-soy golden field. Requires well-drained loamy soils (sensitive to monsoon waterlogging); needs Bradyrhizobium inoculation in non-traditional fields. Supplies a 40-50 kg N/ha credit to succeeding wheat or maize."
+sources: ["FAO-56 Table 12 (soybean)", "PAU Package of Practices Kharif", "Iowa State Univ. Extension PM 1853"]

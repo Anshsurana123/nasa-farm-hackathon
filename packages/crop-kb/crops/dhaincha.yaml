@@ -1,5 +1,5 @@
 id: dhaincha
-name: Dhaincha (Sesbania green manure)
+name: Dhaincha (Sesbania aculeata, green manure)
 family: fabaceae
 group: cover
 season_type: [warm]
@@ -17,11 +17,11 @@ heat_tolerance: 4
 waterlogging_tolerance: 5
 n_fixation_kg_ha: 80
 n_demand_kg_ha: 0
-residue_t_ha: 5
+residue_t_ha: 5.0
 residue_cn_ratio: 18
-typical_yield_t_ha: [0, 0]
+typical_yield_t_ha: [0.0, 0.0]   # in-situ green manure incorporated before next crop
 aquacrop_name: null
-good_predecessors: [wheat]
+good_predecessors: [wheat, barley, potato]
 bad_predecessors: []
-notes: "Zaid green manure incorporated before rice transplanting; no grain yield, value = N + SOC."
-sources: ["PAU Package of Practices Kharif (green manuring)"]
+notes: "Pre-kharif zaid green manure sown late April to early May and incorporated at 45-50 days before succulent stems lignify. Adds 20-25 t/ha fresh green biomass (~4-5 t/ha dry residue), supplying ~80-100 kg N/ha to succeeding puddled or DSR rice. Excellent for improving soil aggregation, water retention, and buffering sodicity/alkalinity in Punjab soils."
+sources: ["PAU Package of Practices Kharif (green manuring)", "ICAR Handbook of Agriculture", "FAO Soils Bulletin 65 (green manuring)"]

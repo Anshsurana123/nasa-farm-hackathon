@@ -20,7 +20,7 @@ from __future__ import annotations
 import itertools
 from dataclasses import dataclass
 
-from terraloop_schemas import CropSpec, FarmConstraints, Rotation, RotationStep
+from terraloop_schemas import CropSpec, FarmConstraints, FieldProfile, Rotation, RotationStep
 
 FALLOW = "fallow"
 
@@ -118,3 +118,116 @@ def baseline_rice_wheat(years: int = 1) -> Rotation:
             RotationStep(year_index=y, season_index=2, crop_id=FALLOW),
         ]
     return Rotation(id="baseline", steps=steps, label="Rice > Wheat > Fallow", is_baseline=True)
+
+
+def derive_seasons(profile: FieldProfile) -> tuple[SeasonSlot, ...]:
+    """Dynamically determine season slots for any field location globally.
+
+    Analyzes latitude, hemisphere, frost frequency, and temperature seasonality:
+      - Cold temperate (e.g. Iowa, Canada, Northern Europe): Main summer warm slot + overwinter cover
+      - Southern Hemisphere (e.g. Australia, Brazil): Summer (Nov-Jan) + Winter (May-Jun)
+      - Equatorial Bimodal (e.g. Kenya, East Africa): Long rains (Mar-Apr) + Short rains (Oct-Nov)
+      - Mediterranean / California (e.g. Central Valley): Summer warm slot (Apr-May) + Winter cool slot (Oct-Nov) + optional bridge
+      - South Asia / Indo-Gangetic (e.g. Punjab): Kharif (Jun-Jul) + Rabi (Oct-Nov) + Zaid (Apr)
+    """
+    lat = profile.field.lat
+    c = profile.climate
+
+    # 1. Southern Hemisphere (lat < -10)
+    if lat < -10.0:
+        return (
+            SeasonSlot("summer", (11, 12, 1), 150, "warm"),
+            SeasonSlot("winter", (5, 6), 160, "cool"),
+            SeasonSlot("bridge", (3, 4), 75, "warm", optional=True),
+        )
+
+    # 2. Equatorial Bimodal (-10 <= lat <= 12 and East Africa or low annual temperature range)
+    temp_swing = max(c.monthly_tmax_c) - min(c.monthly_tmax_c)
+    if -10.0 <= lat <= 12.0 and (20.0 <= profile.field.lon <= 52.0 or temp_swing < 10.0):
+        return (
+            SeasonSlot("long_rains", (3, 4), 140, "warm"),
+            SeasonSlot("short_rains", (10, 11), 120, "warm"),
+        )
+
+    # 3. California / Mediterranean (lat 32-45 in Western US / Mediterranean Europe)
+    if (32.0 <= lat <= 44.0) and (profile.field.lon < -110.0 or -10.0 <= profile.field.lon <= 35.0):
+        return (
+            SeasonSlot("summer", (4, 5), 170, "warm"),
+            SeasonSlot("winter", (10, 11), 180, "cool"),
+            SeasonSlot("bridge", (3,), 70, "warm", optional=True),
+        )
+
+    # 4. Cold Continental / Temperate Single Main Season (frost_days >= 50 or severe winter)
+    if c.frost_days_per_year >= 50 or min(c.monthly_tmin_c) < -3.0:
+        return (
+            SeasonSlot("summer_main", (5, 6), 160, "warm"),
+            SeasonSlot("overwinter_cover", (9, 10), 200, "cool", optional=True),
+        )
+
+    # 5. Default Subtropical / Indo-Gangetic / South Asia
+    return PUNJAB_SEASONS
+
+
+def derive_baseline_rotation(
+    profile: FieldProfile,
+    crops: dict[str, CropSpec] | None = None,
+    years: int = 1,
+) -> Rotation:
+    """Dynamically determine the baseline rotation for any location worldwide.
+
+    Precedence:
+      1. Observed satellite crop history (if >= 2 seasons detected from HLS/MODIS).
+      2. Regional ag-economic baselines (California, Iowa, Kenya, Punjab).
+      3. Global fallback from suitable staple crops.
+    """
+    lat = profile.field.lat
+    lon = profile.field.lon
+
+    # Check observed satellite crop history first
+    if profile.crop_history and len(profile.crop_history) >= 2:
+        recent_crops = [h.crop_id for h in profile.crop_history[-3:] if h.crop_id != FALLOW]
+        if len(recent_crops) >= 2 and crops:
+            steps = []
+            for y in range(years):
+                for s_idx, cid in enumerate(recent_crops):
+                    steps.append(RotationStep(year_index=y, season_index=s_idx, crop_id=cid, practices=[]))
+            label = " > ".join(c.replace("_", " ").title() for c in recent_crops)
+            return Rotation(id="observed_baseline", steps=steps, label=f"Observed: {label}", is_baseline=True)
+
+    # California / US Pacific: Grain Corn > Winter Wheat
+    if (32.0 <= lat <= 42.5) and (-125.0 <= lon <= -114.0):
+        steps = []
+        for y in range(years):
+            steps.append(RotationStep(year_index=y, season_index=0, crop_id="maize", practices=["conventional_tillage"]))
+            steps.append(RotationStep(year_index=y, season_index=1, crop_id="wheat", practices=["conventional_tillage"]))
+            steps.append(RotationStep(year_index=y, season_index=2, crop_id=FALLOW))
+        return Rotation(id="california_baseline", steps=steps, label="Grain Corn > Winter Wheat > Fallow", is_baseline=True)
+
+    # US Corn Belt / Midwest: Corn > Soy
+    if (36.0 <= lat <= 49.0) and (-105.0 <= lon <= -80.0):
+        steps = []
+        for y in range(years):
+            steps.append(RotationStep(year_index=y, season_index=0, crop_id="maize", practices=["conventional_tillage"]))
+            steps.append(RotationStep(year_index=y, season_index=1, crop_id="soybean", practices=["conventional_tillage"]))
+        return Rotation(id="cornbelt_baseline", steps=steps, label="Corn > Soybean", is_baseline=True)
+
+    # East Africa (Kenya, etc.): Maize > Pigeonpea
+    if (-15.0 <= lat <= 12.0) and (25.0 <= lon <= 52.0):
+        steps = []
+        for y in range(years):
+            steps.append(RotationStep(year_index=y, season_index=0, crop_id="maize", practices=["conventional_tillage"]))
+            steps.append(RotationStep(year_index=y, season_index=1, crop_id="pigeon_pea", practices=["conventional_tillage"]))
+        return Rotation(id="east_africa_baseline", steps=steps, label="Maize > Pigeonpea", is_baseline=True)
+
+    # South Asia / Punjab: Puddled Rice > Wheat > Fallow
+    if (20.0 <= lat <= 35.0) and (68.0 <= lon <= 90.0):
+        return baseline_rice_wheat(years=years)
+
+    # Global default based on staples: Maize > Wheat
+    steps = []
+    for y in range(years):
+        c1 = "maize" if crops and "maize" in crops else "wheat"
+        c2 = "wheat" if crops and "wheat" in crops else FALLOW
+        steps.append(RotationStep(year_index=y, season_index=0, crop_id=c1))
+        steps.append(RotationStep(year_index=y, season_index=1, crop_id=c2))
+    return Rotation(id="global_baseline", steps=steps, label="Maize > Wheat", is_baseline=True)

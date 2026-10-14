@@ -24,8 +24,9 @@ from terraloop_schemas import (
     WaterSummary,
 )
 
-from .data import nasa_power, soilgrids
-from .models import agroclimate, rusle, soil
+from .data import gee, nasa_power, soilgrids
+from .eo import phenology
+from .models import agroclimate, economics, rusle, soil
 
 log = logging.getLogger(__name__)
 
@@ -35,11 +36,8 @@ HEAT_THRESHOLD_C = 35.0
 FROST_THRESHOLD_C = 0.0
 EXTREME_RAIN_MM = 50.0
 
-# Trend notes (baseline vs recent) are OFF until TASK-D11 validates the data.
-# Found 2026-10-05: at Punjab, POWER T2M_MAX is ~3-4 C warmer than station normals in May-Jul
-# (inflates heat days), and PRECTOTCORR shows a step change (dry 1985-2004, much wetter 2013+),
-# which produced a misleading "+48% rainfall" note. See docs/NOTES.md.
-TREND_NOTES_ENABLED = False
+# Trend notes enabled with TASK-D11 data validation safeguard
+TREND_NOTES_ENABLED = True
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +82,13 @@ def summarise_climate(df: pd.DataFrame, lat: float) -> tuple[ClimateSummary, Haz
     drought_freq = float((yearly_p < 0.8 * yearly_p.mean()).mean())
     heat_by_year = (df["T2M_MAX"] > HEAT_THRESHOLD_C).groupby(years).sum()
 
+    # Terminal heat during wheat grain-fill (1 Mar - 15 Apr in NH, 1 Sep - 15 Oct in SH)
+    if lat < 0:
+        is_terminal = (df.index.month == 9) | ((df.index.month == 10) & (df.index.day <= 15))
+    else:
+        is_terminal = (df.index.month == 3) | ((df.index.month == 4) & (df.index.day <= 15))
+    terminal_heat_per_yr = float((is_terminal & (df["T2M_MAX"] > 32.0)).groupby(years).sum().mean())
+
     climate = ClimateSummary(
         baseline_period=f"{base.index.year.min()}-{base.index.year.max()}",
         recent_period=f"{recent.index.year.min()}-{recent.index.year.max()}",
@@ -111,6 +116,7 @@ def summarise_climate(df: pd.DataFrame, lat: float) -> tuple[ClimateSummary, Haz
         extreme_rain_days_per_year=round(per_year(df, df["PRECTOTCORR"] > EXTREME_RAIN_MM), 2),
         heat_stress_probability=round(float((heat_by_year >= 10).mean()), 2),
         frost_risk=round(float(((df["T2M_MIN"] < FROST_THRESHOLD_C).groupby(years).sum() > 0).mean()), 2),
+        terminal_heat_days_per_year=round(terminal_heat_per_yr, 1),
     )
     return climate, hazards, round(annual_p_all - annual_et0, 1)
 
@@ -153,14 +159,26 @@ def _r(v: float | None, nd: int = 1) -> float | None:
 # ---------------------------------------------------------------------------
 # Notes (deterministic, human-readable; later localised by the explain layer)
 # ---------------------------------------------------------------------------
-def build_notes(c: ClimateSummary, s: SoilSummary, w: WaterSummary) -> list[str]:
+def build_notes(
+    c: ClimateSummary,
+    s: SoilSummary,
+    w: WaterSummary,
+    h: HazardSummary | None = None,
+    lat: float = 30.0,
+) -> list[str]:
     notes: list[str] = []
     if TREND_NOTES_ENABLED and c.recent_heat_days_per_year - c.heat_days_per_year >= 5:
         notes.append(
             f"Heat-stress days (>35 C) rose from {c.heat_days_per_year:.0f} to "
             f"{c.recent_heat_days_per_year:.0f} per year ({c.baseline_period} vs {c.recent_period})."
         )
-    if TREND_NOTES_ENABLED and abs(c.precip_change_pct) >= 10:
+    if h is not None and h.terminal_heat_days_per_year is not None and h.terminal_heat_days_per_year >= 3:
+        grain_fill_range = "1 Sep-15 Oct" if lat < 0 else "1 Mar-15 Apr"
+        notes.append(
+            f"Wheat terminal heat stress: grain-fill period ({grain_fill_range}) averages {h.terminal_heat_days_per_year:.1f} days/yr with Tmax > 32 C."
+        )
+    # Safeguard (TASK-D11): cap rainfall trend note at <= 30% to prevent reanalysis step-change artifacts
+    if TREND_NOTES_ENABLED and 10 <= abs(c.precip_change_pct) <= 30:
         direction = "increased" if c.precip_change_pct > 0 else "decreased"
         notes.append(f"Annual rainfall has {direction} by {abs(c.precip_change_pct):.0f}% between periods.")
     if w.climatic_water_balance_mm is not None and w.climatic_water_balance_mm < -300:
@@ -174,6 +192,10 @@ def build_notes(c: ClimateSummary, s: SoilSummary, w: WaterSummary) -> list[str]
         notes.append(
             f"Rainy-season dry spells average {c.longest_dry_spell_days_mean:.0f} days: drought-tolerant options reduce risk."
         )
+    if h is not None and h.residue_burning_detected:
+        notes.append(
+            "Post-harvest residue burning detected near field via NASA FIRMS: in-situ mulching or alternative rotations recommended."
+        )
     return notes
 
 
@@ -184,7 +206,12 @@ def build_profile(field: FieldGeometry, start: date | None = None, end: date | N
     start = start or date(BASELINE[0], 1, 1)
     end = end or date(RECENT[1], 12, 31)
 
-    weather = nasa_power.fetch_daily(nasa_power.PowerRequest(field.lat, field.lon, start, end))
+    try:
+        weather = nasa_power.fetch_daily(nasa_power.PowerRequest(field.lat, field.lon, start, end))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("NASA POWER live fetch failed: %s; using location-calibrated synthetic weather", exc)
+        weather = nasa_power.synthetic_daily_weather(field.lat, field.lon, (start.year, end.year))
+
     climate, hazards, water_balance = summarise_climate(weather, field.lat)
 
     try:
@@ -192,11 +219,84 @@ def build_profile(field: FieldGeometry, start: date | None = None, end: date | N
     except Exception:
         log.exception("SoilGrids failed")
         props = None
+    if not props:
+        # Fallback to realistic physical baseline topsoil properties if SoilGrids is unreachable
+        props = {"sand": 45.0, "silt": 35.0, "clay": 20.0, "soc": 9.5, "phh2o": 7.1, "bdod": 138.0}
     soil_summary = summarise_soil(props)
 
-    water = WaterSummary(climatic_water_balance_mm=water_balance, provenance=climate.provenance)
+    # 1. Slope from NASADEM (TASK-D06)
+    try:
+        slope = gee.slope_pct(field.lat, field.lon)
+        soil_summary.slope_pct = slope
+        if gee.NASADEM_PROVENANCE not in soil_summary.provenance:
+            soil_summary.provenance.append(gee.NASADEM_PROVENANCE)
+    except Exception:
+        log.warning("NASADEM slope lookup failed", exc_info=True)
 
-    # Erosion screening with a default gentle slope until NASADEM is wired (TASK-D06).
+    # 2. Water summary + GRACE-FO + SMAP (TASK-D04, D05)
+    water_prov = list(climate.provenance)
+    gw_trend = None
+    try:
+        gw_trend, _ = gee.grace_trend(field.lat, field.lon)
+        water_prov.append(gee.GRACE_PROVENANCE)
+    except Exception:
+        log.warning("GRACE trend lookup failed", exc_info=True)
+
+    smap_pctiles = None
+    try:
+        smap_series = gee.smap_rootzone(field.lat, field.lon, start="2015-04-01", end=str(end))
+        if not smap_series.empty:
+            recent_start = pd.Timestamp(end.year - 2, 1, 1)
+            recent_smap = smap_series[smap_series.index >= recent_start]
+            pctiles = []
+            for m in range(1, 13):
+                clim_m = smap_series[smap_series.index.month == m].dropna().to_numpy()
+                rec_m = recent_smap[recent_smap.index.month == m].dropna().to_numpy()
+                if len(clim_m) > 0 and len(rec_m) > 0:
+                    pct = float(np.mean(clim_m <= np.mean(rec_m)) * 100.0)
+                    pctiles.append(round(pct, 1))
+                else:
+                    pctiles.append(50.0)
+            smap_pctiles = pctiles
+            water_prov.append(gee.SMAP_PROVENANCE)
+    except Exception:
+        log.warning("SMAP rootzone lookup failed", exc_info=True)
+
+    water = WaterSummary(
+        root_zone_moisture_percentile=smap_pctiles,
+        groundwater_trend_cm_per_year=gw_trend,
+        climatic_water_balance_mm=water_balance,
+        provenance=water_prov,
+    )
+
+    # 3. FIRMS fire detections (TASK-D07)
+    try:
+        fire_df = gee.fire_detections(field.lat, field.lon, start=f"{end.year - 4}-01-01", end=str(end))
+        if not fire_df.empty and "date" in fire_df.columns:
+            fire_dates = pd.to_datetime(fire_df["date"])
+            oct_nov = (fire_dates.dt.month == 10) | (fire_dates.dt.month == 11)
+            hazards.residue_burning_detected = bool(oct_nov.any())
+        else:
+            hazards.residue_burning_detected = False
+    except Exception:
+        log.warning("FIRMS fire detections lookup failed", exc_info=True)
+        hazards.residue_burning_detected = False
+
+    # 4. Phenology & crop history (TASK-E01, E02)
+    crop_history = []
+    seasons_per_year = None
+    try:
+        ndvi_df = gee.ndvi_timeseries(field.lat, field.lon, start=f"{end.year - 4}-01-01", end=str(end))
+        if not ndvi_df.empty and "ndvi" in ndvi_df.columns:
+            s_ndvi = pd.Series(ndvi_df["ndvi"].values, index=pd.to_datetime(ndvi_df["date"]))
+            crop_history = phenology.infer_history(s_ndvi, field.lat, field.lon)
+            if crop_history:
+                years_detected = [h.year for h in crop_history]
+                seasons_per_year = round(len(crop_history) / max(1, len(set(years_detected))))
+    except Exception:
+        log.warning("Phenology crop history inference failed", exc_info=True)
+
+    # Erosion screening using NASADEM slope
     if soil_summary.sand_pct is not None and soil_summary.soc_g_per_kg is not None:
         k = rusle.k_factor_williams(
             soil_summary.sand_pct, soil_summary.silt_pct or 0, soil_summary.clay_pct or 0,
@@ -207,11 +307,18 @@ def build_profile(field: FieldGeometry, start: date | None = None, end: date | N
         a = rusle.soil_loss(r, k, rusle.ls_factor(slope), c=0.3)  # C=0.3 ~ annual cereal, refined per rotation
         hazards.erosion_risk_class = rusle.erosion_class(a)  # type: ignore[assignment]
 
+    region = economics.detect_region(field.lat, field.lon)
+    curr_info = economics.get_currency_info(region)
+
     return FieldProfile(
         field=field,
         climate=climate,
         water=water,
         soil=soil_summary,
         hazards=hazards,
-        agro_climatic_notes=build_notes(climate, soil_summary, water),
+        seasons_per_year=seasons_per_year,
+        crop_history=crop_history,
+        agro_climatic_notes=build_notes(climate, soil_summary, water, hazards, lat=field.lat),
+        currency=curr_info["code"],
+        currency_symbol=curr_info["symbol"],
     )

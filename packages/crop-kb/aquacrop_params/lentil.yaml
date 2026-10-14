@@ -1,0 +1,14 @@
+crop_id: lentil
+base_crop: Soybean
+wp: 15.5
+hi0: 0.33
+ccx: 0.70
+cgc: 0.07
+cdc: 0.06
+z_max: 0.80
+t_base: 5.0
+t_upper: 30.0
+ky: 0.75
+p_up: [0.50, 0.65, 0.80]
+notes: "Short cool-season legume; minimal water requirement and early maturity."
+sources: ["FAO-56 Table 12", "ICARDA Lentil Water Productivity Studies"]

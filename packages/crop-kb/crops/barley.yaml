@@ -17,11 +17,11 @@ heat_tolerance: 3
 waterlogging_tolerance: 2
 n_fixation_kg_ha: 0
 n_demand_kg_ha: 80
-residue_t_ha: 4
+residue_t_ha: 4.0
 residue_cn_ratio: 80
 typical_yield_t_ha: [3.5, 4.5]
 aquacrop_name: Barley
-good_predecessors: [moong, soybean, mustard, chickpea]
+good_predecessors: [moong, soybean, mustard, chickpea, cotton, pearl_millet]
 bad_predecessors: [wheat, barley]
-notes: "Lower-water, more salt-tolerant rabi cereal; option for saline south-west Punjab."
-sources: ["FAO-56 Table 12", "PAU Package of Practices Rabi"]
+notes: "Lower-water, salt- and alkali-tolerant rabi cereal for south-west Punjab (Bathinda, Fazilka, Muktsar). Recommended PAU varieties include DWRB 123 (malt) and PL 891. Matures 10-15 days earlier than wheat, reliably escaping late March terminal heat spikes; needs only 2-3 irrigations compared to 4-5 for wheat."
+sources: ["FAO-56 Table 12 (barley)", "PAU Package of Practices Rabi", "ICAR-IIWBR Barley Production Bulletins"]

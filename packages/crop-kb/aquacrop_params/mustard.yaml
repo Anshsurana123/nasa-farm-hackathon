@@ -1,0 +1,14 @@
+crop_id: mustard
+base_crop: Sunflower
+wp: 17.0
+hi0: 0.28
+ccx: 0.85
+cgc: 0.10
+cdc: 0.08
+z_max: 1.20
+t_base: 5.0
+t_upper: 32.0
+ky: 0.90
+p_up: [0.55, 0.65, 0.80]
+notes: "Rabi Brassica oilseed; moderate drought resilience and deep taproot."
+sources: ["FAO-56 Table 12", "ICAR-DRMR Bharatpur Mustard Water Requirements"]
