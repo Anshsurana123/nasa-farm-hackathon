@@ -1,0 +1,1207 @@
+[
+  {
+    "id": "barley",
+    "name": "Barley",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 1700.0,
+    "base_temp_c": 0.0,
+    "optimal_temp_c": [
+      12.0,
+      22.0
+    ],
+    "max_temp_c": 35.0,
+    "min_temp_c": -5.0,
+    "duration_days": [
+      120,
+      150
+    ],
+    "water_requirement_mm": [
+      300.0,
+      450.0
+    ],
+    "kc": [
+      0.3,
+      1.15,
+      0.25
+    ],
+    "root_depth_m": 1.2,
+    "drought_tolerance": 4,
+    "heat_tolerance": 3,
+    "waterlogging_tolerance": 2,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 80.0,
+    "residue_t_ha": 4.0,
+    "residue_cn_ratio": 80.0,
+    "typical_yield_t_ha": [
+      3.5,
+      4.5
+    ],
+    "aquacrop_name": "Barley",
+    "good_predecessors": [
+      "moong",
+      "soybean",
+      "mustard",
+      "chickpea",
+      "cotton",
+      "pearl_millet"
+    ],
+    "bad_predecessors": [
+      "wheat",
+      "barley"
+    ],
+    "notes": "Lower-water, salt- and alkali-tolerant rabi cereal for south-west Punjab (Bathinda, Fazilka, Muktsar). Recommended PAU varieties include DWRB 123 (malt) and PL 891. Matures 10-15 days earlier than wheat, reliably escaping late March terminal heat spikes; needs only 2-3 irrigations compared to 4-5 for wheat.",
+    "sources": [
+      "FAO-56 Table 12 (barley)",
+      "PAU Package of Practices Rabi",
+      "ICAR-IIWBR Barley Production Bulletins"
+    ]
+  },
+  {
+    "id": "basmati",
+    "name": "Basmati rice",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 2100.0,
+    "base_temp_c": 10.0,
+    "optimal_temp_c": [
+      25.0,
+      32.0
+    ],
+    "max_temp_c": 40.0,
+    "min_temp_c": 15.0,
+    "duration_days": [
+      130,
+      155
+    ],
+    "water_requirement_mm": [
+      1100.0,
+      1500.0
+    ],
+    "kc": [
+      1.05,
+      1.2,
+      0.75
+    ],
+    "root_depth_m": 0.5,
+    "drought_tolerance": 1,
+    "heat_tolerance": 3,
+    "waterlogging_tolerance": 5,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 80.0,
+    "residue_t_ha": 6.0,
+    "residue_cn_ratio": 60.0,
+    "typical_yield_t_ha": [
+      3.5,
+      5.0
+    ],
+    "aquacrop_name": "PaddyRice",
+    "good_predecessors": [
+      "dhaincha",
+      "moong"
+    ],
+    "bad_predecessors": [],
+    "notes": "Later transplanting (July) uses more monsoon rain; export market price, no MSP.",
+    "sources": [
+      "PAU Package of Practices Kharif",
+      "FAO-56 Table 12"
+    ]
+  },
+  {
+    "id": "berseem",
+    "name": "Berseem (Egyptian clover, fodder)",
+    "family": "fabaceae",
+    "group": "fodder",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 1800.0,
+    "base_temp_c": 5.0,
+    "optimal_temp_c": [
+      12.0,
+      25.0
+    ],
+    "max_temp_c": 35.0,
+    "min_temp_c": -2.0,
+    "duration_days": [
+      150,
+      180
+    ],
+    "water_requirement_mm": [
+      500.0,
+      700.0
+    ],
+    "kc": [
+      0.4,
+      1.0,
+      0.95
+    ],
+    "root_depth_m": 0.8,
+    "drought_tolerance": 2,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 3,
+    "n_fixation_kg_ha": 100.0,
+    "n_demand_kg_ha": 20.0,
+    "residue_t_ha": 2.0,
+    "residue_cn_ratio": 15.0,
+    "typical_yield_t_ha": [
+      60.0,
+      90.0
+    ],
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "maize",
+      "rice_puddled",
+      "rice_dsr",
+      "sorghum",
+      "pearl_millet"
+    ],
+    "bad_predecessors": [
+      "berseem"
+    ],
+    "notes": "King of rabi fodders in Punjab dairy farming (varieties BL 42, BL 43, BL 10). Yields 5-6 succulent cuts from November through May; often mixed with Chinese sarson or oats in the first cutting for early bulk. Exceptionally high biological nitrogen fixation leaves substantial residual N, rejuvenating depleted rice-wheat soils; valid only when FarmConstraints.has_livestock is active.",
+    "sources": [
+      "PAU Package of Practices Rabi (fodder)",
+      "FAO-56 Table 12 (clover)",
+      "NDDB National Fodder Handbook"
+    ]
+  },
+  {
+    "id": "cereal_rye",
+    "name": "Cereal rye (cover crop)",
+    "family": "poaceae",
+    "group": "cover",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 900.0,
+    "base_temp_c": 0.0,
+    "optimal_temp_c": [
+      8.0,
+      20.0
+    ],
+    "max_temp_c": 30.0,
+    "min_temp_c": -30.0,
+    "duration_days": [
+      140,
+      210
+    ],
+    "water_requirement_mm": [
+      150.0,
+      300.0
+    ],
+    "kc": [
+      0.4,
+      1.0,
+      0.9
+    ],
+    "root_depth_m": 1.2,
+    "drought_tolerance": 4,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 3,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 0.0,
+    "residue_t_ha": 4.5,
+    "residue_cn_ratio": 45.0,
+    "typical_yield_t_ha": [
+      0.0,
+      0.0
+    ],
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "maize",
+      "soybean",
+      "cotton",
+      "potato",
+      "sorghum"
+    ],
+    "bad_predecessors": [],
+    "notes": "Gold-standard winter cover crop for conservation agriculture in cold temperate zones (Iowa Corn Belt golden field: maize-soybean rotation). Seeded post-harvest in late Sept-October; overwinters down to -30\u00b0C and breaks dormancy early spring. Its dense, fibrous root network slashes winter/spring RUSLE soil erosion by 40-70% and scavenges 30-70 kg/ha of residual tile-drain nitrate-N, preventing downstream water pollution. Produces 3-5 t/ha dry biomass to build SOC. Must be terminated via roller-crimper or herbicide 10-14 days prior to maize planting to prevent nitrogen immobilization (high C:N residue penalty) and soil moisture deficit, though soybean can be planted green directly into standing rye.",
+    "sources": [
+      "USDA-NRCS Conservation Practice Standard 340 (Cover Crop)",
+      "Iowa State University Extension PMR 1002 (Cereal Rye for Field Crops)",
+      "SARE Managing Cover Crops Profitably (3rd ed.)",
+      "Midwest Cover Crops Council Field Guide"
+    ]
+  },
+  {
+    "id": "chickpea",
+    "name": "Chickpea (gram)",
+    "family": "fabaceae",
+    "group": "legume",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 1600.0,
+    "base_temp_c": 5.0,
+    "optimal_temp_c": [
+      12.0,
+      25.0
+    ],
+    "max_temp_c": 35.0,
+    "min_temp_c": -3.0,
+    "duration_days": [
+      130,
+      160
+    ],
+    "water_requirement_mm": [
+      250.0,
+      350.0
+    ],
+    "kc": [
+      0.4,
+      1.0,
+      0.35
+    ],
+    "root_depth_m": 1.0,
+    "drought_tolerance": 4,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 60.0,
+    "n_demand_kg_ha": 20.0,
+    "residue_t_ha": 1.5,
+    "residue_cn_ratio": 25.0,
+    "typical_yield_t_ha": [
+      1.0,
+      1.8
+    ],
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "maize",
+      "rice_dsr",
+      "sorghum",
+      "pearl_millet"
+    ],
+    "bad_predecessors": [
+      "chickpea",
+      "lentil"
+    ],
+    "notes": "Rainfed-capable rabi legume; suits lighter soils of south-west Punjab.",
+    "sources": [
+      "FAO-56 Table 12",
+      "PAU Package of Practices Rabi"
+    ]
+  },
+  {
+    "id": "common_bean",
+    "name": "Common bean (dry bean / rajma)",
+    "family": "fabaceae",
+    "group": "legume",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1100.0,
+    "base_temp_c": 10.0,
+    "optimal_temp_c": [
+      18.0,
+      27.0
+    ],
+    "max_temp_c": 35.0,
+    "min_temp_c": 6.0,
+    "duration_days": [
+      75,
+      105
+    ],
+    "water_requirement_mm": [
+      300.0,
+      500.0
+    ],
+    "kc": [
+      0.4,
+      1.15,
+      0.35
+    ],
+    "root_depth_m": 0.8,
+    "drought_tolerance": 2,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 45.0,
+    "n_demand_kg_ha": 35.0,
+    "residue_t_ha": 1.8,
+    "residue_cn_ratio": 24.0,
+    "typical_yield_t_ha": [
+      0.8,
+      1.8
+    ],
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "maize",
+      "sorghum",
+      "pearl_millet",
+      "wheat"
+    ],
+    "bad_predecessors": [
+      "common_bean",
+      "soybean",
+      "chickpea"
+    ],
+    "notes": "Core pulse for smallholder food security and dietary protein in sub-humid to semi-arid bimodal systems (Kenya Machakos golden field: short rains Oct-Dec and long rains Mar-May; also grown as Rajma in northern India). Bush varieties mature rapidly in 75-90 days, fitting tightly into intercropping with maize or sorghum. Fixes 35-50 kg N/ha via symbiotic Rhizobium leguminosarum bv. phaseoli, reducing synthetic N needs for successor cereals. Extremely sensitive to waterlogging (root rot / Rhizoctonia) and floral heat abortion above 30\u00b0C.",
+    "sources": [
+      "FAO-56 Table 12 (dry beans)",
+      "KALRO / CIAT Common Bean Production Guide for Eastern Africa",
+      "FAO ECOCROP (Phaseolus vulgaris)",
+      "CIAT Bean Program Reference Guide"
+    ]
+  },
+  {
+    "id": "cotton",
+    "name": "Cotton",
+    "family": "malvaceae",
+    "group": "fibre",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1250.0,
+    "base_temp_c": 15.5,
+    "optimal_temp_c": [
+      25.0,
+      35.0
+    ],
+    "max_temp_c": 42.0,
+    "min_temp_c": 15.0,
+    "duration_days": [
+      160,
+      190
+    ],
+    "water_requirement_mm": [
+      700.0,
+      1300.0
+    ],
+    "kc": [
+      0.35,
+      1.18,
+      0.6
+    ],
+    "root_depth_m": 1.4,
+    "drought_tolerance": 4,
+    "heat_tolerance": 4,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 120.0,
+    "residue_t_ha": 4.0,
+    "residue_cn_ratio": 50.0,
+    "typical_yield_t_ha": [
+      1.5,
+      2.5
+    ],
+    "aquacrop_name": "Cotton",
+    "good_predecessors": [
+      "wheat",
+      "chickpea"
+    ],
+    "bad_predecessors": [
+      "cotton"
+    ],
+    "notes": "South-west Punjab (Bathinda, Mansa, Fazilka). Sown late April-May, so it overlaps the zaid slot (TASK-O01b: model cotton as occupying zaid+kharif). Yield is seed cotton.",
+    "sources": [
+      "FAO-56 Table 12",
+      "PAU Package of Practices Kharif"
+    ]
+  },
+  {
+    "id": "dhaincha",
+    "name": "Dhaincha (Sesbania aculeata, green manure)",
+    "family": "fabaceae",
+    "group": "cover",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 800.0,
+    "base_temp_c": 12.0,
+    "optimal_temp_c": [
+      25.0,
+      35.0
+    ],
+    "max_temp_c": 42.0,
+    "min_temp_c": 15.0,
+    "duration_days": [
+      45,
+      60
+    ],
+    "water_requirement_mm": [
+      200.0,
+      300.0
+    ],
+    "kc": [
+      0.4,
+      1.0,
+      1.0
+    ],
+    "root_depth_m": 0.8,
+    "drought_tolerance": 3,
+    "heat_tolerance": 4,
+    "waterlogging_tolerance": 5,
+    "n_fixation_kg_ha": 80.0,
+    "n_demand_kg_ha": 0.0,
+    "residue_t_ha": 5.0,
+    "residue_cn_ratio": 18.0,
+    "typical_yield_t_ha": [
+      0.0,
+      0.0
+    ],
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "wheat",
+      "barley",
+      "potato"
+    ],
+    "bad_predecessors": [],
+    "notes": "Pre-kharif zaid green manure sown late April to early May and incorporated at 45-50 days before succulent stems lignify. Adds 20-25 t/ha fresh green biomass (~4-5 t/ha dry residue), supplying ~80-100 kg N/ha to succeeding puddled or DSR rice. Excellent for improving soil aggregation, water retention, and buffering sodicity/alkalinity in Punjab soils.",
+    "sources": [
+      "PAU Package of Practices Kharif (green manuring)",
+      "ICAR Handbook of Agriculture",
+      "FAO Soils Bulletin 65 (green manuring)"
+    ]
+  },
+  {
+    "id": "lentil",
+    "name": "Lentil (masur)",
+    "family": "fabaceae",
+    "group": "legume",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 1400.0,
+    "base_temp_c": 5.0,
+    "optimal_temp_c": [
+      12.0,
+      24.0
+    ],
+    "max_temp_c": 33.0,
+    "min_temp_c": -3.0,
+    "duration_days": [
+      120,
+      150
+    ],
+    "water_requirement_mm": [
+      250.0,
+      350.0
+    ],
+    "kc": [
+      0.4,
+      1.1,
+      0.3
+    ],
+    "root_depth_m": 0.8,
+    "drought_tolerance": 4,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 50.0,
+    "n_demand_kg_ha": 20.0,
+    "residue_t_ha": 1.5,
+    "residue_cn_ratio": 25.0,
+    "typical_yield_t_ha": [
+      1.0,
+      1.5
+    ],
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "maize",
+      "rice_dsr",
+      "rice_puddled",
+      "pearl_millet",
+      "sorghum"
+    ],
+    "bad_predecessors": [
+      "lentil",
+      "chickpea"
+    ],
+    "notes": "Low-water rabi pulse ideally suited for rainfed, sub-montane Kandi tracts (Hoshiarpur, Ropar, Gurdaspur) and lighter well-drained soils of Punjab (varieties LL 699, LL 931). Requires only 1-2 irrigations (saving >250 mm water vs wheat) and matures by mid-March, completely evading late heat stress. Leaves 25-30 kg/ha residual N; highly susceptible to waterlogging and collar rot if over-irrigated.",
+    "sources": [
+      "FAO-56 Table 12 (lentil)",
+      "PAU Package of Practices Rabi",
+      "ICARDA Lentil Production Guidelines"
+    ]
+  },
+  {
+    "id": "maize",
+    "name": "Maize (kharif)",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1500.0,
+    "base_temp_c": 10.0,
+    "optimal_temp_c": [
+      24.0,
+      32.0
+    ],
+    "max_temp_c": 40.0,
+    "min_temp_c": 10.0,
+    "duration_days": [
+      90,
+      115
+    ],
+    "water_requirement_mm": [
+      500.0,
+      700.0
+    ],
+    "kc": [
+      0.3,
+      1.2,
+      0.35
+    ],
+    "root_depth_m": 1.2,
+    "drought_tolerance": 2,
+    "heat_tolerance": 3,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 150.0,
+    "residue_t_ha": 6.0,
+    "residue_cn_ratio": 60.0,
+    "typical_yield_t_ha": [
+      4.0,
+      7.0
+    ],
+    "aquacrop_name": "Maize",
+    "good_predecessors": [
+      "soybean",
+      "moong",
+      "chickpea",
+      "wheat"
+    ],
+    "bad_predecessors": [
+      "maize"
+    ],
+    "notes": "Main water-saving alternative to kharif rice in Punjab. Sensitive to waterlogging during monsoon; avoid low-lying fields. Spring maize is NOT water-saving.",
+    "sources": [
+      "FAO-56 Table 12",
+      "PAU Package of Practices Kharif"
+    ]
+  },
+  {
+    "id": "moong",
+    "name": "Mung bean (moong)",
+    "family": "fabaceae",
+    "group": "legume",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1000.0,
+    "base_temp_c": 10.0,
+    "optimal_temp_c": [
+      25.0,
+      35.0
+    ],
+    "max_temp_c": 42.0,
+    "min_temp_c": 15.0,
+    "duration_days": [
+      60,
+      75
+    ],
+    "water_requirement_mm": [
+      250.0,
+      350.0
+    ],
+    "kc": [
+      0.4,
+      1.05,
+      0.35
+    ],
+    "root_depth_m": 0.7,
+    "drought_tolerance": 4,
+    "heat_tolerance": 4,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 50.0,
+    "n_demand_kg_ha": 20.0,
+    "residue_t_ha": 1.5,
+    "residue_cn_ratio": 20.0,
+    "typical_yield_t_ha": [
+      0.8,
+      1.2
+    ],
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "wheat"
+    ],
+    "bad_predecessors": [],
+    "notes": "Summer (zaid) moong fits the April-June gap between wheat and rice; residue incorporation adds N for the next crop.",
+    "sources": [
+      "FAO-56 Table 12 (mung bean)",
+      "PAU Package of Practices Kharif (summer moong)"
+    ]
+  },
+  {
+    "id": "mustard",
+    "name": "Mustard / rapeseed",
+    "family": "brassicaceae",
+    "group": "oilseed",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 1500.0,
+    "base_temp_c": 5.0,
+    "optimal_temp_c": [
+      12.0,
+      22.0
+    ],
+    "max_temp_c": 32.0,
+    "min_temp_c": -3.0,
+    "duration_days": [
+      120,
+      150
+    ],
+    "water_requirement_mm": [
+      250.0,
+      400.0
+    ],
+    "kc": [
+      0.35,
+      1.07,
+      0.35
+    ],
+    "root_depth_m": 1.2,
+    "drought_tolerance": 3,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 2,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 100.0,
+    "residue_t_ha": 3.0,
+    "residue_cn_ratio": 50.0,
+    "typical_yield_t_ha": [
+      1.5,
+      2.0
+    ],
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "maize",
+      "rice_puddled",
+      "rice_dsr",
+      "cotton"
+    ],
+    "bad_predecessors": [
+      "mustard"
+    ],
+    "notes": "Low-water rabi alternative; brassica break crop reduces cereal disease carry-over.",
+    "sources": [
+      "FAO-56 Table 12 (rapeseed/canola)",
+      "PAU Package of Practices Rabi"
+    ]
+  },
+  {
+    "id": "pearl_millet",
+    "name": "Pearl millet (bajra)",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1300.0,
+    "base_temp_c": 12.0,
+    "optimal_temp_c": [
+      27.0,
+      35.0
+    ],
+    "max_temp_c": 44.0,
+    "min_temp_c": 15.0,
+    "duration_days": [
+      75,
+      95
+    ],
+    "water_requirement_mm": [
+      300.0,
+      450.0
+    ],
+    "kc": [
+      0.3,
+      1.0,
+      0.3
+    ],
+    "root_depth_m": 1.5,
+    "drought_tolerance": 5,
+    "heat_tolerance": 5,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 60.0,
+    "residue_t_ha": 4.0,
+    "residue_cn_ratio": 70.0,
+    "typical_yield_t_ha": [
+      1.5,
+      2.5
+    ],
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "chickpea",
+      "mustard",
+      "wheat",
+      "barley",
+      "moong"
+    ],
+    "bad_predecessors": [
+      "pearl_millet"
+    ],
+    "notes": "Highest heat- and drought-tolerant cereal in the database; perfectly suited to light, sandy loam and low-fertility soils of south-west Punjab (PCB 165, FBC 16). C4 photosynthesis maintains biomass accumulation at ambient temperatures exceeding 40\u00b0C; short duration (75-85 days) allows drought escape. Dual-purpose grain and high-biomass nutritious dry stover.",
+    "sources": [
+      "FAO-56 Table 12 (millet)",
+      "PAU Package of Practices Kharif",
+      "ICRISAT Pearl Millet Production Bulletins",
+      "FAO ECOCROP"
+    ]
+  },
+  {
+    "id": "pigeon_pea",
+    "name": "Pigeon pea (arhar / tur)",
+    "family": "fabaceae",
+    "group": "legume",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 2200.0,
+    "base_temp_c": 10.0,
+    "optimal_temp_c": [
+      20.0,
+      32.0
+    ],
+    "max_temp_c": 40.0,
+    "min_temp_c": 10.0,
+    "duration_days": [
+      140,
+      200
+    ],
+    "water_requirement_mm": [
+      350.0,
+      650.0
+    ],
+    "kc": [
+      0.4,
+      1.1,
+      0.45
+    ],
+    "root_depth_m": 1.8,
+    "drought_tolerance": 5,
+    "heat_tolerance": 4,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 60.0,
+    "n_demand_kg_ha": 20.0,
+    "residue_t_ha": 4.0,
+    "residue_cn_ratio": 35.0,
+    "typical_yield_t_ha": [
+      0.8,
+      1.5
+    ],
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "wheat",
+      "barley",
+      "mustard"
+    ],
+    "bad_predecessors": [
+      "pigeon_pea"
+    ],
+    "notes": "Deep-rooted, drought-tolerant pulse. In Punjab, extra-short duration varieties (AL 882, PAU 881, ~140 d) sown mid-May mature in time for timely November wheat sowing, offering an effective escape from the rice mono-cropping trap. Powerful taproot (up to 2 m) breaks hard subsoil plough pans, improves percolation, and fixes atmospheric nitrogen. Essential crop for the Machakos Kenya golden field, commonly intercropped with maize.",
+    "sources": [
+      "FAO ECOCROP",
+      "PAU Package of Practices Kharif",
+      "ICRISAT Pigeonpea Production Manual",
+      "KALRO Dryland Farming Guides"
+    ]
+  },
+  {
+    "id": "potato",
+    "name": "Potato (autumn)",
+    "family": "solanaceae",
+    "group": "tuber",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 1200.0,
+    "base_temp_c": 7.0,
+    "optimal_temp_c": [
+      15.0,
+      22.0
+    ],
+    "max_temp_c": 32.0,
+    "min_temp_c": -2.0,
+    "duration_days": [
+      90,
+      120
+    ],
+    "water_requirement_mm": [
+      400.0,
+      600.0
+    ],
+    "kc": [
+      0.5,
+      1.15,
+      0.75
+    ],
+    "root_depth_m": 0.5,
+    "drought_tolerance": 2,
+    "heat_tolerance": 1,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 180.0,
+    "residue_t_ha": 1.0,
+    "residue_cn_ratio": 20.0,
+    "typical_yield_t_ha": [
+      20.0,
+      30.0
+    ],
+    "aquacrop_name": "Potato",
+    "good_predecessors": [
+      "maize",
+      "moong",
+      "cereal_rye"
+    ],
+    "bad_predecessors": [
+      "potato"
+    ],
+    "notes": "Sown Oct, harvested Jan; allows a following spring crop. High-value, high input, volatile prices.",
+    "sources": [
+      "FAO-56 Table 12",
+      "PAU Package of Practices Vegetables"
+    ]
+  },
+  {
+    "id": "rice_dsr",
+    "name": "Rice (direct-seeded, DSR)",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1900.0,
+    "base_temp_c": 10.0,
+    "optimal_temp_c": [
+      25.0,
+      32.0
+    ],
+    "max_temp_c": 40.0,
+    "min_temp_c": 15.0,
+    "duration_days": [
+      110,
+      145
+    ],
+    "water_requirement_mm": [
+      900.0,
+      1300.0
+    ],
+    "kc": [
+      1.0,
+      1.15,
+      0.75
+    ],
+    "root_depth_m": 0.6,
+    "drought_tolerance": 2,
+    "heat_tolerance": 3,
+    "waterlogging_tolerance": 4,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 120.0,
+    "residue_t_ha": 5.5,
+    "residue_cn_ratio": 60.0,
+    "typical_yield_t_ha": [
+      5.5,
+      7.0
+    ],
+    "aquacrop_name": "PaddyRice",
+    "good_predecessors": [
+      "dhaincha",
+      "moong"
+    ],
+    "bad_predecessors": [],
+    "notes": "No puddling: saves ~15-25% irrigation water, less labour; weed control critical. Calibrate separately from puddled rice (TASK-M03).",
+    "sources": [
+      "PAU Package of Practices Kharif",
+      "FAO-56 Table 12"
+    ]
+  },
+  {
+    "id": "rice_puddled",
+    "name": "Rice (puddled, transplanted)",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1900.0,
+    "base_temp_c": 10.0,
+    "optimal_temp_c": [
+      25.0,
+      32.0
+    ],
+    "max_temp_c": 40.0,
+    "min_temp_c": 15.0,
+    "duration_days": [
+      110,
+      150
+    ],
+    "water_requirement_mm": [
+      1200.0,
+      1800.0
+    ],
+    "kc": [
+      1.05,
+      1.2,
+      0.75
+    ],
+    "root_depth_m": 0.5,
+    "drought_tolerance": 1,
+    "heat_tolerance": 3,
+    "waterlogging_tolerance": 5,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 120.0,
+    "residue_t_ha": 6.0,
+    "residue_cn_ratio": 60.0,
+    "typical_yield_t_ha": [
+      6.0,
+      7.5
+    ],
+    "aquacrop_name": "PaddyRice",
+    "good_predecessors": [
+      "dhaincha",
+      "moong"
+    ],
+    "bad_predecessors": [],
+    "notes": "Punjab baseline kharif crop. Transplanting legally delayed to mid-June (Punjab Preservation of Subsoil Water Act 2009). Short-duration PR-126 ~ lower end of duration.",
+    "sources": [
+      "FAO-56 Table 12",
+      "PAU Package of Practices Kharif",
+      "Punjab Preservation of Subsoil Water Act 2009"
+    ]
+  },
+  {
+    "id": "sorghum",
+    "name": "Sorghum (jowar / chari)",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1500.0,
+    "base_temp_c": 10.0,
+    "optimal_temp_c": [
+      25.0,
+      32.0
+    ],
+    "max_temp_c": 42.0,
+    "min_temp_c": 12.0,
+    "duration_days": [
+      100,
+      130
+    ],
+    "water_requirement_mm": [
+      400.0,
+      600.0
+    ],
+    "kc": [
+      0.3,
+      1.05,
+      0.55
+    ],
+    "root_depth_m": 1.5,
+    "drought_tolerance": 5,
+    "heat_tolerance": 5,
+    "waterlogging_tolerance": 2,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 90.0,
+    "residue_t_ha": 6.0,
+    "residue_cn_ratio": 70.0,
+    "typical_yield_t_ha": [
+      2.0,
+      4.5
+    ],
+    "aquacrop_name": "Sorghum",
+    "good_predecessors": [
+      "pigeon_pea",
+      "common_bean",
+      "chickpea",
+      "soybean",
+      "dhaincha"
+    ],
+    "bad_predecessors": [
+      "sorghum"
+    ],
+    "notes": "Drought-resilient staple cereal for the Kenya golden field (Machakos bimodal short/long rains) and prime kharif fodder crop in Punjab (SL 44). Dense root system extracts subsoil water under severe moisture stress; root exudates contain sorgoleone (potent allelopathic weed suppressant, but requires adequate nitrogen for sensitive following crops).",
+    "sources": [
+      "FAO-56 Table 12 (sorghum)",
+      "KALRO Dryland Agriculture Technical Guides",
+      "PAU Package of Practices Kharif (fodder)",
+      "FAO ECOCROP"
+    ]
+  },
+  {
+    "id": "soybean",
+    "name": "Soybean",
+    "family": "fabaceae",
+    "group": "legume",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1400.0,
+    "base_temp_c": 10.0,
+    "optimal_temp_c": [
+      22.0,
+      30.0
+    ],
+    "max_temp_c": 38.0,
+    "min_temp_c": 10.0,
+    "duration_days": [
+      100,
+      130
+    ],
+    "water_requirement_mm": [
+      450.0,
+      700.0
+    ],
+    "kc": [
+      0.4,
+      1.15,
+      0.5
+    ],
+    "root_depth_m": 1.0,
+    "drought_tolerance": 3,
+    "heat_tolerance": 3,
+    "waterlogging_tolerance": 2,
+    "n_fixation_kg_ha": 80.0,
+    "n_demand_kg_ha": 30.0,
+    "residue_t_ha": 3.0,
+    "residue_cn_ratio": 30.0,
+    "typical_yield_t_ha": [
+      2.0,
+      3.5
+    ],
+    "aquacrop_name": "Soybean",
+    "good_predecessors": [
+      "maize",
+      "wheat",
+      "barley"
+    ],
+    "bad_predecessors": [
+      "soybean"
+    ],
+    "notes": "Kharif legume alternative to puddled rice in Punjab (varieties SL 958, SL 525) and core crop of the Iowa corn-soy golden field. Requires well-drained loamy soils (sensitive to monsoon waterlogging); needs Bradyrhizobium inoculation in non-traditional fields. Supplies a 40-50 kg N/ha credit to succeeding wheat or maize.",
+    "sources": [
+      "FAO-56 Table 12 (soybean)",
+      "PAU Package of Practices Kharif",
+      "Iowa State Univ. Extension PM 1853"
+    ]
+  },
+  {
+    "id": "sunflower",
+    "name": "Sunflower",
+    "family": "asteraceae",
+    "group": "oilseed",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1500.0,
+    "base_temp_c": 7.0,
+    "optimal_temp_c": [
+      20.0,
+      30.0
+    ],
+    "max_temp_c": 40.0,
+    "min_temp_c": 6.0,
+    "duration_days": [
+      95,
+      120
+    ],
+    "water_requirement_mm": [
+      350.0,
+      500.0
+    ],
+    "kc": [
+      0.35,
+      1.05,
+      0.35
+    ],
+    "root_depth_m": 1.6,
+    "drought_tolerance": 4,
+    "heat_tolerance": 3,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 80.0,
+    "residue_t_ha": 4.0,
+    "residue_cn_ratio": 55.0,
+    "typical_yield_t_ha": [
+      1.8,
+      2.5
+    ],
+    "aquacrop_name": "Sunflower",
+    "good_predecessors": [
+      "potato",
+      "wheat",
+      "chickpea",
+      "cotton",
+      "rice_dsr"
+    ],
+    "bad_predecessors": [
+      "sunflower",
+      "mustard",
+      "soybean"
+    ],
+    "notes": "High-value spring oilseed (40-42% edible oil) cultivated widely across Punjab (hybrids PSH 1962, PSH 2080) sown late January-February after potato, sugarcane, or toria. Its vigorous taproot penetrates 1.5-2.0 m, actively scavenging subsoil moisture and residual nitrate leached from previous heavy-feeder crops. Requires 4-6 irrigations (350-500 mm); critical stages are buttoning and flowering. Sown before peak summer heat and harvested by mid-May, creating a lucrative bridge crop ahead of kharif maize or DSR. Requires pollinator visits (honeybees) for seed set; avoid rotating consecutively with mustard or sunflower due to Sclerotinia sclerotiorum stalk and head rot.",
+    "sources": [
+      "FAO-56 Table 12 (sunflower)",
+      "PAU Package of Practices for Crops of Punjab (Rabi / Spring)",
+      "ICAR-IIOR Sunflower Production Technology",
+      "FAO Crop Water Management: Sunflower"
+    ]
+  },
+  {
+    "id": "wheat",
+    "name": "Wheat",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 2000.0,
+    "base_temp_c": 0.0,
+    "optimal_temp_c": [
+      12.0,
+      22.0
+    ],
+    "max_temp_c": 35.0,
+    "min_temp_c": -5.0,
+    "duration_days": [
+      140,
+      165
+    ],
+    "water_requirement_mm": [
+      400.0,
+      500.0
+    ],
+    "kc": [
+      0.7,
+      1.15,
+      0.25
+    ],
+    "root_depth_m": 1.2,
+    "drought_tolerance": 2,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 2,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 120.0,
+    "residue_t_ha": 5.0,
+    "residue_cn_ratio": 80.0,
+    "typical_yield_t_ha": [
+      4.5,
+      5.5
+    ],
+    "aquacrop_name": "Wheat",
+    "good_predecessors": [
+      "moong",
+      "soybean",
+      "mustard",
+      "chickpea",
+      "berseem"
+    ],
+    "bad_predecessors": [
+      "wheat",
+      "barley"
+    ],
+    "notes": "Terminal heat in March (grain fill) is the key climate risk in Punjab. Timely sowing early-mid November; Happy/Super Seeder allows sowing into rice residue.",
+    "sources": [
+      "FAO-56 Table 12",
+      "PAU Package of Practices Rabi"
+    ]
+  }
+]

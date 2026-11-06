@@ -2,164 +2,467 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useI18n, DICTS } from "@/i18n";
-import type { GoldenField } from "@/types/api";
-import { regionFlag } from "@/lib/ui";
-import { Globe, Moon, Sun, Sparkles, BookOpen, Satellite } from "lucide-react";
+import { useField } from "@/context/FieldContext";
+import { api } from "@/lib/api";
+import { fmtDMS, regionFlag } from "@/lib/ui";
+import {
+  Globe,
+  Moon,
+  Sun,
+  BookOpen,
+  Satellite,
+  Compass,
+  Activity,
+  Layers,
+  FlaskConical,
+  Sprout,
+  FileText,
+  Search,
+  MapPin,
+  X,
+  Crosshair,
+} from "lucide-react";
 
-interface NavbarProps {
-  goldenFields: GoldenField[];
-  selectedId: string | null;
-  onSelectGolden: (field: GoldenField) => void;
-}
+export const WORKFLOW_ROUTES = [
+  {
+    href: "/",
+    step: "01",
+    key: "nav.home",
+    shortLabel: "Mission Control",
+    desc: "3D Earth & Subsurface Hub",
+    icon: Compass,
+    accent: "text-emerald-400",
+    activeBg: "bg-emerald-500/15 border-emerald-500/50 text-emerald-600 dark:text-emerald-300",
+  },
+  {
+    href: "/diagnostics",
+    step: "02",
+    key: "nav.diagnostics",
+    shortLabel: "Diagnostics",
+    desc: "Climate, Soil & Aquifer Atlas",
+    icon: Activity,
+    accent: "text-cyan-400",
+    activeBg: "bg-cyan-500/15 border-cyan-500/50 text-cyan-600 dark:text-cyan-300",
+  },
+  {
+    href: "/rotations",
+    step: "03",
+    key: "nav.rotations",
+    shortLabel: "Rotation Studio",
+    desc: "NSGA-II Optimizer & Calendar",
+    icon: Layers,
+    accent: "text-amber-400",
+    activeBg: "bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-300",
+  },
+  {
+    href: "/lab",
+    step: "04",
+    key: "nav.lab",
+    shortLabel: "3D Pareto & Lab",
+    desc: "Frontier Cube & Shock Simulator",
+    icon: FlaskConical,
+    accent: "text-violet-400",
+    activeBg: "bg-violet-500/15 border-violet-500/50 text-violet-600 dark:text-violet-300",
+  },
+  {
+    href: "/crops",
+    step: "05",
+    key: "nav.crops",
+    shortLabel: "Crop KB (21)",
+    desc: "Botanical Specs & Suitability",
+    icon: Sprout,
+    accent: "text-emerald-400",
+    activeBg: "bg-emerald-500/15 border-emerald-500/50 text-emerald-600 dark:text-emerald-300",
+  },
+  {
+    href: "/brief",
+    step: "06",
+    key: "nav.brief",
+    shortLabel: "Advisory Brief",
+    desc: "Executive Dossier & Print PDF",
+    icon: FileText,
+    accent: "text-sky-400",
+    activeBg: "bg-sky-500/15 border-sky-500/50 text-sky-600 dark:text-sky-300",
+  },
+] as const;
 
-export function Navbar({ goldenFields, selectedId, onSelectGolden }: NavbarProps) {
+export function Navbar() {
+  const pathname = usePathname();
+  const router = useRouter();
   const { lang, setLang, t } = useI18n();
-  const [isDark, setIsDark] = useState<boolean>(true);
+  const {
+    goldenFields,
+    selectedField,
+    selectedGoldenId,
+    selectGolden,
+    selectLocation,
+  } = useField();
 
-  // Initialize theme on mount
+  const [isDark, setIsDark] = useState<boolean>(true);
+  const [showLocator, setShowLocator] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchLoading, setSearchLoading] = useState<boolean>(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
   useEffect(() => {
     const saved = localStorage.getItem("theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const shouldBeDark = saved ? saved === "dark" : prefersDark;
     setIsDark(shouldBeDark);
-    if (shouldBeDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    document.documentElement.classList.toggle("dark", shouldBeDark);
   }, []);
 
   const toggleTheme = () => {
     const nextDark = !isDark;
     setIsDark(nextDark);
     localStorage.setItem("theme", nextDark ? "dark" : "light");
-    if (nextDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
+    document.documentElement.classList.toggle("dark", nextDark);
+  };
+
+  const handleNavigate = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (pathname === href) return;
+    e.preventDefault();
+    const doc = document as Document & {
+      startViewTransition?: (cb: () => void) => { finished: Promise<void> };
+    };
+    if (!doc.startViewTransition) {
+      router.push(href);
+      window.setTimeout(() => {
+        document.getElementById("page-main-heading")?.focus();
+      }, 60);
+      return;
+    }
+    const transition = doc.startViewTransition(() => {
+      router.push(href);
+    });
+    transition.finished.finally(() => {
+      document.getElementById("page-main-heading")?.focus();
+    });
+  };
+
+  const handleQuickSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    if (!q) return;
+    setSearchLoading(true);
+    setSearchError(null);
+    try {
+      const res = await api.geocode(q);
+      if (res && !Number.isNaN(res.lat) && !Number.isNaN(res.lon)) {
+        selectLocation({ lat: res.lat, lon: res.lon, name: res.name });
+        setShowLocator(false);
+        setSearchQuery("");
+      } else {
+        setSearchError("Location not found");
+      }
+    } catch (err: unknown) {
+      setSearchError(err instanceof Error ? err.message : "Could not resolve location");
+    } finally {
+      setSearchLoading(false);
     }
   };
 
   return (
-    <header className="sticky top-0 z-50 glass-strong border-b border-line transition-all duration-300">
-      {/* Top Accent Line with subtle shimmer */}
-      <div className="h-[2px] w-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-indigo-500" />
+    <header className="sticky top-0 z-50 glass-strong border-b border-line transition-colors no-print">
+      {/* Bioluminescent Orbital Accent Hairline */}
+      <div
+        className="h-[3px] w-full"
+        style={{
+          background:
+            "linear-gradient(to right var(--in-oklab), #10b981, #06b6d4, #8b5cf6, #f59e0b)",
+        }}
+      />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Brand Section */}
-        <Link href="/" className="flex items-center gap-3.5 group">
-          <div className="relative">
-            {/* Outer animated glow ring */}
-            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-400 to-cyan-500 opacity-70 blur-xs group-hover:opacity-100 transition-opacity" />
-            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-cyan-700 flex items-center justify-center text-white font-black text-xl shadow-lg border border-white/20 group-hover:scale-105 transition-transform duration-200">
-              <span className="font-display">⟳</span>
-            </div>
-            {/* Pulsing satellite indicator dot */}
-            <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-background" />
-            </span>
+      {/* Row 1: Brand + Primary Multi-Page Navigation + Utilities */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+        {/* Brand Emblem */}
+        <Link
+          href="/"
+          onClick={(e) => handleNavigate(e, "/")}
+          className="flex items-center gap-3 group shrink-0"
+        >
+          <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 via-cyan-500/15 to-violet-500/20 border border-emerald-500/40 flex items-center justify-center group-hover:border-emerald-400 transition-all shadow-sm">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              className="text-foreground"
+              aria-hidden="true"
+            >
+              <ellipse
+                cx="12"
+                cy="12"
+                rx="9.5"
+                ry="4.2"
+                transform="rotate(-24 12 12)"
+                stroke="#34d399"
+                strokeWidth="1.6"
+              />
+              <path
+                d="M5 13.5L12 10L19 13.5L12 17L5 13.5Z"
+                fill="currentColor"
+                fillOpacity="0.16"
+                stroke="#f59e0b"
+                strokeWidth="1.5"
+              />
+              <path
+                d="M5 16.8L12 20.2L19 16.8"
+                stroke="#38bdf8"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              <circle cx="19.5" cy="8.5" r="2" fill="#34d399" />
+            </svg>
           </div>
 
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-display font-extrabold text-xl tracking-tight text-foreground flex items-center gap-1.5">
-                Terra<span className="text-emerald-500 dark:text-emerald-400">Loop</span>
+              <span className="font-serif font-bold text-xl tracking-tight text-foreground">
+                TerraLoop
               </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-2xs">
-                <Satellite className="w-2.5 h-2.5" />
-                NASA Space Apps
+              <span className="hidden xl:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/35">
+                <Satellite className="w-3 h-3 text-emerald-400" />
+                <span>NASA EO · v2.6</span>
               </span>
             </div>
-            <p className="text-[11px] text-muted hidden sm:block tracking-tight">
+            <p className="text-[11px] text-muted hidden sm:block font-mono tracking-tight">
               {t("app.tagline")}
             </p>
           </div>
         </Link>
 
-        {/* Right Action Tools */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Methodology Link */}
+        {/* Center: Multi-Page Route Links (Desktop) */}
+        <nav
+          aria-label="Primary Multi-Page Navigation"
+          className="hidden lg:flex items-center gap-1 p-1 rounded-xl bg-background/60 border border-line"
+        >
+          {WORKFLOW_ROUTES.map((item) => {
+            const Icon = item.icon;
+            const isActive =
+              item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={(e) => handleNavigate(e, item.href)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-1.5 border ${
+                  isActive
+                    ? `${item.activeBg} shadow-xs`
+                    : "border-transparent text-muted hover:text-foreground hover:bg-foreground/5"
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? "" : item.accent}`} />
+                <span className="text-[10px] opacity-70">{item.step}</span>
+                <span>{t(item.key)}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Right Controls: Methodology, Theme, Language */}
+        <div className="flex items-center gap-2 shrink-0">
           <Link
             href="/methodology"
-            className="px-3 py-1.5 rounded-xl text-xs font-medium text-foreground/80 hover:text-foreground hover:bg-foreground/5 border border-transparent hover:border-line transition-all duration-200 hidden md:inline-flex items-center gap-1.5"
+            onClick={(e) => handleNavigate(e, "/methodology")}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold border transition-colors hidden sm:inline-flex items-center gap-1.5 ${
+              pathname === "/methodology"
+                ? "bg-violet-500/15 border-violet-500/50 text-violet-600 dark:text-violet-300"
+                : "text-foreground/85 hover:text-foreground bg-foreground/[0.04] hover:bg-foreground/[0.08] border-line"
+            }`}
           >
-            <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Methodology</span>
+            <BookOpen className="w-3.5 h-3.5 text-violet-400" />
+            <span className="hidden md:inline">{t("nav.methodology")}</span>
           </Link>
 
-          {/* Theme Toggle Button */}
           <button
             type="button"
             onClick={toggleTheme}
             aria-label="Toggle dark/light theme"
-            className="p-2 rounded-xl text-xs font-medium border border-line bg-surface hover:bg-foreground/5 text-foreground/80 hover:text-foreground transition-all duration-200 cursor-pointer shadow-2xs flex items-center justify-center"
-            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            className="p-2 rounded-lg text-xs font-medium border border-line bg-surface hover:bg-foreground/10 text-foreground transition-colors cursor-pointer flex items-center justify-center"
+            title={isDark ? "Switch to Botanical Alabaster Mode" : "Switch to Orbital Dark Mode"}
           >
             {isDark ? (
-              <Sun className="w-4 h-4 text-amber-400 transition-transform hover:rotate-45" />
+              <Sun className="w-4 h-4 text-amber-400" />
             ) : (
-              <Moon className="w-4 h-4 text-indigo-500 transition-transform hover:-rotate-12" />
+              <Moon className="w-4 h-4 text-slate-700" />
             )}
           </button>
 
           {/* Language Switcher */}
-          <div className="flex items-center rounded-xl border border-line p-0.5 bg-surface text-xs shadow-2xs">
-            <span className="px-2 text-muted hidden lg:inline-flex">
+          <div className="flex items-center rounded-lg border border-line p-0.5 bg-surface text-xs">
+            <span className="px-1.5 text-muted hidden xl:inline-flex">
               <Globe className="w-3.5 h-3.5" />
             </span>
             {Object.entries(DICTS).map(([code, meta]) => (
               <button
                 key={code}
+                type="button"
                 onClick={() => setLang(code)}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all duration-200 cursor-pointer ${
+                className={`px-2 py-1 rounded-md font-medium transition-colors cursor-pointer text-[11px] ${
                   lang === code
-                    ? "bg-emerald-600 text-white shadow-xs font-semibold"
+                    ? "bg-emerald-500 text-slate-950 font-bold"
                     : "text-muted hover:text-foreground"
                 }`}
               >
-                {meta.label}
+                {meta.short}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Demo Benchmark Fields Navigation Strip */}
-      <div className="bg-surface/60 border-t border-line px-4 sm:px-6 lg:px-8 py-2 overflow-x-auto scrollbar-none">
-        <div className="max-w-7xl mx-auto flex items-center gap-2 text-xs">
-          <span className="text-muted font-bold shrink-0 flex items-center gap-1.5 uppercase text-[10px] tracking-wider pr-1">
-            <Sparkles className="w-3 h-3 text-amber-400" /> {t("nav.demoFields")}:
-          </span>
-          <div className="flex items-center gap-2 shrink-0">
-            {goldenFields.map((gf) => {
-              const isSelected = selectedId === gf.id;
-              const flag = regionFlag(gf.id);
-              const isHero = gf.id === "sangrur";
+      {/* Mobile / Tablet Multi-Page Route Strip */}
+      <nav
+        aria-label="Mobile Page Navigation"
+        className="lg:hidden flex items-center gap-1.5 px-4 py-2 bg-background/70 border-t border-line overflow-x-auto"
+      >
+        {WORKFLOW_ROUTES.map((item) => {
+          const Icon = item.icon;
+          const isActive =
+            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={(e) => handleNavigate(e, item.href)}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold whitespace-nowrap flex items-center gap-1.5 border ${
+                isActive
+                  ? item.activeBg
+                  : "border-line bg-surface/60 text-muted hover:text-foreground"
+              }`}
+            >
+              <Icon className={`w-3.5 h-3.5 ${item.accent}`} />
+              <span>
+                {item.step} · {t(item.key)}
+              </span>
+            </Link>
+          );
+        })}
+        <Link
+          href="/methodology"
+          onClick={(e) => handleNavigate(e, "/methodology")}
+          className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold whitespace-nowrap flex items-center gap-1.5 border ${
+            pathname === "/methodology"
+              ? "bg-violet-500/15 border-violet-500/50 text-violet-300"
+              : "border-line bg-surface/60 text-muted hover:text-foreground"
+          }`}
+        >
+          <BookOpen className="w-3.5 h-3.5 text-violet-400" />
+          <span>{t("nav.methodology")}</span>
+        </Link>
+      </nav>
 
-              return (
-                <button
-                  key={gf.id}
-                  onClick={() => onSelectGolden(gf)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-                    isSelected
-                      ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm font-semibold ring-2 ring-emerald-500/40 scale-102"
-                      : "bg-surface text-foreground/80 border border-line hover:border-emerald-500/40 hover:text-foreground hover:bg-foreground/5"
-                  }`}
-                >
-                  <span className="text-sm">{flag}</span>
-                  <span>{gf.name}</span>
-                  {isHero && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-400/20 text-amber-500 border border-amber-400/30">
-                      Hero
+      {/* Row 2: Global Active Parcel Command Bar & Benchmark Switcher */}
+      <div className="bg-surface-strong/80 border-t border-line px-4 sm:px-6 lg:px-8 py-2">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs">
+          {/* Active Parcel Indicator + Benchmark Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto py-0.5 max-w-full">
+            <span className="text-muted font-mono font-bold shrink-0 flex items-center gap-1.5 uppercase text-[10px] tracking-widest pr-2 border-r border-line">
+              <Compass className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{t("nav.demoFields")}</span>
+            </span>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              {goldenFields.map((gf) => {
+                const isSelected = selectedGoldenId === gf.id;
+                const code = regionFlag(gf.id);
+                const isHero = gf.id === "sangrur";
+
+                return (
+                  <button
+                    key={gf.id}
+                    type="button"
+                    onClick={() => selectGolden(gf)}
+                    className={`px-2.5 py-1 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap border ${
+                      isSelected
+                        ? "bg-emerald-500/20 text-foreground border-emerald-500/70 font-bold shadow-xs"
+                        : "bg-surface/70 text-muted border-line hover:border-line-strong hover:text-foreground"
+                    }`}
+                  >
+                    <span
+                      className={`font-mono text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                        isSelected
+                          ? "bg-emerald-400 text-slate-950"
+                          : "bg-foreground/10 text-muted"
+                      }`}
+                    >
+                      {code}
                     </span>
-                  )}
-                </button>
-              );
-            })}
+                    <span>{gf.name}</span>
+                    {isHero && (
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/40">
+                        Hero
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right: Active Coordinates Readout + Global Quick-Locate Toggle */}
+          <div className="flex items-center gap-2 ml-auto shrink-0">
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-background/70 border border-line font-mono text-[11px]">
+              <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="font-semibold text-foreground truncate max-w-[180px]">
+                {selectedField.name}
+              </span>
+              <span className="text-muted">·</span>
+              <span className="text-cyan-600 dark:text-cyan-300">
+                {fmtDMS(selectedField.lat, true)} {fmtDMS(selectedField.lon, false)}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowLocator((v) => !v)}
+              className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                showLocator
+                  ? "bg-cyan-500 text-slate-950 border-cyan-400"
+                  : "bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-600 dark:text-cyan-300 border-cyan-500/40"
+              }`}
+            >
+              {showLocator ? <X className="w-3.5 h-3.5" /> : <Search className="w-3.5 h-3.5" />}
+              <span>{showLocator ? "Close Locator" : "Search Any Parcel"}</span>
+            </button>
           </div>
         </div>
+
+        {/* Expandable Global Parcel Search Bar */}
+        {showLocator && (
+          <div className="max-w-7xl mx-auto pt-2.5 mt-2 border-t border-line animate-fade-up">
+            <form
+              onSubmit={handleQuickSearch}
+              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
+            >
+              <div className="flex items-center gap-2 flex-1 bg-background border border-line-strong rounded-xl px-3 py-1.5 focus-within:border-cyan-400">
+                <MapPin className="w-4 h-4 text-cyan-400 shrink-0" />
+                <input
+                  type="text"
+                  required
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search any village, district, coordinates (30.2, 75.9), or paste a Google Maps URL…"
+                  className="w-full bg-transparent text-xs font-mono text-foreground placeholder:text-muted outline-none"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={searchLoading || !searchQuery.trim()}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
+              >
+                {searchLoading ? "Locating Satellite Swath…" : "Lock Parcel Coordinates"}
+              </button>
+            </form>
+            {searchError && (
+              <p className="text-[11px] font-mono text-rose-400 mt-1.5">{searchError}</p>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

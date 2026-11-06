@@ -3,36 +3,84 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ------------------------------------------------------------------ */
-/* Design tokens                                                       */
+/* Design Tokens: "Bioluminescent Orbital & Solar Terra" Palette      */
+/* High-contrast, vibrant scientific instrument palette in OKLCH/SRGB */
 /* ------------------------------------------------------------------ */
 :root {
-  --background: #f4f6f1;
-  --foreground: #0b1220;
-  --surface: rgb(255 255 255 / 0.72);
-  --surface-strong: rgb(255 255 255 / 0.92);
-  --border: rgb(15 23 42 / 0.08);
-  --border-strong: rgb(15 23 42 / 0.14);
-  --muted: #5b6577;
-  --grid-line: rgb(15 23 42 / 0.045);
-  --aurora-1: rgb(16 185 129 / 0.16);
-  --aurora-2: rgb(6 182 212 / 0.14);
-  --aurora-3: rgb(139 92 246 / 0.1);
+  --background: #f4f7fb;
+  --background-alt: #eaf0f8;
+  --foreground: #0b1324;
+  --surface: rgb(255 255 255 / 0.88);
+  --surface-strong: rgb(255 255 255 / 0.96);
+  --surface-elevated: #e2e8f0;
+  /* >= 3:1 non-text contrast boundary tokens */
+  --border: rgb(15 23 42 / 0.18);
+  --border-strong: rgb(15 23 42 / 0.34);
+  --muted: #475569;
+  --grid-line: rgb(15 23 42 / 0.05);
+  --accent-canopy: #059669;
+  --accent-canopy-bright: #10b981;
+  --accent-soil: #d97706;
+  --accent-water: #0284c7;
+  --accent-ochre: #ca8a04;
+  --accent-violet: #7c3aed;
+  --accent-danger: #e11d48;
+  --ring-track: rgb(15 23 42 / 0.14);
+  --in-oklab: ;
+  --in-oklch: ;
   color-scheme: light;
 }
 
 .dark {
-  --background: #04070d;
-  --foreground: #e8edf5;
-  --surface: rgb(255 255 255 / 0.035);
-  --surface-strong: rgb(13 19 31 / 0.88);
-  --border: rgb(255 255 255 / 0.08);
-  --border-strong: rgb(255 255 255 / 0.14);
-  --muted: #8b95a8;
-  --grid-line: rgb(255 255 255 / 0.035);
-  --aurora-1: rgb(16 185 129 / 0.22);
-  --aurora-2: rgb(6 182 212 / 0.16);
-  --aurora-3: rgb(139 92 246 / 0.16);
+  --background: #060b16;
+  --background-alt: #0b1326;
+  --foreground: #f1f5f9;
+  --surface: rgb(13 22 40 / 0.82);
+  --surface-strong: rgb(10 17 32 / 0.94);
+  --surface-elevated: #16233d;
+  /* >= 3:1 non-text contrast boundary tokens on dark surfaces */
+  --border: rgb(148 163 184 / 0.22);
+  --border-strong: rgb(148 163 184 / 0.42);
+  --muted: #94a3b8;
+  --grid-line: rgb(56 189 248 / 0.045);
+  --accent-canopy: #10b981;
+  --accent-canopy-bright: #34d399;
+  --accent-soil: #f59e0b;
+  --accent-water: #06b6d4;
+  --accent-ochre: #fbbf24;
+  --accent-violet: #8b5cf6;
+  --accent-danger: #f43f5e;
+  --ring-track: rgb(148 163 184 / 0.20);
   color-scheme: dark;
+}
+
+@supports (linear-gradient(in oklab, white, black)) {
+  :root {
+    --in-oklab: in oklab;
+    --in-oklch: in oklch;
+  }
+}
+
+/* Forced Colors Mode (Windows High Contrast) system fallbacks */
+@media (forced-colors: active) {
+  :root,
+  .dark {
+    --background: Canvas;
+    --foreground: CanvasText;
+    --surface: Canvas;
+    --surface-strong: Canvas;
+    --border: CanvasText;
+    --border-strong: Highlight;
+    --muted: GrayText;
+    --accent-canopy: Highlight;
+    --accent-water: LinkText;
+  }
+
+  .glass,
+  .glass-strong,
+  .card-glow {
+    border: 1px solid CanvasText !important;
+  }
 }
 
 @theme inline {
@@ -40,12 +88,30 @@
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
   --color-surface-strong: var(--surface-strong);
+  --color-surface-elevated: var(--surface-elevated);
   --color-line: var(--border);
   --color-line-strong: var(--border-strong);
   --color-muted: var(--muted);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-display);
+  --font-serif: var(--font-serif);
+}
+
+/* Reduced motion custom property pattern (per modern-web-guidance `motion`) */
+@property --animation-reduced {
+  syntax: "*";
+  inherits: false;
+  initial-value: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: var(--animation-reduced) !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 html {
@@ -53,25 +119,45 @@ html {
   scroll-padding-top: 8rem;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  text-align: start;
+  overflow-wrap: break-word;
   -webkit-font-smoothing: antialiased;
+  accent-color: var(--accent-canopy);
+}
+
+h1,
+h2,
+h3,
+th {
+  text-wrap: balance;
+}
+
+p,
+li,
+blockquote {
+  text-wrap: pretty;
+}
+
+.prose-measure {
+  max-width: 76ch;
+}
+
+.fluid-hero-title {
+  font-size: clamp(1.75rem, 1.2rem + 2vw, 2.85rem);
+  line-height: 1.12;
 }
 
 ::selection {
-  background: rgb(16 185 129 / 0.35);
+  background: color-mix(in oklab, var(--accent-canopy) 35%, transparent);
 }
 
 /* ------------------------------------------------------------------ */
-/* Backdrop: aurora + faint grid                                      */
+/* Orbital Bioluminescent Backdrop: Mesh Glows & Survey Graticule     */
 /* ------------------------------------------------------------------ */
 .app-backdrop {
   position: fixed;
@@ -85,15 +171,28 @@ body {
 .app-backdrop::before {
   content: "";
   position: absolute;
-  inset: -20% -10% auto -10%;
-  height: 90vh;
+  inset: 0;
   background:
-    radial-gradient(40% 50% at 20% 30%, var(--aurora-1), transparent 70%),
-    radial-gradient(35% 45% at 75% 20%, var(--aurora-2), transparent 70%),
-    radial-gradient(30% 40% at 55% 60%, var(--aurora-3), transparent 70%);
-  filter: blur(40px);
-  animation: aurora-drift 24s ease-in-out infinite alternate;
-  --animation-reduced: none;
+    radial-gradient(
+      ellipse 60% 48% at 15% 10%,
+      color-mix(in oklab, var(--accent-canopy) 16%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 55% 45% at 85% 12%,
+      color-mix(in oklab, var(--accent-water) 15%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 50% 45% at 50% 90%,
+      color-mix(in oklab, var(--accent-violet) 11%, transparent),
+      transparent 75%
+    ),
+    radial-gradient(
+      ellipse 40% 35% at 80% 75%,
+      color-mix(in oklab, var(--accent-soil) 10%, transparent),
+      transparent 70%
+    );
 }
 
 .app-backdrop::after {
@@ -104,96 +203,178 @@ body {
     linear-gradient(var(--grid-line) 1px, transparent 0),
     linear-gradient(90deg, var(--grid-line) 1px, transparent 0);
   background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
-}
-
-@keyframes aurora-drift {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  100% {
-    transform: translate3d(3%, 4%, 0) scale(1.08);
-  }
+  mask-image: radial-gradient(ellipse 95% 80% at 50% 20%, black 35%, transparent 90%);
 }
 
 /* ------------------------------------------------------------------ */
-/* Utilities                                                           */
+/* Instrument Surfaces, Glows & Interactive Elevations                */
 /* ------------------------------------------------------------------ */
 @utility glass {
   background: var(--surface);
   border: 1px solid var(--border);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   box-shadow:
-    0 1px 0 0 rgb(255 255 255 / 0.04) inset,
-    0 20px 40px -24px rgb(0 0 0 / 0.35);
+    0 1px 0 0 rgb(255 255 255 / 0.07) inset,
+    0 4px 14px -2px rgb(2 6 23 / 0.18),
+    0 20px 40px -20px rgb(2 6 23 / 0.32);
 }
 
 @utility glass-strong {
   background: var(--surface-strong);
   border: 1px solid var(--border-strong);
-  backdrop-filter: blur(22px) saturate(160%);
-  -webkit-backdrop-filter: blur(22px) saturate(160%);
-}
-
-@utility ink-gradient {
-  background: linear-gradient(100deg, #34d399 0%, #22d3ee 45%, #a78bfa 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-@utility glow-emerald {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   box-shadow:
-    0 0 0 1px rgb(52 211 153 / 0.45),
-    0 0 32px -6px rgb(52 211 153 / 0.45);
+    0 1px 0 0 rgb(255 255 255 / 0.1) inset,
+    0 10px 28px -6px rgb(2 6 23 / 0.35);
 }
 
-@utility scrollbar-none {
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
+@utility instrument-header {
+  background: linear-gradient(
+    to right var(--in-oklab),
+    color-mix(in oklab, var(--accent-canopy) 8%, transparent),
+    color-mix(in oklab, var(--accent-water) 5%, transparent),
+    transparent
+  );
+  border-bottom: 1px solid var(--border);
 }
 
-/* Gradient hairline border (used on hero cards) */
-@utility edge-gradient {
+.card-interactive {
+  transition:
+    transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--accent-canopy) 55%, var(--border-strong));
+  box-shadow:
+    0 1px 0 0 rgb(255 255 255 / 0.12) inset,
+    0 12px 30px -8px color-mix(in oklab, var(--accent-canopy) 18%, rgb(0 0 0 / 0.35));
+}
+
+/* Technical corner crosshairs for survey/telemetry frames */
+.reticle-frame {
   position: relative;
-  &::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    padding: 1px;
-    border-radius: inherit;
-    background: linear-gradient(135deg, rgb(52 211 153 / 0.7), rgb(34 211 238 / 0.35), rgb(167 139 250 / 0.6));
-    mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    mask-composite: exclude;
-    -webkit-mask-composite: xor;
-    pointer-events: none;
-  }
+}
+.reticle-frame::before,
+.reticle-frame::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  z-index: 2;
+}
+.reticle-frame::before {
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid var(--accent-canopy-bright);
+  border-left: 2px solid var(--accent-canopy-bright);
+  border-top-left-radius: 4px;
+}
+.reticle-frame::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 2px solid var(--accent-water);
+  border-right: 2px solid var(--accent-water);
+  border-bottom-right-radius: 4px;
+}
+
+/* Subtle diagonal hatching for baseline/reference zones */
+.hatch-pattern {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklab, var(--foreground) 3.5%, transparent) 0 4px,
+    transparent 0 8px
+  );
 }
 
 /* ------------------------------------------------------------------ */
-/* Motion                                                              */
+/* Semantic Progress Ring (`progress-ring` modern-web-guidance)       */
 /* ------------------------------------------------------------------ */
-@property --animation-reduced {
-  syntax: "*";
-  inherits: false;
-  initial-value: none;
+@property --value {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .motion-safe-only {
-    animation: var(--animation-reduced) !important;
+.progress-ring-wrapper {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+}
+
+progress.progress-ring {
+  --size: 3.5rem;
+  --thickness: 5px;
+  --track-color: var(--ring-track);
+  --fill-color: var(--accent-canopy);
+  --value: attr(value type(<number>));
+  width: var(--size);
+  height: var(--size);
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--fill-color) calc(var(--value) * 1%),
+    var(--track-color) 0
+  );
+  background-clip: border-area;
+  border: var(--thickness) solid transparent;
+  background-origin: border-box;
+  transition: --value 0s ease-in-out;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  progress.progress-ring {
+    transition-duration: 0.45s;
   }
 }
 
+progress.progress-ring::-webkit-progress-bar,
+progress.progress-ring::-webkit-progress-value {
+  display: none;
+  background: none;
+}
+
+progress.progress-ring::-moz-progress-bar {
+  display: none;
+  background: none;
+}
+
+@supports not (background-clip: border-area) {
+  progress.progress-ring {
+    mask-image: radial-gradient(
+      transparent calc(50% - var(--thickness)),
+      black calc(50% - var(--thickness) + 0.5px)
+    );
+    -webkit-mask-image: radial-gradient(
+      transparent calc(50% - var(--thickness)),
+      black calc(50% - var(--thickness) + 0.5px)
+    );
+    border: 0;
+  }
+}
+
+.progress-ring-content {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Motion                                                             */
+/* ------------------------------------------------------------------ */
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -201,239 +382,43 @@ body {
   }
 }
 
-@keyframes shimmer {
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-@keyframes scan {
-  0% {
-    transform: translateY(-100%);
-  }
-  100% {
-    transform: translateY(100%);
-  }
-}
-
-@keyframes orbit {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.6);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(2.4);
-    opacity: 0;
-  }
-}
-
-@keyframes grow-x {
-  from {
-    transform: scaleX(0);
-  }
-}
-
-@keyframes grow-y {
-  from {
-    transform: scaleY(0);
-  }
-}
-
 .animate-fade-up {
-  animation: fade-up 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: fade-up 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   animation-delay: var(--d, 0ms);
-}
-
-.animate-grow-x {
-  transform-origin: left;
-  animation: grow-x 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  animation-delay: var(--d, 0ms);
-}
-
-.animate-grow-y {
-  transform-origin: bottom;
-  animation: grow-y 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  animation-delay: var(--d, 0ms);
-}
-
-.animate-orbit {
-  animation: orbit 14s linear infinite;
-}
-
-.animate-pulse-ring {
-  animation: pulse-ring 2.2s cubic-bezier(0.2, 0.7, 0.2, 1) infinite;
-}
-
-.skeleton {
-  position: relative;
-  overflow: hidden;
-  background: var(--border);
-  border-radius: 0.75rem;
-}
-
-.skeleton::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.08), transparent);
-  animation: shimmer 1.4s infinite;
-}
-
-.scanline {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.scanline::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 0%, rgb(52 211 153 / 0.12) 50%, transparent 100%);
-  animation: scan 2.6s ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-fade-up,
-  .animate-grow-x,
-  .animate-grow-y {
-    animation: none;
-  }
-  .animate-orbit,
-  .animate-pulse-ring,
-  .skeleton::after,
-  .scanline::after,
-  .app-backdrop::before {
-    animation: none;
-  }
-}
-
-/* Directional step transitions (View Transitions API, progressive enhancement) */
-@keyframes vt-out-left {
-  to {
-    opacity: 0;
-    transform: translateX(-32px);
-  }
-}
-@keyframes vt-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(32px);
-  }
-}
-@keyframes vt-out-right {
-  to {
-    opacity: 0;
-    transform: translateX(32px);
-  }
-}
-@keyframes vt-in-left {
-  from {
-    opacity: 0;
-    transform: translateX(-32px);
-  }
-}
-
-::view-transition-group(step-panel) {
-  animation-duration: 0.32s;
-  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-
-html:active-view-transition-type(forward)::view-transition-old(step-panel) {
-  animation: vt-out-left 0.22s ease-in both;
-}
-html:active-view-transition-type(forward)::view-transition-new(step-panel) {
-  animation: vt-in-right 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-html:active-view-transition-type(backward)::view-transition-old(step-panel) {
-  animation: vt-out-right 0.22s ease-in both;
-}
-html:active-view-transition-type(backward)::view-transition-new(step-panel) {
-  animation: vt-in-left 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
-    animation: none !important;
-  }
+  --animation-reduced: none;
 }
 
 /* ------------------------------------------------------------------ */
-/* Form controls                                                       */
+/* Form Controls & Accessible Browser UI Theming                      */
 /* ------------------------------------------------------------------ */
-.tl-range {
-  --fill: 50%;
-  --accent: #34d399;
-  appearance: none;
-  -webkit-appearance: none;
-  width: 100%;
-  height: 6px;
-  border-radius: 999px;
-  background: linear-gradient(to right, var(--accent) var(--fill), var(--border-strong) 0);
-  cursor: pointer;
-  outline: none;
+input:user-valid {
+  border-color: var(--accent-canopy);
 }
 
-.tl-range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #fff;
-  border: 3px solid var(--accent);
-  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent);
-  transition: transform 0.15s ease;
+input:user-invalid {
+  border-color: var(--accent-danger);
 }
 
-.tl-range::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #fff;
-  border: 3px solid var(--accent);
-  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent);
-}
-
-.tl-range:hover::-webkit-slider-thumb,
-.tl-range:focus-visible::-webkit-slider-thumb {
-  transform: scale(1.15);
-}
-
-.tl-range:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
-}
-
-/* Thin themed scrollbars */
+/* Accessible thin scrollbars with >= 3:1 thumb contrast (never scrollbar-width: none on scroll areas) */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
 }
 
-/* MapLibre tweaks for dark UI */
+/* MapLibre tweaks for instrument UI */
 .maplibregl-ctrl-group {
   background: var(--surface-strong) !important;
   border: 1px solid var(--border-strong) !important;
-  border-radius: 12px !important;
+  border-radius: 10px !important;
   overflow: hidden;
-  box-shadow: none !important;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.3) !important;
 }
 .dark .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
   filter: invert(1);
 }
 .maplibregl-ctrl-attrib {
-  font-size: 9px !important;
-  background: rgb(0 0 0 / 0.45) !important;
+  font-size: 0.625rem !important;
+  background: rgb(6 11 22 / 0.72) !important;
   color: #cbd5e1 !important;
 }
 .maplibregl-ctrl-attrib a {
@@ -448,5 +433,6 @@ html:active-view-transition-type(backward)::view-transition-new(step-panel) {
   }
   body {
     background: #fff !important;
+    color: #000 !important;
   }
 }

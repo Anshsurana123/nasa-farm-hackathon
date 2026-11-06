@@ -1,7 +1,4 @@
 // Hand-written subset of the backend contracts (packages/schemas/terraloop_schemas/models.py).
-// TODO(TASK-F02): generate these from JSON Schema instead:
-//   uv run python -m terraloop_schemas.export apps/web/src/types/schemas.json
-//   npx json-schema-to-typescript apps/web/src/types/schemas.json > apps/web/src/types/schemas.d.ts
 
 export interface DataProvenance {
   source: string;
@@ -110,6 +107,36 @@ export interface GoldenField {
   verified_cropland: boolean;
 }
 
+export interface CropSpec {
+  id: string;
+  name: string;
+  family: string;
+  group: "cereal" | "legume" | "oilseed" | "tuber" | "vegetable" | "fibre" | "cover" | "fodder";
+  season_type: ("warm" | "cool")[];
+  gdd_to_maturity: number;
+  base_temp_c: number;
+  optimal_temp_c: [number, number];
+  max_temp_c: number;
+  min_temp_c: number;
+  duration_days: [number, number];
+  water_requirement_mm: [number, number];
+  kc: [number, number, number];
+  root_depth_m: number;
+  drought_tolerance: number;
+  heat_tolerance: number;
+  waterlogging_tolerance: number;
+  n_fixation_kg_ha: number;
+  n_demand_kg_ha: number;
+  residue_t_ha: number;
+  residue_cn_ratio?: number | null;
+  typical_yield_t_ha: [number, number];
+  aquacrop_name?: string | null;
+  good_predecessors: string[];
+  bad_predecessors: string[];
+  notes?: string | null;
+  sources: string[];
+}
+
 export interface Priorities {
   profit: number;
   water_savings: number;
@@ -185,4 +212,3 @@ export interface GeocodeResult {
   lon: number;
   name: string;
 }
-

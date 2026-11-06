@@ -1,9 +1,12 @@
 "use client";
 
-import type { FieldProfile } from "@/types/api";
+import { useState } from "react";
+import type { FieldProfile, StrategyRecommendation } from "@/types/api";
 import { useI18n } from "@/i18n";
 import { ProvenanceChip } from "./ProvenanceChip";
-import { cropMeta, cropName, seasonName } from "@/lib/ui";
+import { SoilColumn3D } from "./SoilColumn3D";
+import { ProgressRing } from "./ProgressRing";
+import { cropMeta, cropName, fmtDMS, seasonName } from "@/lib/ui";
 import {
   CloudSun,
   Sprout,
@@ -11,90 +14,596 @@ import {
   AlertTriangle,
   Flame,
   Calendar,
-  Sparkles,
   BarChart3,
-  TrendingDown,
   Gauge,
   ThermometerSun,
   Activity,
+  ShieldCheck,
 } from "lucide-react";
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-export function ReportCard({ profile }: { profile: FieldProfile }) {
+interface ReportCardProps {
+  profile: FieldProfile;
+  strategies?: StrategyRecommendation[];
+  show3DPedon?: boolean;
+}
+
+export function ReportCard({ profile, strategies = [], show3DPedon = true }: ReportCardProps) {
   const { t } = useI18n();
   const { field, climate, soil, water, hazards, agro_climatic_notes, crop_history, seasons_per_year } = profile;
 
+  const [selectedMonth, setSelectedMonth] = useState<number>(
+    climate.wettest_months?.[0] ? climate.wettest_months[0] - 1 : 6
+  );
+
   const maxMonthlyRain = Math.max(...(climate?.monthly_precip_mm ?? [100]), 10);
 
-  // Sand / Silt / Clay sum verification
   const sand = Math.round(soil.sand_pct ?? 40);
   const silt = Math.round(soil.silt_pct ?? 35);
   const clay = Math.round(soil.clay_pct ?? 25);
 
-  return (
-    <div className="space-y-5">
-      {/* Field Header Dossier */}
-      <div className="glass rounded-3xl p-6 border border-line shadow-sm relative overflow-hidden">
-        {/* Subtle decorative glow */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -z-10" />
+  const fcPct = soil.field_capacity_vol ? Math.round(soil.field_capacity_vol * 100) : 31;
+  const wpPct = soil.wilting_point_vol ? Math.round(soil.wilting_point_vol * 100) : 14;
+  const pawPct = Math.max(4, fcPct - wpPct);
 
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5 shadow-2xs">
-                <Sparkles className="w-3.5 h-3.5" />
-                Agro-Climatic Diagnostic Dossier
-              </span>
-              <span className="text-xs text-muted font-mono bg-foreground/5 px-2.5 py-1 rounded-full border border-line">
-                {Math.abs(field.lat).toFixed(4)}°{field.lat >= 0 ? "N" : "S"},{" "}
-                {Math.abs(field.lon).toFixed(4)}°{field.lon >= 0 ? "E" : "W"}
-              </span>
-              {seasons_per_year && (
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                  {seasons_per_year === 2 ? "Double Cropped (2 seasons/yr)" : `${seasons_per_year} seasons/yr`}
-                </span>
-              )}
+  const activeRain = climate.monthly_precip_mm[selectedMonth] ?? 0;
+  const activeTmax = climate.monthly_tmax_c?.[selectedMonth] ?? climate.mean_tmax_c;
+  const activeTmin = climate.monthly_tmin_c?.[selectedMonth] ?? climate.mean_tmin_c;
+  const activeSmap = water.root_zone_moisture_percentile?.[selectedMonth] ?? 50;
+
+  return (
+    <div className="space-y-6">
+      {/* Field Survey Header & Automated NASA Agro-Climatic Insights */}
+      <div className="glass rounded-2xl border border-line overflow-hidden reticle-frame">
+        <div className="instrument-header px-5 py-3 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-wider">
+              EO DOSSIER // PARCEL TELEMETRY
+            </span>
+            <span className="text-muted">
+              {fmtDMS(field.lat, true)} · {fmtDMS(field.lon, false)}
+            </span>
+          </div>
+          {seasons_per_year && (
+            <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border border-cyan-500/35 font-bold">
+              {seasons_per_year === 2
+                ? "Double-Cropped Regime (2 Seasons/Yr)"
+                : `${seasons_per_year} Seasons/Yr`}
+            </span>
+          )}
+        </div>
+
+        <div className="p-5 sm:p-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+                {field.name ?? "Selected Field Parcel"}
+              </h2>
+              <p className="text-xs font-mono text-muted mt-0.5">
+                Baseline Climatology: {climate.baseline_period} · Recent Window: {climate.recent_period}
+              </p>
             </div>
-            <h2 className="font-display text-2xl sm:text-3xl font-extrabold mt-2 text-foreground tracking-tight">
-              {field.name ?? "Selected Field Location"}
-            </h2>
+
+            <div className="flex items-center gap-3">
+              <div className="text-right font-mono">
+                <span className="text-[10px] text-muted uppercase block">Annual GDD (Base 10°C)</span>
+                <span className="text-base font-bold text-amber-500">
+                  {Math.round(climate.gdd_base10_per_year).toLocaleString()} °C·d
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Agro-climatic Field Observations */}
+          {agro_climatic_notes && agro_climatic_notes.length > 0 && (
+            <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/12 via-emerald-500/8 to-cyan-500/10 border border-amber-500/35 text-xs space-y-2.5">
+              <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-300 flex items-center gap-2">
+                <Activity className="w-3.5 h-3.5 text-amber-400" />
+                <span>{t("section.insights")} — Automated Satellite Anomaly Screen</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {agro_climatic_notes.map((note, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-lg bg-background/70 border border-line flex items-start gap-2.5 text-foreground/90 leading-relaxed"
+                  >
+                    <span className="font-mono text-amber-500 shrink-0 font-bold text-[11px]">
+                      0{idx + 1}
+                    </span>
+                    <span>{note}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Interactive Monthly Hyetograph, Thermal Envelope & Month Inspector */}
+      <div className="glass rounded-2xl border border-line overflow-hidden">
+        <div className="instrument-header px-5 py-3.5 flex items-center justify-between flex-wrap gap-2">
+          <h3 className="font-display font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-cyan-400" />
+            <span>FIG. 01 // Interactive 12-Month Hyetograph &amp; Thermal Envelope</span>
+          </h3>
+          <div className="flex items-center gap-4 text-[10px] font-mono">
+            <span className="flex items-center gap-1.5 text-cyan-500 dark:text-cyan-300 font-semibold">
+              <span className="w-2.5 h-2.5 rounded-xs bg-cyan-400 inline-block" /> Peak Wet Season
+            </span>
+            <span className="flex items-center gap-1.5 text-amber-500 dark:text-amber-300 font-semibold">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> Tmax / Tmin (°C)
+            </span>
           </div>
         </div>
 
-        {/* Insights / Agro-climatic Notes */}
-        {agro_climatic_notes && agro_climatic_notes.length > 0 && (
-          <div className="mt-5 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-2">
-            <h4 className="font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-amber-500" />
-              <span>{t("section.insights")}</span>
-            </h4>
-            <ul className="space-y-1.5 text-amber-900 dark:text-amber-200/90 leading-relaxed">
-              {agro_climatic_notes.map((note, idx) => (
-                <li key={idx} className="flex items-start gap-2">
-                  <span className="text-amber-500 shrink-0 font-bold">›</span>
-                  <span>{note}</span>
-                </li>
-              ))}
-            </ul>
+        <div className="p-5 sm:p-6 space-y-5">
+          {/* Interactive Selected Month Spotlight Bar */}
+          <div className="p-4 rounded-xl bg-background/75 border border-line-strong grid grid-cols-2 sm:grid-cols-4 gap-4 items-center font-mono text-xs">
+            <div>
+              <span className="text-[10px] text-muted uppercase block">Selected Month</span>
+              <span className="text-base font-bold text-emerald-400">
+                {MONTH_NAMES[selectedMonth]} {climate.wettest_months.includes(selectedMonth + 1) ? "· Wet Season" : "· Dry / Base"}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-muted uppercase block">Monthly Rainfall</span>
+              <span className="text-base font-bold text-cyan-400">{activeRain.toFixed(1)} mm</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-muted uppercase block">Thermal Envelope</span>
+              <span className="text-base font-bold text-amber-400">
+                {activeTmin.toFixed(1)}°C – {activeTmax.toFixed(1)}°C
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-muted uppercase block">SMAP Root Moisture</span>
+              <span className="text-base font-bold text-foreground">
+                {activeSmap.toFixed(0)}th %ile
+              </span>
+            </div>
           </div>
-        )}
+
+          {/* 12-Month Interactive Bar & Temperature Strip */}
+          <div className="grid grid-cols-12 gap-2 items-end h-44 pt-6 px-1">
+            {climate.monthly_precip_mm.map((val, idx) => {
+              const heightPct = Math.round((val / maxMonthlyRain) * 100);
+              const isMonsoon = climate.wettest_months.includes(idx + 1);
+              const isSelected = selectedMonth === idx;
+              const tmax = climate.monthly_tmax_c?.[idx] ?? 30;
+
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setSelectedMonth(idx)}
+                  onMouseEnter={() => setSelectedMonth(idx)}
+                  className={`flex flex-col items-center gap-1.5 h-full justify-end group relative cursor-pointer rounded-lg p-1 transition-colors ${
+                    isSelected ? "bg-foreground/[0.07] ring-1 ring-cyan-400/50" : "hover:bg-foreground/[0.04]"
+                  }`}
+                >
+                  {/* Temperature Pill at top of column */}
+                  <span
+                    className={`text-[9px] font-mono font-bold px-1 rounded ${
+                      tmax >= 35
+                        ? "text-rose-400 bg-rose-500/15"
+                        : "text-amber-500 dark:text-amber-300"
+                    }`}
+                  >
+                    {tmax.toFixed(0)}°
+                  </span>
+
+                  <span className="text-[9px] font-mono text-muted group-hover:text-foreground">
+                    {val.toFixed(0)}
+                  </span>
+
+                  <div
+                    style={{ height: `${Math.max(heightPct, 8)}%` }}
+                    className={`w-full rounded-t-md transition-all ${
+                      isSelected
+                        ? "bg-gradient-to-t from-emerald-500 to-cyan-400 shadow-md"
+                        : isMonsoon
+                        ? "bg-gradient-to-t from-cyan-600/80 to-cyan-400/90 border-t border-cyan-300"
+                        : "bg-foreground/20 border-t border-line-strong"
+                    }`}
+                  />
+
+                  <span
+                    className={`text-[10px] font-mono font-bold ${
+                      isSelected
+                        ? "text-emerald-400"
+                        : isMonsoon
+                        ? "text-cyan-500 dark:text-cyan-400"
+                        : "text-muted"
+                    }`}
+                  >
+                    {MONTH_NAMES[idx]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Accessible Data Table for Screen Readers (mandatory per visual-effects guide) */}
+          <table className="sr-only">
+            <caption>Monthly Precipitation and Temperature for {field.name ?? "Parcel"}</caption>
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>Precipitation (mm)</th>
+                <th>Mean Max Temp (°C)</th>
+                <th>Mean Min Temp (°C)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {climate.monthly_precip_mm.map((val, idx) => (
+                <tr key={MONTH_NAMES[idx]}>
+                  <td>{MONTH_NAMES[idx]}</td>
+                  <td>{val.toFixed(1)}</td>
+                  <td>{climate.monthly_tmax_c?.[idx]?.toFixed(1) ?? "—"}</td>
+                  <td>{climate.monthly_tmin_c?.[idx]?.toFixed(1) ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Grid: 4 Core Diagnostic Instruments */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* 1. Climate Instrument */}
+        <div className="glass rounded-2xl border border-line flex flex-col justify-between overflow-hidden">
+          <div>
+            <div className="instrument-header px-5 py-3 flex items-center justify-between">
+              <h3 className="font-display font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-2">
+                <CloudSun className="w-4 h-4 text-cyan-400" />
+                <span>FIG. 02 // {t("section.climate")}</span>
+              </h3>
+              <span className="text-[10px] font-mono text-muted">
+                {climate.baseline_period} → {climate.recent_period}
+              </span>
+            </div>
+
+            <div className="p-5 grid grid-cols-2 gap-3">
+              <div className="p-3.5 rounded-xl bg-background/60 border border-line">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-muted">
+                  {t("climate.rain")}
+                </p>
+                <p className="text-xl font-bold font-mono text-foreground mt-1">
+                  {climate.recent_annual_precip_mm.toFixed(0)}{" "}
+                  <span className="text-xs font-normal text-muted">{t("unit.mmYr")}</span>
+                </p>
+                <p className="text-[10px] font-mono text-emerald-500 mt-1 font-semibold">
+                  Δ {climate.precip_change_pct > 0 ? "+" : ""}
+                  {climate.precip_change_pct.toFixed(0)}% vs baseline
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-background/60 border border-line">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-muted">
+                  {t("climate.heatDays")}
+                </p>
+                <p className="text-xl font-bold font-mono text-amber-500 mt-1">
+                  {climate.recent_heat_days_per_year.toFixed(0)}{" "}
+                  <span className="text-xs font-normal text-muted">{t("unit.days")}</span>
+                </p>
+                <p className="text-[10px] text-muted mt-1 font-mono">
+                  Baseline: {climate.heat_days_per_year.toFixed(0)} d/yr
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-background/60 border border-line">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-muted">
+                  {t("climate.et0")}
+                </p>
+                <p className="text-xl font-bold font-mono text-cyan-400 mt-1">
+                  {climate.annual_et0_mm ? climate.annual_et0_mm.toFixed(0) : "—"}{" "}
+                  <span className="text-xs font-normal text-muted">{t("unit.mmYr")}</span>
+                </p>
+                <p className="text-[10px] text-muted mt-1 font-mono">Hargreaves-Samani ET₀</p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-background/60 border border-line">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-muted">
+                  {t("climate.drySpell")}
+                </p>
+                <p className="text-xl font-bold font-mono text-foreground mt-1">
+                  {climate.longest_dry_spell_days_mean.toFixed(0)}{" "}
+                  <span className="text-xs font-normal text-muted">{t("unit.days")}</span>
+                </p>
+                <p className="text-[10px] text-muted mt-1 font-mono">Max monsoon gap</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-5 pb-4 pt-2 border-t border-line">
+            <ProvenanceChip provenance={climate.provenance} />
+          </div>
+        </div>
+
+        {/* 2. Pedology / Soil Instrument */}
+        <div className="glass rounded-2xl border border-line flex flex-col justify-between overflow-hidden">
+          <div>
+            <div className="instrument-header px-5 py-3 flex items-center justify-between">
+              <h3 className="font-display font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-2">
+                <Sprout className="w-4 h-4 text-emerald-400" />
+                <span>FIG. 03 // {t("section.soil")} &amp; Hydraulics</span>
+              </h3>
+              <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                {soil.texture_class && (
+                  <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/40 capitalize font-bold">
+                    {soil.texture_class}
+                  </span>
+                )}
+                {soil.slope_pct !== undefined && soil.slope_pct !== null && (
+                  <span className="px-2 py-0.5 rounded text-muted bg-background/60 border border-line">
+                    {soil.slope_pct}% grade
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="p-5 grid grid-cols-2 gap-3">
+              <div className="p-3.5 rounded-xl bg-background/60 border border-line flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-mono uppercase tracking-wider text-muted">
+                    {t("soil.soc")}
+                  </p>
+                  <p className="text-xl font-bold font-mono text-emerald-400 mt-1">
+                    {soil.soc_g_per_kg ? soil.soc_g_per_kg.toFixed(1) : "—"}{" "}
+                    <span className="text-xs font-normal text-muted">{t("unit.gkg")}</span>
+                  </p>
+                  <p className="text-[10px] text-muted mt-1 font-mono">0–30 cm Horizon A</p>
+                </div>
+                <ProgressRing
+                  value={Math.min(100, Math.round(((soil.soc_g_per_kg ?? 8) / 16) * 100))}
+                  max={100}
+                  label="Topsoil SOC saturation"
+                  size="2.8rem"
+                  thickness="4px"
+                  color="var(--accent-canopy)"
+                >
+                  <span className="text-[9px] font-mono font-bold text-emerald-400">SOC</span>
+                </ProgressRing>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-background/60 border border-line">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-muted">
+                  {t("soil.ph")} &amp; Bulk Density
+                </p>
+                <p className="text-xl font-bold font-mono text-foreground mt-1">
+                  pH {soil.ph ? soil.ph.toFixed(1) : "—"}
+                </p>
+                <p className="text-[10px] font-mono text-cyan-500 dark:text-cyan-300 mt-1">
+                  {soil.ph && soil.ph > 7.5
+                    ? "Slightly Alkaline"
+                    : soil.ph && soil.ph < 6
+                    ? "Acidic"
+                    : "Neutral Optimal"}{" "}
+                  · BD {soil.bulk_density_g_cm3?.toFixed(2) ?? "1.40"}
+                </p>
+              </div>
+
+              {/* Sand / Silt / Clay Granulometry + Saxton-Rawls Available Water */}
+              <div className="col-span-2 p-3.5 rounded-xl bg-background/60 border border-line space-y-2.5">
+                <div className="flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-muted uppercase tracking-wider">USDA Particle Fraction</span>
+                  <span className="text-foreground font-bold">
+                    {sand}% Sand · {silt}% Silt · {clay}% Clay
+                  </span>
+                </div>
+                <div className="h-3.5 w-full rounded-full overflow-hidden flex bg-background border border-line">
+                  <div
+                    style={{ width: `${sand}%` }}
+                    className="bg-amber-400"
+                    title={`Sand: ${sand}%`}
+                  />
+                  <div
+                    style={{ width: `${silt}%` }}
+                    className="bg-cyan-400"
+                    title={`Silt: ${silt}%`}
+                  />
+                  <div
+                    style={{ width: `${clay}%` }}
+                    className="bg-orange-500"
+                    title={`Clay: ${clay}%`}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[10px] font-mono text-muted pt-0.5">
+                  <span>Saxton-Rawls Plant Available Water: {pawPct}% vol</span>
+                  <span className="text-foreground font-semibold">
+                    FC {fcPct}% · WP {wpPct}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-5 pb-4 pt-2 border-t border-line">
+            <ProvenanceChip provenance={soil.provenance} />
+          </div>
+        </div>
+
+        {/* 3. Water & Aquifer Instrument */}
+        <div className="glass rounded-2xl border border-line flex flex-col justify-between overflow-hidden">
+          <div>
+            <div className="instrument-header px-5 py-3 flex items-center justify-between">
+              <h3 className="font-display font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-2">
+                <Droplets className="w-4 h-4 text-cyan-400" />
+                <span>FIG. 04 // {t("section.water")} &amp; Aquifer</span>
+              </h3>
+              <span className="text-[10px] font-mono text-muted">SMAP L4 · GRACE-FO</span>
+            </div>
+
+            <div className="p-5 grid grid-cols-2 gap-3">
+              <div className="p-3.5 rounded-xl bg-background/60 border border-line">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-muted">
+                  {t("water.balance")}
+                </p>
+                <p
+                  className={`text-xl font-bold font-mono mt-1 ${
+                    water.climatic_water_balance_mm && water.climatic_water_balance_mm < 0
+                      ? "text-amber-500 dark:text-amber-400"
+                      : "text-emerald-500"
+                  }`}
+                >
+                  {water.climatic_water_balance_mm
+                    ? `${water.climatic_water_balance_mm.toFixed(0)} mm`
+                    : "—"}
+                </p>
+                <p className="text-[10px] text-muted mt-1 font-mono">P − ET₀ Annual Net</p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-background/60 border border-line">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-muted">
+                  {t("water.groundwater")}
+                </p>
+                <p
+                  className={`text-xl font-bold font-mono mt-1 ${
+                    water.groundwater_trend_cm_per_year && water.groundwater_trend_cm_per_year < 0
+                      ? "text-rose-500 dark:text-rose-400"
+                      : "text-emerald-400"
+                  }`}
+                >
+                  {water.groundwater_trend_cm_per_year
+                    ? `${water.groundwater_trend_cm_per_year > 0 ? "+" : ""}${water.groundwater_trend_cm_per_year} cm/yr`
+                    : "—"}
+                </p>
+                <p className="text-[10px] font-mono text-muted mt-1 truncate">
+                  {water.groundwater_trend_cm_per_year && water.groundwater_trend_cm_per_year < -2.0
+                    ? "JPL Mascon Depletion"
+                    : "Aquifer Storage Trend"}
+                </p>
+              </div>
+
+              {/* SMAP Root-zone percentiles sparkline */}
+              {water.root_zone_moisture_percentile && (
+                <div className="col-span-2 p-3.5 rounded-xl bg-background/60 border border-line space-y-2">
+                  <div className="flex items-center justify-between text-[10px] font-mono">
+                    <span className="font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                      <Gauge className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>{t("water.smap")}</span>
+                    </span>
+                    <span className="text-muted">Climatological %ile</span>
+                  </div>
+
+                  <div className="grid grid-cols-12 gap-1.5 items-end h-12 pt-1">
+                    {water.root_zone_moisture_percentile.map((pct, idx) => {
+                      const color =
+                        pct < 30
+                          ? "bg-rose-500"
+                          : pct < 60
+                          ? "bg-amber-400"
+                          : "bg-cyan-400";
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setSelectedMonth(idx)}
+                          className="h-full flex flex-col justify-end items-center group relative cursor-pointer"
+                        >
+                          <div
+                            style={{ height: `${Math.max(pct, 12)}%` }}
+                            className={`w-full rounded-t-xs transition-all ${color} group-hover:brightness-125`}
+                          />
+                          <span className="text-[8px] font-mono text-muted mt-1 group-hover:text-foreground">
+                            {MONTH_NAMES[idx][0]}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="px-5 pb-4 pt-2 border-t border-line">
+            <ProvenanceChip provenance={water.provenance} />
+          </div>
+        </div>
+
+        {/* 4. Hazards & Climate Risks Instrument */}
+        <div className="glass rounded-2xl border border-line flex flex-col justify-between overflow-hidden">
+          <div>
+            <div className="instrument-header px-5 py-3 flex items-center justify-between">
+              <h3 className="font-display font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <span>FIG. 05 // {t("section.hazards")}</span>
+              </h3>
+              {hazards.residue_burning_detected ? (
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/20 text-rose-500 dark:text-rose-300 border border-rose-500/40 flex items-center gap-1">
+                  <Flame className="w-3 h-3" /> FIRMS Anomaly
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" /> Clear Swath
+                </span>
+              )}
+            </div>
+
+            <div className="p-5 grid grid-cols-2 gap-3">
+              <div className="p-3.5 rounded-xl bg-background/60 border border-line">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-muted">
+                  {t("hazards.erosion")}
+                </p>
+                <p className="text-xl font-bold text-foreground mt-1 uppercase font-mono">
+                  {hazards.erosion_risk_class ?? "Low"}
+                </p>
+                <p className="text-[10px] text-muted mt-1 font-mono">RUSLE A = R·K·LS·C·P</p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-background/60 border border-line">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-muted">
+                  {t("hazards.drought")}
+                </p>
+                <p className="text-xl font-bold font-mono text-amber-400 mt-1">
+                  {hazards.drought_frequency ? `${(hazards.drought_frequency * 100).toFixed(0)}%` : "—"}
+                </p>
+                <p className="text-[10px] text-muted mt-1 font-mono">Historical recurrence</p>
+              </div>
+
+              {hazards.terminal_heat_days_per_year !== undefined &&
+                hazards.terminal_heat_days_per_year !== null && (
+                  <div className="p-3.5 rounded-xl bg-background/60 border border-line col-span-2 space-y-1">
+                    <div className="flex justify-between items-center font-mono">
+                      <p className="text-[10px] uppercase tracking-wider text-muted flex items-center gap-1.5">
+                        <ThermometerSun className="w-3.5 h-3.5 text-amber-400" />
+                        <span>{t("hazards.terminalHeat")}</span>
+                      </p>
+                      <span className="text-xs font-bold text-amber-500">
+                        {hazards.terminal_heat_days_per_year.toFixed(1)} d/yr
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-muted font-mono">
+                      Grain-fill window (1 Mar–15 Apr) exceeding 32 °C threshold
+                    </p>
+                  </div>
+                )}
+            </div>
+          </div>
+
+          <div className="px-5 pb-4 pt-2 border-t border-line text-[10px] font-mono text-muted flex items-center justify-between">
+            <span>NASA FIRMS MODIS/VIIRS [375m]</span>
+            <span>NASADEM + RUSLE v2.1</span>
+          </div>
+        </div>
       </div>
 
       {/* Satellite Crop History Strip (Phenology & Seasons) */}
       {crop_history && crop_history.length > 0 && (
-        <div className="glass rounded-3xl p-5 border border-line shadow-sm space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-indigo-400" />
-              <span>{t("section.cropHistory")}</span>
+        <div className="glass rounded-2xl border border-line overflow-hidden">
+          <div className="instrument-header px-5 py-3 flex items-center justify-between">
+            <h3 className="font-display font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-emerald-400" />
+              <span>FIG. 06 // {t("section.cropHistory")}</span>
             </h3>
-            <span className="text-[11px] font-mono text-muted bg-foreground/5 px-2 py-0.5 rounded-full border border-line">
-              NASA HLS 30m · MODIS NDVI
+            <span className="text-[10px] font-mono text-emerald-500 font-bold px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/35">
+              NASA HLS L30/S30 · MOD13Q1
             </span>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-none">
+          <div className="p-4 flex gap-3 overflow-x-auto">
             {crop_history.map((season, idx) => {
               const meta = cropMeta(season.crop_group);
               const sName = seasonName(field.lat, field.lon, season.season_index);
@@ -102,28 +611,31 @@ export function ReportCard({ profile }: { profile: FieldProfile }) {
               return (
                 <div
                   key={idx}
-                  className={`flex-shrink-0 p-3.5 rounded-2xl border min-w-[145px] transition-transform hover:-translate-y-0.5 duration-200 ${meta.tone} border-line/60 bg-surface shadow-xs`}
+                  className={`flex-shrink-0 p-3.5 rounded-xl border min-w-[164px] transition-all hover:-translate-y-0.5 ${meta.tone} bg-background/70`}
                 >
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-black font-mono text-foreground">
-                      {season.year}
-                    </span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-foreground/5 border border-line">
+                  <div className="flex items-center justify-between text-[11px] font-mono">
+                    <span className="font-bold text-foreground">{season.year}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-foreground/10 border border-line">
                       {sName}
                     </span>
                   </div>
 
                   <div className="mt-2.5 flex items-center gap-2">
-                    <span className="text-xl">{meta.emoji}</span>
+                    <span
+                      className="w-6 h-6 rounded text-[9px] font-mono font-bold flex items-center justify-center border border-current/35 shrink-0"
+                      style={{ color: meta.color }}
+                    >
+                      {meta.emoji}
+                    </span>
                     <span className="text-xs font-bold capitalize text-foreground truncate">
                       {season.crop_group ? cropName(season.crop_group) : "Crop"}
                     </span>
                   </div>
 
                   {season.peak && (
-                    <div className="text-[10px] text-muted mt-2 font-mono flex items-center gap-1">
-                      <span>Peak:</span>
-                      <span className="font-semibold text-foreground/80">{season.peak}</span>
+                    <div className="text-[10px] text-muted mt-2.5 font-mono flex items-center justify-between border-t border-line pt-1.5">
+                      <span>NDVI Peak</span>
+                      <span className="font-semibold text-foreground/90">{season.peak}</span>
                     </div>
                   )}
                 </div>
@@ -133,357 +645,8 @@ export function ReportCard({ profile }: { profile: FieldProfile }) {
         </div>
       )}
 
-      {/* Grid: 4 Core Diagnostic Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* 1. Climate Card */}
-        <div className="glass rounded-3xl p-5 border border-line shadow-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all duration-300">
-          <div>
-            <div className="flex items-center justify-between">
-              <h3 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
-                <CloudSun className="w-4 h-4 text-cyan-400" />
-                <span>{t("section.climate")}</span>
-              </h3>
-              <span className="text-[10px] font-mono text-muted bg-foreground/5 px-2 py-0.5 rounded-full border border-line">
-                {climate.baseline_period} vs {climate.recent_period}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <div className="p-3.5 rounded-2xl bg-foreground/5 border border-line/60">
-                <p className="text-[11px] text-muted font-medium">{t("climate.rain")}</p>
-                <p className="text-xl font-black font-mono text-foreground mt-0.5">
-                  {climate.recent_annual_precip_mm.toFixed(0)}{" "}
-                  <span className="text-xs font-normal text-muted">{t("unit.mmYr")}</span>
-                </p>
-                <p className="text-[10px] font-semibold text-emerald-500 dark:text-emerald-400 mt-1">
-                  Change: {climate.precip_change_pct > 0 ? "+" : ""}
-                  {climate.precip_change_pct.toFixed(0)}%
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-foreground/5 border border-line/60">
-                <p className="text-[11px] text-muted font-medium">{t("climate.heatDays")}</p>
-                <p className="text-xl font-black font-mono text-foreground mt-0.5">
-                  {climate.recent_heat_days_per_year.toFixed(0)}{" "}
-                  <span className="text-xs font-normal text-muted">{t("unit.days")}</span>
-                </p>
-                <p className="text-[10px] text-muted mt-1 font-mono">
-                  Base: {climate.heat_days_per_year.toFixed(0)} d/yr
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-foreground/5 border border-line/60">
-                <p className="text-[11px] text-muted font-medium">{t("climate.et0")}</p>
-                <p className="text-xl font-black font-mono text-foreground mt-0.5">
-                  {climate.annual_et0_mm ? climate.annual_et0_mm.toFixed(0) : "—"}{" "}
-                  <span className="text-xs font-normal text-muted">{t("unit.mmYr")}</span>
-                </p>
-                <p className="text-[10px] text-muted mt-1">Atmospheric demand</p>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-foreground/5 border border-line/60">
-                <p className="text-[11px] text-muted font-medium">{t("climate.drySpell")}</p>
-                <p className="text-xl font-black font-mono text-foreground mt-0.5">
-                  {climate.longest_dry_spell_days_mean.toFixed(0)}{" "}
-                  <span className="text-xs font-normal text-muted">{t("unit.days")}</span>
-                </p>
-                <p className="text-[10px] text-muted mt-1">Rainy-season spell</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-line">
-            <ProvenanceChip provenance={climate.provenance} />
-          </div>
-        </div>
-
-        {/* 2. Soil Card with Visual Sand/Silt/Clay Bar */}
-        <div className="glass rounded-3xl p-5 border border-line shadow-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all duration-300">
-          <div>
-            <div className="flex items-center justify-between">
-              <h3 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
-                <Sprout className="w-4 h-4 text-emerald-400" />
-                <span>{t("section.soil")}</span>
-              </h3>
-              <div className="flex items-center gap-1.5">
-                {soil.texture_class && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30 capitalize">
-                    {soil.texture_class}
-                  </span>
-                )}
-                {soil.slope_pct !== undefined && soil.slope_pct !== null && (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-mono text-muted bg-foreground/5 border border-line">
-                    Slope {soil.slope_pct}%
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <div className="p-3.5 rounded-2xl bg-foreground/5 border border-line/60">
-                <p className="text-[11px] text-muted font-medium">{t("soil.soc")}</p>
-                <p className="text-xl font-black font-mono text-foreground mt-0.5">
-                  {soil.soc_g_per_kg ? soil.soc_g_per_kg.toFixed(1) : "—"}{" "}
-                  <span className="text-xs font-normal text-muted">{t("unit.gkg")}</span>
-                </p>
-                <p className="text-[10px] text-muted mt-1">Topsoil (0–30 cm)</p>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-foreground/5 border border-line/60">
-                <p className="text-[11px] text-muted font-medium">{t("soil.ph")}</p>
-                <p className="text-xl font-black font-mono text-foreground mt-0.5">
-                  {soil.ph ? soil.ph.toFixed(1) : "—"}
-                </p>
-                <p className="text-[10px] font-semibold text-emerald-500 dark:text-emerald-400 mt-1">
-                  {soil.ph && soil.ph > 7.5 ? "Alkaline" : soil.ph && soil.ph < 6 ? "Acidic" : "Optimal Neutral"}
-                </p>
-              </div>
-
-              {/* Sand / Silt / Clay Composition Breakdown Bar */}
-              <div className="col-span-2 p-3.5 rounded-2xl bg-foreground/5 border border-line/60 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted font-medium">Texture Composition</span>
-                  <span className="font-mono text-[11px] text-foreground font-semibold">
-                    {sand}% Sand · {silt}% Silt · {clay}% Clay
-                  </span>
-                </div>
-                {/* Visual stacked bar */}
-                <div className="h-3.5 w-full rounded-full overflow-hidden flex shadow-inner bg-background/50">
-                  <div style={{ width: `${sand}%` }} className="bg-amber-400" title={`Sand: ${sand}%`} />
-                  <div style={{ width: `${silt}%` }} className="bg-yellow-500" title={`Silt: ${silt}%`} />
-                  <div style={{ width: `${clay}%` }} className="bg-rose-500" title={`Clay: ${clay}%`} />
-                </div>
-                <div className="flex items-center justify-between text-[10px] text-muted pt-0.5">
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-amber-400" /> Sand
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-yellow-500" /> Silt
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-rose-500" /> Clay
-                  </span>
-                  <span className="font-mono">
-                    FC {soil.field_capacity_vol ? `${(soil.field_capacity_vol * 100).toFixed(0)}%` : "—"} / WP{" "}
-                    {soil.wilting_point_vol ? `${(soil.wilting_point_vol * 100).toFixed(0)}%` : "—"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-line">
-            <ProvenanceChip provenance={soil.provenance} />
-          </div>
-        </div>
-
-        {/* 3. Water & Aquifer Card with SMAP Percentiles */}
-        <div className="glass rounded-3xl p-5 border border-line shadow-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all duration-300">
-          <div>
-            <div className="flex items-center justify-between">
-              <h3 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
-                <Droplets className="w-4 h-4 text-blue-400" />
-                <span>{t("section.water")}</span>
-              </h3>
-              <span className="text-[10px] font-mono text-muted bg-foreground/5 px-2 py-0.5 rounded-full border border-line">
-                NASA SMAP &amp; GRACE-FO
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <div className="p-3.5 rounded-2xl bg-foreground/5 border border-line/60">
-                <p className="text-[11px] text-muted font-medium">{t("water.balance")}</p>
-                <p
-                  className={`text-xl font-black font-mono mt-0.5 ${
-                    water.climatic_water_balance_mm && water.climatic_water_balance_mm < 0
-                      ? "text-rose-500 dark:text-rose-400"
-                      : "text-emerald-500 dark:text-emerald-400"
-                  }`}
-                >
-                  {water.climatic_water_balance_mm ? `${water.climatic_water_balance_mm.toFixed(0)} mm` : "—"}
-                </p>
-                <p className="text-[10px] text-muted mt-1">P - ET₀ Annual</p>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-foreground/5 border border-line/60">
-                <p className="text-[11px] text-muted font-medium">{t("water.groundwater")}</p>
-                <p
-                  className={`text-xl font-black font-mono mt-0.5 ${
-                    water.groundwater_trend_cm_per_year && water.groundwater_trend_cm_per_year < 0
-                      ? "text-rose-500 dark:text-rose-400"
-                      : "text-foreground"
-                  }`}
-                >
-                  {water.groundwater_trend_cm_per_year
-                    ? `${water.groundwater_trend_cm_per_year > 0 ? "+" : ""}${water.groundwater_trend_cm_per_year} cm/yr`
-                    : "—"}
-                </p>
-                <p className="text-[10px] font-semibold text-rose-500 dark:text-rose-400 mt-1 truncate">
-                  {water.groundwater_trend_cm_per_year && water.groundwater_trend_cm_per_year < -2.0
-                    ? "Severe Drawdown (GRACE)"
-                    : "Stable Groundwater"}
-                </p>
-              </div>
-
-              {/* SMAP Root-zone percentiles sparkline */}
-              {water.root_zone_moisture_percentile && (
-                <div className="col-span-2 p-3.5 rounded-2xl bg-foreground/5 border border-line/60 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
-                      <Gauge className="w-3.5 h-3.5 text-blue-400" />
-                      <span>{t("water.smap")}</span>
-                    </p>
-                    <span className="text-[10px] text-muted font-mono">12-Mo Percentiles</span>
-                  </div>
-
-                  <div className="grid grid-cols-12 gap-1.5 items-end h-10 pt-1">
-                    {water.root_zone_moisture_percentile.map((pct, idx) => {
-                      const color =
-                        pct < 30 ? "bg-rose-500" : pct < 60 ? "bg-amber-400" : "bg-emerald-500";
-                      return (
-                        <div
-                          key={idx}
-                          className="h-full flex flex-col justify-end items-center group relative cursor-pointer"
-                        >
-                          <div
-                            style={{ height: `${Math.max(pct, 12)}%` }}
-                            className={`w-full rounded-t-md transition-all duration-300 ${color} group-hover:brightness-125`}
-                          />
-                          <span className="text-[8px] font-mono text-muted mt-1 group-hover:text-foreground">
-                            {MONTH_NAMES[idx][0]}
-                          </span>
-                          {/* Tooltip on hover */}
-                          <div className="absolute bottom-12 hidden group-hover:block z-20 glass-strong text-[9px] font-mono px-2 py-0.5 rounded-md whitespace-nowrap shadow-md border border-line">
-                            {MONTH_NAMES[idx]}: {pct.toFixed(0)}th %ile
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-line">
-            <ProvenanceChip provenance={water.provenance} />
-          </div>
-        </div>
-
-        {/* 4. Hazards & Climate Risks Card */}
-        <div className="glass rounded-3xl p-5 border border-line shadow-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all duration-300">
-          <div>
-            <div className="flex items-center justify-between">
-              <h3 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-400" />
-                <span>{t("section.hazards")}</span>
-              </h3>
-              {hazards.residue_burning_detected ? (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-500 border border-rose-500/40 animate-pulse flex items-center gap-1">
-                  <Flame className="w-3.5 h-3.5" /> Fire Detected
-                </span>
-              ) : (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                  Residue Cleared
-                </span>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <div className="p-3.5 rounded-2xl bg-foreground/5 border border-line/60">
-                <p className="text-[11px] text-muted font-medium">{t("hazards.erosion")}</p>
-                <p className="text-xl font-black text-foreground mt-0.5 uppercase font-mono">
-                  {hazards.erosion_risk_class ?? "Low"}
-                </p>
-                <p className="text-[10px] text-muted mt-1">RUSLE water erosion</p>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-foreground/5 border border-line/60">
-                <p className="text-[11px] text-muted font-medium">{t("hazards.drought")}</p>
-                <p className="text-xl font-black font-mono text-foreground mt-0.5">
-                  {hazards.drought_frequency ? `${(hazards.drought_frequency * 100).toFixed(0)}%` : "—"}
-                </p>
-                <p className="text-[10px] text-muted mt-1">Historical frequency</p>
-              </div>
-
-              {/* Terminal Heat Days */}
-              {hazards.terminal_heat_days_per_year !== undefined && hazards.terminal_heat_days_per_year !== null && (
-                <div className="p-3.5 rounded-2xl bg-foreground/5 border border-line/60 col-span-2 space-y-1">
-                  <div className="flex justify-between items-center">
-                    <p className="text-[11px] text-muted font-medium flex items-center gap-1">
-                      <ThermometerSun className="w-3.5 h-3.5 text-amber-500" />
-                      <span>{t("hazards.terminalHeat")}</span>
-                    </p>
-                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400 font-mono">
-                      {hazards.terminal_heat_days_per_year.toFixed(1)} days/yr
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-muted">
-                    Wheat grain-filling window (1 Mar–15 Apr) with Tmax &gt; 32 °C
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-line text-[10px] text-muted flex items-center justify-between">
-            <span>NASA FIRMS active fire satellite detection</span>
-            <span className="font-mono">RUSLE v2.1</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Monthly Rainfall & Temperature Chart */}
-      <div className="glass rounded-3xl p-6 border border-line shadow-sm space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h3 className="font-display font-bold text-base text-foreground flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-emerald-400" />
-            <span>{t("climate.monthlyRain")} &amp; Temperature Dynamics</span>
-          </h3>
-          <div className="flex items-center gap-3 text-xs">
-            <span className="flex items-center gap-1.5 text-muted">
-              <span className="w-3 h-3 rounded-sm bg-blue-500 inline-block" /> Monsoon / Wet
-            </span>
-            <span className="flex items-center gap-1.5 text-muted">
-              <span className="w-3 h-3 rounded-sm bg-blue-300 dark:bg-blue-800 inline-block" /> Dry / Normal
-            </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-12 gap-2 items-end h-36 pt-4">
-          {climate.monthly_precip_mm.map((val, idx) => {
-            const heightPct = Math.round((val / maxMonthlyRain) * 100);
-            const isMonsoon = climate.wettest_months.includes(idx + 1);
-            const tmax = climate.monthly_tmax_c?.[idx];
-
-            return (
-              <div key={idx} className="flex flex-col items-center gap-1.5 h-full justify-end group relative cursor-pointer">
-                {/* Floating tooltip */}
-                <div className="absolute bottom-24 hidden group-hover:flex flex-col items-center z-20 glass-strong text-[10px] px-2.5 py-1.5 rounded-xl whitespace-nowrap shadow-xl border border-line">
-                  <span className="font-bold text-foreground">{MONTH_NAMES[idx]}</span>
-                  <span className="text-blue-500 font-mono">{val.toFixed(1)} mm</span>
-                  {tmax && <span className="text-amber-500 font-mono">Tmax: {tmax.toFixed(1)}°C</span>}
-                </div>
-
-                <span className="text-[10px] font-mono text-muted group-hover:text-blue-400">
-                  {val.toFixed(0)}
-                </span>
-                <div
-                  style={{ height: `${Math.max(heightPct, 8)}%` }}
-                  className={`w-full rounded-t-lg transition-all duration-300 ${
-                    isMonsoon
-                      ? "bg-gradient-to-t from-blue-600 to-cyan-400 shadow-xs"
-                      : "bg-blue-300/60 dark:bg-blue-900/40"
-                  } group-hover:brightness-125`}
-                />
-                <span className={`text-[11px] font-bold ${isMonsoon ? "text-cyan-500" : "text-muted"}`}>
-                  {MONTH_NAMES[idx]}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {/* Optional 3D Stratigraphic Pedon */}
+      {show3DPedon && <SoilColumn3D profile={profile} strategies={strategies} />}
     </div>
   );
 }

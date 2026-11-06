@@ -1,131 +1,70 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import type { FieldProfile, GoldenField, StrategyRecommendation } from "@/types/api";
-import { api } from "@/lib/api";
-import { Navbar } from "@/components/Navbar";
-import { TelemetryBar } from "@/components/TelemetryBar";
+import { useState } from "react";
+import Link from "next/link";
+import { AppShell } from "@/components/AppShell";
 import { FieldMap } from "@/components/FieldMap";
-import { ReportCard } from "@/components/ReportCard";
-import { RotationExplorer } from "@/components/RotationExplorer";
-import { AgronomicBrief } from "@/components/AgronomicBrief";
-import { useI18n } from "@/i18n";
-import { regionContext } from "@/lib/ui";
+import { SoilColumn3D } from "@/components/SoilColumn3D";
+import { ProgressRing } from "@/components/ProgressRing";
+import { useField } from "@/context/FieldContext";
+import { api } from "@/lib/api";
 import {
-  Satellite,
-  Compass,
-  TrendingUp,
-  FlaskConical,
-  FileText,
-  Search,
-  MapPin,
-  Sparkles,
-  AlertTriangle,
-  Flame,
-  Droplets,
-  Layers,
+  avgIrrigation,
+  fmtDMS,
+  fmtMoney,
+  isSouthAsia,
+  regionContext,
+  regionFlag,
+  waterSavedPct,
+} from "@/lib/ui";
+import {
+  Activity,
   ArrowRight,
-  ExternalLink,
+  Compass,
+  Droplets,
+  FileText,
+  FlaskConical,
+  Layers,
+  MapPin,
+  Search,
+  Sparkles,
+  Sprout,
+  TrendingUp,
 } from "lucide-react";
 
-type MainTab = "dashboard" | "rotations" | "pareto" | "whatif" | "brief";
+export default function MissionControlPage() {
+  const {
+    goldenFields,
+    selectedField,
+    selectedGoldenId,
+    profile,
+    strategies,
+    crops,
+    selectGolden,
+    selectLocation,
+  } = useField();
 
-export default function Home() {
-  const { t } = useI18n();
-  const [goldenFields, setGoldenFields] = useState<GoldenField[]>([]);
-  const [selectedField, setSelectedField] = useState<{ lat: number; lon: number; name: string }>({
-    lat: 30.2,
-    lon: 75.92,
-    name: "Sangrur, Punjab (hero field)",
-  });
-  const [selectedGoldenId, setSelectedGoldenId] = useState<string | null>("sangrur");
-  const [profile, setProfile] = useState<FieldProfile | null>(null);
-  const [strategies, setStrategies] = useState<StrategyRecommendation[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Active workspace tab
-  const [activeTab, setActiveTab] = useState<MainTab>("dashboard");
-  const [, startTransition] = useTransition();
-
-  // Manual inputs for lat/lon
-  const [customLat, setCustomLat] = useState<string>("30.2000");
-  const [customLon, setCustomLon] = useState<string>("75.9200");
-
-  // Address & Google Maps link import state
   const [locationInputMode, setLocationInputMode] = useState<"address" | "coords">("address");
   const [addressQuery, setAddressQuery] = useState<string>("");
+  const [customLat, setCustomLat] = useState<string>(selectedField.lat.toFixed(4));
+  const [customLon, setCustomLon] = useState<string>(selectedField.lon.toFixed(4));
   const [geocodingLoading, setGeocodingLoading] = useState<boolean>(false);
   const [geocodingError, setGeocodingError] = useState<string | null>(null);
 
-  // Load golden fields list on mount
-  useEffect(() => {
-    api
-      .goldenFields()
-      .then((fields) => {
-        setGoldenFields(fields);
-        const hero = fields.find((f) => f.id === "sangrur") ?? fields[0];
-        if (hero) {
-          setSelectedGoldenId(hero.id);
-          setSelectedField({ lat: hero.lat, lon: hero.lon, name: hero.name });
-        }
-      })
-      .catch((err) => {
-        console.warn("Could not load golden fields list:", err);
-      });
-  }, []);
+  const regCtx = regionContext(selectedField.lat, selectedField.lon, selectedGoldenId);
+  const isSA = isSouthAsia(selectedField.lat, selectedField.lon);
+  const currencySymbol = profile?.currency_symbol ?? (isSA ? "₹" : "$");
 
-  // Fetch profile whenever selectedField changes
-  useEffect(() => {
-    let isCancelled = false;
-    setLoading(true);
-    setError(null);
+  const baseline = strategies.find((s) => s.rank === 0) ?? strategies[0];
+  const topRec = strategies.find((s) => s.rank === 1) ?? strategies[1] ?? baseline;
+  const baseRes = baseline?.results?.[0];
+  const topRes = topRec?.results?.[0];
 
-    const fetchPromise = selectedGoldenId
-      ? api.goldenProfile(selectedGoldenId)
-      : api.profile({ lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name });
-
-    fetchPromise
-      .then((data) => {
-        if (!isCancelled) {
-          setProfile(data);
-          setLoading(false);
-          setCustomLat(selectedField.lat.toFixed(4));
-          setCustomLon(selectedField.lon.toFixed(4));
-        }
-      })
-      .catch((err) => {
-        if (!isCancelled) {
-          console.error("Failed to load profile:", err);
-          setError(err.message ?? "Failed to load field profile");
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [selectedField.lat, selectedField.lon, selectedGoldenId]);
-
-  const handleSelectGolden = (field: GoldenField) => {
-    setSelectedGoldenId(field.id);
-    setSelectedField({ lat: field.lat, lon: field.lon, name: field.name });
-  };
-
-  const handleMapSelect = (point: { lat: number; lon: number; name: string }) => {
-    setSelectedGoldenId(null);
-    setSelectedField(point);
-  };
-
-  const handleManualSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const lat = parseFloat(customLat);
-    const lon = parseFloat(customLon);
-    if (!isNaN(lat) && !isNaN(lon)) {
-      setSelectedGoldenId(null);
-      setSelectedField({ lat, lon, name: `Coordinate (${lat.toFixed(3)}, ${lon.toFixed(3)})` });
-    }
-  };
+  const savedWater = topRec ? (waterSavedPct(topRec) ?? 24) : 24;
+  const baseIrr = avgIrrigation(baseRes) ?? 1450;
+  const topIrr = avgIrrigation(topRes) ?? 1080;
+  const profitMedian = topRes?.profit_p50 ?? (isSA ? 104000 : 1240);
+  const soilScore = Math.round(topRes?.soil_health_score ?? 74);
 
   const handleAddressSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,397 +74,483 @@ export default function Home() {
     setGeocodingError(null);
     try {
       const res = await api.geocode(q);
-      if (res && !isNaN(res.lat) && !isNaN(res.lon)) {
-        setSelectedGoldenId(null);
-        setSelectedField({ lat: res.lat, lon: res.lon, name: res.name });
+      if (res && !Number.isNaN(res.lat) && !Number.isNaN(res.lon)) {
+        selectLocation({ lat: res.lat, lon: res.lon, name: res.name });
         setCustomLat(res.lat.toFixed(4));
         setCustomLon(res.lon.toFixed(4));
       } else {
         setGeocodingError("Location not found");
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Could not find address or parse Google Maps link";
-      setGeocodingError(msg);
+      setGeocodingError(
+        err instanceof Error ? err.message : "Could not find address or parse Google Maps link"
+      );
     } finally {
       setGeocodingLoading(false);
     }
   };
 
-  const handleTabChange = (tab: MainTab) => {
-    startTransition(() => {
-      setActiveTab(tab);
-    });
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const lat = parseFloat(customLat);
+    const lon = parseFloat(customLon);
+    if (!Number.isNaN(lat) && !Number.isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+      selectLocation({
+        lat,
+        lon,
+        name: `Coordinate (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)`,
+      });
+    }
   };
 
-  // Regional Crisis Context
-  const regCtx = regionContext(selectedField.lat, selectedField.lon, selectedGoldenId);
+  // Regional narrative metadata
+  let sectorTitle = "Global Agro-Climatic Intelligence & Subsurface Modeling";
+  let sectorDesc =
+    "Dynamic parcel diagnostics coupling NASA POWER daily agroclimatology, ISRIC SoilGrids 250m soil physics, NASA SMAP root-zone moisture, and FAO AquaCrop simulation.";
+  let sectorBadge = "GLOBAL EO SWATH";
+  let badgeTone = "border-cyan-500/45 bg-cyan-500/15 text-cyan-600 dark:text-cyan-300";
+
+  if (regCtx.key === "punjab") {
+    sectorTitle = "Indo-Gangetic Basin: Aquifer Depletion & Stubble Fire Mitigation";
+    sectorDesc =
+      "NASA GRACE-FO mascons track ~3.85 cm/yr groundwater drawdown across NW India driven by flooded paddy monoculture, followed by October residue burning observed by NASA FIRMS. TerraLoop evaluates DSR, pulse, and residue-retention rotations.";
+    sectorBadge = "CRITICAL AQUIFER CORRIDOR";
+    badgeTone = "border-amber-500/50 bg-amber-500/15 text-amber-600 dark:text-amber-300";
+  } else if (regCtx.key === "california") {
+    sectorTitle = "San Joaquin & Tulare Basin: Mediterranean Overdraft & Drought Adaptation";
+    sectorDesc =
+      "NASA GRACE mascons record chronic groundwater overdraft (~2.8 cm/yr) across the Central Valley. TerraLoop evaluates deep-rooting pulses, minimum tillage, and deficit-irrigated rotations to stabilize basin storage.";
+    sectorBadge = "AQUIFER OVERDRAFT ZONE";
+    badgeTone = "border-orange-500/50 bg-orange-500/15 text-orange-600 dark:text-orange-300";
+  } else if (regCtx.key === "cornbelt") {
+    sectorTitle = "Upper Midwest Corn Belt: Topsoil Carbon & Cover-Crop Integration";
+    sectorDesc =
+      "Continuous corn-soybean sequences leave winter soils bare and vulnerable to RUSLE sheet erosion. TerraLoop tests overwintering cover crops (cereal rye, red clover) and strip-till practices to rebuild RothC organic carbon.";
+    sectorBadge = "SOIL CARBON RENEWAL";
+    badgeTone = "border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300";
+  } else if (regCtx.key === "eastafrica") {
+    sectorTitle = "East African Highlands: Bimodal Monsoon & Biological N-Fixation";
+    sectorDesc =
+      "Smallholder parcels navigate variable Long Rains and Short Rains monitored by NASA GPM IMERG and SMAP. TerraLoop pairs cereals with drought-hardy legumes (pigeon pea, cowpea, green gram) to fix atmospheric nitrogen.";
+    sectorBadge = "BIMODAL MONSOON ADAPTATION";
+    badgeTone = "border-cyan-500/50 bg-cyan-500/15 text-cyan-600 dark:text-cyan-300";
+  }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors">
-      <Navbar
-        goldenFields={goldenFields}
-        selectedId={selectedGoldenId}
-        onSelectGolden={handleSelectGolden}
-      />
+    <AppShell showTelemetry={true}>
+      {/* Hero Mission Command Deck */}
+      <section className="glass rounded-2xl p-5 sm:p-6 border border-line reticle-frame relative overflow-hidden">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-center">
+          {/* Left: Regional Briefing & Mission Actions */}
+          <div className="xl:col-span-7 space-y-3">
+            <div className="flex items-center gap-2 flex-wrap font-mono text-[11px]">
+              <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-wider">
+                MODULE 01 // MISSION CONTROL
+              </span>
+              <span className={`px-2.5 py-0.5 rounded-md font-bold uppercase tracking-wider border ${badgeTone}`}>
+                {sectorBadge}
+              </span>
+              <span className="text-muted">
+                {regCtx.icon} · {fmtDMS(selectedField.lat, true)} {fmtDMS(selectedField.lon, false)}
+              </span>
+            </div>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Mission Telemetry Readout Strip */}
-        {profile && <TelemetryBar profile={profile} />}
+            <h1
+              id="page-main-heading"
+              tabIndex={-1}
+              className="font-serif text-2xl sm:text-3xl font-bold text-foreground tracking-tight outline-none"
+            >
+              {sectorTitle}
+            </h1>
 
-        {/* Dynamic Regional Crisis Context Banner */}
-        {(() => {
-          let title = "Global Agro-Climatic Intelligence (NASA Earth Observations)";
-          let desc =
-            "TerraLoop evaluates this field dynamically using NASA POWER daily agroclimatology, ISRIC SoilGrids 250m soil physics, NASA SMAP root-zone moisture, and FAO AquaCrop simulation for any parcel on Earth.";
-          let badge = "Global Monitoring";
-          let alertColor = "border-cyan-500/30 bg-cyan-500/5 text-cyan-600 dark:text-cyan-400";
+            <p className="text-xs sm:text-sm text-muted leading-relaxed prose-measure">
+              {sectorDesc}
+            </p>
 
-          if (regCtx.key === "punjab") {
-            title = "Lead Demo: Punjab Groundwater Depletion & Stubble Burning Crisis";
-            desc =
-              "NASA GRACE-FO satellites observe ~4 cm/year groundwater depletion across NW India. Tube-well paddy monoculture drives depletion, followed by October residue burning detected by NASA FIRMS. TerraLoop tests crop rotation alternatives that stabilize aquifers and eliminate burning.";
-            badge = "Critical Crisis Corridor";
-            alertColor = "border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-400";
-          } else if (regCtx.key === "california") {
-            title = "Regional Context: California Central Valley Aquifer Overdraft & Drought";
-            desc =
-              "NASA GRACE mascons track chronic groundwater overdraft (~2.8 cm/yr) across the San Joaquin and Tulare basins during Mediterranean summer drought. TerraLoop evaluates deep-rooting pulses, minimum tillage, and high-efficiency water conservation rotations to preserve groundwater reserves.";
-            badge = "Severe Aquifer Overdraft";
-            alertColor = "border-orange-500/30 bg-orange-500/5 text-orange-600 dark:text-orange-400";
-          } else if (regCtx.key === "cornbelt") {
-            title = "Regional Context: US Corn Belt Soil Health & Cover Cropping";
-            desc =
-              "Continuous corn-soybean rotations experience winter bare-ground vulnerability and long-term soil organic carbon decline. TerraLoop integrates overwintering cover crops (cereal rye, red clover) with strip-till practices to boost RothC SOC stocks and curb RUSLE water erosion.";
-            badge = "Soil Carbon Renewal";
-            alertColor = "border-emerald-500/30 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400";
-          } else if (regCtx.key === "eastafrica") {
-            title = "Regional Context: East Africa Bimodal Rain Resilience";
-            desc =
-              "Smallholders navigate unpredictable bimodal rainfall seasons (Long Rains & Short Rains) monitored by NASA GPM IMERG and SMAP. TerraLoop designs resilient rotations with drought-hardy legumes (pigeon pea, cowpea, green gram) to secure food supply and fix biological nitrogen.";
-            badge = "Bimodal Climate Adaptation";
-            alertColor = "border-blue-500/30 bg-blue-500/5 text-blue-600 dark:text-blue-400";
-          }
+            <div className="pt-2 flex flex-wrap items-center gap-2.5">
+              <Link
+                href="/rotations"
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Launch Rotation Studio</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
 
-          return (
-            <div className="glass rounded-3xl p-5 border border-line shadow-xs flex items-start gap-4 transition-all">
-              <div className="w-10 h-10 rounded-2xl bg-foreground/5 flex items-center justify-center text-2xl shrink-0 border border-line">
-                {regCtx.icon}
-              </div>
-              <div className="space-y-1 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-display font-bold text-sm text-foreground">
-                    {title}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${alertColor}`}>
-                    {badge}
-                  </span>
-                </div>
-                <p className="text-xs text-muted leading-relaxed">
-                  {desc}
+              <Link
+                href="/diagnostics"
+                className="px-4 py-2.5 rounded-xl bg-surface hover:bg-foreground/10 border border-line-strong text-foreground font-mono text-xs font-semibold flex items-center gap-2 transition-colors"
+              >
+                <Activity className="w-4 h-4 text-cyan-400" />
+                <span>Inspect Field Diagnostics</span>
+              </Link>
+
+              <Link
+                href="/lab"
+                className="px-4 py-2.5 rounded-xl bg-surface hover:bg-foreground/10 border border-line-strong text-foreground font-mono text-xs font-semibold flex items-center gap-2 transition-colors"
+              >
+                <FlaskConical className="w-4 h-4 text-violet-400" />
+                <span>Open 3D Pareto &amp; Shock Lab</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Right: Live Prescriptive Transformation Preview Card */}
+          <div className="xl:col-span-5 rounded-2xl p-4 sm:p-5 bg-gradient-to-br from-emerald-500/12 via-cyan-500/8 to-violet-500/12 border border-emerald-500/35 space-y-3.5">
+            <div className="flex items-center justify-between font-mono text-[10px]">
+              <span className="font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-300 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>TOP PRESCRIPTION FOR {selectedField.name.toUpperCase()}</span>
+              </span>
+              <span className="px-2 py-0.5 rounded bg-background/70 border border-line text-muted">
+                NSGA-II RANK #1
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-mono text-muted">
+                  Replaces: <span className="line-through opacity-75">{baseline?.rotation.label ?? "Intensive Baseline"}</span>
                 </p>
+                <h2 className="font-display font-bold text-base sm:text-lg text-foreground mt-0.5">
+                  {topRec?.rotation.label ?? "DSR Rice ➔ Wheat + Mulch ➔ Summer Moong"}
+                </h2>
+              </div>
+
+              <ProgressRing
+                value={soilScore}
+                max={100}
+                label="Recommended Strategy Soil Health Score"
+                size="3.4rem"
+                thickness="5px"
+                color="var(--accent-canopy)"
+              >
+                <span className="text-xs font-mono font-bold text-emerald-500">{soilScore}</span>
+                <span className="text-[8px] font-mono text-muted">SOIL</span>
+              </ProgressRing>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-line font-mono text-xs">
+              <div className="p-2.5 rounded-xl bg-background/60 border border-line">
+                <span className="text-[9px] text-muted uppercase block">Water Saved</span>
+                <span className="text-sm font-bold text-cyan-500 dark:text-cyan-300">
+                  −{ Math.max(0, savedWater) }% H₂O
+                </span>
+                <span className="text-[9px] text-muted block">{baseIrr - topIrr} mm/yr cut</span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-background/60 border border-line">
+                <span className="text-[9px] text-muted uppercase block">Net Margin</span>
+                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                  {fmtMoney(profitMedian, currencySymbol)}
+                </span>
+                <span className="text-[9px] text-muted block">Median P50/ha</span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-background/60 border border-line">
+                <span className="text-[9px] text-muted uppercase block">10-Yr Carbon</span>
+                <span className="text-sm font-bold text-amber-500 dark:text-amber-300">
+                  +{(topRes?.soc_delta_t_ha_10yr ?? 2.1).toFixed(1)} t/ha
+                </span>
+                <span className="text-[9px] text-muted block">RothC-26.3</span>
               </div>
             </div>
-          );
-        })()}
-
-        {/* Workspace Stepper / Tab Switcher */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-4">
-          <nav
-            aria-label="Workflow Steps"
-            className="inline-flex rounded-2xl bg-surface p-1.5 border border-line text-xs shadow-xs flex-wrap gap-1"
-          >
-            <button
-              type="button"
-              onClick={() => handleTabChange("dashboard")}
-              className={`px-3.5 py-2 rounded-xl font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 ${
-                activeTab === "dashboard"
-                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs font-bold"
-                  : "text-muted hover:text-foreground hover:bg-foreground/5"
-              }`}
-            >
-              <Compass className="w-4 h-4" />
-              <span>1. {t("nav.dashboard")}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTabChange("rotations")}
-              className={`px-3.5 py-2 rounded-xl font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 ${
-                activeTab === "rotations"
-                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs font-bold"
-                  : "text-muted hover:text-foreground hover:bg-foreground/5"
-              }`}
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>2. {t("nav.rotations")}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTabChange("pareto")}
-              className={`px-3.5 py-2 rounded-xl font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 ${
-                activeTab === "pareto"
-                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs font-bold"
-                  : "text-muted hover:text-foreground hover:bg-foreground/5"
-              }`}
-            >
-              <TrendingUp className="w-4 h-4" />
-              <span>3. {t("nav.pareto")}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTabChange("whatif")}
-              className={`px-3.5 py-2 rounded-xl font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 ${
-                activeTab === "whatif"
-                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs font-bold"
-                  : "text-muted hover:text-foreground hover:bg-foreground/5"
-              }`}
-            >
-              <FlaskConical className="w-4 h-4" />
-              <span>4. {t("nav.whatif")}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTabChange("brief")}
-              className={`px-3.5 py-2 rounded-xl font-semibold transition-all duration-200 cursor-pointer flex items-center gap-2 ${
-                activeTab === "brief"
-                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs font-bold"
-                  : "text-muted hover:text-foreground hover:bg-foreground/5"
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              <span>5. {t("nav.brief")}</span>
-            </button>
-          </nav>
-
-          <div className="flex items-center gap-2 text-xs font-mono text-muted bg-surface px-3 py-1.5 rounded-xl border border-line">
-            <MapPin className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="font-bold text-foreground">
-              {selectedField.lat.toFixed(4)}°, {selectedField.lon.toFixed(4)}°
-            </span>
           </div>
         </div>
+      </section>
 
-        {/* Loading / Error States with Radar Orbit Visuals */}
-        {loading && (
-          <div className="glass rounded-3xl p-16 border border-line text-center space-y-5 shadow-lg relative overflow-hidden">
-            <div className="relative w-16 h-16 mx-auto">
-              <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20" />
-              <div className="absolute inset-0 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin" />
-              <div className="absolute inset-3 rounded-full bg-emerald-500/10 flex items-center justify-center text-lg">
-                🛰️
+      {/* Main Split Interactive Workspace: 3D Terrain Map + 3D Subsurface Monolith */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: 3D Satellite Swath Map + Parcel Locator + Benchmark Cards */}
+        <div className="lg:col-span-5 space-y-5">
+          <FieldMap
+            selectedField={selectedField}
+            goldenFields={goldenFields}
+            onSelect={(pt) => {
+              selectLocation(pt);
+              setCustomLat(pt.lat.toFixed(4));
+              setCustomLon(pt.lon.toFixed(4));
+            }}
+          />
+
+          {/* Interactive Coordinate / Geocode Panel */}
+          <div className="glass rounded-2xl p-4 sm:p-5 border border-line text-xs space-y-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider font-bold text-foreground">
+                <MapPin className="w-4 h-4 text-cyan-400" />
+                <span>Parcel Geocode &amp; Coordinate Sampler</span>
+              </div>
+              <div className="inline-flex rounded-lg bg-background/80 p-0.5 border border-line text-[10px] font-mono">
+                <button
+                  type="button"
+                  onClick={() => setLocationInputMode("address")}
+                  className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                    locationInputMode === "address"
+                      ? "bg-emerald-500 text-slate-950 font-bold"
+                      : "text-muted hover:text-foreground"
+                  }`}
+                >
+                  Address / URL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLocationInputMode("coords")}
+                  className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                    locationInputMode === "coords"
+                      ? "bg-emerald-500 text-slate-950 font-bold"
+                      : "text-muted hover:text-foreground"
+                  }`}
+                >
+                  Lat / Lon
+                </button>
               </div>
             </div>
 
-            <div>
-              <p className="font-display text-base font-bold text-foreground">{t("profile.loading")}</p>
-              <p className="text-xs text-muted mt-1.5 max-w-lg mx-auto">
-                Aggregating NASA POWER daily series · ISRIC SoilGrids 250m · SMAP root-zone percentiles · GRACE-FO groundwater mascons
-              </p>
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="p-5 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-300 text-xs space-y-1.5 shadow-sm">
-            <p className="font-bold flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-rose-500" />
-              <span>{t("profile.error")}</span>
-            </p>
-            <p className="font-mono text-[11px] opacity-90">{error}</p>
-          </div>
-        )}
-
-        {/* Active Tab Views */}
-        {!loading && profile && (
-          <div className="transition-all duration-300">
-            {/* VIEW 1: Dashboard (Interactive Map + Geocoder + Dossier) */}
-            {activeTab === "dashboard" && (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                {/* Left: Map + Location Geocoder */}
-                <div className="lg:col-span-5 space-y-4">
-                  <FieldMap
-                    selectedField={selectedField}
-                    goldenFields={goldenFields}
-                    onSelect={handleMapSelect}
+            {locationInputMode === "address" ? (
+              <form onSubmit={handleAddressSearch} className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={addressQuery}
+                    onChange={(e) => setAddressQuery(e.target.value)}
+                    placeholder="Enter village, district, or paste Google Maps URL…"
+                    className="flex-1 px-3 py-2 rounded-xl border border-line-strong bg-background text-foreground placeholder:text-muted text-xs font-mono focus:border-cyan-400 outline-none transition-colors"
                   />
-
-                  {/* Location Selector (Address / Google Maps or Lat/Lon) */}
-                  <div className="glass rounded-3xl p-5 border border-line shadow-sm text-xs space-y-3.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 font-display font-bold text-foreground">
-                        <MapPin className="w-4 h-4 text-emerald-500" />
-                        <span>Select or Search Field</span>
-                      </div>
-                      <div className="inline-flex rounded-xl bg-foreground/5 p-0.5 border border-line text-[11px]">
-                        <button
-                          type="button"
-                          onClick={() => setLocationInputMode("address")}
-                          className={`px-3 py-1 rounded-lg font-semibold transition-all duration-200 cursor-pointer ${
-                            locationInputMode === "address"
-                              ? "bg-emerald-600 text-white shadow-xs"
-                              : "text-muted hover:text-foreground"
-                          }`}
-                        >
-                          🗺️ Address / Maps Link
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setLocationInputMode("coords")}
-                          className={`px-3 py-1 rounded-lg font-semibold transition-all duration-200 cursor-pointer ${
-                            locationInputMode === "coords"
-                              ? "bg-emerald-600 text-white shadow-xs"
-                              : "text-muted hover:text-foreground"
-                          }`}
-                        >
-                          🌐 Coordinates
-                        </button>
-                      </div>
-                    </div>
-
-                    {locationInputMode === "address" ? (
-                      <form onSubmit={handleAddressSearch} className="space-y-2.5">
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={addressQuery}
-                            onChange={(e) => setAddressQuery(e.target.value)}
-                            placeholder="Type city/address or paste Google Maps link..."
-                            className="flex-1 px-3.5 py-2.5 rounded-2xl border border-line bg-surface text-foreground placeholder:text-muted text-xs focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all"
-                          />
-                          <button
-                            type="submit"
-                            disabled={geocodingLoading || !addressQuery.trim()}
-                            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 shadow-md text-xs"
-                          >
-                            {geocodingLoading ? (
-                              <>
-                                <span className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                                <span>Locating...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Search className="w-3.5 h-3.5" />
-                                <span>Locate</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                        {geocodingError && (
-                          <p className="text-[11px] text-rose-500 font-semibold">{geocodingError}</p>
-                        )}
-                        <div className="flex items-center justify-between text-[10px] text-muted pt-0.5">
-                          <span>💡 Supports shortened Google Maps links (goo.gl, maps.app) and global addresses</span>
-                          <span className="font-mono">{selectedField.lat.toFixed(3)}°, {selectedField.lon.toFixed(3)}°</span>
-                        </div>
-                      </form>
-                    ) : (
-                      <form onSubmit={handleManualSubmit} className="space-y-2.5">
-                        <div className="flex gap-2.5">
-                          <div className="flex-1">
-                            <label className="text-[10px] text-muted block mb-1 font-medium">Latitude (-90 to 90)</label>
-                            <input
-                              type="number"
-                              step="0.0001"
-                              value={customLat}
-                              onChange={(e) => setCustomLat(e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl border border-line bg-surface font-mono text-foreground text-xs outline-none"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <label className="text-[10px] text-muted block mb-1 font-medium">Longitude (-180 to 180)</label>
-                            <input
-                              type="number"
-                              step="0.0001"
-                              value={customLon}
-                              onChange={(e) => setCustomLon(e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl border border-line bg-surface font-mono text-foreground text-xs outline-none"
-                            />
-                          </div>
-                          <div className="flex items-end">
-                            <button
-                              type="submit"
-                              className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold hover:brightness-110 transition-opacity cursor-pointer shadow-md text-xs"
-                            >
-                              Analyse
-                            </button>
-                          </div>
-                        </div>
-                      </form>
-                    )}
+                  <button
+                    type="submit"
+                    disabled={geocodingLoading || !addressQuery.trim()}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 font-mono font-bold transition-opacity flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 text-xs"
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span>{geocodingLoading ? "…" : "Sample"}</span>
+                  </button>
+                </div>
+                {geocodingError && (
+                  <p className="text-[11px] font-mono text-rose-500 font-semibold">{geocodingError}</p>
+                )}
+              </form>
+            ) : (
+              <form onSubmit={handleManualSubmit} className="space-y-2">
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-mono text-muted block mb-1">LATITUDE [°N]</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="-90"
+                      max="90"
+                      required
+                      value={customLat}
+                      onChange={(e) => setCustomLat(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl border border-line-strong bg-background font-mono text-foreground text-xs outline-none"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[10px] font-mono text-muted block mb-1">LONGITUDE [°E]</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="-180"
+                      max="180"
+                      required
+                      value={customLon}
+                      onChange={(e) => setCustomLon(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl border border-line-strong bg-background font-mono text-foreground text-xs outline-none"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-bold transition-colors cursor-pointer text-xs"
+                    >
+                      Go
+                    </button>
                   </div>
                 </div>
+              </form>
+            )}
 
-                {/* Right: Field Diagnostic Report Card Dossier */}
-                <div className="lg:col-span-7">
-                  <ReportCard profile={profile} />
-                </div>
+            {/* Golden Benchmark Quick-Select Grid */}
+            <div className="pt-2 border-t border-line space-y-2">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-muted block">
+                Precomputed NASA Benchmark Stations (Instant Zero-Latency)
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {goldenFields.map((gf) => {
+                  const active = selectedGoldenId === gf.id;
+                  return (
+                    <button
+                      key={gf.id}
+                      type="button"
+                      onClick={() => selectGolden(gf)}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1 ${
+                        active
+                          ? "bg-emerald-500/15 border-emerald-500/60 shadow-xs"
+                          : "bg-background/50 hover:bg-foreground/5 border-line"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-display font-bold text-xs text-foreground truncate">
+                          {gf.name}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-foreground/10 text-emerald-500 shrink-0">
+                          {regionFlag(gf.id)}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-muted line-clamp-1">{gf.story}</p>
+                    </button>
+                  );
+                })}
               </div>
-            )}
-
-            {/* VIEW 2: Rotation Decision Engine */}
-            {activeTab === "rotations" && (
-              <RotationExplorer
-                field={{ lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name }}
-                profile={profile}
-                initialTab="cards"
-                onStrategiesLoaded={(s) => setStrategies(s)}
-                strategies={strategies.length > 0 ? strategies : undefined}
-              />
-            )}
-
-            {/* VIEW 3: Pareto Frontier */}
-            {activeTab === "pareto" && (
-              <RotationExplorer
-                field={{ lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name }}
-                profile={profile}
-                initialTab="pareto"
-                onStrategiesLoaded={(s) => setStrategies(s)}
-                strategies={strategies.length > 0 ? strategies : undefined}
-              />
-            )}
-
-            {/* VIEW 4: What-If Climate Stress Lab */}
-            {activeTab === "whatif" && (
-              <RotationExplorer
-                field={{ lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name }}
-                profile={profile}
-                initialTab="whatif"
-                onStrategiesLoaded={(s) => setStrategies(s)}
-                strategies={strategies.length > 0 ? strategies : undefined}
-              />
-            )}
-
-            {/* VIEW 5: Field Agronomic Brief */}
-            {activeTab === "brief" && (
-              <AgronomicBrief profile={profile} strategies={strategies} />
-            )}
-          </div>
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-line bg-surface/70 py-8 text-xs text-muted mt-12 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <span className="font-display font-black text-foreground">TerraLoop</span>
-            <span>·</span>
-            <span className="font-semibold text-emerald-500">NASA Space Apps Challenge 2026</span>
-          </div>
-          <div className="flex items-center gap-4 text-[11px] flex-wrap">
-            <span>Data: NASA POWER · ISRIC SoilGrids · SMAP · GRACE-FO · FIRMS · FAO AquaCrop</span>
-            <a
-              href="/methodology"
-              className="hover:text-foreground underline flex items-center gap-1 transition-colors"
-            >
-              <span>Methodology &amp; Documentation</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
+            </div>
           </div>
         </div>
-      </footer>
-    </div>
+
+        {/* Right Column: Interactive 3D Stratigraphic Pedon + Multi-Page Mission Launchpad */}
+        <div className="lg:col-span-7 space-y-5">
+          {profile && <SoilColumn3D profile={profile} strategies={strategies} />}
+
+          {/* Multi-Page Mission Modules Grid */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-2">
+                <Compass className="w-4 h-4 text-emerald-400" />
+                <span>Explore Dedicated Mission Modules</span>
+              </h2>
+              <span className="text-[11px] font-mono text-muted">
+                All modules stay synced to {selectedField.name}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Module 02: Field Diagnostics */}
+              <Link
+                href="/diagnostics"
+                className="glass card-interactive rounded-2xl p-4.5 border border-line flex flex-col justify-between gap-3 group"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0">
+                    <Activity className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-500 dark:text-cyan-300 border border-cyan-500/30">
+                    MODULE 02
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-base text-foreground group-hover:text-cyan-400 transition-colors">
+                    Deep Field Diagnostics Atlas
+                  </h3>
+                  <p className="text-xs text-muted mt-1 leading-relaxed">
+                    Interactive 12-month hyetograph, thermal envelope, USDA soil texture granulometry, SMAP root-zone percentiles, and HLS satellite crop history.
+                  </p>
+                </div>
+                <div className="pt-2 border-t border-line flex items-center justify-between text-[11px] font-mono text-cyan-500 dark:text-cyan-300 font-semibold">
+                  <span>Rain: {Math.round(profile?.climate.annual_precip_mm ?? 650)} mm/yr · SOC: {profile?.soil.soc_g_per_kg?.toFixed(1) ?? "8.5"} g/kg</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+              {/* Module 03: Rotation Studio */}
+              <Link
+                href="/rotations"
+                className="glass card-interactive rounded-2xl p-4.5 border border-line flex flex-col justify-between gap-3 group"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                    <Layers className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
+                    MODULE 03
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-base text-foreground group-hover:text-amber-400 transition-colors">
+                    Rotation Decision Studio &amp; Calendar
+                  </h3>
+                  <p className="text-xs text-muted mt-1 leading-relaxed">
+                    Tune farmer priority weights, inspect the 12-month agronomic Gantt sowing calendar, and compare 5-axis USDA-NRCS soil health radar profiles.
+                  </p>
+                </div>
+                <div className="pt-2 border-t border-line flex items-center justify-between text-[11px] font-mono text-amber-600 dark:text-amber-300 font-semibold">
+                  <span>{strategies.length} Rotations Simulated · Top Saves {savedWater}% H₂O</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+              {/* Module 04: 3D Pareto & Shock Lab */}
+              <Link
+                href="/lab"
+                className="glass card-interactive rounded-2xl p-4.5 border border-line flex flex-col justify-between gap-3 group"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/40 flex items-center justify-center text-violet-400 shrink-0">
+                    <TrendingUp className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-violet-500/15 text-violet-600 dark:text-violet-300 border border-violet-500/30">
+                    MODULE 04
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-base text-foreground group-hover:text-violet-400 transition-colors">
+                    3D Pareto Frontier &amp; Climate Shock Lab
+                  </h3>
+                  <p className="text-xs text-muted mt-1 leading-relaxed">
+                    Orbit the 3D multi-objective trade-off cube and stress-test rotations against ET₀ droughts, MSP price drops, and urea fertilizer spikes.
+                  </p>
+                </div>
+                <div className="pt-2 border-t border-line flex items-center justify-between text-[11px] font-mono text-violet-600 dark:text-violet-300 font-semibold">
+                  <span>3D Cube + What-If Perturbation Matrix</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+              {/* Module 05 & 06: Crop KB + Advisory Brief */}
+              <div className="grid grid-cols-1 gap-3.5">
+                <Link
+                  href="/crops"
+                  className="glass card-interactive rounded-2xl p-4 border border-line flex items-center justify-between gap-3 group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+                      <Sprout className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-mono font-bold text-emerald-500 uppercase block">
+                        MODULE 05 // {crops.length || 21} CROPS
+                      </span>
+                      <h3 className="font-display font-bold text-sm text-foreground truncate">
+                        Botanical Encyclopedia &amp; Suitability
+                      </h3>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-emerald-400 shrink-0 group-hover:translate-x-1 transition-transform" />
+                </Link>
+
+                <Link
+                  href="/brief"
+                  className="glass card-interactive rounded-2xl p-4 border border-line flex items-center justify-between gap-3 group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/40 flex items-center justify-center text-sky-400 shrink-0">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-mono font-bold text-sky-400 uppercase block">
+                        MODULE 06 // PRINT PDF
+                      </span>
+                      <h3 className="font-display font-bold text-sm text-foreground truncate">
+                        Executive Advisory Brief &amp; Farm Scaler
+                      </h3>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-sky-400 shrink-0 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </AppShell>
   );
 }

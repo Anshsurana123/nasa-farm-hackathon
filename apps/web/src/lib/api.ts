@@ -1,4 +1,5 @@
 import type {
+  CropSpec,
   FieldGeometry,
   FieldProfile,
   GoldenField,
@@ -29,6 +30,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // Fallback to static public/golden data for demo resilience
   if (path === "/golden") {
     const localRes = await fetch("/golden/fields.json");
+    if (localRes.ok) return localRes.json() as Promise<T>;
+  }
+  if (path === "/crops") {
+    const localRes = await fetch("/golden/crops.json");
     if (localRes.ok) return localRes.json() as Promise<T>;
   }
   const goldenMatch = path.match(/^\/golden\/([^/]+)\/profile$/);
@@ -135,6 +140,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   goldenFields: () => request<GoldenField[]>("/golden"),
   goldenProfile: (id: string) => request<FieldProfile>(`/golden/${id}/profile`),
+  crops: () => request<CropSpec[]>("/crops"),
   profile: (field: FieldGeometry) =>
     request<FieldProfile>("/profile", { method: "POST", body: JSON.stringify(field) }),
   recommend: (req: RecommendRequest) =>

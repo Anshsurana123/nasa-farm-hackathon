@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { GoldenField } from "@/types/api";
-import { Layers, MapPin, Navigation, Compass, Globe2 } from "lucide-react";
-import { regionFlag } from "@/lib/ui";
+import { Layers, MapPin, Compass, Globe2, Box, RotateCw } from "lucide-react";
+import { fmtDMS, regionFlag } from "@/lib/ui";
 
 interface FieldMapProps {
   selectedField: { lat: number; lon: number; name?: string };
@@ -11,13 +11,66 @@ interface FieldMapProps {
   onSelect: (field: { lat: number; lon: number; name: string }) => void;
 }
 
+function buildParcelGeoJSON(lat: number, lon: number) {
+  const dLat = 0.0042;
+  const dLon = 0.0052;
+  const outerLat = 0.0095;
+  const outerLon = 0.0115;
+
+  return {
+    type: "FeatureCollection" as const,
+    features: [
+      {
+        type: "Feature" as const,
+        properties: { kind: "perimeter", height: 18, base: 0, color: "#3898c8" },
+        geometry: {
+          type: "Polygon" as const,
+          coordinates: [
+            [
+              [lon - outerLon, lat - outerLat],
+              [lon + outerLon, lat - outerLat],
+              [lon + outerLon, lat + outerLat],
+              [lon - outerLon, lat + outerLat],
+              [lon - outerLon, lat - outerLat],
+            ],
+          ],
+        },
+      },
+      {
+        type: "Feature" as const,
+        properties: { kind: "parcel", height: 85, base: 0, color: "#52b778" },
+        geometry: {
+          type: "Polygon" as const,
+          coordinates: [
+            [
+              [lon - dLon, lat - dLat],
+              [lon + dLon, lat - dLat],
+              [lon + dLon, lat + dLat],
+              [lon - dLon, lat + dLat],
+              [lon - dLon, lat - dLat],
+            ],
+          ],
+        },
+      },
+    ],
+  };
+}
+
 export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
   const markerInstance = useRef<any>(null);
   const goldenMarkersRef = useRef<any[]>([]);
+  const orbitRafRef = useRef<number | null>(null);
+
   const [mapMode, setMapMode] = useState<"satellite" | "osm">("satellite");
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [is3D, setIs3D] = useState<boolean>(true);
+  const [isOrbiting, setIsOrbiting] = useState<boolean>(false);
+  const [cameraHud, setCameraHud] = useState<{ pitch: number; bearing: number; zoom: number }>({
+    pitch: 52,
+    bearing: -18,
+    zoom: 11.5,
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -40,13 +93,24 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
                   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
                 ],
                 tileSize: 256,
-                attribution: "Esri World Imagery",
+                attribution: "Esri World Imagery · NASA EO",
               },
               osm: {
                 type: "raster",
                 tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
                 tileSize: 256,
                 attribution: "© OpenStreetMap contributors",
+              },
+              "terrain-dem": {
+                type: "raster-dem",
+                tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+                tileSize: 256,
+                encoding: "terrarium",
+                maxzoom: 14,
+              },
+              "parcel-swath": {
+                type: "geojson",
+                data: buildParcelGeoJSON(selectedField.lat, selectedField.lon),
               },
             },
             layers: [
@@ -66,22 +130,60 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
                 maxzoom: 19,
                 layout: { visibility: "none" },
               },
+              {
+                id: "parcel-perimeter-line",
+                type: "line",
+                source: "parcel-swath",
+                paint: {
+                  "line-color": ["get", "color"],
+                  "line-width": 1.75,
+                  "line-dasharray": [3, 2],
+                  "line-opacity": 0.85,
+                },
+              },
+              {
+                id: "parcel-3d-extrusion",
+                type: "fill-extrusion",
+                source: "parcel-swath",
+                paint: {
+                  "fill-extrusion-color": ["get", "color"],
+                  "fill-extrusion-height": ["get", "height"],
+                  "fill-extrusion-base": ["get", "base"],
+                  "fill-extrusion-opacity": 0.28,
+                },
+              },
             ],
           },
           center: [selectedField.lon, selectedField.lat],
-          zoom: 8.5,
-          pitch: 15,
+          zoom: 11.5,
+          pitch: 52,
+          bearing: -18,
+          maxPitch: 72,
         });
 
         map.addControl(new maplibre.NavigationControl({ visualizePitch: true }), "top-right");
 
         map.on("load", () => {
           if (!isMounted) return;
-          setIsLoaded(true);
+          try {
+            map.setTerrain({ source: "terrain-dem", exaggeration: 1.6 });
+          } catch {
+            // Ignore if DEM tiles are unreachable offline
+          }
+        });
+
+        map.on("move", () => {
+          if (!isMounted) return;
+          setCameraHud({
+            pitch: Math.round(map.getPitch()),
+            bearing: Math.round((map.getBearing() + 360) % 360),
+            zoom: Number(map.getZoom().toFixed(1)),
+          });
         });
 
         // Click anywhere to drop a pin on a field
         map.on("click", (e) => {
+          setIsOrbiting(false);
           const lat = Number(e.lngLat.lat.toFixed(4));
           const lon = Number(e.lngLat.lng.toFixed(4));
           const latStr = `${Math.abs(lat).toFixed(3)}°${lat >= 0 ? "N" : "S"}`;
@@ -93,14 +195,19 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
           });
         });
 
-        // Add custom primary draggable pin with radar pulse
+        // Precision SVG target reticle marker (no cartoon emoji)
         const customPinEl = document.createElement("div");
         customPinEl.className = "relative flex items-center justify-center cursor-grab active:cursor-grabbing";
         customPinEl.innerHTML = `
-          <div class="absolute -inset-3 rounded-full bg-emerald-500/25 animate-ping"></div>
-          <div class="absolute -inset-1 rounded-full bg-emerald-500/40"></div>
-          <div class="relative w-8 h-8 rounded-full bg-emerald-600 border-2 border-white shadow-xl flex items-center justify-center text-white text-xs font-black">
-            🎯
+          <div class="absolute -inset-4 rounded-full border border-emerald-400/50 animate-ping"></div>
+          <div class="relative w-9 h-9 rounded-full bg-stone-950/90 border-2 border-emerald-400 shadow-xl flex items-center justify-center text-emerald-400">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="4" />
+              <line x1="12" y1="2" x2="12" y2="6" />
+              <line x1="12" y1="18" x2="12" y2="22" />
+              <line x1="2" y1="12" x2="6" y2="12" />
+              <line x1="18" y1="12" x2="22" y2="12" />
+            </svg>
           </div>
         `;
 
@@ -109,6 +216,7 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
           .addTo(map);
 
         marker.on("dragend", () => {
+          setIsOrbiting(false);
           const lngLat = marker.getLngLat();
           const lat = Number(lngLat.lat.toFixed(4));
           const lon = Number(lngLat.lng.toFixed(4));
@@ -121,15 +229,16 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
           });
         });
 
-        // Add secondary golden fields markers with flag and tooltip
+        // Secondary benchmark field beacons
         goldenMarkersRef.current = goldenFields.map((gf) => {
           const el = document.createElement("div");
           el.className =
-            "w-7 h-7 rounded-full bg-amber-400 border-2 border-white shadow-lg flex items-center justify-center text-xs cursor-pointer hover:scale-125 transition-transform hover:z-20";
-          el.innerHTML = gf.id === "sangrur" ? "⭐" : regionFlag(gf.id);
-          el.title = `${gf.name} (Click to load profile)`;
+            "px-2 py-0.5 rounded bg-stone-950/90 border border-amber-400/80 text-amber-300 shadow-lg flex items-center justify-center text-[10px] font-mono font-bold cursor-pointer hover:scale-110 transition-transform hover:z-20";
+          el.textContent = regionFlag(gf.id);
+          el.title = `${gf.name} — Click to load benchmark profile`;
           el.addEventListener("click", (ev) => {
             ev.stopPropagation();
+            setIsOrbiting(false);
             onSelect({ lat: gf.lat, lon: gf.lon, name: gf.name });
           });
 
@@ -149,6 +258,9 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
 
     return () => {
       isMounted = false;
+      if (orbitRafRef.current) {
+        window.cancelAnimationFrame(orbitRafRef.current);
+      }
       if (mapInstance.current) {
         mapInstance.current.remove();
         mapInstance.current = null;
@@ -172,88 +284,170 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
     }
   }, [mapMode]);
 
-  // Update center and marker when selectedField changes
+  // Toggle 3D pitch vs 2D nadir
   useEffect(() => {
-    if (mapInstance.current) {
-      mapInstance.current.flyTo({
-        center: [selectedField.lon, selectedField.lat],
-        zoom: 9.5,
-        essential: true,
-        speed: 1.2,
-      });
-      if (markerInstance.current) {
-        markerInstance.current.setLngLat([selectedField.lon, selectedField.lat]);
+    const map = mapInstance.current;
+    if (!map) return;
+    map.easeTo({
+      pitch: is3D ? 55 : 0,
+      bearing: is3D ? -18 : 0,
+      duration: 850,
+    });
+  }, [is3D]);
+
+  // Continuous 3D camera orbit animation when enabled
+  useEffect(() => {
+    if (!isOrbiting || !mapInstance.current) {
+      if (orbitRafRef.current) {
+        window.cancelAnimationFrame(orbitRafRef.current);
+        orbitRafRef.current = null;
       }
+      return;
+    }
+
+    const map = mapInstance.current;
+    if (map.getPitch() < 35) {
+      map.easeTo({ pitch: 56, duration: 500 });
+      setIs3D(true);
+    }
+
+    const step = () => {
+      if (!mapInstance.current) return;
+      mapInstance.current.rotateTo((mapInstance.current.getBearing() + 0.18) % 360, { duration: 0 });
+      orbitRafRef.current = window.requestAnimationFrame(step);
+    };
+    orbitRafRef.current = window.requestAnimationFrame(step);
+
+    return () => {
+      if (orbitRafRef.current) {
+        window.cancelAnimationFrame(orbitRafRef.current);
+        orbitRafRef.current = null;
+      }
+    };
+  }, [isOrbiting]);
+
+  // Update center, marker, and 3D extruded parcel polygon when selectedField changes
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map) return;
+
+    map.flyTo({
+      center: [selectedField.lon, selectedField.lat],
+      zoom: 11.5,
+      pitch: is3D ? 55 : 0,
+      essential: true,
+      speed: 1.25,
+    });
+    if (markerInstance.current) {
+      markerInstance.current.setLngLat([selectedField.lon, selectedField.lat]);
+    }
+    const src = map.getSource("parcel-swath");
+    if (src && typeof src.setData === "function") {
+      src.setData(buildParcelGeoJSON(selectedField.lat, selectedField.lon));
     }
   }, [selectedField.lat, selectedField.lon]);
 
   const resetView = () => {
+    setIsOrbiting(false);
     if (mapInstance.current) {
       mapInstance.current.flyTo({
         center: [selectedField.lon, selectedField.lat],
-        zoom: 9.5,
-        pitch: 0,
-        bearing: 0,
+        zoom: 11.5,
+        pitch: is3D ? 52 : 0,
+        bearing: -18,
         essential: true,
       });
     }
   };
 
   return (
-    <div className="relative w-full h-[380px] md:h-[490px] rounded-3xl overflow-hidden border border-line shadow-lg group">
-      <div ref={mapContainer} className="w-full h-full bg-slate-900 cursor-crosshair" />
+    <div className="relative w-full h-[390px] md:h-[470px] rounded-2xl overflow-hidden border border-line shadow-lg reticle-frame group">
+      <div ref={mapContainer} className="w-full h-full bg-stone-950 cursor-crosshair" />
 
-      {/* Top Left: Map Layer Controls */}
-      <div className="absolute top-3.5 left-3.5 glass-strong p-1 rounded-2xl border border-line shadow-md flex items-center gap-1 z-10 text-xs">
+      {/* Top Left: Cartographic & 3D Swath Controls */}
+      <div className="absolute top-3 left-3 glass-strong p-1 rounded-xl border border-line shadow-md flex flex-wrap items-center gap-1 z-10 text-[11px] font-mono">
         <button
           type="button"
           onClick={() => setMapMode("satellite")}
-          className={`px-3 py-1.5 rounded-xl font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${
+          className={`px-2.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
             mapMode === "satellite"
-              ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs"
+              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
               : "text-muted hover:text-foreground hover:bg-foreground/5"
           }`}
         >
           <Globe2 className="w-3.5 h-3.5" />
-          <span>Satellite</span>
+          <span>EO Optical</span>
         </button>
         <button
           type="button"
           onClick={() => setMapMode("osm")}
-          className={`px-3 py-1.5 rounded-xl font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${
+          className={`px-2.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
             mapMode === "osm"
-              ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs"
+              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
               : "text-muted hover:text-foreground hover:bg-foreground/5"
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>Street Map</span>
+          <span>Topo / Street</span>
         </button>
+
+        <span className="h-4 w-[1px] bg-line mx-0.5" />
+
+        <button
+          type="button"
+          onClick={() => setIs3D((v) => !v)}
+          className={`px-2.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+            is3D
+              ? "bg-sky-500/20 text-sky-400 border border-sky-500/40"
+              : "text-muted hover:text-foreground hover:bg-foreground/5"
+          }`}
+          title="Toggle 3D DEM Terrain & Parcel Extrusion"
+        >
+          <Box className="w-3.5 h-3.5" />
+          <span>{is3D ? "3D Swath" : "2D Nadir"}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsOrbiting((v) => !v)}
+          className={`px-2.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+            isOrbiting
+              ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+              : "text-muted hover:text-foreground hover:bg-foreground/5"
+          }`}
+          title="Orbit 360° around parcel"
+        >
+          <RotateCw className={`w-3.5 h-3.5 ${isOrbiting ? "animate-spin" : ""}`} />
+          <span>Orbit</span>
+        </button>
+
         <button
           type="button"
           onClick={resetView}
           title="Reset Orientation & Center"
-          className="p-1.5 rounded-xl text-muted hover:text-foreground hover:bg-foreground/5 border-l border-line transition-colors cursor-pointer"
+          className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
         >
           <Compass className="w-3.5 h-3.5" />
         </button>
       </div>
 
+      {/* Top Right below NavigationControl: Camera Telemetry Readout */}
+      <div className="absolute top-28 right-3 glass-strong px-2.5 py-1.5 rounded-lg border border-line text-[10px] font-mono text-muted pointer-events-none hidden sm:flex flex-col items-end gap-0.5 z-10">
+        <span>PITCH {cameraHud.pitch}° · BRG {cameraHud.bearing}°</span>
+        <span className="text-emerald-400">NASADEM 30m + 3D PARCEL</span>
+      </div>
+
       {/* Bottom Floating Telemetry Bar */}
-      <div className="absolute bottom-3.5 left-3.5 right-3.5 flex flex-wrap items-center justify-between gap-2 pointer-events-none z-10">
-        <div className="glass-strong text-foreground pointer-events-auto px-3.5 py-2 rounded-2xl border border-line text-[11px] font-medium shadow-md flex items-center gap-2.5">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-          </span>
-          <span className="text-foreground/90 font-medium">Click map or drag green pin to select parcel</span>
+      <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 pointer-events-none z-10">
+        <div className="glass-strong text-foreground pointer-events-auto px-3 py-1.5 rounded-xl border border-line text-[11px] font-mono flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-foreground/90">Click terrain or drag reticle to sample parcel</span>
         </div>
 
-        <div className="glass-strong text-foreground pointer-events-auto px-3.5 py-2 rounded-2xl border border-line text-[11px] font-mono font-bold text-foreground shadow-md flex items-center gap-2">
+        <div className="glass-strong text-foreground pointer-events-auto px-3 py-1.5 rounded-xl border border-line text-[11px] font-mono font-bold shadow-md flex items-center gap-2">
           <MapPin className="w-3.5 h-3.5 text-emerald-400" />
           <span>
-            {Math.abs(selectedField.lat).toFixed(4)}°{selectedField.lat >= 0 ? "N" : "S"},{" "}
-            {Math.abs(selectedField.lon).toFixed(4)}°{selectedField.lon >= 0 ? "E" : "W"}
+            {fmtDMS(selectedField.lat, true)} · {fmtDMS(selectedField.lon, false)}
           </span>
         </div>
       </div>
