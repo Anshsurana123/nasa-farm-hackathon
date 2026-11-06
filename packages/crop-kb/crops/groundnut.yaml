@@ -1,0 +1,27 @@
+id: groundnut
+name: Groundnut (Moongphali)
+family: fabaceae
+group: oilseed
+season_type: [warm]
+gdd_to_maturity: 1550
+base_temp_c: 10
+optimal_temp_c: [25, 33]
+max_temp_c: 41
+min_temp_c: 14
+duration_days: [105, 125]
+water_requirement_mm: [400, 550]
+kc: [0.40, 1.15, 0.60]
+root_depth_m: 1.0
+drought_tolerance: 4
+heat_tolerance: 4
+waterlogging_tolerance: 1
+n_fixation_kg_ha: 65
+n_demand_kg_ha: 20
+residue_t_ha: 2.8
+residue_cn_ratio: 22
+typical_yield_t_ha: [1.5, 2.2]
+aquacrop_name: Soybean
+good_predecessors: [wheat, barley, mustard, potato]
+bad_predecessors: [groundnut, soybean]
+notes: "High-value Kharif oilseed-legume suited to well-drained sandy loam and loamy sand soils across Punjab (SG 99, TG 37A), Bundelkhand, Gujarat, and Andhra Pradesh. Symbiotic Rhizobium fixes 50-80 kg N/ha while requiring 65% less water than puddled rice."
+sources: ["PAU Package of Practices Kharif (Groundnut)", "ICAR-DGR Junagadh Groundnut Production Guide", "FAO-56 Table 12"]

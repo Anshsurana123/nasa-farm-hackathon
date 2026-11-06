@@ -1,11 +1,9 @@
-"""Field Profiler: builds a ``FieldProfile`` for a location.
+"""Field Profiler: builds a ``FieldProfile`` for an Indian field location.
 
-Implemented sources : NASA POWER (climate), ISRIC SoilGrids (soil).
-Pending sources     : SMAP, GRACE-FO, IMERG, FIRMS, NASADEM, HLS crop history
-                      -> see docs/TASKS.md (TASK-D02..D07, TASK-E01).
-Each pending source should be added as a separate ``_add_<source>`` function
-that fills the relevant part of the profile and appends a DataProvenance.
-Failures in optional sources must NOT break the profile (log + leave None).
+Implemented sources : NASA POWER (climate), ISRIC SoilGrids (soil), GEE / Regional Climatology
+                      (SMAP, GRACE-FO, IMERG, FIRMS, NASADEM, HLS crop history), and
+                      Indian Government Soil Health Card (SHC) lab test overrides.
+Failures in optional sources must NOT break the profile (log + leave None or regional climatology).
 """
 
 from __future__ import annotations
@@ -17,9 +15,11 @@ import numpy as np
 import pandas as pd
 from terraloop_schemas import (
     ClimateSummary,
+    DataProvenance,
     FieldGeometry,
     FieldProfile,
     HazardSummary,
+    SoilHealthCardInput,
     SoilSummary,
     WaterSummary,
 )
@@ -43,7 +43,11 @@ TREND_NOTES_ENABLED = True
 # ---------------------------------------------------------------------------
 # Climate (NASA POWER)
 # ---------------------------------------------------------------------------
-def summarise_climate(df: pd.DataFrame, lat: float) -> tuple[ClimateSummary, HazardSummary, float]:
+def summarise_climate(
+    df: pd.DataFrame,
+    lat: float,
+    prov_mode: str = "observed",
+) -> tuple[ClimateSummary, HazardSummary, float]:
     """Compute climate + hazard indicators from a daily POWER DataFrame.
 
     Returns (climate, hazards, annual climatic water balance P-ET0 in mm).
@@ -56,7 +60,7 @@ def summarise_climate(df: pd.DataFrame, lat: float) -> tuple[ClimateSummary, Haz
     years = df.index.year
     base = df[(years >= BASELINE[0]) & (years <= BASELINE[1])]
     recent = df[(years >= RECENT[0]) & (years <= RECENT[1])]
-    if base.empty:  # short records (tests / partial downloads)
+    if base.empty:
         base = df
     if recent.empty:
         recent = df
@@ -108,7 +112,7 @@ def summarise_climate(df: pd.DataFrame, lat: float) -> tuple[ClimateSummary, Haz
         monthly_tmax_c=[round(float(monthly_tx.get(m, np.nan)), 1) for m in range(1, 13)],
         monthly_tmin_c=[round(float(monthly_tn.get(m, np.nan)), 1) for m in range(1, 13)],
         wettest_months=wet_months,
-        provenance=[nasa_power.provenance(df.index.min().date(), df.index.max().date())],
+        provenance=[nasa_power.provenance(df.index.min().date(), df.index.max().date(), mode=prov_mode)],
     )
 
     hazards = HazardSummary(
@@ -122,9 +126,27 @@ def summarise_climate(df: pd.DataFrame, lat: float) -> tuple[ClimateSummary, Haz
 
 
 # ---------------------------------------------------------------------------
-# Soil (SoilGrids)
+# Soil (SoilGrids & Indian Regional Topsoil Fallbacks)
 # ---------------------------------------------------------------------------
-def summarise_soil(props: dict[str, float] | None) -> SoilSummary:
+def regional_indian_soil_fallback(lat: float, lon: float) -> dict[str, float]:
+    """Return representative NBSS&LUP / ICAR topsoil properties for Indian agro-zones when SoilGrids is offline."""
+    if (18.0 <= lat < 23.0) and (75.0 <= lon <= 80.5):
+        # Vidarbha Deccan Vertisol (Black Cotton Soil - high clay, high water holding)
+        return {"sand": 22.0, "silt": 26.0, "clay": 52.0, "soc": 6.2, "phh2o": 7.8, "bdod": 136.0, "nitrogen": 0.65}
+    if (23.5 <= lat < 27.0) and (77.5 <= lon <= 81.5):
+        # Bundelkhand Red/Parwa Sandy Loam (low SOC, low water holding)
+        return {"sand": 62.0, "silt": 22.0, "clay": 16.0, "soc": 4.2, "phh2o": 7.3, "bdod": 152.0, "nitrogen": 0.48}
+    if (28.5 <= lat <= 31.2) and (73.5 <= lon < 75.2):
+        # Bathinda SW Punjab Arid Sandy Loam (coarse texture, alkaline pH)
+        return {"sand": 64.0, "silt": 22.0, "clay": 14.0, "soc": 4.0, "phh2o": 8.2, "bdod": 154.0, "nitrogen": 0.45}
+    if lat < 15.0:
+        # Thanjavur Cauvery Delta Alluvial Clay Loam
+        return {"sand": 32.0, "silt": 32.0, "clay": 36.0, "soc": 7.4, "phh2o": 6.9, "bdod": 140.0, "nitrogen": 0.78}
+    # Central Punjab Indo-Gangetic Alluvial Loam (Sangrur / Ludhiana)
+    return {"sand": 44.0, "silt": 36.0, "clay": 20.0, "soc": 5.2, "phh2o": 7.9, "bdod": 148.0, "nitrogen": 0.58}
+
+
+def summarise_soil(props: dict[str, float] | None, prov_mode: str = "observed") -> SoilSummary:
     if not props:
         return SoilSummary(provenance=[])
     sand, silt, clay = props.get("sand"), props.get("silt"), props.get("clay")
@@ -136,6 +158,7 @@ def summarise_soil(props: dict[str, float] | None) -> SoilSummary:
         if soc is not None:
             fc, wp = soil.saxton_rawls(sand, clay, soc)
     bd = props.get("bdod")
+    prov = soilgrids.PROVENANCE.model_copy(update={"mode": prov_mode})  # type: ignore[arg-type]
     return SoilSummary(
         texture_class=texture,
         sand_pct=_r(sand),
@@ -148,8 +171,40 @@ def summarise_soil(props: dict[str, float] | None) -> SoilSummary:
         nitrogen_g_kg=_r(props.get("nitrogen"), 2),
         field_capacity_vol=fc,
         wilting_point_vol=wp,
-        provenance=[soilgrids.PROVENANCE],
+        provenance=[prov],
     )
+
+
+def apply_soil_health_card_override(profile: FieldProfile, shc: SoilHealthCardInput) -> FieldProfile:
+    """Apply farmer's Indian Government Soil Health Card (SHC) lab test measurements to the FieldProfile."""
+    s = profile.soil
+    if shc.ph is not None:
+        s.ph = round(float(shc.ph), 2)
+    if shc.soc_pct is not None:
+        # Convert Organic Carbon % (walkley-black) to g/kg (* 10.0)
+        s.soc_g_per_kg = round(float(shc.soc_pct) * 10.0, 2)
+        if s.sand_pct is not None and s.clay_pct is not None:
+            fc, wp = soil.saxton_rawls(s.sand_pct, s.clay_pct, s.soc_g_per_kg)
+            s.field_capacity_vol = fc
+            s.wilting_point_vol = wp
+    if shc.available_n_kg_ha is not None:
+        s.nitrogen_g_kg = round(float(shc.available_n_kg_ha) / 2240.0, 2)
+
+    s.source = "farmer_test"
+    shc_prov = DataProvenance(
+        source="Indian Govt Soil Health Card (SHC)",
+        product="Farmer Local Soil Testing Lab Override",
+        resolution="Field-scale composite sample",
+        url="https://soilhealth.dac.gov.in/",
+        mode="observed",
+    )
+    if not any(p.source == shc_prov.source for p in s.provenance):
+        s.provenance.insert(0, shc_prov)
+
+    profile.agro_climatic_notes = build_notes(
+        profile.climate, s, profile.water, profile.hazards, lat=profile.field.lat
+    )
+    return profile
 
 
 def _r(v: float | None, nd: int = 1) -> float | None:
@@ -157,7 +212,7 @@ def _r(v: float | None, nd: int = 1) -> float | None:
 
 
 # ---------------------------------------------------------------------------
-# Notes (deterministic, human-readable; later localised by the explain layer)
+# Notes (deterministic, human-readable)
 # ---------------------------------------------------------------------------
 def build_notes(
     c: ClimateSummary,
@@ -175,9 +230,9 @@ def build_notes(
     if h is not None and h.terminal_heat_days_per_year is not None and h.terminal_heat_days_per_year >= 3:
         grain_fill_range = "1 Sep-15 Oct" if lat < 0 else "1 Mar-15 Apr"
         notes.append(
-            f"Wheat terminal heat stress: grain-fill period ({grain_fill_range}) averages {h.terminal_heat_days_per_year:.1f} days/yr with Tmax > 32 C."
+            f"Wheat terminal heat stress: grain-fill period ({grain_fill_range}) averages "
+            f"{h.terminal_heat_days_per_year:.1f} days/yr with Tmax > 32 C."
         )
-    # Safeguard (TASK-D11): cap rainfall trend note at <= 30% to prevent reanalysis step-change artifacts
     if TREND_NOTES_ENABLED and 10 <= abs(c.precip_change_pct) <= 30:
         direction = "increased" if c.precip_change_pct > 0 else "decreased"
         notes.append(f"Annual rainfall has {direction} by {abs(c.precip_change_pct):.0f}% between periods.")
@@ -202,34 +257,43 @@ def build_notes(
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
-def build_profile(field: FieldGeometry, start: date | None = None, end: date | None = None) -> FieldProfile:
+def build_profile(
+    field: FieldGeometry,
+    start: date | None = None,
+    end: date | None = None,
+    soil_health_card: SoilHealthCardInput | None = None,
+) -> FieldProfile:
     start = start or date(BASELINE[0], 1, 1)
     end = end or date(RECENT[1], 12, 31)
 
+    power_mode = "observed"
     try:
         weather = nasa_power.fetch_daily(nasa_power.PowerRequest(field.lat, field.lon, start, end))
     except Exception as exc:  # noqa: BLE001
-        log.warning("NASA POWER live fetch failed: %s; using location-calibrated synthetic weather", exc)
+        log.warning("NASA POWER live fetch failed: %s; using location-calibrated regional weather", exc)
         weather = nasa_power.synthetic_daily_weather(field.lat, field.lon, (start.year, end.year))
+        power_mode = "regional_climatology"
 
-    climate, hazards, water_balance = summarise_climate(weather, field.lat)
+    climate, hazards, water_balance = summarise_climate(weather, field.lat, prov_mode=power_mode)
 
+    soil_mode = "observed"
     try:
         props, _used = soilgrids.fetch_topsoil(field.lat, field.lon)
     except Exception:
         log.exception("SoilGrids failed")
         props = None
     if not props:
-        # Fallback to realistic physical baseline topsoil properties if SoilGrids is unreachable
-        props = {"sand": 45.0, "silt": 35.0, "clay": 20.0, "soc": 9.5, "phh2o": 7.1, "bdod": 138.0}
-    soil_summary = summarise_soil(props)
+        props = regional_indian_soil_fallback(field.lat, field.lon)
+        soil_mode = "regional_climatology"
+    soil_summary = summarise_soil(props, prov_mode=soil_mode)
 
     # 1. Slope from NASADEM (TASK-D06)
     try:
         slope = gee.slope_pct(field.lat, field.lon)
         soil_summary.slope_pct = slope
-        if gee.NASADEM_PROVENANCE not in soil_summary.provenance:
-            soil_summary.provenance.append(gee.NASADEM_PROVENANCE)
+        nasadem_prov = gee.provenance_with_mode(gee.NASADEM_PROVENANCE)
+        if not any(p.source == nasadem_prov.source for p in soil_summary.provenance):
+            soil_summary.provenance.append(nasadem_prov)
     except Exception:
         log.warning("NASADEM slope lookup failed", exc_info=True)
 
@@ -238,7 +302,7 @@ def build_profile(field: FieldGeometry, start: date | None = None, end: date | N
     gw_trend = None
     try:
         gw_trend, _ = gee.grace_trend(field.lat, field.lon)
-        water_prov.append(gee.GRACE_PROVENANCE)
+        water_prov.append(gee.provenance_with_mode(gee.GRACE_PROVENANCE))
     except Exception:
         log.warning("GRACE trend lookup failed", exc_info=True)
 
@@ -258,7 +322,7 @@ def build_profile(field: FieldGeometry, start: date | None = None, end: date | N
                 else:
                     pctiles.append(50.0)
             smap_pctiles = pctiles
-            water_prov.append(gee.SMAP_PROVENANCE)
+            water_prov.append(gee.provenance_with_mode(gee.SMAP_PROVENANCE))
     except Exception:
         log.warning("SMAP rootzone lookup failed", exc_info=True)
 
@@ -299,18 +363,21 @@ def build_profile(field: FieldGeometry, start: date | None = None, end: date | N
     # Erosion screening using NASADEM slope
     if soil_summary.sand_pct is not None and soil_summary.soc_g_per_kg is not None:
         k = rusle.k_factor_williams(
-            soil_summary.sand_pct, soil_summary.silt_pct or 0, soil_summary.clay_pct or 0,
+            soil_summary.sand_pct,
+            soil_summary.silt_pct or 0,
+            soil_summary.clay_pct or 0,
             soil_summary.soc_g_per_kg / 10,
         )
         r = rusle.r_factor_annual(climate.annual_precip_mm)
         slope = soil_summary.slope_pct if soil_summary.slope_pct is not None else 1.0
-        a = rusle.soil_loss(r, k, rusle.ls_factor(slope), c=0.3)  # C=0.3 ~ annual cereal, refined per rotation
+        a = rusle.soil_loss(r, k, rusle.ls_factor(slope), c=0.3)
         hazards.erosion_risk_class = rusle.erosion_class(a)  # type: ignore[assignment]
 
     region = economics.detect_region(field.lat, field.lon)
     curr_info = economics.get_currency_info(region)
+    agro_zone = economics.detect_agro_zone(field.lat, field.lon)
 
-    return FieldProfile(
+    profile = FieldProfile(
         field=field,
         climate=climate,
         water=water,
@@ -321,4 +388,11 @@ def build_profile(field: FieldGeometry, start: date | None = None, end: date | N
         agro_climatic_notes=build_notes(climate, soil_summary, water, hazards, lat=field.lat),
         currency=curr_info["code"],
         currency_symbol=curr_info["symbol"],
+        agro_zone=agro_zone,
+        is_fallback=(power_mode != "observed" and soil_mode != "observed"),
     )
+
+    if soil_health_card is not None:
+        profile = apply_soil_health_card_override(profile, soil_health_card)
+
+    return profile

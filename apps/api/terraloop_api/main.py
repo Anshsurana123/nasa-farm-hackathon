@@ -9,13 +9,16 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import urllib.parse
 from datetime import date
 from pathlib import Path
+from typing import Literal
 
 import httpx
 import numpy as np
+import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -23,6 +26,7 @@ from terraloop_engine import crop_kb, profiler, suitability
 from terraloop_engine.climate import ensembles
 from terraloop_engine.data import nasa_power
 from terraloop_engine.explain import why_cards
+from terraloop_engine.models import economics
 from terraloop_engine.optimize import evaluate, rotations, selection
 from terraloop_schemas import (
     CropSpec,
@@ -30,7 +34,9 @@ from terraloop_schemas import (
     FieldGeometry,
     FieldProfile,
     Priorities,
+    SoilHealthCardInput,
     StrategyRecommendation,
+    WaterSummary,
 )
 
 log = logging.getLogger("terraloop.api")
@@ -38,10 +44,12 @@ log = logging.getLogger("terraloop.api")
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GOLDEN_DIR = REPO_ROOT / "data" / "golden"
 
-app = FastAPI(title="TerraLoop API", version="0.1.0")
+app = FastAPI(title="TerraLoop India API", version="0.2.0")
+
+cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "*").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=cors_origins or ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -61,10 +69,25 @@ def list_crops() -> list[CropSpec]:
 
 
 # ---------------------------------------------------------------------------
-# Golden (precomputed demo) fields: the demo must never depend on live APIs
+# Golden (precomputed Indian benchmark) fields: the demo must never depend on live APIs
 # ---------------------------------------------------------------------------
 def _golden_index() -> list[dict]:
     return json.loads((GOLDEN_DIR / "fields.json").read_text(encoding="utf-8"))
+
+
+def _load_golden_weather(field_id: str) -> pd.DataFrame | None:
+    path = GOLDEN_DIR / field_id / "weather.json"
+    if not path.exists():
+        return None
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        df = pd.DataFrame(raw["data"], columns=raw["columns"])
+        df.index = pd.to_datetime(raw["index"])
+        df.index.name = "date"
+        return df.astype(float).sort_index()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Failed to load golden weather for %s: %s", field_id, exc)
+        return None
 
 
 @app.get("/golden")
@@ -77,12 +100,10 @@ def golden_profile(field_id: str) -> FieldProfile:
     path = GOLDEN_DIR / field_id / "profile.json"
     if path.exists():
         prof = FieldProfile.model_validate_json(path.read_text(encoding="utf-8"))
-        from terraloop_engine.models import economics
-
-        region = economics.detect_region(prof.field.lat, prof.field.lon)
-        curr = economics.get_currency_info(region)
-        prof.currency = curr["code"]
-        prof.currency_symbol = curr["symbol"]
+        prof.currency = "INR"
+        prof.currency_symbol = "₹"
+        if not prof.agro_zone:
+            prof.agro_zone = economics.detect_agro_zone(prof.field.lat, prof.field.lon)
         return prof
     match = next((f for f in _golden_index() if f["id"] == field_id), None)
     if not match:
@@ -90,8 +111,22 @@ def golden_profile(field_id: str) -> FieldProfile:
     return profiler.build_profile(FieldGeometry(lat=match["lat"], lon=match["lon"], name=match["name"]))
 
 
+@app.get("/golden/{field_id}/recommendations", response_model=list[StrategyRecommendation])
+def golden_recommendations(field_id: str) -> list[StrategyRecommendation]:
+    path = GOLDEN_DIR / field_id / "recommendations.json"
+    if path.exists():
+        raw_list = json.loads(path.read_text(encoding="utf-8"))
+        return [StrategyRecommendation.model_validate(item) for item in raw_list]
+    match = next((f for f in _golden_index() if f["id"] == field_id), None)
+    if not match:
+        raise HTTPException(404, f"Unknown golden field '{field_id}'")
+    return recommend(
+        RecommendRequest(field=FieldGeometry(lat=match["lat"], lon=match["lon"], name=match["name"]))
+    )
+
+
 # ---------------------------------------------------------------------------
-# Geocoding & Location Resolution
+# Geocoding & Location Resolution (India-focused)
 # ---------------------------------------------------------------------------
 class GeocodeResult(BaseModel):
     lat: float
@@ -109,7 +144,6 @@ def _clean_place_name(name: str) -> str:
 
 
 def _extract_place_name_from_url(url_str: str) -> str | None:
-    # Match /maps/dir/<From>/<To>/ or /maps/place/<PlaceName>/
     m = re.search(r"/maps/dir/(?:[^/]+/)?([^/@]+)", url_str)
     if m:
         name = urllib.parse.unquote(m.group(1).replace("+", " "))
@@ -136,19 +170,16 @@ def _reverse_geocode_nominatim(lat: float, lon: float) -> str | None:
                 data = resp.json()
                 addr = data.get("address", {})
                 local = (
-                    addr.get("neighbourhood")
-                    or addr.get("suburb")
-                    or addr.get("village")
+                    addr.get("village")
                     or addr.get("town")
                     or addr.get("city")
                     or addr.get("county")
+                    or addr.get("state_district")
+                    or addr.get("suburb")
                 )
                 state = addr.get("state")
-                country = addr.get("country")
                 if local and state:
                     return f"{local}, {state}"
-                if local and country:
-                    return f"{local}, {country}"
                 disp = data.get("display_name")
                 if disp:
                     parts = [p.strip() for p in disp.split(",") if p.strip()]
@@ -160,16 +191,14 @@ def _reverse_geocode_nominatim(lat: float, lon: float) -> str | None:
 
 def _extract_coords_from_url_or_text(text: str) -> tuple[float | None, float | None, str | None] | None:
     raw = text.strip()
-
-    # 1. Check if input looks like a URL or map link
     is_url = bool(re.match(r"^(https?://|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)", raw)) or any(
-        k in raw for k in ("goo.gl", "google.com/maps", "maps.google", "openstreetmap.org", "maps.apple", "bing.com/maps")
+        k in raw
+        for k in ("goo.gl", "google.com/maps", "maps.google", "openstreetmap.org", "maps.apple", "bing.com/maps")
     )
 
     expanded_url = raw
     if is_url:
         target_url = raw if raw.startswith(("http://", "https://")) else f"https://{raw}"
-        # Validate that target_url domain is a trusted map service to prevent SSRF
         parsed = urllib.parse.urlparse(target_url)
         host = (parsed.hostname or "").lower()
         trusted_hosts = (
@@ -186,7 +215,6 @@ def _extract_coords_from_url_or_text(text: str) -> tuple[float | None, float | N
         )
         is_trusted = any(host == th or host.endswith("." + th) for th in trusted_hosts)
         if is_trusted:
-            # Follow HTTP redirects (handles maps.app.goo.gl and goo.gl/maps shortened links)
             try:
                 with httpx.Client(timeout=8.0, follow_redirects=True) as client:
                     resp = client.get(
@@ -200,49 +228,35 @@ def _extract_coords_from_url_or_text(text: str) -> tuple[float | None, float | N
         else:
             expanded_url = target_url
 
-    # Check both expanded URL and original raw text
     for candidate in [expanded_url, raw]:
-        # Google Maps protobuf !1d(lon)!2d(lat)
         m = re.search(r"!1d(-?\d+\.\d+)!2d(-?\d+\.\d+)", candidate)
         if m:
-            lat, lon = float(m.group(2)), float(m.group(1))
-            return lat, lon, _extract_place_name_from_url(expanded_url)
+            return float(m.group(2)), float(m.group(1)), _extract_place_name_from_url(expanded_url)
 
-        # Google Maps protobuf !3d(lat)!4d(lon)
         m = re.search(r"!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)", candidate)
         if m:
-            lat, lon = float(m.group(1)), float(m.group(2))
-            return lat, lon, _extract_place_name_from_url(expanded_url)
+            return float(m.group(1)), float(m.group(2)), _extract_place_name_from_url(expanded_url)
 
-        # Google Maps /@lat,lon
         m = re.search(r"@(-?\d+\.\d+),(-?\d+\.\d+)", candidate)
         if m:
-            lat, lon = float(m.group(1)), float(m.group(2))
-            return lat, lon, _extract_place_name_from_url(expanded_url)
+            return float(m.group(1)), float(m.group(2)), _extract_place_name_from_url(expanded_url)
 
-        # Query param ?q=lat,lon or ?ll=lat,lon or query=lat,lon
         m = re.search(r"[?&](?:q|query|ll)=(-?\d+\.\d+),(-?\d+\.\d+)", candidate)
         if m:
-            lat, lon = float(m.group(1)), float(m.group(2))
-            return lat, lon, _extract_place_name_from_url(expanded_url)
+            return float(m.group(1)), float(m.group(2)), _extract_place_name_from_url(expanded_url)
 
-        # Google Maps directions /dir/<lat>,<lon>/
         m = re.search(r"/dir/(-?\d+\.\d+),(-?\d+\.\d+)", candidate)
         if m:
-            lat, lon = float(m.group(1)), float(m.group(2))
-            return lat, lon, _extract_place_name_from_url(expanded_url)
+            return float(m.group(1)), float(m.group(2)), _extract_place_name_from_url(expanded_url)
 
-        # OpenStreetMap #map=zoom/lat/lon
         m = re.search(r"#map=\d+/(-?\d+\.\d+)/(-?\d+\.\d+)", candidate)
         if m:
             return float(m.group(1)), float(m.group(2)), "OpenStreetMap Location"
 
-        # Bing Maps cp=lat~lon
         m = re.search(r"[?&]cp=(-?\d+\.\d+)~(-?\d+\.\d+)", candidate)
         if m:
             return float(m.group(1)), float(m.group(2)), "Bing Maps Location"
 
-        # Direct coordinate string "lat, lon" or "lat lon"
         m = re.match(r"^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$", candidate)
         if m:
             try:
@@ -252,7 +266,6 @@ def _extract_coords_from_url_or_text(text: str) -> tuple[float | None, float | N
             except ValueError:
                 pass
 
-    # If the URL did not contain explicit coordinates but had a search keyword (e.g. /search/Fresno+CA)
     if is_url:
         search_m = re.search(r"/maps/search/([^/?]+)", expanded_url)
         if search_m:
@@ -268,22 +281,19 @@ def geocode_location(q: str) -> GeocodeResult:
     if not text:
         raise HTTPException(400, "Query string 'q' cannot be empty")
 
-    # 1. Check if input is a URL, Google Maps link, or raw coordinate string
     res = _extract_coords_from_url_or_text(text)
     if res is not None:
         lat, lon, extracted_name = res
         if lat is not None and lon is not None:
             rev_name = _reverse_geocode_nominatim(lat, lon)
-            final_name = extracted_name or rev_name or f"Location ({lat:.4f}°, {lon:.4f}°)"
+            final_name = extracted_name or rev_name or f"Field ({lat:.4f}°N, {lon:.4f}°E)"
             return GeocodeResult(lat=round(lat, 4), lon=round(lon, 4), name=final_name)
         elif extracted_name:
-            # URL contained a search term without coords; geocode this term
             text = extracted_name
 
-    # 2. OpenStreetMap Nominatim global address search for place names / addresses
     url = "https://nominatim.openstreetmap.org/search"
     headers = {"User-Agent": "TerraLoop-SpaceApps/1.0"}
-    params = {"q": text, "format": "json", "limit": 1}
+    params = {"q": text, "format": "json", "limit": 1, "countrycodes": "in"}
     try:
         with httpx.Client(timeout=10.0) as client:
             resp = client.get(url, params=params, headers=headers)
@@ -293,7 +303,7 @@ def geocode_location(q: str) -> GeocodeResult:
                     item = data[0]
                     disp = item.get("display_name", text)
                     parts = [p.strip() for p in disp.split(",") if p.strip()]
-                    short_name = parts[0] if len(parts) == 1 else f"{parts[0]}, {parts[-1]}"
+                    short_name = parts[0] if len(parts) == 1 else f"{parts[0]}, {parts[-2] if len(parts) > 2 else parts[-1]}"
                     return GeocodeResult(
                         lat=round(float(item["lat"]), 4),
                         lon=round(float(item["lon"]), 4),
@@ -302,11 +312,17 @@ def geocode_location(q: str) -> GeocodeResult:
     except Exception as exc:  # noqa: BLE001
         log.warning("Nominatim geocoding failed for '%s': %s", text, exc)
 
-    raise HTTPException(status_code=404, detail=f"Location or address '{q}' not found")
+    raise HTTPException(status_code=404, detail=f"Indian location or village '{q}' not found")
 
 
 @app.post("/profile", response_model=FieldProfile)
 def build_profile(field: FieldGeometry) -> FieldProfile:
+    golden_matches = [
+        f for f in _golden_index()
+        if abs(f["lat"] - field.lat) < 0.15 and abs(f["lon"] - field.lon) < 0.15
+    ]
+    if golden_matches:
+        return golden_profile(golden_matches[0]["id"])
     try:
         return profiler.build_profile(field)
     except Exception as exc:
@@ -331,7 +347,11 @@ class SuitabilityItem(BaseModel):
 
 @app.post("/suitability", response_model=list[SuitabilityItem])
 def crop_suitability(req: SuitabilityRequest) -> list[SuitabilityItem]:
-    prof = profiler.build_profile(req.field)
+    golden_matches = [
+        f for f in _golden_index()
+        if abs(f["lat"] - req.field.lat) < 0.15 and abs(f["lon"] - req.field.lon) < 0.15
+    ]
+    prof = golden_profile(golden_matches[0]["id"]) if golden_matches else profiler.build_profile(req.field)
     crops = crop_kb.load_crops()
     return [
         SuitabilityItem(name=crops[r.crop_id].name, **r.__dict__)
@@ -343,6 +363,9 @@ class RecommendRequest(BaseModel):
     field: FieldGeometry
     priorities: Priorities = Priorities()
     constraints: FarmConstraints = FarmConstraints()
+    language: Literal["en", "pa", "hi"] = "en"
+    soil_health_card: SoilHealthCardInput | None = None
+    baseline_override: list[str] | None = None
 
 
 @app.post("/recommend", response_model=list[StrategyRecommendation])
@@ -355,70 +378,126 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         f for f in _golden_index()
         if abs(f["lat"] - req.field.lat) < 0.15 and abs(f["lon"] - req.field.lon) < 0.15
     ]
-    if golden_matches:
-        prof = golden_profile(golden_matches[0]["id"])
+    matched_golden_id: str | None = golden_matches[0]["id"] if golden_matches else None
+
+    if matched_golden_id:
+        prof = golden_profile(matched_golden_id)
     else:
         try:
             prof = profiler.build_profile(req.field)
         except Exception as exc:  # noqa: BLE001
-            log.warning("Live profiler failed: %s; falling back to location-calibrated synthetic profile", exc)
-            from terraloop_engine.models import economics
-            from terraloop_schemas import WaterSummary
-
-            syn_weather = nasa_power.synthetic_daily_weather(req.field.lat, req.field.lon, (2015, 2024))
-            c, h, wb = profiler.summarise_climate(syn_weather, req.field.lat)
-            s = profiler.summarise_soil({"sand": 45, "silt": 35, "clay": 20, "soc": 8, "phh2o": 7.2, "bdod": 140})
-            region = economics.detect_region(req.field.lat, req.field.lon)
-            curr = economics.get_currency_info(region)
+            log.warning("Live profiler failed: %s; falling back to regional Indian profile", exc)
+            syn_weather = nasa_power.synthetic_daily_weather(req.field.lat, req.field.lon, (1995, 2024))
+            c, h, wb = profiler.summarise_climate(syn_weather, req.field.lat, prov_mode="regional_climatology")
+            s = profiler.summarise_soil(
+                profiler.regional_indian_soil_fallback(req.field.lat, req.field.lon),
+                prov_mode="regional_climatology",
+            )
             prof = FieldProfile(
                 field=req.field,
                 climate=c,
                 water=WaterSummary(climatic_water_balance_mm=wb),
                 soil=s,
                 hazards=h,
-                currency=curr["code"],
-                currency_symbol=curr["symbol"],
+                currency="INR",
+                currency_symbol="₹",
+                agro_zone=economics.detect_agro_zone(req.field.lat, req.field.lon),
+                is_fallback=True,
                 agro_climatic_notes=profiler.build_notes(
                     c, s, WaterSummary(climatic_water_balance_mm=wb), h, lat=req.field.lat
                 ),
             )
 
-    # 2. Historical Weather Ensemble
+    if req.soil_health_card is not None:
+        prof = profiler.apply_soil_health_card_override(prof, req.soil_health_card)
+
+    # 2. Historical Weather Ensemble (30 years -> 30 ensemble members; instant offline for golden fields)
     crops = crop_kb.load_crops()
-    weather_df = None
-    try:
-        req_power = nasa_power.PowerRequest(req.field.lat, req.field.lon, date(2015, 1, 1), date(2024, 12, 31))
-        weather_df = nasa_power.fetch_daily(req_power)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("Live weather fetch failed: %s", exc)
+    weather_df = _load_golden_weather(matched_golden_id) if matched_golden_id else None
+    used_fallback_weather = False
+
+    if weather_df is None:
+        try:
+            req_power = nasa_power.PowerRequest(req.field.lat, req.field.lon, date(1995, 1, 1), date(2024, 12, 31))
+            weather_df = nasa_power.fetch_daily(req_power)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Live weather fetch failed: %s", exc)
 
     if weather_df is None or weather_df.empty:
-        # Fallback synthetic weather series calibrated to the field's actual coordinates
-        weather_df = nasa_power.synthetic_daily_weather(req.field.lat, req.field.lon, (2015, 2024))
+        weather_df = nasa_power.synthetic_daily_weather(req.field.lat, req.field.lon, (1995, 2024))
+        used_fallback_weather = True
 
+    rot_years = req.constraints.rotation_years
     scenario_set, members = ensembles.build_scenario_set(
         kind="historical",
         power_df=weather_df,
-        rotation_years=1,
+        rotation_years=rot_years,
     )
 
-    # 3. Generate candidate rotations pre-screened by suitability
+    # 3. Generate candidate rotations pre-screened by suitability (no arbitrary alphabetical [:35] cut!)
     ranked_crops = suitability.rank_crops(prof, crops, req.constraints)
-    suitable_ids = {r.crop_id for r in ranked_crops if r.score >= 0.20}
-    top_ids = {r.crop_id for r in ranked_crops[:8]} | suitable_ids
+    rank_scores = {r.crop_id: r.score for r in ranked_crops}
+    top_ids = {r.crop_id for r in ranked_crops[:10] if r.score >= 0.22}
+    # Always include key regional diversification & staple crops if suitable
+    for key_cid in (
+        "wheat",
+        "rice_short",
+        "rice_dsr",
+        "moong",
+        "urad",
+        "chickpea",
+        "mustard",
+        "groundnut",
+        "maize",
+        "soybean",
+        "pigeon_pea",
+        "sorghum",
+        "pearl_millet",
+    ):
+        if rank_scores.get(key_cid, 0.0) >= 0.25:
+            top_ids.add(key_cid)
+    top_ids |= set(req.constraints.must_grow)
     filtered_crops = {cid: crops[cid] for cid in top_ids if cid in crops}
 
-    # Derive agro-climatic seasons dynamically for this field's geography
     seasons = rotations.derive_seasons(prof)
     candidate_rotations = rotations.generate_rotations(filtered_crops, req.constraints, seasons=seasons)
-    if len(candidate_rotations) > 35:
-        candidate_rotations = candidate_rotations[:35]
 
-    # 4. Baseline rotation (current farm practice derived from satellite history or regional benchmark)
-    baseline_rot = rotations.derive_baseline_rotation(prof, crops)
+    if len(candidate_rotations) > 75:
+        # Rank candidates by agronomic quality (mean suitability + staple cereal + legume inclusion + family diversity)
+        def _pre_score(rot: rotations.Rotation) -> float:
+            active_cids = [s.crop_id for s in rot.steps if s.crop_id != "fallow"]
+            if not active_cids:
+                return 0.0
+            mean_suit = float(np.mean([rank_scores.get(cid, 0.3) for cid in active_cids]))
+            has_leg = 0.25 if any(crops[cid].n_fixation_kg_ha > 0 for cid in active_cids if cid in crops) else 0.0
+            has_cereal = 0.20 if any(crops[cid].group == "cereal" for cid in active_cids if cid in crops) else 0.0
+            has_staple = (
+                0.22
+                if any(
+                    cid in ("wheat", "rice_short", "rice_dsr", "maize", "chickpea", "mustard", "soybean")
+                    for cid in active_cids
+                )
+                else 0.0
+            )
+            pau_flagship = (
+                0.25
+                if (
+                    any(cid in ("rice_short", "rice_dsr", "maize", "soybean") for cid in active_cids)
+                    and any(cid in ("wheat", "chickpea", "mustard", "urad") for cid in active_cids)
+                )
+                else 0.0
+            )
+            fams = len({crops[cid].family for cid in active_cids if cid in crops})
+            return mean_suit + has_leg + has_cereal + has_staple + pau_flagship + 0.04 * fams
+
+        candidate_rotations.sort(key=_pre_score, reverse=True)
+        candidate_rotations = candidate_rotations[:75]
+
+    # 4. Baseline rotation (current farm practice from satellite history, regional benchmark, or farmer 1-tap override)
+    baseline_rot = rotations.derive_baseline_rotation(prof, crops, baseline_override=req.baseline_override)
     all_rotations = [baseline_rot] + candidate_rotations
 
-    # 5. Evaluate all candidates across climate members
+    # 5. Evaluate all candidates across historical weather ensemble
     sim_results = evaluate.evaluate_candidates(
         rotations=all_rotations,
         members=members,
@@ -427,41 +506,83 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         scenario_set_id=scenario_set.id,
     )
 
+    baseline_result = sim_results[0]
+    baseline_pm = evaluate.compute_practical_farmer_metrics(baseline_rot, baseline_result, baseline_result, crops)
+
     # 6. Map to objective scores for Pareto / Priority selection
     cand_obj_dicts: list[dict[str, float]] = []
-    labels: list[str] = []
-    for r, res in zip(all_rotations, sim_results, strict=False):
+    cand_pms = [baseline_pm]
+    labels: list[str] = [baseline_rot.label or baseline_rot.id]
+
+    baseline_mean_irr = float(np.mean(baseline_result.irrigation_mm)) if baseline_result.irrigation_mm else 0.0
+    cand_obj_dicts.append(
+        {
+            "profit": baseline_result.profit_p50,
+            "water_savings": -baseline_mean_irr,
+            "soil_health": baseline_result.soil_health_score,
+            "low_risk": baseline_result.cvar_profit_10,
+            "low_labour": -baseline_pm.labor_cost_inr_per_ha,
+            "food_security": 1.0
+            if any(
+                s.crop_id in ("wheat", "rice_puddled", "rice_short", "rice_dsr", "maize", "sorghum", "pearl_millet")
+                for s in baseline_rot.steps
+            )
+            else 0.5,
+        }
+    )
+
+    for r, res in zip(all_rotations[1:], sim_results[1:], strict=False):
         mean_irr = float(np.mean(res.irrigation_mm)) if res.irrigation_mm else 0.0
+        pm = evaluate.compute_practical_farmer_metrics(r, res, baseline_result, crops)
+        cand_pms.append(pm)
         obj_dict = {
             "profit": res.profit_p50,
-            "water_savings": -mean_irr,  # Higher is better
+            "water_savings": -mean_irr,
             "soil_health": res.soil_health_score,
             "low_risk": res.cvar_profit_10,
-            "low_labour": 0.0,
-            "food_security": 1.0 if any(s.crop_id in ("wheat", "rice_puddled", "rice_dsr", "maize") for s in r.steps) else 0.5,
+            "low_labour": -pm.labor_cost_inr_per_ha,
+            "food_security": 1.0
+            if any(
+                s.crop_id in ("wheat", "rice_puddled", "rice_short", "rice_dsr", "maize", "sorghum", "pearl_millet")
+                for s in r.steps
+            )
+            else 0.5,
         }
         cand_obj_dicts.append(obj_dict)
         labels.append(r.label or r.id)
 
-    baseline_result = sim_results[0]
     baseline_obj = cand_obj_dicts[0]
 
-    # Select top k=3 distinct candidates from alternatives
     alt_candidates = cand_obj_dicts[1:]
     alt_labels = labels[1:]
     alt_rotations = all_rotations[1:]
     alt_results = sim_results[1:]
+    alt_pms = cand_pms[1:]
 
-    chosen_indices = selection.select_top(alt_candidates, alt_labels, req.priorities, k=3)
+    chosen_indices = selection.select_top(
+        alt_candidates,
+        alt_labels,
+        req.priorities,
+        k=3,
+    )
 
-    # 7. Assemble recommendations with why-cards and provenance
+    # 7. Assemble recommendations with localized why-cards, practical metrics, narrative, and provenance
     baseline_res_metrics = evaluate.compute_resilience_and_regret(baseline_result)
     base_label = baseline_rot.label or baseline_rot.id
-    base_why = [f"Current baseline practice for {prof.field.name or 'this field'}: {base_label}."]
-    if any(s.crop_id == "rice_puddled" for s in baseline_rot.steps) and any(s.crop_id == "wheat" for s in baseline_rot.steps):
-        base_why.append("Traditional intensive flood-irrigated rice-wheat system prone to severe aquifer drawdown.")
-    elif any(s.crop_id == "maize" for s in baseline_rot.steps) and any(s.crop_id == "soybean" for s in baseline_rot.steps):
-        base_why.append("Standard Corn Belt intensive monoculture with winter soil vulnerability.")
+    field_label = prof.field.name or "this field"
+
+    if req.language == "hi":
+        base_why = [f"{field_label} के लिए वर्तमान आधार फसल चक्र: {base_label}।"]
+        if any(s.crop_id == "rice_puddled" for s in baseline_rot.steps):
+            base_why.append("पारंपरिक कद्दू (रोपाई) धान-गेहूं प्रणाली में अत्यधिक भूजल दोहन और पराली जलाने का जोखिम रहता है।")
+    elif req.language == "pa":
+        base_why = [f"{field_label} ਲਈ ਮੌਜੂਦਾ ਬੇਸਲਾਈਨ ਫ਼ਸਲੀ ਚੱਕਰ: {base_label}।"]
+        if any(s.crop_id == "rice_puddled" for s in baseline_rot.steps):
+            base_why.append("ਰਵਾਇਤੀ ਕੱਦੂ ਵਾਲੇ ਝੋਨੇ-ਕਣਕ ਚੱਕਰ ਵਿੱਚ ਧਰਤੀ ਹੇਠਲੇ ਪਾਣੀ ਦੀ ਭਾਰੀ ਖਪਤ ਅਤੇ ਪਰਾਲੀ ਸਾੜਨ ਦੀ ਸਮੱਸਿਆ ਹੁੰਦੀ ਹੈ।")
+    else:
+        base_why = [f"Current baseline practice for {field_label}: {base_label}."]
+        if any(s.crop_id == "rice_puddled" for s in baseline_rot.steps) and any(s.crop_id == "wheat" for s in baseline_rot.steps):
+            base_why.append("Conventional puddled rice-wheat system with high groundwater extraction and short 11-day harvest-to-sowing turnaround.")
 
     baseline_rec = StrategyRecommendation(
         rank=0,
@@ -475,8 +596,13 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         },
         why=base_why,
         provenance=scenario_set.provenance,
-        currency=prof.currency,
-        currency_symbol=prof.currency_symbol,
+        currency="INR",
+        currency_symbol="₹",
+        practical_metrics=baseline_pm,
+        is_fallback=(prof.is_fallback or used_fallback_weather),
+    )
+    baseline_rec.narrative_summary = why_cards.grounded_llm_explain(
+        prof, baseline_rec, baseline_rec, language=req.language
     )
 
     out_recs: list[StrategyRecommendation] = [baseline_rec]
@@ -485,6 +611,7 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         chosen_rot = alt_rotations[idx]
         chosen_res = alt_results[idx]
         chosen_obj = alt_candidates[idx]
+        chosen_pm = alt_pms[idx]
 
         base_irr = float(np.mean(baseline_result.irrigation_mm))
         cand_irr = float(np.mean(chosen_res.irrigation_mm))
@@ -515,13 +642,17 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
             vs_baseline=vs_base,
             why=[],
             provenance=[],
-            currency=prof.currency,
-            currency_symbol=prof.currency_symbol,
+            currency="INR",
+            currency_symbol="₹",
+            practical_metrics=chosen_pm,
+            is_fallback=(prof.is_fallback or used_fallback_weather),
         )
-        cards, provs = why_cards.why_cards(prof, rec, baseline_rec)
+        cards, provs = why_cards.why_cards(prof, rec, baseline_rec, language=req.language)
         rec.why = cards
         rec.provenance = provs
+        rec.narrative_summary = why_cards.grounded_llm_explain(
+            prof, rec, baseline_rec, language=req.language
+        )
         out_recs.append(rec)
 
     return out_recs
-

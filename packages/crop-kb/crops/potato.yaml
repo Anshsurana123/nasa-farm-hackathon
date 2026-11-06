@@ -21,7 +21,7 @@ residue_t_ha: 1
 residue_cn_ratio: 20
 typical_yield_t_ha: [20, 30]
 aquacrop_name: Potato
-good_predecessors: [maize, moong, cereal_rye]
+good_predecessors: [maize, moong, urad, rice_short]
 bad_predecessors: [potato]
 notes: "Sown Oct, harvested Jan; allows a following spring crop. High-value, high input, volatile prices."
 sources: ["FAO-56 Table 12", "PAU Package of Practices Vegetables"]

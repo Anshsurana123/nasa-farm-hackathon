@@ -1,173 +1,235 @@
-# Punjab Agricultural Economics Data
-# Sources: CACP Reports on Price Policy 2023-24/2024-25, PAU Farm Management Studies
+# Indian Agricultural Economics Data (CACP MSP 2024-25 & State Cost of Cultivation)
+# Sources: CACP Reports on Price Policy for Kharif & Rabi Crops 2024-25, PAU & ICAR Farm Management Studies
 currency: INR
-usd_exchange_rate: 83.0
+usd_exchange_rate: 83.5
 
 crops:
   rice_puddled:
-    price_per_tonne: 22030
-    price_usd_per_tonne: 265.4
-    cost_per_ha: 38000
-    cost_usd_per_ha: 457.8
-    market_risk: 0.10  # Assured government MSP procurement
-    sources: ["CACP Kharif Price Policy 2023-24 (Paddy Common MSP Rs 2,183/q, Grade A Rs 2,203/q)", "PAU Cost of Cultivation Studies"]
+    price_per_tonne: 23000
+    price_usd_per_tonne: 275.4
+    cost_per_ha: 39500
+    labor_cost_per_ha: 16500
+    cost_usd_per_ha: 473.1
+    market_risk: 0.06
+    procurement_type: "msp_assured"
+    sources: ["CACP Kharif Price Policy 2024-25 (Paddy MSP Rs 2,300/q)", "PAU Cost of Cultivation Studies"]
+
+  rice_short:
+    price_per_tonne: 23200
+    price_usd_per_tonne: 277.8
+    cost_per_ha: 35500
+    labor_cost_per_ha: 14500
+    cost_usd_per_ha: 425.1
+    market_risk: 0.06
+    procurement_type: "msp_assured"
+    sources: ["CACP Kharif Price Policy 2024-25 (Paddy Grade A MSP Rs 2,320/q, PR-126)", "PAU Package of Practices"]
 
   rice_dsr:
-    price_per_tonne: 22030
-    price_usd_per_tonne: 265.4
-    cost_per_ha: 33000
-    cost_usd_per_ha: 397.6
-    market_risk: 0.10
-    sources: ["CACP Kharif Price Policy 2023-24", "PAU Package of Practices (DSR labor/diesel savings ~Rs 4,000-5,000/ha)"]
+    price_per_tonne: 23200
+    price_usd_per_tonne: 277.8
+    cost_per_ha: 31500
+    labor_cost_per_ha: 8500
+    cost_usd_per_ha: 377.2
+    market_risk: 0.08
+    procurement_type: "msp_assured"
+    sources: ["CACP Kharif Price Policy 2024-25", "PAU Package of Practices (DSR saves puddling diesel & transplanting labour ~Rs 7,500/ha)"]
 
   basmati:
-    price_per_tonne: 38000
-    price_usd_per_tonne: 457.8
+    price_per_tonne: 37500
+    price_usd_per_tonne: 449.1
     cost_per_ha: 42000
-    cost_usd_per_ha: 506.0
-    market_risk: 0.25  # Open market export demand fluctuations
-    sources: ["Agmarknet Punjab Mandi arrivals 2023-24", "APEDA Basmati Export Price Bulletin"]
+    labor_cost_per_ha: 16000
+    cost_usd_per_ha: 503.0
+    market_risk: 0.24
+    procurement_type: "mandi_linked"
+    sources: ["Agmarknet Punjab Mandi arrivals 2024", "APEDA Basmati Export Price Bulletin"]
 
   wheat:
-    price_per_tonne: 22750
-    price_usd_per_tonne: 274.1
-    cost_per_ha: 30000
-    cost_usd_per_ha: 361.4
-    market_risk: 0.08  # Assured FCI procurement
-    sources: ["CACP Rabi Price Policy 2024-25 (Wheat MSP Rs 2,275/q)", "DES Ministry of Agriculture Cost of Cultivation Punjab"]
+    price_per_tonne: 24250
+    price_usd_per_tonne: 290.4
+    cost_per_ha: 30500
+    labor_cost_per_ha: 8000
+    cost_usd_per_ha: 365.3
+    market_risk: 0.06
+    procurement_type: "msp_assured"
+    sources: ["CACP Rabi Price Policy 2024-25 (Wheat MSP Rs 2,425/q)", "DES Ministry of Agriculture Cost of Cultivation"]
 
   maize:
-    price_per_tonne: 20900
-    price_usd_per_tonne: 251.8
+    price_per_tonne: 22250
+    price_usd_per_tonne: 266.5
     cost_per_ha: 32000
-    cost_usd_per_ha: 385.5
-    market_risk: 0.20
-    sources: ["CACP Kharif Price Policy 2023-24 (Maize MSP Rs 2,090/q)", "PAU Farm Accounts"]
+    labor_cost_per_ha: 9500
+    cost_usd_per_ha: 383.2
+    market_risk: 0.18
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif Price Policy 2024-25 (Maize MSP Rs 2,225/q)", "PAU Farm Accounts"]
 
   moong:
-    price_per_tonne: 85580
-    price_usd_per_tonne: 1031.1
+    price_per_tonne: 86820
+    price_usd_per_tonne: 1039.8
     cost_per_ha: 22000
-    cost_usd_per_ha: 265.1
+    labor_cost_per_ha: 7500
+    cost_usd_per_ha: 263.5
+    market_risk: 0.14
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif Price Policy 2024-25 (Moong MSP Rs 8,682/q)", "NAFED Price Support Scheme"]
+
+  urad:
+    price_per_tonne: 74000
+    price_usd_per_tonne: 886.2
+    cost_per_ha: 21500
+    labor_cost_per_ha: 7200
+    cost_usd_per_ha: 257.5
+    market_risk: 0.14
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif Price Policy 2024-25 (Urad MSP Rs 7,400/q)", "NAFED PSS Assured Pulse Procurement"]
+
+  groundnut:
+    price_per_tonne: 67830
+    price_usd_per_tonne: 812.3
+    cost_per_ha: 46500
+    labor_cost_per_ha: 15500
+    cost_usd_per_ha: 556.9
     market_risk: 0.15
-    sources: ["CACP Kharif Price Policy 2023-24 (Moong MSP Rs 8,558/q)", "Punjab Mandi Board Records"]
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif Price Policy 2024-25 (Groundnut MSP Rs 6,783/q)", "NMEO-Oilseeds Procurement"]
 
   cotton:
-    price_per_tonne: 70200
-    price_usd_per_tonne: 845.8
-    cost_per_ha: 45000
-    cost_usd_per_ha: 542.2
+    price_per_tonne: 71210
+    price_usd_per_tonne: 852.8
+    cost_per_ha: 46000
+    labor_cost_per_ha: 18500
+    cost_usd_per_ha: 550.9
     market_risk: 0.22
-    sources: ["CACP Kharif Price Policy 2023-24 (Medium Staple Cotton Rs 6,620/q, Long Staple Rs 7,020/q)", "CCI Cotton Procurement"]
+    procurement_type: "msp_assured"
+    sources: ["CACP Kharif Price Policy 2024-25 (Cotton MSP Rs 7,121/q)", "Cotton Corporation of India (CCI)"]
 
   mustard:
-    price_per_tonne: 56500
-    price_usd_per_tonne: 680.7
-    cost_per_ha: 25000
-    cost_usd_per_ha: 301.2
+    price_per_tonne: 59500
+    price_usd_per_tonne: 712.6
+    cost_per_ha: 24500
+    labor_cost_per_ha: 6500
+    cost_usd_per_ha: 293.4
     market_risk: 0.12
-    sources: ["CACP Rabi Price Policy 2024-25 (Rapeseed/Mustard MSP Rs 5,650/q)", "PAU Oilseed Agronomy"]
+    procurement_type: "nafed_pss"
+    sources: ["CACP Rabi Price Policy 2024-25 (Rapeseed/Mustard MSP Rs 5,950/q)", "PAU Oilseed Agronomy"]
 
   potato:
-    price_per_tonne: 12000
-    price_usd_per_tonne: 144.6
-    cost_per_ha: 90000
-    cost_usd_per_ha: 1084.3
-    market_risk: 0.40  # High perishability and seasonal gluts
+    price_per_tonne: 11500
+    price_usd_per_tonne: 137.7
+    cost_per_ha: 96000
+    labor_cost_per_ha: 28000
+    cost_usd_per_ha: 1149.7
+    market_risk: 0.38
+    procurement_type: "mandi_linked"
     sources: ["Punjab Potato Growers Association", "Horticulture Department Punjab Annual Report"]
 
   chickpea:
-    price_per_tonne: 54400
-    price_usd_per_tonne: 655.4
-    cost_per_ha: 24000
-    cost_usd_per_ha: 289.2
+    price_per_tonne: 56500
+    price_usd_per_tonne: 676.6
+    cost_per_ha: 23500
+    labor_cost_per_ha: 6800
+    cost_usd_per_ha: 281.4
     market_risk: 0.12
-    sources: ["CACP Rabi Price Policy 2024-25 (Gram MSP Rs 5,440/q)", "ICAR-IIPR Kanpur"]
+    procurement_type: "nafed_pss"
+    sources: ["CACP Rabi Price Policy 2024-25 (Gram MSP Rs 5,650/q)", "ICAR-IIPR Kanpur"]
 
   sunflower:
-    price_per_tonne: 67600
-    price_usd_per_tonne: 814.5
+    price_per_tonne: 72800
+    price_usd_per_tonne: 871.9
     cost_per_ha: 28000
-    cost_usd_per_ha: 337.3
-    market_risk: 0.18
-    sources: ["CACP Kharif/Spring Price Policy (Sunflower MSP Rs 6,760/q)", "PAU Spring Sunflower Studies"]
+    labor_cost_per_ha: 8200
+    cost_usd_per_ha: 335.3
+    market_risk: 0.16
+    procurement_type: "nafed_pss"
+    sources: ["CACP Price Policy 2024-25 (Sunflower MSP Rs 7,280/q)", "PAU Spring Sunflower Studies"]
 
   barley:
-    price_per_tonne: 18500
-    price_usd_per_tonne: 222.9
-    cost_per_ha: 25000
-    cost_usd_per_ha: 301.2
-    market_risk: 0.15
-    sources: ["CACP Rabi Price Policy (Barley MSP Rs 1,850/q)", "ICAR-IIWBR Karnal"]
+    price_per_tonne: 19800
+    price_usd_per_tonne: 237.1
+    cost_per_ha: 24000
+    labor_cost_per_ha: 6200
+    cost_usd_per_ha: 287.4
+    market_risk: 0.14
+    procurement_type: "mandi_linked"
+    sources: ["CACP Rabi Price Policy 2024-25 (Barley MSP Rs 1,980/q)", "ICAR-IIWBR Karnal"]
 
   sorghum:
-    price_per_tonne: 31800
-    price_usd_per_tonne: 383.1
-    cost_per_ha: 26000
-    cost_usd_per_ha: 313.3
-    market_risk: 0.20
-    sources: ["CACP Kharif Price Policy (Jowar Hybrid Rs 3,180/q)"]
+    price_per_tonne: 33710
+    price_usd_per_tonne: 403.7
+    cost_per_ha: 24000
+    labor_cost_per_ha: 7000
+    cost_usd_per_ha: 287.4
+    market_risk: 0.16
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif Price Policy 2024-25 (Jowar Hybrid MSP Rs 3,371/q)"]
 
   pearl_millet:
-    price_per_tonne: 25000
-    price_usd_per_tonne: 301.2
-    cost_per_ha: 22000
-    cost_usd_per_ha: 265.1
-    market_risk: 0.15
-    sources: ["CACP Kharif Price Policy (Bajra MSP Rs 2,500/q)"]
+    price_per_tonne: 26250
+    price_usd_per_tonne: 314.4
+    cost_per_ha: 21000
+    labor_cost_per_ha: 6000
+    cost_usd_per_ha: 251.5
+    market_risk: 0.14
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif Price Policy 2024-25 (Bajra MSP Rs 2,625/q)"]
 
   soybean:
-    price_per_tonne: 46000
-    price_usd_per_tonne: 554.2
-    cost_per_ha: 30000
-    cost_usd_per_ha: 361.4
-    market_risk: 0.15
-    sources: ["CACP Kharif Price Policy (Soybean MSP Rs 4,600/q)"]
+    price_per_tonne: 48920
+    price_usd_per_tonne: 585.9
+    cost_per_ha: 29500
+    labor_cost_per_ha: 8500
+    cost_usd_per_ha: 353.3
+    market_risk: 0.14
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif Price Policy 2024-25 (Soybean MSP Rs 4,892/q)"]
 
   lentil:
-    price_per_tonne: 64250
-    price_usd_per_tonne: 774.1
-    cost_per_ha: 24000
-    cost_usd_per_ha: 289.2
+    price_per_tonne: 67000
+    price_usd_per_tonne: 802.4
+    cost_per_ha: 23000
+    labor_cost_per_ha: 6500
+    cost_usd_per_ha: 275.4
     market_risk: 0.12
-    sources: ["CACP Rabi Price Policy (Masur MSP Rs 6,425/q)"]
+    procurement_type: "nafed_pss"
+    sources: ["CACP Rabi Price Policy 2024-25 (Masur MSP Rs 6,700/q)"]
 
   pigeon_pea:
-    price_per_tonne: 70000
-    price_usd_per_tonne: 843.4
-    cost_per_ha: 28000
-    cost_usd_per_ha: 337.3
-    market_risk: 0.15
-    sources: ["CACP Kharif Price Policy (Tur/Arhar MSP Rs 7,000/q)"]
+    price_per_tonne: 75500
+    price_usd_per_tonne: 904.2
+    cost_per_ha: 27500
+    labor_cost_per_ha: 8000
+    cost_usd_per_ha: 329.3
+    market_risk: 0.12
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif Price Policy 2024-25 (Tur/Arhar MSP Rs 7,550/q)", "NAFED 100% Assured Tur Procurement Portal"]
 
   common_bean:
-    price_per_tonne: 65000
-    price_usd_per_tonne: 783.1
-    cost_per_ha: 26000
-    cost_usd_per_ha: 313.3
-    market_risk: 0.25
-    sources: ["Wholesale Mandi Price Analysis (Rajma / Dry Bean)"]
+    price_per_tonne: 68000
+    price_usd_per_tonne: 814.4
+    cost_per_ha: 26500
+    labor_cost_per_ha: 8500
+    cost_usd_per_ha: 317.4
+    market_risk: 0.22
+    procurement_type: "mandi_linked"
+    sources: ["Agmarknet Wholesale Mandi Price Analysis (Rajma / Dry Bean)"]
 
   berseem:
-    price_per_tonne: 3500  # Fresh green fodder valuation
-    price_usd_per_tonne: 42.2
-    cost_per_ha: 32000
-    cost_usd_per_ha: 385.5
+    price_per_tonne: 2200
+    price_usd_per_tonne: 26.3
+    cost_per_ha: 34000
+    labor_cost_per_ha: 12000
+    cost_usd_per_ha: 407.2
     market_risk: 0.10
-    sources: ["PAU Dairy Economics Bulletin (Green fodder value Rs 350/q, yield 60-80 t/ha)"]
+    procurement_type: "mandi_linked"
+    sources: ["PAU Dairy Economics Bulletin (Green fodder valuation Rs 220/q across 5 cuts)"]
 
   dhaincha:
-    price_per_tonne: 0  # Green manure incorporated into soil
+    price_per_tonne: 0
     price_usd_per_tonne: 0.0
-    cost_per_ha: 8000   # Seed and light irrigation cost
-    cost_usd_per_ha: 96.4
+    cost_per_ha: 7500
+    labor_cost_per_ha: 2000
+    cost_usd_per_ha: 89.8
     market_risk: 0.0
-    sources: ["PAU Package of Practices (Green Manuring economics)"]
-
-  cereal_rye:
-    price_per_tonne: 0  # Cover crop terminated
-    price_usd_per_tonne: 0.0
-    cost_per_ha: 7500   # Drilling + termination seed/chemical cost
-    cost_usd_per_ha: 90.4
-    market_risk: 0.0
-    sources: ["Iowa State Extension Cover Crop Budgeting"]
+    procurement_type: "msp_assured"
+    sources: ["PAU Package of Practices (In-situ Green Manuring Seed & Incorporation Cost)"]

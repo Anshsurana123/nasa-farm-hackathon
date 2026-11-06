@@ -10,9 +10,21 @@ import type {
   StrategyRecommendation,
 } from "@/types/api";
 import { useI18n } from "@/i18n";
+import { useField } from "@/context/FieldContext";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { ProgressRing } from "./ProgressRing";
-import { cropMeta, cropName, fmtMoney, isSouthAsia, MONTHS, seasonName } from "@/lib/ui";
+import {
+  cropMeta,
+  cropName,
+  fmtAreaMoney,
+  fmtAreaUnit,
+  fmtMoney,
+  isSouthAsia,
+  MONTHS,
+  scaleByUnit,
+  seasonName,
+  type UnitSystem,
+} from "@/lib/ui";
 import { getFallbackStrategies } from "@/lib/fallbackStrategies";
 import { api } from "@/lib/api";
 import {
@@ -54,34 +66,25 @@ export function RotationExplorer({
   loading: externalLoading,
 }: Props) {
   const { t, lang } = useI18n();
+  const {
+    priorities,
+    setPriorities,
+    constraints,
+    setConstraints,
+    selectedRank,
+    setSelectedRank,
+    unitSystem,
+    soilHealthCard,
+    baselineOverride,
+  } = useField();
 
   const isSA = isSouthAsia(field.lat, field.lon);
-  const currencySymbol = profile?.currency_symbol ?? (isSA ? "₹" : "$");
-
-  const [priorities, setPriorities] = useState<Priorities>({
-    profit: 1.0,
-    water_savings: 1.5,
-    soil_health: 1.2,
-    low_risk: 1.0,
-    low_labour: 0.0,
-    food_security: 0.0,
-  });
-
-  const [constraints, setConstraints] = useState<FarmConstraints>({
-    area_ha: 2.0,
-    irrigation: "limited",
-    irrigation_cap_mm: undefined,
-    must_grow: [],
-    exclude: [],
-    has_livestock: false,
-    rotation_years: 1,
-  });
+  const currencySymbol = profile?.currency_symbol ?? "₹";
 
   const [internalStrategies, setInternalStrategies] = useState<StrategyRecommendation[]>([]);
   const [internalLoading, setInternalLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"cards" | "pareto" | "whatif">(initialTab ?? "cards");
   const [paretoViewMode, setParetoViewMode] = useState<"3d" | "2d">("3d");
-  const [selectedRank, setSelectedRank] = useState<number>(1);
 
   // What-If Shock parameters (TASK-F06)
   const [droughtShockPct, setDroughtShockPct] = useState<number>(15);
@@ -106,6 +109,9 @@ export function RotationExplorer({
         field,
         priorities: pToUse,
         constraints: cToUse,
+        language: (lang as "en" | "pa" | "hi") || "en",
+        soil_health_card: soilHealthCard,
+        baseline_override: baselineOverride,
       });
       if (recs && recs.length > 0) {
         setInternalStrategies(recs);
@@ -135,25 +141,30 @@ export function RotationExplorer({
 
   const totalWeight = Math.max(
     0.1,
-    priorities.water_savings + priorities.profit + priorities.soil_health + priorities.low_risk
+    priorities.water_savings +
+      priorities.profit +
+      priorities.soil_health +
+      priorities.low_risk +
+      priorities.low_labour
   );
   const wWater = Math.round((priorities.water_savings / totalWeight) * 100);
   const wProfit = Math.round((priorities.profit / totalWeight) * 100);
   const wSoil = Math.round((priorities.soil_health / totalWeight) * 100);
-  const wRisk = Math.max(0, 100 - wWater - wProfit - wSoil);
+  const wLabour = Math.round((priorities.low_labour / totalWeight) * 100);
+  const wRisk = Math.max(0, 100 - wWater - wProfit - wSoil - wLabour);
 
   const applyPreset = (type: "balanced" | "water" | "profit" | "soil" | "resilient") => {
     let newP: Priorities = { ...priorities };
     if (type === "balanced") {
-      newP = { ...newP, water_savings: 1.5, profit: 1.5, soil_health: 1.5, low_risk: 1.5 };
+      newP = { ...newP, water_savings: 1.5, profit: 1.5, soil_health: 1.5, low_risk: 1.5, low_labour: 1.0 };
     } else if (type === "water") {
-      newP = { ...newP, water_savings: 3.0, profit: 0.8, soil_health: 1.2, low_risk: 1.0 };
+      newP = { ...newP, water_savings: 3.0, profit: 0.8, soil_health: 1.2, low_risk: 1.0, low_labour: 1.0 };
     } else if (type === "profit") {
-      newP = { ...newP, profit: 3.0, water_savings: 0.8, soil_health: 0.8, low_risk: 1.0 };
+      newP = { ...newP, profit: 3.0, water_savings: 0.8, soil_health: 0.8, low_risk: 1.0, low_labour: 0.5 };
     } else if (type === "soil") {
-      newP = { ...newP, soil_health: 3.0, water_savings: 1.5, profit: 0.8, low_risk: 1.2 };
+      newP = { ...newP, soil_health: 3.0, water_savings: 1.5, profit: 0.8, low_risk: 1.2, low_labour: 1.0 };
     } else if (type === "resilient") {
-      newP = { ...newP, low_risk: 3.0, water_savings: 2.0, profit: 0.8, soil_health: 1.5 };
+      newP = { ...newP, low_risk: 3.0, water_savings: 2.0, profit: 0.8, soil_health: 1.5, low_labour: 1.5 };
     }
     setPriorities(newP);
     fetchRecommendations(newP, constraints);
@@ -300,7 +311,7 @@ export function RotationExplorer({
             <div className="flex items-center justify-between text-[10px] font-mono text-muted">
               <span>OBJECTIVE WEIGHT ALLOCATION</span>
               <span>
-                Water {wWater}% · Profit {wProfit}% · Soil {wSoil}% · Resilience {wRisk}%
+                Water {wWater}% · Profit {wProfit}% · Soil {wSoil}% · Resilience {wRisk}% · Labour {wLabour}%
               </span>
             </div>
             <div className="h-2.5 w-full rounded-full overflow-hidden flex bg-surface border border-line">
@@ -324,11 +335,16 @@ export function RotationExplorer({
                 className="bg-violet-400 transition-all duration-300"
                 title={`Climate Resilience: ${wRisk}%`}
               />
+              <div
+                style={{ width: `${wLabour}%` }}
+                className="bg-rose-400 transition-all duration-300"
+                title={`Labour & Cost Savings: ${wLabour}%`}
+              />
             </div>
           </div>
 
-          {/* Sliders Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {/* Sliders Grid (5 Objectives) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
             {/* Water Conservation */}
             <div className="space-y-2 p-3.5 rounded-xl bg-surface border border-line">
               <div className="flex justify-between items-center text-xs">
@@ -424,6 +440,30 @@ export function RotationExplorer({
                 className="w-full accent-violet-400 cursor-pointer"
               />
             </div>
+
+            {/* Labour & Cost Savings */}
+            <div className="space-y-2 p-3.5 rounded-xl bg-surface border border-line">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <RotateCcw className="w-3.5 h-3.5 text-rose-400" />
+                  <span>{t("priorities.labour")}</span>
+                </span>
+                <span className="font-mono text-[11px] font-bold text-rose-400">
+                  {priorities.low_labour.toFixed(1)}×
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="3"
+                step="0.5"
+                value={priorities.low_labour}
+                onChange={(e) =>
+                  setPriorities({ ...priorities, low_labour: parseFloat(e.target.value) })
+                }
+                className="w-full accent-rose-400 cursor-pointer"
+              />
+            </div>
           </div>
 
           {/* Constraint Bar & Re-simulate Action */}
@@ -492,6 +532,7 @@ export function RotationExplorer({
                   isSelected={selectedRank === 0}
                   onSelect={() => setSelectedRank(0)}
                   currencySymbol={currencySymbol}
+                  unitSystem={unitSystem}
                 />
               )}
 
@@ -503,9 +544,107 @@ export function RotationExplorer({
                   isSelected={selectedRank === strat.rank}
                   onSelect={() => setSelectedRank(strat.rank)}
                   currencySymbol={currencySymbol}
+                  unitSystem={unitSystem}
                 />
               ))}
             </div>
+
+            {/* Focused Strategy Grounded Narrative & Government Schemes Dossier */}
+            {focusedStrategy && (
+              <div className="p-5 rounded-2xl bg-emerald-500/[0.06] border border-emerald-500/30 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-xs font-mono font-bold text-emerald-600 dark:text-emerald-300 uppercase tracking-wider">
+                    <Sparkles className="w-4 h-4 text-emerald-400" />
+                    <span>
+                      Grounded Advisory &amp; Government Scheme Eligibility — {focusedStrategy.rotation.label}
+                    </span>
+                  </div>
+                  {focusedStrategy.practical_metrics?.msp_assurance_level && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/40">
+                      {focusedStrategy.practical_metrics.msp_assurance_level}
+                    </span>
+                  )}
+                </div>
+
+                {focusedStrategy.narrative_summary && (
+                  <p className="text-xs sm:text-sm text-foreground/95 leading-relaxed font-medium bg-background/70 p-3.5 rounded-xl border border-line">
+                    {focusedStrategy.narrative_summary}
+                  </p>
+                )}
+
+                {focusedStrategy.practical_metrics && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+                    <div className="p-3 rounded-xl bg-background/75 border border-line">
+                      <span className="text-[10px] text-muted uppercase block">Kharif–Rabi Turnaround</span>
+                      <span
+                        className={`text-sm font-bold ${
+                          focusedStrategy.practical_metrics.turnaround_days_kharif_rabi >= 20
+                            ? "text-emerald-400"
+                            : "text-rose-400"
+                        }`}
+                      >
+                        {focusedStrategy.practical_metrics.turnaround_days_kharif_rabi} Days{" "}
+                        {focusedStrategy.practical_metrics.turnaround_days_kharif_rabi >= 20
+                          ? "(Burn-Free)"
+                          : "(Crunch)"}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background/75 border border-line">
+                      <span className="text-[10px] text-muted uppercase block">Irrigations Saved</span>
+                      <span className="text-sm font-bold text-cyan-400">
+                        {focusedStrategy.practical_metrics.irrigations_saved_per_yr} Irrigations (
+                        {Math.round(
+                          scaleByUnit(
+                            focusedStrategy.practical_metrics.pumping_hours_saved_per_ha,
+                            unitSystem
+                          )
+                        )}{" "}
+                        hrs{fmtAreaUnit(unitSystem)})
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background/75 border border-line">
+                      <span className="text-[10px] text-muted uppercase block">45-kg Urea Saved</span>
+                      <span className="text-sm font-bold text-emerald-400">
+                        {scaleByUnit(
+                          focusedStrategy.practical_metrics.urea_bags_saved_per_ha,
+                          unitSystem
+                        ).toFixed(1)}{" "}
+                        Bags{fmtAreaUnit(unitSystem)}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background/75 border border-line">
+                      <span className="text-[10px] text-muted uppercase block">Labour Outlay</span>
+                      <span className="text-sm font-bold text-foreground">
+                        {fmtAreaMoney(
+                          focusedStrategy.practical_metrics.labor_cost_inr_per_ha,
+                          currencySymbol,
+                          unitSystem,
+                          false
+                        )}
+                        {fmtAreaUnit(unitSystem)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {focusedStrategy.practical_metrics?.eligible_schemes &&
+                  focusedStrategy.practical_metrics.eligible_schemes.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <span className="text-[10px] font-mono font-bold uppercase text-muted mr-1">
+                        Eligible Schemes:
+                      </span>
+                      {focusedStrategy.practical_metrics.eligible_schemes.map((sch, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/35"
+                        >
+                          {sch}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+              </div>
+            )}
 
             {/* Interactive Deep-Dive: 12-Month Agronomic Calendar + 5-Axis Soil Health Radar */}
             {focusedStrategy && baseline && (
@@ -701,6 +840,7 @@ export function RotationExplorer({
                   isSelected={selectedRank === 0}
                   onSelect={() => setSelectedRank(0)}
                   currencySymbol={currencySymbol}
+                  unitSystem={unitSystem}
                 />
               )}
               {candidates.map((strat) => (
@@ -711,6 +851,7 @@ export function RotationExplorer({
                   isSelected={selectedRank === strat.rank}
                   onSelect={() => setSelectedRank(strat.rank)}
                   currencySymbol={currencySymbol}
+                  unitSystem={unitSystem}
                 />
               ))}
             </div>
@@ -1038,13 +1179,15 @@ function StrategyCard({
   isBaseline,
   isSelected,
   onSelect,
-  currencySymbol = "$",
+  currencySymbol = "₹",
+  unitSystem = "acre",
 }: {
   strategy: StrategyRecommendation;
   isBaseline: boolean;
   isSelected: boolean;
   onSelect: () => void;
   currencySymbol?: string;
+  unitSystem?: UnitSystem;
 }) {
   const { t } = useI18n();
   const currSym = strategy.currency_symbol || currencySymbol;
@@ -1058,6 +1201,7 @@ function StrategyCard({
   const waterSaved = waterChange !== undefined ? -Math.round(waterChange) : 0;
   const resilienceScore = strategy.vs_baseline?.climate_resilience_score;
   const shScore = Math.round(res?.soil_health_score ?? 40);
+  const pm = strategy.practical_metrics;
 
   const cardTone = isBaseline
     ? "border-line bg-surface/50 hatch-pattern"
@@ -1162,11 +1306,13 @@ function StrategyCard({
           </div>
 
           <div className="flex justify-between items-center">
-            <span className="text-muted font-sans">{t("strategy.profitRange")}</span>
+            <span className="text-muted font-sans">
+              {t("strategy.profitRange")} ({fmtAreaUnit(unitSystem)})
+            </span>
             <span className="font-bold text-foreground">
-              {fmtMoney(res?.profit_p50, currSym)}{" "}
+              {fmtAreaMoney(res?.profit_p50, currSym, unitSystem)}{" "}
               <span className="text-[10px] text-muted font-normal">
-                [{fmtMoney(res?.profit_p10, currSym)}–{fmtMoney(res?.profit_p90, currSym)}]
+                [{fmtAreaMoney(res?.profit_p10, currSym, unitSystem)}–{fmtAreaMoney(res?.profit_p90, currSym, unitSystem)}]
               </span>
             </span>
           </div>
@@ -1184,6 +1330,30 @@ function StrategyCard({
               {(res?.soc_delta_t_ha_10yr ?? -0.8).toFixed(1)} t C/ha
             </span>
           </div>
+
+          {pm && (
+            <div className="pt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
+              <span
+                className={`px-1.5 py-0.5 rounded border ${
+                  pm.turnaround_days_kharif_rabi >= 20
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                    : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                }`}
+              >
+                Window: {pm.turnaround_days_kharif_rabi}d
+              </span>
+              {!isBaseline && pm.urea_bags_saved_per_ha > 0 && (
+                <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+                  −{scaleByUnit(pm.urea_bags_saved_per_ha, unitSystem).toFixed(1)} Urea bags{fmtAreaUnit(unitSystem)}
+                </span>
+              )}
+              {!isBaseline && pm.irrigations_saved_per_yr > 0 && (
+                <span className="px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-300 border border-violet-500/30">
+                  −{pm.irrigations_saved_per_yr.toFixed(0)} Irrigations
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Grounded NASA Evidence Points */}

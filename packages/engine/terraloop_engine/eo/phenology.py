@@ -1,16 +1,16 @@
 """Phenology & crop-history inference from NDVI time series. (TASK-E01, E02, E03)
 
 Pipeline:
-    raw NDVI (gee.ndvi_timeseries or synthetic HLS)
+    raw NDVI (gee.ndvi_timeseries or regional HLS phenology)
       -> smooth()            : resample to 5-day, interpolate gaps, Savitzky-Golay
       -> detect_seasons()    : peaks with prominence >= 0.15 NDVI, start/end at 20% amplitude
-      -> classify_season()   : rule-based crop group inference
+      -> classify_season()   : rule-based Indian agro-climatic crop group inference
       -> list[InferredSeason]  (terraloop_schemas)
 
-Punjab rules of thumb for E02 (validated against WorldCereal):
-    * Kharif peak Aug-Sep, start Jun-Jul           -> rice (high peak >= 0.65) / maize / cotton
-    * Rabi peak Feb-Mar, start Nov-Dec             -> wheat (dominant) / mustard (earlier peak, Jan)
-    * Zaid peak May, start Apr                     -> summer moong / fodder
+Indian agro-climatic rules of thumb for E02:
+    * Kharif peak Aug-Oct, start Jun-Jul           -> rice (high peak >= 0.65) / cotton / maize / sorghum
+    * Rabi peak Jan-Mar, start Nov-Dec             -> wheat / chickpea / mustard / rice-fallow urad
+    * Zaid peak May, start Apr                     -> summer moong / urad
 """
 
 from __future__ import annotations
@@ -29,7 +29,6 @@ def _savgol_smooth(y: np.ndarray, window_length: int = 9) -> np.ndarray:
         return y.copy()
 
     # Precomputed Savitzky-Golay coefficients for window=9, poly=2
-    # Derived from (X^T X)^-1 X^T
     coeffs = np.array([-21, 14, 39, 54, 59, 54, 39, 14, -21], dtype=float) / 231.0
 
     pad_width = window_length // 2
@@ -52,14 +51,10 @@ def smooth(ndvi: pd.Series) -> pd.Series:
         s.index = pd.to_datetime(s.index)
     s = s.sort_index()
 
-    # Resample to 5-day interval and interpolate
     resampled = s.resample("5D").mean()
     interpolated = resampled.interpolate(method="time").bfill().ffill()
 
-    # Clip to valid NDVI bounds [-0.2, 1.0]
     vals = np.clip(interpolated.to_numpy(dtype=float), -0.2, 1.0)
-
-    # Savitzky-Golay filter
     smoothed_vals = _savgol_smooth(vals, window_length=9)
 
     return pd.Series(smoothed_vals, index=interpolated.index)
@@ -80,7 +75,6 @@ def detect_seasons(smoothed: pd.Series, prominence_threshold: float = 0.15) -> l
     y = smoothed.to_numpy()
     dates = smoothed.index
 
-    # Find local peaks
     peaks: list[int] = []
     for i in range(1, len(y) - 1):
         if y[i] > y[i - 1] and y[i] >= y[i + 1] and y[i] >= 0.30:
@@ -91,11 +85,9 @@ def detect_seasons(smoothed: pd.Series, prominence_threshold: float = 0.15) -> l
     for p_idx in peaks:
         p_val = float(y[p_idx])
 
-        # Left base: lowest value within past 30 steps (~150 days)
         left_window = max(0, p_idx - 30)
         left_base = float(np.min(y[left_window:p_idx])) if p_idx > left_window else 0.2
 
-        # Right base: lowest value within next 30 steps (~150 days)
         right_window = min(len(y), p_idx + 31)
         right_base = float(np.min(y[p_idx:right_window])) if right_window > p_idx else 0.2
 
@@ -108,21 +100,18 @@ def detect_seasons(smoothed: pd.Series, prominence_threshold: float = 0.15) -> l
         amplitude = prominence
         threshold_20 = base_val + 0.20 * amplitude
 
-        # Find start of season: scan backwards from peak
         start_idx = p_idx
         for j in range(p_idx, left_window - 1, -1):
             if y[j] <= threshold_20:
                 start_idx = j
                 break
 
-        # Find end of season: scan forwards from peak
         end_idx = p_idx
         for j in range(p_idx, right_window):
             if y[j] <= threshold_20:
                 end_idx = j
                 break
 
-        # Avoid redundant duplicate overlaps
         if seasons and seasons[-1]["peak"] == dates[p_idx].date():
             continue
 
@@ -140,15 +129,21 @@ def detect_seasons(smoothed: pd.Series, prominence_threshold: float = 0.15) -> l
 
 
 def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredSeason:
-    """TASK-E02: Rule-based classification of crop group and season index.
+    """TASK-E02: Rule-based classification of Indian crop group and season index.
 
-    Rules for Indo-Gangetic Plain / Punjab:
-      - Kharif (season_index 0): Peak in Aug-Sep (months 8-9) or Jul-Oct.
-        If peak >= 0.65 -> 'rice'; else 'maize' or 'cotton'.
-      - Rabi (season_index 1): Peak in Feb-Mar (months 2-3).
-        If peak in Jan (month 1) -> 'mustard'; else 'wheat'.
-      - Zaid (season_index 2): Peak in May (month 5).
-        -> 'moong' (summer pulse).
+    Rules across Indian agro-climatic zones:
+      - Kharif (season_index 0): Peak in Jul-Nov (months 7-11).
+        * High NDVI peak (>= 0.65): 'rice' ('rice_puddled')
+        * SW Punjab Cotton Belt / Vidarbha Deccan: 'cotton'
+        * Bundelkhand Semi-Arid: 'sorghum'
+        * Default moderate Kharif peak: 'maize'
+      - Rabi (season_index 1): Peak in Dec-Apr (months 12, 1-4).
+        * Cauvery Delta (lat < 15.0): 'urad' (rice-fallow blackgram)
+        * Vidarbha Rainfed Vertisol: 'chickpea'
+        * Early Jan peak with moderate NDVI (< 0.60): 'mustard'
+        * Default irrigated Rabi cereal: 'wheat'
+      - Zaid (season_index 2): Peak in May-Jun (months 5-6).
+        * Summer pulse: 'moong'
     """
     p_date: date = season["peak"]
     s_date: date = season["start"]
@@ -157,81 +152,43 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
 
     p_month = p_date.month
 
-    # Regional detection
-    is_california = (32.0 <= lat <= 42.5) and (-125.0 <= lon <= -114.0)
-    is_cornbelt = (36.0 <= lat <= 49.0) and (-105.0 <= lon <= -80.0)
-    is_east_africa = (-15.0 <= lat <= 12.0) and (25.0 <= lon <= 52.0)
-    is_south_asia = (20.0 <= lat <= 35.0) and (68.0 <= lon <= 90.0)
+    is_sw_punjab = (28.5 <= lat <= 31.2) and (73.5 <= lon < 75.2)
+    is_vidarbha = (18.0 <= lat < 23.0) and (75.0 <= lon <= 80.5)
+    is_bundelkhand = (23.5 <= lat < 27.0) and (77.5 <= lon <= 81.5)
+    is_cauvery_delta = lat < 15.0
 
-    if is_california:
-        if p_month in (6, 7, 8, 9):
-            season_index = 0
-            crop_group = "maize" if p_val >= 0.70 else "cotton"
-            crop_id = crop_group
-        elif p_month in (2, 3, 4, 5):
-            season_index = 1
-            crop_group = "wheat"
-            crop_id = "wheat"
+    if p_month in (7, 8, 9, 10, 11):
+        season_index = 0
+        if p_val >= 0.65 or is_cauvery_delta:
+            crop_group = "rice"
+            crop_id = "rice_puddled"
+        elif is_sw_punjab or is_vidarbha:
+            crop_group = "cotton"
+            crop_id = "cotton"
+        elif is_bundelkhand:
+            crop_group = "sorghum"
+            crop_id = "sorghum"
         else:
-            season_index = 2
-            crop_group = "cover"
-            crop_id = "cereal_rye"
-
-    elif is_cornbelt:
-        if p_month in (6, 7, 8, 9):
-            season_index = 0
-            crop_group = "maize" if p_val >= 0.75 else "soybean"
-            crop_id = crop_group
-        else:
-            season_index = 1
-            crop_group = "cover"
-            crop_id = "cereal_rye"
-
-    elif is_east_africa:
-        if p_month in (4, 5, 6, 7):
-            season_index = 0
             crop_group = "maize"
             crop_id = "maize"
-        elif p_month in (10, 11, 12, 1):
-            season_index = 1
-            crop_group = "pigeon_pea"
-            crop_id = "pigeon_pea"
+    elif p_month in (12, 1, 2, 3, 4):
+        season_index = 1
+        if is_cauvery_delta:
+            crop_group = "rice"
+            crop_id = "rice_puddled"
+        elif is_vidarbha:
+            crop_group = "chickpea"
+            crop_id = "chickpea"
+        elif p_month == 1 and p_val < 0.60 and not is_bundelkhand:
+            crop_group = "mustard"
+            crop_id = "mustard"
         else:
-            season_index = 2
-            crop_group = "bean"
-            crop_id = "common_bean"
-
-    elif is_south_asia:
-        # Standard Punjab / Indo-Gangetic rules
-        if p_month in (7, 8, 9, 10):
-            season_index = 0
-            crop_group = "rice" if p_val >= 0.60 else "maize"
-            crop_id = "rice_puddled" if crop_group == "rice" else "maize"
-        elif p_month in (1, 2, 3, 4):
-            season_index = 1
-            crop_group = "mustard" if p_month == 1 else "wheat"
-            crop_id = crop_group
-        else:
-            season_index = 2
-            crop_group = "moong"
-            crop_id = "moong"
-
-    else:
-        # Global temperate / subtropical fallback
-        summer_months = (6, 7, 8, 9) if lat >= 0 else (12, 1, 2, 3)
-        winter_months = (2, 3, 4, 5) if lat >= 0 else (8, 9, 10, 11)
-        if p_month in summer_months:
-            season_index = 0
-            crop_group = "maize" if p_val >= 0.65 else "soybean"
-            crop_id = crop_group
-        elif p_month in winter_months:
-            season_index = 1
             crop_group = "wheat"
             crop_id = "wheat"
-        else:
-            season_index = 2
-            crop_group = "cover"
-            crop_id = "cereal_rye"
+    else:
+        season_index = 2
+        crop_group = "moong"
+        crop_id = "moong"
 
     return InferredSeason(
         year=p_date.year,
@@ -246,9 +203,14 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
 
 
 def infer_history(ndvi: pd.Series, lat: float, lon: float) -> list[InferredSeason]:
-    """Full pipeline: irregular NDVI -> smoothed -> detected seasons -> classified crop history."""
+    """Full pipeline: irregular NDVI -> smoothed -> detected seasons -> classified crop history.
+
+    Orders seasons within each year by (year, season_index) so Kharif (0) precedes Rabi (1) and Zaid (2).
+    """
     if ndvi.empty:
         return []
     smoothed = smooth(ndvi)
     seasons = detect_seasons(smoothed)
-    return [classify_season(s, lat, lon) for s in seasons]
+    inferred = [classify_season(s, lat, lon) for s in seasons]
+    inferred.sort(key=lambda s: (s.year, s.season_index))
+    return inferred

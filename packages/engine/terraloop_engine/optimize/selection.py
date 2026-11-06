@@ -52,21 +52,103 @@ def weighted_scores(candidates: list[dict[str, float]], priorities: Priorities) 
     return scores
 
 
+def _extract_primary_pair(label: str) -> tuple[str, str]:
+    """Extract the primary (Kharif, Rabi) crop pair from a rotation label for structural diversity filtering."""
+    sep = "→" if "→" in label else ">"
+    parts = [p.strip().lower() for p in label.split(sep) if p.strip()]
+    if len(parts) >= 2:
+        return (parts[0], parts[1])
+    if len(parts) == 1:
+        return (parts[0], "")
+    return (label.lower(), "")
+
+
 def select_top(
     candidates: list[dict[str, float]],
     labels: list[str],
     priorities: Priorities,
     k: int = 3,
 ) -> list[int]:
-    """Return indices of the top-k Pareto-optimal, mutually distinct candidates."""
+    """Return indices of the top-k Pareto-optimal, structurally distinct candidates.
+
+    Two passes:
+      1. Enforce distinct (Kharif, Rabi) primary crop pairs AND distinct Kharif crop families/archetypes
+         so the Top 3 recommendations offer genuinely different farm strategies.
+      2. If fewer than k candidates satisfy strict pair diversity, relax to distinct labels.
+    """
     if not candidates:
         return []
     front = set(pareto_front(candidates))
     scores = weighted_scores(candidates, priorities)
-    order = sorted(range(len(candidates)), key=lambda i: (i in front, scores[i]), reverse=True)
+
+    # Identify candidates that maintain economically viable farm income (>= 65% of max candidate profit)
+    # and respectable soil health (>= median soil health) when selecting from a full catalog (>=10 candidates)
+    if len(candidates) >= 10:
+        profits = [c.get("profit", 0.0) for c in candidates]
+        soils = [c.get("soil_health", 0.0) for c in candidates]
+        max_profit = max(profits) if profits else 0.0
+        med_soil = sorted(soils)[len(soils) // 2] if soils else 0.0
+        viable = {
+            i
+            for i, c in enumerate(candidates)
+            if c.get("profit", 0.0) >= 0.65 * max_profit and c.get("soil_health", 0.0) >= med_soil
+        }
+        if len(viable) < k:
+            viable = set(range(len(candidates)))
+    else:
+        viable = set(range(len(candidates)))
+
+    order = sorted(
+        range(len(candidates)),
+        key=lambda i: (i in viable, i in front, scores[i]),
+        reverse=True,
+    )
+
     chosen: list[int] = []
+    seen_pairs: set[tuple[str, str]] = set()
+    seen_kharif: list[str] = []
+    seen_rabi: list[str] = []
+
+    # Pass 1: Require distinct Kharif AND distinct Rabi crop among viable Pareto candidates
     for i in order:
-        if all(labels[i] != labels[j] for j in chosen):
+        if i not in viable:
+            continue
+        pair = _extract_primary_pair(labels[i])
+        if pair not in seen_pairs and pair[0] not in seen_kharif and (not pair[1] or pair[1] not in seen_rabi):
+            chosen.append(i)
+            seen_pairs.add(pair)
+            seen_kharif.append(pair[0])
+            if pair[1]:
+                seen_rabi.append(pair[1])
+        if len(chosen) == k:
+            return chosen
+
+    # Pass 1b: Require distinct Kharif crop among viable candidates
+    for i in order:
+        if i in chosen or i not in viable:
+            continue
+        pair = _extract_primary_pair(labels[i])
+        if pair not in seen_pairs and pair[0] not in seen_kharif:
+            chosen.append(i)
+            seen_pairs.add(pair)
+            seen_kharif.append(pair[0])
+        if len(chosen) == k:
+            return chosen
+
+    # Pass 2: Allow same Kharif if Rabi crop differs (distinct (Kharif, Rabi) pair)
+    for i in order:
+        if i in chosen:
+            continue
+        pair = _extract_primary_pair(labels[i])
+        if pair not in seen_pairs and all(labels[i] != labels[j] for j in chosen):
+            chosen.append(i)
+            seen_pairs.add(pair)
+        if len(chosen) == k:
+            return chosen
+
+    # Pass 3: Fallback to distinct full labels
+    for i in order:
+        if i not in chosen and all(labels[i] != labels[j] for j in chosen):
             chosen.append(i)
         if len(chosen) == k:
             break

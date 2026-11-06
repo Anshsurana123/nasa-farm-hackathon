@@ -1,8 +1,9 @@
 "use client";
 
 import type { FieldProfile, StrategyRecommendation } from "@/types/api";
-import { fmtDMS, fmtMoney, isSouthAsia } from "@/lib/ui";
-import { Printer, CheckCircle2, FileText } from "lucide-react";
+import { useField } from "@/context/FieldContext";
+import { fmtAreaMoney, fmtAreaUnit, fmtDMS, fmtSigned, isSouthAsia, scaleByUnit } from "@/lib/ui";
+import { Printer, CheckCircle2, FileText, Award, ShieldCheck } from "lucide-react";
 
 interface AgronomicBriefProps {
   profile: FieldProfile;
@@ -10,15 +11,21 @@ interface AgronomicBriefProps {
 }
 
 export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
+  const { selectedRank, unitSystem } = useField();
   const { field, soil, water, hazards, agro_climatic_notes } = profile;
   const isSA = isSouthAsia(field.lat, field.lon);
   const currencySymbol = profile.currency_symbol ?? (isSA ? "₹" : "$");
 
   const baseline = strategies.find((s) => s.rank === 0) ?? strategies[0];
-  const topStrategy = strategies.find((s) => s.rank === 1) ?? strategies[1] ?? baseline;
+  const topStrategy =
+    strategies.find((s) => s.rank === selectedRank && s.rank > 0) ??
+    strategies.find((s) => s.rank === 1) ??
+    strategies[1] ??
+    baseline;
 
   const baseRes = baseline?.results[0];
   const topRes = topStrategy?.results[0];
+  const pm = topStrategy?.practical_metrics;
 
   const baseIrr = baseRes?.irrigation_mm?.length
     ? Math.round(baseRes.irrigation_mm.reduce((a, b) => a + b, 0) / baseRes.irrigation_mm.length)
@@ -39,13 +46,18 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
             <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 font-bold">
               DOC // FIELD-BRIEF-2026
             </span>
-            <span>NASA EARTH OBSERVATION ADVISORY</span>
+            <span>NASA EARTH OBSERVATION &amp; KVK ADVISORY</span>
+            { profile.agro_zone && (
+              <span className="px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border border-cyan-500/30 font-bold">
+                {profile.agro_zone}
+              </span>
+            )}
           </div>
           <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
             TerraLoop Field Agronomic Advisory Brief
           </h2>
           <p className="text-xs text-muted font-mono">
-            Stratigraphic Soil, Subsurface Hydrology &amp; Multi-Objective Crop Rotation Prescription
+            Stratigraphic Soil, Subsurface Hydrology, Turnaround Window &amp; Crop Rotation Prescription ({fmtAreaUnit(unitSystem)})
           </p>
         </div>
 
@@ -75,7 +87,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
         </div>
 
         <div className="p-4 space-y-1">
-          <span className="text-muted block text-[10px] font-mono uppercase tracking-wider">Groundwater Trend</span>
+          <span className="text-muted block text-[10px] font-mono uppercase tracking-wider">Regional TWS Trend (GRACE)</span>
           <span
             className={`font-bold text-sm font-mono block ${
               water.groundwater_trend_cm_per_year && water.groundwater_trend_cm_per_year < -2
@@ -96,7 +108,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
             {soil.texture_class ?? "Loam"} (pH {soil.ph?.toFixed(1) ?? "7.5"})
           </span>
           <span className="block text-[10px] font-mono text-muted">
-            SOC: {soil.soc_g_per_kg?.toFixed(1) ?? "10"} g/kg · ISRIC 250m
+            SOC: {soil.soc_g_per_kg?.toFixed(1) ?? "10"} g/kg · {soil.source === "farmer_test" ? "Govt SHC Lab" : "ISRIC 250m"}
           </span>
         </div>
 
@@ -116,7 +128,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
       {/* Side-by-Side Comparative Impact Cards */}
       <div className="space-y-3">
         <h4 className="font-mono text-[11px] font-bold uppercase tracking-widest text-muted">
-          Prescriptive Rotation Strategy Comparison
+          Prescriptive Rotation Strategy Comparison ({fmtAreaUnit(unitSystem)})
         </h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -135,7 +147,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
               <div>
                 <span className="text-muted block text-[9px] uppercase">10-Yr SOC Δ</span>
                 <span className="font-bold text-rose-500">
-                  {(baseRes?.soc_delta_t_ha_10yr ?? -0.8).toFixed(1)} t C/ha
+                  {fmtSigned(baseRes?.soc_delta_t_ha_10yr ?? -0.8, 1, " t C/ha")}
                 </span>
               </div>
               <div>
@@ -143,9 +155,9 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
                 <span className="font-bold text-foreground">{Math.round(baseRes?.soil_health_score ?? 38)}/100</span>
               </div>
               <div>
-                <span className="text-muted block text-[9px] uppercase">Median Margin</span>
+                <span className="text-muted block text-[9px] uppercase">Median Margin ({fmtAreaUnit(unitSystem)})</span>
                 <span className="font-bold text-foreground">
-                  {fmtMoney(baseRes?.profit_p50 ?? 85000, currencySymbol)}
+                  {fmtAreaMoney(baseRes?.profit_p50 ?? 85000, currencySymbol, unitSystem)}
                 </span>
               </div>
             </div>
@@ -155,7 +167,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
           <div className="p-5 rounded-xl border-2 border-emerald-500/70 bg-emerald-500/[0.04] space-y-3">
             <div className="flex items-center justify-between font-mono">
               <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40">
-                OPT 01 // Recommended Strategy
+                OPT 0{topStrategy?.rank || 1} // Recommended Strategy
               </span>
               <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">
                 {topIrr} mm/yr (−{waterSavedPct}% H₂O)
@@ -168,7 +180,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
               <div>
                 <span className="text-muted block text-[9px] uppercase">10-Yr SOC Δ</span>
                 <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                  +{(topRes?.soc_delta_t_ha_10yr ?? 2.1).toFixed(1)} t C/ha
+                  {fmtSigned(topRes?.soc_delta_t_ha_10yr ?? 2.1, 1, " t C/ha")}
                 </span>
               </div>
               <div>
@@ -178,15 +190,98 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
                 </span>
               </div>
               <div>
-                <span className="text-muted block text-[9px] uppercase">Median Margin</span>
+                <span className="text-muted block text-[9px] uppercase">Median Margin ({fmtAreaUnit(unitSystem)})</span>
                 <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                  {fmtMoney(topRes?.profit_p50 ?? 104000, currencySymbol)}
+                  {fmtAreaMoney(topRes?.profit_p50 ?? 104000, currencySymbol, unitSystem)}
                 </span>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* KVK Practical Field Action & Government Subsidy Card */}
+      {(pm || topStrategy?.narrative_summary) && (
+        <div className="p-5 rounded-xl bg-surface-2/80 border border-cyan-500/30 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="font-mono text-[11px] font-bold text-cyan-600 dark:text-cyan-300 uppercase tracking-widest flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-cyan-400" />
+              <span>KVK Field Action Metrics &amp; Indian Government Scheme Eligibility</span>
+            </h4>
+            {pm && (
+              <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold">
+                MSP Procurement: {pm.msp_assurance_level.toUpperCase()}
+              </span>
+            )}
+          </div>
+
+          {topStrategy?.narrative_summary && (
+            <p className="text-xs text-foreground/90 leading-relaxed border-l-2 border-cyan-500 pl-3 py-0.5">
+              {topStrategy.narrative_summary}
+            </p>
+          )}
+
+          {pm && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 text-xs font-mono">
+              <div className="p-3 rounded-lg bg-surface border border-line">
+                <span className="text-[10px] text-muted block uppercase">Kharif→Rabi Window</span>
+                <span className="text-sm font-bold text-emerald-500 dark:text-emerald-400">
+                  {pm.turnaround_days_kharif_rabi} days
+                </span>
+                <span className="text-[10px] text-muted block font-sans">
+                  {pm.turnaround_days_kharif_rabi >= 20 ? "Burn-free Happy Seeder window" : "Tight sowing window"}
+                </span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-surface border border-line">
+                <span className="text-[10px] text-muted block uppercase">Irrigations Saved</span>
+                <span className="text-sm font-bold text-cyan-500 dark:text-cyan-300">
+                  {pm.irrigations_saved_per_yr > 0 ? `−${pm.irrigations_saved_per_yr.toFixed(1)}` : "0"} irrigations/yr
+                </span>
+                <span className="text-[10px] text-muted block font-sans">
+                  {Math.round(scaleByUnit(pm.pumping_hours_saved_per_ha, unitSystem))} hrs pump{fmtAreaUnit(unitSystem)}
+                </span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-surface border border-line">
+                <span className="text-[10px] text-muted block uppercase">45-kg Urea Bags Saved</span>
+                <span className="text-sm font-bold text-emerald-500 dark:text-emerald-400">
+                  {scaleByUnit(pm.urea_bags_saved_per_ha, unitSystem).toFixed(1)} bags{fmtAreaUnit(unitSystem)}
+                </span>
+                <span className="text-[10px] text-muted block font-sans">
+                  Saves ₹{Math.round(scaleByUnit(pm.urea_bags_saved_per_ha, unitSystem) * 266.5)}{fmtAreaUnit(unitSystem)}
+                </span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-surface border border-line">
+                <span className="text-[10px] text-muted block uppercase">Est. Labour Cost</span>
+                <span className="text-sm font-bold text-foreground">
+                  {fmtAreaMoney(pm.labor_cost_inr_per_ha, currencySymbol, unitSystem)}
+                </span>
+                <span className="text-[10px] text-muted block font-sans">
+                  Inputs: {fmtAreaMoney(pm.input_cost_inr_per_ha, currencySymbol, unitSystem)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {pm?.eligible_schemes && pm.eligible_schemes.length > 0 && (
+            <div className="pt-2 border-t border-line/60 flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-amber-500 flex items-center gap-1 font-bold">
+                <Award className="w-3.5 h-3.5" /> Eligible Subsidies &amp; Schemes:
+              </span>
+              {pm.eligible_schemes.map((scheme: string, i: number) => (
+                <span
+                  key={i}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-200 border border-amber-500/30 text-[11px] font-medium"
+                >
+                  {scheme}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Key Agronomic Recommendations & Evidence */}
       {topStrategy?.why && topStrategy.why.length > 0 && (
@@ -204,7 +299,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
             <li className="flex items-start gap-2 font-medium">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
               <span>
-                Net Parcel Impact: Conserves <strong>{baseIrr - topIrr} mm/yr</strong> irrigation water, mitigates aquifer drawdown, and accretes <strong>+{carbonDelta.toFixed(1)} t C/ha</strong> in topsoil organic carbon over 10 years.
+                Net Parcel Impact: Conserves <strong>{baseIrr - topIrr} mm/yr</strong> irrigation water, mitigates aquifer drawdown, and shifts topsoil organic carbon by <strong>{fmtSigned(carbonDelta, 1, " t C/ha")}</strong> vs. baseline over 10 years.
               </span>
             </li>
           </ul>
@@ -228,7 +323,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
 
       {/* Footer Provenance */}
       <div className="pt-5 border-t border-line text-[10px] font-mono text-muted flex flex-wrap items-center justify-between gap-2">
-        <span>PROVENANCE: NASA POWER · ISRIC SoilGrids · NASA SMAP · NASA GRACE-FO · NASA FIRMS · FAO AquaCrop</span>
+        <span>PROVENANCE: NASA POWER · ISRIC SoilGrids · NASA SMAP · NASA GRACE-FO · NASA FIRMS · FAO-56 Root-Zone Water Balance</span>
         <span className="font-bold text-foreground/80">TERRALOOP // NASA SPACE APPS CHALLENGE 2026</span>
       </div>
     </div>

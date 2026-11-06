@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { FieldProfile, StrategyRecommendation } from "@/types/api";
 import { useI18n } from "@/i18n";
+import { useField } from "@/context/FieldContext";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { SoilColumn3D } from "./SoilColumn3D";
 import { ProgressRing } from "./ProgressRing";
@@ -19,6 +20,8 @@ import {
   ThermometerSun,
   Activity,
   ShieldCheck,
+  FlaskConical,
+  CheckCircle2,
 } from "lucide-react";
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -31,11 +34,18 @@ interface ReportCardProps {
 
 export function ReportCard({ profile, strategies = [], show3DPedon = true }: ReportCardProps) {
   const { t } = useI18n();
+  const { soilHealthCard, setSoilHealthCard, baselineOverride, setBaselineOverride } = useField();
   const { field, climate, soil, water, hazards, agro_climatic_notes, crop_history, seasons_per_year } = profile;
 
   const [selectedMonth, setSelectedMonth] = useState<number>(
     climate.wettest_months?.[0] ? climate.wettest_months[0] - 1 : 6
   );
+  const [showShcForm, setShowShcForm] = useState<boolean>(false);
+  const [shcPh, setShcPh] = useState<string>(String(soil.ph ?? 7.6));
+  const [shcSocPct, setShcSocPct] = useState<string>(
+    soil.soc_g_per_kg ? (soil.soc_g_per_kg / 10).toFixed(2) : "0.52"
+  );
+  const [shcN, setShcN] = useState<string>("210");
 
   const maxMonthlyRain = Math.max(...(climate?.monthly_precip_mm ?? [100]), 10);
 
@@ -77,9 +87,16 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
         <div className="p-5 sm:p-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground tracking-tight">
-                {field.name ?? "Selected Field Parcel"}
-              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+                  {field.name ?? "Selected Field Parcel"}
+                </h2>
+                {profile.agro_zone && (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/35">
+                    {profile.agro_zone}
+                  </span>
+                )}
+              </div>
               <p className="text-xs font-mono text-muted mt-0.5">
                 Baseline Climatology: {climate.baseline_period} · Recent Window: {climate.recent_period}
               </p>
@@ -416,6 +433,96 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                   </span>
                 </div>
               </div>
+
+              {/* Indian Govt Soil Health Card (SHC) Lab Override */}
+              <div className="col-span-2 p-3 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/30 space-y-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-300">
+                    <FlaskConical className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Govt Soil Health Card (SHC) Lab Override</span>
+                    {soil.source === "farmer_test" && (
+                      <span className="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500 text-slate-950 font-bold uppercase">
+                        Active Lab Values
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {soilHealthCard && (
+                      <button
+                        type="button"
+                        onClick={() => setSoilHealthCard(null)}
+                        className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/15 text-rose-400 border border-rose-500/30 cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowShcForm((v) => !v)}
+                      className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-500 border border-emerald-500/40 cursor-pointer hover:bg-emerald-500/30"
+                    >
+                      {showShcForm ? "Hide Form" : "Enter SHC Values"}
+                    </button>
+                  </div>
+                </div>
+
+                {showShcForm && (
+                  <div className="grid grid-cols-3 gap-2 pt-1 text-[11px] font-mono">
+                    <label className="space-y-1">
+                      <span className="text-[10px] text-muted block">Soil pH (4.0–10.0)</span>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="4.0"
+                        max="10.0"
+                        value={shcPh}
+                        onChange={(e) => setShcPh(e.target.value)}
+                        className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-[10px] text-muted block">Organic Carbon (%)</span>
+                      <input
+                        type="number"
+                        step="0.05"
+                        min="0.05"
+                        max="4.0"
+                        value={shcSocPct}
+                        onChange={(e) => setShcSocPct(e.target.value)}
+                        className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-[10px] text-muted block">Avail. N (kg/ha)</span>
+                      <input
+                        type="number"
+                        step="10"
+                        min="40"
+                        max="600"
+                        value={shcN}
+                        onChange={(e) => setShcN(e.target.value)}
+                        className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
+                      />
+                    </label>
+                    <div className="col-span-3 flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSoilHealthCard({
+                            ph: parseFloat(shcPh) || 7.5,
+                            soc_pct: parseFloat(shcSocPct) || 0.52,
+                            available_n_kg_ha: parseFloat(shcN) || 210,
+                          });
+                          setShowShcForm(false);
+                        }}
+                        className="px-3 py-1 rounded-lg bg-emerald-500 text-slate-950 font-bold text-[11px] cursor-pointer hover:opacity-95"
+                      >
+                        Apply Lab Values &amp; Re-Simulate
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -601,6 +708,45 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
             <span className="text-[10px] font-mono text-emerald-500 font-bold px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/35">
               NASA HLS L30/S30 · MOD13Q1
             </span>
+          </div>
+
+          <div className="px-4 pt-3 pb-1 border-b border-line bg-surface/50 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+            <div className="flex items-center gap-1.5 text-foreground/90">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="font-bold">1-Tap Baseline Confirmation:</span>
+              <span className="text-muted">Confirm or override satellite-inferred rotation:</span>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[
+                { label: "Satellite Auto", value: null },
+                { label: "Puddled Rice → Wheat", value: ["rice_puddled", "wheat", "fallow"] },
+                { label: "Cotton → Wheat", value: ["cotton", "wheat", "fallow"] },
+                { label: "Cotton → Chickpea", value: ["cotton", "chickpea", "fallow"] },
+                { label: "Sorghum → Wheat", value: ["sorghum", "wheat", "fallow"] },
+                { label: "Rice → Rice", value: ["rice_puddled", "rice_puddled", "fallow"] },
+              ].map((opt) => {
+                const isActive =
+                  (opt.value === null && baselineOverride === null) ||
+                  (opt.value !== null &&
+                    baselineOverride !== null &&
+                    opt.value[0] === baselineOverride[0] &&
+                    opt.value[1] === baselineOverride[1]);
+                return (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    onClick={() => setBaselineOverride(opt.value)}
+                    className={`px-2 py-0.5 rounded text-[10px] transition-colors cursor-pointer border ${
+                      isActive
+                        ? "bg-emerald-500 text-slate-950 border-emerald-400 font-bold"
+                        : "bg-background/70 text-muted hover:text-foreground border-line"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="p-4 flex gap-3 overflow-x-auto">

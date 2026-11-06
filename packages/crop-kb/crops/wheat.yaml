@@ -21,7 +21,7 @@ residue_t_ha: 5
 residue_cn_ratio: 80
 typical_yield_t_ha: [4.5, 5.5]
 aquacrop_name: Wheat
-good_predecessors: [moong, soybean, mustard, chickpea, berseem]
+good_predecessors: [moong, urad, groundnut, soybean, mustard, chickpea, berseem, rice_short, rice_dsr]
 bad_predecessors: [wheat, barley]
 notes: "Terminal heat in March (grain fill) is the key climate risk in Punjab. Timely sowing early-mid November; Happy/Super Seeder allows sowing into rice residue."
 sources: ["FAO-56 Table 12", "PAU Package of Practices Rabi"]

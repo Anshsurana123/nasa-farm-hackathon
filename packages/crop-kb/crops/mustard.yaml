@@ -21,7 +21,7 @@ residue_t_ha: 3
 residue_cn_ratio: 50
 typical_yield_t_ha: [1.5, 2.0]
 aquacrop_name: null
-good_predecessors: [maize, rice_puddled, rice_dsr, cotton]
+good_predecessors: [maize, rice_short, rice_dsr, rice_puddled, pearl_millet, sorghum, urad, moong, groundnut, cotton]
 bad_predecessors: [mustard]
 notes: "Low-water rabi alternative; brassica break crop reduces cereal disease carry-over."
 sources: ["FAO-56 Table 12 (rapeseed/canola)", "PAU Package of Practices Rabi"]

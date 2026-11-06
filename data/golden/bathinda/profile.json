@@ -8,43 +8,43 @@
   "climate": {
     "baseline_period": "1985-2004",
     "recent_period": "2005-2024",
-    "mean_tmax_c": 33.92,
+    "mean_tmax_c": 32.11,
     "mean_tmin_c": 19.36,
-    "annual_precip_mm": 382.7,
+    "annual_precip_mm": 429.4,
     "recent_annual_precip_mm": 502.4,
-    "precip_change_pct": 31.3,
+    "precip_change_pct": 17.0,
     "tmax_change_c": -0.96,
-    "heat_days_per_year": 189.4,
-    "recent_heat_days_per_year": 177.1,
+    "heat_days_per_year": 146.1,
+    "recent_heat_days_per_year": 122.3,
     "frost_days_per_year": 0.0,
-    "longest_dry_spell_days_mean": 16.7,
-    "annual_et0_mm": 1856.8,
-    "gdd_base10_per_year": 5022.0,
+    "longest_dry_spell_days_mean": 16.4,
+    "annual_et0_mm": 1646.2,
+    "gdd_base10_per_year": 5012.0,
     "monthly_precip_mm": [
-      14.9,
-      17.6,
-      17.5,
-      11.5,
-      21.3,
-      56.2,
-      116.1,
-      96.8,
-      70.2,
-      10.2,
-      3.8,
-      6.3
+      15.8,
+      18.7,
+      18.3,
+      12.0,
+      22.1,
+      59.0,
+      122.3,
+      102.6,
+      73.5,
+      10.8,
+      4.0,
+      6.7
     ],
     "monthly_tmax_c": [
       21.8,
       25.7,
       31.9,
-      38.4,
-      42.7,
-      42.9,
-      39.6,
-      37.9,
-      37.2,
-      34.9,
+      35.6,
+      38.9,
+      39.1,
+      36.8,
+      35.1,
+      34.4,
+      32.1,
       29.5,
       24.2
     ],
@@ -75,27 +75,28 @@
         "period": "1985-2024",
         "resolution": "0.5 x 0.625 deg, daily",
         "doi": null,
-        "url": "https://power.larc.nasa.gov/"
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
       }
     ]
   },
   "water": {
     "root_zone_moisture_percentile": [
-      44.1,
-      55.7,
-      62.7,
-      56.3,
-      52.6,
-      52.3,
-      50.6,
-      47.7,
-      47.0,
-      54.2,
-      50.7,
-      54.2
+      35.8,
+      42.0,
+      44.4,
+      44.0,
+      36.5,
+      37.3,
+      38.7,
+      32.9,
+      34.3,
+      37.7,
+      33.3,
+      37.7
     ],
-    "groundwater_trend_cm_per_year": -3.85,
-    "climatic_water_balance_mm": -1414.3,
+    "groundwater_trend_cm_per_year": -2.4,
+    "climatic_water_balance_mm": -1180.3,
     "irrigation_detected": null,
     "provenance": [
       {
@@ -104,15 +105,17 @@
         "period": "1985-2024",
         "resolution": "0.5 x 0.625 deg, daily",
         "doi": null,
-        "url": "https://power.larc.nasa.gov/"
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
       },
       {
         "source": "NASA GRACE / GRACE-FO",
-        "product": "Tellus Terrestrial Water Storage Mascon (JPL V04 CRI)",
+        "product": "Tellus Regional Terrestrial Water Storage (TWS) Mascon (JPL V04, 3° native)",
         "period": "2002-2024",
-        "resolution": "0.5 deg (native 3 deg), monthly",
+        "resolution": "0.5 deg grid (native ~3 deg mascon), monthly",
         "doi": "10.5067/TEMSC-3MJ62",
-        "url": "https://grace.jpl.nasa.gov/"
+        "url": "https://grace.jpl.nasa.gov/",
+        "mode": "regional_climatology"
       },
       {
         "source": "NASA SMAP",
@@ -120,7 +123,8 @@
         "period": "2015-2024",
         "resolution": "9 km, daily",
         "doi": "10.5067/K2VT90DE20GV",
-        "url": "https://smap.jpl.nasa.gov/"
+        "url": "https://smap.jpl.nasa.gov/",
+        "mode": "regional_climatology"
       }
     ]
   },
@@ -145,7 +149,8 @@
         "period": null,
         "resolution": "250 m",
         "doi": "10.5194/soil-7-217-2021",
-        "url": "https://soilgrids.org/"
+        "url": "https://soilgrids.org/",
+        "mode": "observed"
       },
       {
         "source": "NASA NASADEM",
@@ -153,25 +158,37 @@
         "period": null,
         "resolution": "30 m",
         "doi": "10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001",
-        "url": "https://earthdata.nasa.gov/"
+        "url": "https://earthdata.nasa.gov/",
+        "mode": "regional_climatology"
       }
     ]
   },
   "hazards": {
-    "drought_frequency": 0.25,
-    "extreme_rain_days_per_year": 0.2,
+    "drought_frequency": 0.23,
+    "extreme_rain_days_per_year": 0.3,
     "heat_stress_probability": 1.0,
     "frost_risk": 0.0,
     "erosion_risk_class": "low",
-    "residue_burning_detected": true,
-    "terminal_heat_days_per_year": 28.9
+    "residue_burning_detected": false,
+    "terminal_heat_days_per_year": 26.4
   },
   "seasons_per_year": 2,
   "crop_history": [
     {
       "year": 2020,
+      "season_index": 0,
+      "start": "2020-07-09",
+      "peak": "2020-09-07",
+      "end": "2020-11-06",
+      "crop_group": "cotton",
+      "crop_id": "cotton",
+      "confidence": 0.85,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2020,
       "season_index": 1,
-      "start": "2020-01-06",
+      "start": "2020-01-11",
       "peak": "2020-02-25",
       "end": "2020-04-15",
       "crop_group": "wheat",
@@ -180,111 +197,113 @@
       "confirmed_by_farmer": false
     },
     {
-      "year": 2020,
+      "year": 2021,
       "season_index": 0,
-      "start": "2020-06-24",
-      "peak": "2020-08-23",
-      "end": "2020-10-17",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
+      "start": "2021-07-24",
+      "peak": "2021-09-12",
+      "end": "2021-11-11",
+      "crop_group": "cotton",
+      "crop_id": "cotton",
       "confidence": 0.85,
       "confirmed_by_farmer": false
     },
     {
       "year": 2021,
       "season_index": 1,
-      "start": "2020-12-31",
+      "start": "2021-01-05",
       "peak": "2021-02-24",
-      "end": "2021-04-25",
+      "end": "2021-04-20",
       "crop_group": "wheat",
       "crop_id": "wheat",
       "confidence": 0.85,
       "confirmed_by_farmer": false
     },
     {
-      "year": 2021,
+      "year": 2022,
       "season_index": 0,
-      "start": "2021-06-24",
-      "peak": "2021-08-28",
-      "end": "2021-10-22",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
+      "start": "2022-07-14",
+      "peak": "2022-09-17",
+      "end": "2022-11-11",
+      "crop_group": "cotton",
+      "crop_id": "cotton",
       "confidence": 0.85,
       "confirmed_by_farmer": false
     },
     {
       "year": 2022,
       "season_index": 1,
-      "start": "2021-12-31",
+      "start": "2022-01-05",
       "peak": "2022-03-01",
-      "end": "2022-04-30",
+      "end": "2022-04-25",
       "crop_group": "wheat",
       "crop_id": "wheat",
       "confidence": 0.85,
       "confirmed_by_farmer": false
     },
     {
-      "year": 2022,
+      "year": 2023,
       "season_index": 0,
-      "start": "2022-07-09",
-      "peak": "2022-08-28",
-      "end": "2022-10-27",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
+      "start": "2023-07-09",
+      "peak": "2023-09-02",
+      "end": "2023-11-11",
+      "crop_group": "cotton",
+      "crop_id": "cotton",
+      "confidence": 0.85,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2023,
+      "season_index": 0,
+      "start": "2023-07-09",
+      "peak": "2023-09-12",
+      "end": "2023-11-11",
+      "crop_group": "cotton",
+      "crop_id": "cotton",
       "confidence": 0.85,
       "confirmed_by_farmer": false
     },
     {
       "year": 2023,
       "season_index": 1,
-      "start": "2023-01-05",
+      "start": "2023-01-10",
       "peak": "2023-02-24",
-      "end": "2023-04-25",
+      "end": "2023-04-20",
       "crop_group": "wheat",
       "crop_id": "wheat",
       "confidence": 0.85,
       "confirmed_by_farmer": false
     },
     {
-      "year": 2023,
+      "year": 2024,
       "season_index": 0,
-      "start": "2023-07-04",
-      "peak": "2023-08-28",
-      "end": "2023-10-17",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
+      "start": "2024-07-13",
+      "peak": "2024-09-06",
+      "end": "2024-11-10",
+      "crop_group": "cotton",
+      "crop_id": "cotton",
       "confidence": 0.85,
       "confirmed_by_farmer": false
     },
     {
       "year": 2024,
       "season_index": 1,
-      "start": "2023-12-31",
+      "start": "2024-01-05",
       "peak": "2024-02-29",
-      "end": "2024-04-29",
+      "end": "2024-04-24",
       "crop_group": "wheat",
       "crop_id": "wheat",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2024,
-      "season_index": 0,
-      "start": "2024-07-03",
-      "peak": "2024-08-27",
-      "end": "2024-10-16",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
       "confidence": 0.85,
       "confirmed_by_farmer": false
     }
   ],
   "agro_climatic_notes": [
-    "Wheat terminal heat stress: grain-fill period (1 Mar-15 Apr) averages 28.9 days/yr with Tmax > 32 C.",
-    "Evaporative demand exceeds rainfall by 1414 mm/yr: crops depend on irrigation; water-efficient rotations matter.",
-    "Rainy-season dry spells average 17 days: drought-tolerant options reduce risk.",
-    "Post-kharif residue burning detected near field via NASA FIRMS: in-situ mulching or alternative rotations recommended."
+    "Wheat terminal heat stress: grain-fill period (1 Mar-15 Apr) averages 26.4 days/yr with Tmax > 32 C.",
+    "Annual rainfall has increased by 17% between periods.",
+    "Evaporative demand exceeds rainfall by 1180 mm/yr: crops depend on irrigation; water-efficient rotations matter.",
+    "Rainy-season dry spells average 16 days: drought-tolerant options reduce risk."
   ],
   "currency": "INR",
-  "currency_symbol": "\u20b9"
+  "currency_symbol": "₹",
+  "agro_zone": "Trans-Gangetic Semi-Arid Belt (South-West Punjab / Haryana)",
+  "is_fallback": false
 }

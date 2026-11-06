@@ -87,14 +87,26 @@ function computeParcelSuitability(
     return { score: 84, thermalScore: 86, waterScore: 82, droughtAligned: true };
   }
 
-  // Thermal score against parcel mean Tmax
-  const tmax = profile.climate.mean_tmax_c;
+  // Seasonal thermal score: compare crop optimal temperature against its actual growing season
+  // ("cool" Rabi Nov-Mar vs "warm" Kharif Jun-Oct) rather than annual mean Tmax.
+  const monthlyTmax = profile.climate.monthly_tmax_c;
+  const isCoolOnly = crop.season_type.includes("cool") && !crop.season_type.includes("warm");
+  let seasonalTemp = profile.climate.mean_tmax_c;
+  if (monthlyTmax && monthlyTmax.length === 12) {
+    const rabiMonths = [10, 11, 0, 1, 2]; // Nov, Dec, Jan, Feb, Mar
+    const kharifMonths = [5, 6, 7, 8, 9]; // Jun, Jul, Aug, Sep, Oct
+    const indices = isCoolOnly ? rabiMonths : kharifMonths;
+    seasonalTemp = indices.reduce((acc, idx) => acc + monthlyTmax[idx], 0) / indices.length;
+  } else if (isCoolOnly) {
+    seasonalTemp = profile.climate.mean_tmin_c + 8.0;
+  }
+
   const [optLow, optHigh] = crop.optimal_temp_c;
   let thermalScore = 96;
-  if (tmax < optLow) {
-    thermalScore = Math.max(45, Math.round(96 - (optLow - tmax) * 4.5));
-  } else if (tmax > optHigh) {
-    const excess = tmax - optHigh;
+  if (seasonalTemp < optLow) {
+    thermalScore = Math.max(45, Math.round(96 - (optLow - seasonalTemp) * 4.5));
+  } else if (seasonalTemp > optHigh) {
+    const excess = seasonalTemp - optHigh;
     const headroom = Math.max(2, crop.max_temp_c - optHigh);
     thermalScore = Math.max(40, Math.round(96 - (excess / headroom) * 35));
   }
@@ -189,8 +201,8 @@ export default function CropsPage() {
     <AppShell
       pageStep="05"
       pageBadge="FAO-56 KC PARAMETERS · ICRISAT · PAU LUDHIANA · USDA-NRCS"
-      pageTitle="NASA Botanical & 21-Crop Agronomic Knowledge Base"
-      pageDescription="Explore parameterized biophysical profiles for all 21 crops—including FAO-56 evapotranspiration curves, biological nitrogen fixation credits, RothC biomass residues, and live compatibility scoring for your active parcel."
+      pageTitle="NASA Botanical & 23-Crop Indian Agronomic Knowledge Base"
+      pageDescription="Explore parameterized biophysical profiles for all 23 Indian crops—including FAO-56 evapotranspiration curves, biological nitrogen fixation credits, RothC biomass residues, CACP MSP economics, and seasonal compatibility scoring for your active parcel."
       headerActions={
         <Link
           href="/rotations"

@@ -173,64 +173,6 @@
     ]
   },
   {
-    "id": "cereal_rye",
-    "name": "Cereal rye (cover crop)",
-    "family": "poaceae",
-    "group": "cover",
-    "season_type": [
-      "cool"
-    ],
-    "gdd_to_maturity": 900.0,
-    "base_temp_c": 0.0,
-    "optimal_temp_c": [
-      8.0,
-      20.0
-    ],
-    "max_temp_c": 30.0,
-    "min_temp_c": -30.0,
-    "duration_days": [
-      140,
-      210
-    ],
-    "water_requirement_mm": [
-      150.0,
-      300.0
-    ],
-    "kc": [
-      0.4,
-      1.0,
-      0.9
-    ],
-    "root_depth_m": 1.2,
-    "drought_tolerance": 4,
-    "heat_tolerance": 2,
-    "waterlogging_tolerance": 3,
-    "n_fixation_kg_ha": 0.0,
-    "n_demand_kg_ha": 0.0,
-    "residue_t_ha": 4.5,
-    "residue_cn_ratio": 45.0,
-    "typical_yield_t_ha": [
-      0.0,
-      0.0
-    ],
-    "aquacrop_name": null,
-    "good_predecessors": [
-      "maize",
-      "soybean",
-      "cotton",
-      "potato",
-      "sorghum"
-    ],
-    "bad_predecessors": [],
-    "notes": "Gold-standard winter cover crop for conservation agriculture in cold temperate zones (Iowa Corn Belt golden field: maize-soybean rotation). Seeded post-harvest in late Sept-October; overwinters down to -30\u00b0C and breaks dormancy early spring. Its dense, fibrous root network slashes winter/spring RUSLE soil erosion by 40-70% and scavenges 30-70 kg/ha of residual tile-drain nitrate-N, preventing downstream water pollution. Produces 3-5 t/ha dry biomass to build SOC. Must be terminated via roller-crimper or herbicide 10-14 days prior to maize planting to prevent nitrogen immobilization (high C:N residue penalty) and soil moisture deficit, though soybean can be planted green directly into standing rye.",
-    "sources": [
-      "USDA-NRCS Conservation Practice Standard 340 (Cover Crop)",
-      "Iowa State University Extension PMR 1002 (Cereal Rye for Field Crops)",
-      "SARE Managing Cover Crops Profitably (3rd ed.)",
-      "Midwest Cover Crops Council Field Guide"
-    ]
-  },
-  {
     "id": "chickpea",
     "name": "Chickpea (gram)",
     "family": "fabaceae",
@@ -460,6 +402,65 @@
     ]
   },
   {
+    "id": "groundnut",
+    "name": "Groundnut (Moongphali)",
+    "family": "fabaceae",
+    "group": "oilseed",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1550.0,
+    "base_temp_c": 10.0,
+    "optimal_temp_c": [
+      25.0,
+      33.0
+    ],
+    "max_temp_c": 41.0,
+    "min_temp_c": 14.0,
+    "duration_days": [
+      105,
+      125
+    ],
+    "water_requirement_mm": [
+      400.0,
+      550.0
+    ],
+    "kc": [
+      0.4,
+      1.15,
+      0.6
+    ],
+    "root_depth_m": 1.0,
+    "drought_tolerance": 4,
+    "heat_tolerance": 4,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 65.0,
+    "n_demand_kg_ha": 20.0,
+    "residue_t_ha": 2.8,
+    "residue_cn_ratio": 22.0,
+    "typical_yield_t_ha": [
+      1.5,
+      2.2
+    ],
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "wheat",
+      "barley",
+      "mustard",
+      "potato"
+    ],
+    "bad_predecessors": [
+      "groundnut",
+      "soybean"
+    ],
+    "notes": "High-value Kharif oilseed-legume suited to well-drained sandy loam and loamy sand soils across Punjab (SG 99, TG 37A), Bundelkhand, Gujarat, and Andhra Pradesh. Symbiotic Rhizobium fixes 50-80 kg N/ha while requiring 65% less water than puddled rice.",
+    "sources": [
+      "PAU Package of Practices Kharif (Groundnut)",
+      "ICAR-DGR Junagadh Groundnut Production Guide",
+      "FAO-56 Table 12"
+    ]
+  },
+  {
     "id": "lentil",
     "name": "Lentil (masur)",
     "family": "fabaceae",
@@ -672,8 +673,14 @@
     "aquacrop_name": null,
     "good_predecessors": [
       "maize",
-      "rice_puddled",
+      "rice_short",
       "rice_dsr",
+      "rice_puddled",
+      "pearl_millet",
+      "sorghum",
+      "urad",
+      "moong",
+      "groundnut",
       "cotton"
     ],
     "bad_predecessors": [
@@ -848,7 +855,8 @@
     "good_predecessors": [
       "maize",
       "moong",
-      "cereal_rye"
+      "urad",
+      "rice_short"
     ],
     "bad_predecessors": [
       "potato"
@@ -963,6 +971,61 @@
     "sources": [
       "FAO-56 Table 12",
       "PAU Package of Practices Kharif",
+      "Punjab Preservation of Subsoil Water Act 2009"
+    ]
+  },
+  {
+    "id": "rice_short",
+    "name": "Rice (Short-Duration PR-126)",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1650.0,
+    "base_temp_c": 10.0,
+    "optimal_temp_c": [
+      25.0,
+      32.0
+    ],
+    "max_temp_c": 40.0,
+    "min_temp_c": 15.0,
+    "duration_days": [
+      93,
+      123
+    ],
+    "water_requirement_mm": [
+      950.0,
+      1250.0
+    ],
+    "kc": [
+      1.05,
+      1.18,
+      0.7
+    ],
+    "root_depth_m": 0.55,
+    "drought_tolerance": 2,
+    "heat_tolerance": 3,
+    "waterlogging_tolerance": 5,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 110.0,
+    "residue_t_ha": 4.8,
+    "residue_cn_ratio": 58.0,
+    "typical_yield_t_ha": [
+      6.2,
+      7.5
+    ],
+    "aquacrop_name": "PaddyRice",
+    "good_predecessors": [
+      "dhaincha",
+      "moong",
+      "urad"
+    ],
+    "bad_predecessors": [],
+    "notes": "PAU flagship short-duration paddy variety PR-126 (matures in 93 days after transplanting / 123 days seed-to-seed vs 155 days for Pusa-44). Harvested by early October, opening a 25-30 day burn-free turnaround window before November wheat sowing with Happy Seeder while cutting irrigation demand by ~25% and retaining full FCI MSP procurement.",
+    "sources": [
+      "PAU Package of Practices Kharif (PR-126)",
+      "FAO-56 Table 12",
       "Punjab Preservation of Subsoil Water Act 2009"
     ]
   },
@@ -1146,6 +1209,66 @@
     ]
   },
   {
+    "id": "urad",
+    "name": "Blackgram (Urad / Mash)",
+    "family": "fabaceae",
+    "group": "legume",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1050.0,
+    "base_temp_c": 10.0,
+    "optimal_temp_c": [
+      25.0,
+      35.0
+    ],
+    "max_temp_c": 42.0,
+    "min_temp_c": 15.0,
+    "duration_days": [
+      65,
+      80
+    ],
+    "water_requirement_mm": [
+      250.0,
+      380.0
+    ],
+    "kc": [
+      0.4,
+      1.05,
+      0.35
+    ],
+    "root_depth_m": 0.75,
+    "drought_tolerance": 4,
+    "heat_tolerance": 4,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 55.0,
+    "n_demand_kg_ha": 20.0,
+    "residue_t_ha": 1.8,
+    "residue_cn_ratio": 20.0,
+    "typical_yield_t_ha": [
+      0.9,
+      1.4
+    ],
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "wheat",
+      "barley",
+      "mustard",
+      "rice_short",
+      "rice_dsr"
+    ],
+    "bad_predecessors": [
+      "urad",
+      "moong"
+    ],
+    "notes": "Short-duration pulse (Mash 114, Mash 1008 in Punjab; ADT 5 in Cauvery Delta rice-fallows; Bundelkhand Kharif pulse). Fits both Kharif rainfed uplands and Zaid/rice-fallow windows, fixing ~55 kg N/ha and eligible for NAFED PSS procurement.",
+    "sources": [
+      "PAU Package of Practices Kharif (Mash)",
+      "ICAR-IIPR Kanpur Uradbean Manual",
+      "FAO-56 Table 12"
+    ]
+  },
+  {
     "id": "wheat",
     "name": "Wheat",
     "family": "poaceae",
@@ -1157,13 +1280,13 @@
     "base_temp_c": 0.0,
     "optimal_temp_c": [
       12.0,
-      22.0
+      25.0
     ],
     "max_temp_c": 35.0,
     "min_temp_c": -5.0,
     "duration_days": [
-      140,
-      165
+      130,
+      145
     ],
     "water_requirement_mm": [
       400.0,
@@ -1189,10 +1312,14 @@
     "aquacrop_name": "Wheat",
     "good_predecessors": [
       "moong",
+      "urad",
+      "groundnut",
       "soybean",
       "mustard",
       "chickpea",
-      "berseem"
+      "berseem",
+      "rice_short",
+      "rice_dsr"
     ],
     "bad_predecessors": [
       "wheat",

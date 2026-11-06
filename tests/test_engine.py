@@ -286,9 +286,9 @@ def test_gee_sources_and_provenance():
 
     # D06: NASADEM slope
     slope_punjab = gee.slope_pct(30.23, 75.84)
-    slope_iowa = gee.slope_pct(42.03, -93.63)
+    slope_bundelkhand = gee.slope_pct(25.45, 78.57)
     assert slope_punjab < 2.0
-    assert slope_iowa > slope_punjab
+    assert slope_bundelkhand > slope_punjab
     assert gee.NASADEM_PROVENANCE.doi is not None
 
     # D07: FIRMS fire detections
@@ -505,57 +505,63 @@ def test_grounded_llm_explain(punjab_profile):
     assert "RothC" in text_pa
 
 
-def test_global_golden_fields_suitability_distinct():
+def test_indian_golden_fields_suitability_and_baselines_distinct():
     import json
     from pathlib import Path
 
     from terraloop_engine import crop_kb, suitability
+    from terraloop_engine.optimize import rotations
     from terraloop_schemas import FieldProfile
 
     golden_dir = Path("data/golden")
     crops = crop_kb.load_crops()
 
-    # Iowa
-    iowa_prof = FieldProfile.model_validate(
-        json.loads((golden_dir / "iowa" / "profile.json").read_text(encoding="utf-8"))
+    # 1. Sangrur (Central Punjab Alluvial Rice-Wheat)
+    sangrur_prof = FieldProfile.model_validate(
+        json.loads((golden_dir / "sangrur" / "profile.json").read_text(encoding="utf-8"))
     )
-    ranked_iowa = {r.crop_id: r.score for r in suitability.rank_crops(iowa_prof, crops)}
-    assert ranked_iowa.get("maize", 0) > 0.25 or ranked_iowa.get("soybean", 0) > 0.25
-    assert ranked_iowa.get("rice_puddled", 0) < 0.25
+    base_sangrur = rotations.derive_baseline_rotation(sangrur_prof, crops)
+    assert base_sangrur.steps[0].crop_id == "rice_puddled"
+    assert base_sangrur.steps[1].crop_id == "wheat"
 
-    # Machakos
-    mach_prof = FieldProfile.model_validate(
-        json.loads((golden_dir / "machakos" / "profile.json").read_text(encoding="utf-8"))
+    # 2. Vidarbha (Rainfed Black Cotton Vertisol)
+    vid_prof = FieldProfile.model_validate(
+        json.loads((golden_dir / "vidarbha" / "profile.json").read_text(encoding="utf-8"))
     )
-    ranked_mach = {r.crop_id: r.score for r in suitability.rank_crops(mach_prof, crops)}
-    assert ranked_mach.get("pigeonpea", 0) > 0.25 or ranked_mach.get("maize", 0) > 0.25
-    assert ranked_mach.get("rice_puddled", 0) < 0.25
+    ranked_vid = {r.crop_id: r.score for r in suitability.rank_crops(vid_prof, crops)}
+    assert ranked_vid.get("cotton", 0) > 0.25 or ranked_vid.get("chickpea", 0) > 0.25 or ranked_vid.get("soybean", 0) > 0.25
+    base_vid = rotations.derive_baseline_rotation(vid_prof, crops)
+    assert base_vid.steps[0].crop_id in ("cotton", "soybean")
+
+    # 3. Bundelkhand (Semi-Arid Rainfed Pulse-Oilseed Belt)
+    bund_prof = FieldProfile.model_validate(
+        json.loads((golden_dir / "bundelkhand" / "profile.json").read_text(encoding="utf-8"))
+    )
+    base_bund = rotations.derive_baseline_rotation(bund_prof, crops)
+    assert base_bund.steps[0].crop_id in ("sorghum", "pearl_millet", "maize")
 
 
 def test_nsga2_selection_3yr():
     from terraloop_engine.optimize import selection
 
-    # 6 multi-year rotation candidates with trade-offs between profit, water, and soil
     cands = [
-        {"profit": 110000.0, "water_savings": -1400.0, "soil_health": 45.0},  # high profit, high water
-        {"profit": 95000.0, "water_savings": -900.0, "soil_health": 75.0},   # balanced / Pareto optimal
-        {"profit": 80000.0, "water_savings": -600.0, "soil_health": 85.0},   # low water, high soil health
-        {"profit": 60000.0, "water_savings": -1500.0, "soil_health": 35.0},  # strictly dominated
-        {"profit": 92000.0, "water_savings": -880.0, "soil_health": 72.0},   # close alternative
-        {"profit": 75000.0, "water_savings": -1200.0, "soil_health": 50.0},  # dominated
+        {"profit": 110000.0, "water_savings": -1400.0, "soil_health": 45.0},
+        {"profit": 95000.0, "water_savings": -900.0, "soil_health": 75.0},
+        {"profit": 80000.0, "water_savings": -600.0, "soil_health": 85.0},
+        {"profit": 60000.0, "water_savings": -1500.0, "soil_health": 35.0},
+        {"profit": 92000.0, "water_savings": -880.0, "soil_health": 72.0},
+        {"profit": 75000.0, "water_savings": -1200.0, "soil_health": 50.0},
     ]
 
     fronts = selection.fast_non_dominated_sort(cands)
     assert len(fronts) >= 2
-    # The first front contains non-dominated solutions
     assert 0 in fronts[0]
     assert 1 in fronts[0]
     assert 2 in fronts[0]
-    assert 3 not in fronts[0]  # candidate 3 is dominated
+    assert 3 not in fronts[0]
 
     selected = selection.nsga2_select(cands, k=3)
     assert len(selected) == 3
-    # Top 3 must include the primary Pareto points
     assert 0 in selected or 1 in selected
 
 
@@ -563,7 +569,6 @@ def test_polynomial_ridge_surrogate():
     from terraloop_engine.models import surrogate
 
     rng = np.random.default_rng(42)
-    # Generate 150 synthetic AquaCrop runs: [clay_pct, sand_pct, annual_et0, annual_precip, gdd]
     n = 150
     clay = rng.uniform(10.0, 45.0, (n, 1))
     sand = rng.uniform(20.0, 70.0, (n, 1))
@@ -572,7 +577,6 @@ def test_polynomial_ridge_surrogate():
     gdd = rng.uniform(1500.0, 3500.0, (n, 1))
 
     X = np.hstack([clay, sand, et0, precip, gdd])
-    # Target: yield = non-linear function of moisture + soil + noise
     y = (
         2.5
         + 0.04 * clay.squeeze()
@@ -587,7 +591,6 @@ def test_polynomial_ridge_surrogate():
 
     model = surrogate.train_crop_surrogate(train_X, train_y, degree=2, alpha=0.1)
     r2 = model.score(test_X, test_y)
-    # AC: R² > 0.85 vs simulated held-out
     assert r2 > 0.85, f"Surrogate R² {r2:.3f} failed threshold > 0.85"
 
 
@@ -597,142 +600,103 @@ def test_phenology_crop_classifier():
     clf = classifier.build_calibrated_phenology_classifier()
     assert len(clf.classes) == 4
 
-    # Test test set
     test_features = np.array([
-        [262, 184, 114, 0.77, 61.5],  # Kharif Rice
-        [56, 334, 136, 0.81, 71.0],   # Rabi Wheat
-        [228, 172, 94, 0.73, 49.5],   # Kharif Maize
-        [136, 101, 66, 0.59, 31.0],   # Zaid Moong
+        [262, 184, 114, 0.77, 61.5],
+        [56, 334, 136, 0.81, 71.0],
+        [228, 172, 94, 0.73, 49.5],
+        [136, 101, 66, 0.59, 31.0],
     ])
     preds = clf.predict(test_features)
     assert preds == ["rice", "wheat", "maize", "mungbean"]
 
-    # F1 evaluation
     eval_f1 = clf.evaluate_f1(["rice", "wheat", "maize", "mungbean"], preds)
     assert eval_f1["macro_f1"] >= 0.90
 
 
-def test_california_central_valley_pipeline():
-    """Verify dynamic behavior for California Central Valley (Fresno: 36.75 N, -119.80 W)."""
-    from terraloop_engine import profiler, suitability
-    from terraloop_engine.data import gee, nasa_power
-    from terraloop_engine.models import economics
-    from terraloop_engine.optimize import rotations
+def test_soil_texture_and_heatwave_sensitivity_in_simulation():
+    """Verify that soil texture (sandy vs clay) and +5C heatwave anomalies physically alter yield & irrigation."""
+    from terraloop_engine.models import aquacrop_runner, soil
+    from terraloop_schemas import FarmConstraints, Rotation, RotationStep, SoilSummary
 
-    # 1. Generate realistic weather for California coordinate
-    weather_ca = nasa_power.synthetic_daily_weather(36.75, -119.80, years=(2015, 2024))
-    climate_ca, hazards_ca, wb_ca = profiler.summarise_climate(weather_ca, 36.75)
-    soil_ca = profiler.summarise_soil({"sand": 55, "silt": 30, "clay": 15, "soc": 9.5, "phh2o": 7.4, "bdod": 135})
+    w_normal = synthetic_punjab_weather((2018, 2020))
+    w_hot = w_normal.copy()
+    w_hot["T2M_MAX"] = w_hot["T2M_MAX"] + 5.0
+    w_hot["T2M_MIN"] = w_hot["T2M_MIN"] + 5.0
 
-    field_ca = FieldGeometry(lat=36.75, lon=-119.80, name="Fresno County, CA")
-    region = economics.detect_region(field_ca.lat, field_ca.lon)
-    curr_info = economics.get_currency_info(region)
-    gw_trend, _ = gee.grace_trend(field_ca.lat, field_ca.lon)
-
-    prof_ca = FieldProfile(
-        field=field_ca,
-        climate=climate_ca,
-        water=WaterSummary(climatic_water_balance_mm=wb_ca, groundwater_trend_cm_per_year=gw_trend),
-        soil=soil_ca,
-        hazards=hazards_ca,
-        currency=curr_info["code"],
-        currency_symbol=curr_info["symbol"],
+    fc_sand, wp_sand = soil.saxton_rawls(78.0, 8.0, 3.5)
+    sandy_soil = SoilSummary(
+        texture_class="loamy sand",
+        sand_pct=78.0,
+        silt_pct=14.0,
+        clay_pct=8.0,
+        soc_g_per_kg=3.5,
+        field_capacity_vol=fc_sand,
+        wilting_point_vol=wp_sand,
     )
 
-    # 2. Check dynamic currency
-    assert prof_ca.currency == "USD"
-    assert prof_ca.currency_symbol == "$"
+    fc_clay, wp_clay = soil.saxton_rawls(22.0, 48.0, 7.5)
+    clay_soil = SoilSummary(
+        texture_class="clay",
+        sand_pct=22.0,
+        silt_pct=30.0,
+        clay_pct=48.0,
+        soc_g_per_kg=7.5,
+        field_capacity_vol=fc_clay,
+        wilting_point_vol=wp_clay,
+    )
 
-    # 3. Check GRACE groundwater depletion fallback for Central Valley (-2.8 cm/yr)
-    assert prof_ca.water.groundwater_trend_cm_per_year == -2.8
+    rot_wheat = Rotation(id="wheat_only", steps=[RotationStep(year_index=0, season_index=1, crop_id="wheat")])
 
-    # 4. Check dynamic seasons for Mediterranean/California
-    seasons_ca = rotations.derive_seasons(prof_ca)
-    assert len(seasons_ca) == 3
-    assert seasons_ca[0].name == "summer"
-    assert seasons_ca[1].name == "winter"
-    assert seasons_ca[2].name == "bridge"
+    # 1. Soil texture sensitivity under rainfed / limited irrigation
+    res_sand = aquacrop_runner.simulate_rotation(
+        rot_wheat, w_normal, sandy_soil, FarmConstraints(irrigation="none"), start_year=2018
+    )[0]
+    res_clay = aquacrop_runner.simulate_rotation(
+        rot_wheat, w_normal, clay_soil, FarmConstraints(irrigation="none"), start_year=2018
+    )[0]
+    assert res_clay["yield_t_ha"] > res_sand["yield_t_ha"]
 
-    # 5. Check baseline rotation is maize > wheat (not hardcoded Punjab rice-wheat!)
+    res_sand_irr = aquacrop_runner.simulate_rotation(
+        rot_wheat, w_normal, sandy_soil, FarmConstraints(irrigation="full"), start_year=2018
+    )[0]
+    res_clay_irr = aquacrop_runner.simulate_rotation(
+        rot_wheat, w_normal, clay_soil, FarmConstraints(irrigation="full"), start_year=2018
+    )[0]
+    assert res_sand_irr["irrigation_mm"] != res_clay_irr["irrigation_mm"]
+
+    # 2. +5C heatwave reduces wheat yield by >= 10% (2022 March heatwave mechanism)
+    res_hot = aquacrop_runner.simulate_rotation(
+        rot_wheat, w_hot, clay_soil, FarmConstraints(irrigation="full"), start_year=2018
+    )[0]
+    yield_drop_pct = (res_clay_irr["yield_t_ha"] - res_hot["yield_t_ha"]) / res_clay_irr["yield_t_ha"] * 100.0
+    assert yield_drop_pct >= 10.0, f"Expected >= 10% wheat yield drop under +5C heatwave, got {yield_drop_pct:.1f}%"
+
+    # 3. DSR on coarse sand suffers seepage and iron/weed yield penalty compared to clay/loam
+    rot_dsr = Rotation(id="dsr_only", steps=[RotationStep(year_index=0, season_index=0, crop_id="rice_dsr")])
+    dsr_sand = aquacrop_runner.simulate_rotation(
+        rot_dsr, w_normal, sandy_soil, FarmConstraints(irrigation="full"), start_year=2018
+    )[0]
+    dsr_clay = aquacrop_runner.simulate_rotation(
+        rot_dsr, w_normal, clay_soil, FarmConstraints(irrigation="full"), start_year=2018
+    )[0]
+    assert dsr_sand["yield_t_ha"] < dsr_clay["yield_t_ha"]
+    assert dsr_sand["irrigation_mm"] > dsr_clay["irrigation_mm"]
+
+
+def test_soil_health_card_override_and_baseline_override(punjab_profile):
+    from terraloop_schemas import SoilHealthCardInput
+
+    shc = SoilHealthCardInput(ph=7.4, soc_pct=0.72, available_n_kg_ha=310.0)
+    updated = profiler.apply_soil_health_card_override(punjab_profile.model_copy(deep=True), shc)
+    assert updated.soil.ph == 7.4
+    assert updated.soil.soc_g_per_kg == 7.2
+    assert updated.soil.source == "farmer_test"
+    assert any("Soil Health Card" in p.source for p in updated.soil.provenance)
+
     crops = crop_kb.load_crops()
-    baseline = rotations.derive_baseline_rotation(prof_ca, crops)
-    assert baseline.steps[0].crop_id == "maize"
-    assert baseline.steps[1].crop_id == "wheat"
-    assert not any(s.crop_id == "rice_puddled" for s in baseline.steps)
+    custom_base = rotations.derive_baseline_rotation(updated, crops, baseline_override=["maize", "wheat", "moong"])
+    assert [s.crop_id for s in custom_base.steps] == ["maize", "wheat", "moong"]
 
-    # 6. Check suitability ranking runs cleanly
-    ranks = suitability.rank_crops(prof_ca, crops, FarmConstraints())
-    top_cids = [r.crop_id for r in ranks[:8]]
-    assert "chickpea" in top_cids or "wheat" in top_cids or "barley" in top_cids
-
-
-def test_southern_hemisphere_seasons():
-    """Verify seasons and thermal phase invert correctly south of equator."""
-    from terraloop_engine import profiler
-    from terraloop_engine.data import nasa_power
-    from terraloop_engine.optimize import rotations
-
-    lat_sh = -34.5
-    lon_sh = -58.5
-    weather_sh = nasa_power.synthetic_daily_weather(lat_sh, lon_sh, years=(2015, 2024))
-    c_sh, h_sh, wb_sh = profiler.summarise_climate(weather_sh, lat_sh)
-    prof_sh = FieldProfile(
-        field=FieldGeometry(lat=lat_sh, lon=lon_sh, name="Buenos Aires Pampas"),
-        climate=c_sh,
-        water=WaterSummary(climatic_water_balance_mm=wb_sh),
-        soil=profiler.summarise_soil(None),
-        hazards=h_sh,
-    )
-    seasons = rotations.derive_seasons(prof_sh)
-    assert len(seasons) == 3
-    assert seasons[0].name == "summer"
-    assert seasons[1].name == "winter"
-    assert seasons[2].name == "bridge"
-    # Southern hemisphere summer starts in Nov-Jan
-    assert 11 in seasons[0].sowing_months or 12 in seasons[0].sowing_months or 1 in seasons[0].sowing_months
-    # Winter starts in May-Jun
-    assert 5 in seasons[1].sowing_months or 6 in seasons[1].sowing_months
-
-
-def test_east_africa_bimodal_seasons():
-    """Verify bimodal rainfall seasons in equatorial East Africa."""
-    from terraloop_engine import profiler
-    from terraloop_engine.data import nasa_power
-    from terraloop_engine.optimize import rotations
-
-    lat_ea = -1.45
-    lon_ea = 37.40
-    weather_ea = nasa_power.synthetic_daily_weather(lat_ea, lon_ea, years=(2015, 2024))
-    c_ea, h_ea, wb_ea = profiler.summarise_climate(weather_ea, lat_ea)
-    prof_ea = FieldProfile(
-        field=FieldGeometry(lat=lat_ea, lon=lon_ea, name="Machakos, Kenya"),
-        climate=c_ea,
-        water=WaterSummary(climatic_water_balance_mm=wb_ea),
-        soil=profiler.summarise_soil(None),
-        hazards=h_ea,
-    )
-    seasons = rotations.derive_seasons(prof_ea)
-    assert len(seasons) == 2
-    assert "long_rains" in seasons[0].name
-    assert "short_rains" in seasons[1].name
-
-
-def test_synthetic_weather_global_properties():
-    """Verify physical consistency of global weather generator."""
-    from terraloop_engine.data import nasa_power
-
-    # California: Mediterranean (winter wet, summer dry)
-    df_ca = nasa_power.synthetic_daily_weather(36.75, -119.80, years=(2020, 2022))
-    assert not df_ca.isna().any().any()
-    winter_rain = df_ca[df_ca.index.month.isin([12, 1, 2])]["PRECTOTCORR"].sum()
-    summer_rain = df_ca[df_ca.index.month.isin([6, 7, 8])]["PRECTOTCORR"].sum()
-    assert winter_rain > summer_rain
-
-    # Punjab: Monsoon (summer wet, winter dry)
-    df_pb = nasa_power.synthetic_daily_weather(30.2, 75.9, years=(2020, 2022))
-    monsoon_rain = df_pb[df_pb.index.month.isin([7, 8, 9])]["PRECTOTCORR"].sum()
-    winter_pb = df_pb[df_pb.index.month.isin([12, 1, 2])]["PRECTOTCORR"].sum()
-    assert monsoon_rain > winter_pb
 
 
 

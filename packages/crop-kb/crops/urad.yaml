@@ -1,0 +1,27 @@
+id: urad
+name: Blackgram (Urad / Mash)
+family: fabaceae
+group: legume
+season_type: [warm]
+gdd_to_maturity: 1050
+base_temp_c: 10
+optimal_temp_c: [25, 35]
+max_temp_c: 42
+min_temp_c: 15
+duration_days: [65, 80]
+water_requirement_mm: [250, 380]
+kc: [0.40, 1.05, 0.35]
+root_depth_m: 0.75
+drought_tolerance: 4
+heat_tolerance: 4
+waterlogging_tolerance: 1
+n_fixation_kg_ha: 55
+n_demand_kg_ha: 20
+residue_t_ha: 1.8
+residue_cn_ratio: 20
+typical_yield_t_ha: [0.9, 1.4]
+aquacrop_name: Soybean
+good_predecessors: [wheat, barley, mustard, rice_short, rice_dsr]
+bad_predecessors: [urad, moong]
+notes: "Short-duration pulse (Mash 114, Mash 1008 in Punjab; ADT 5 in Cauvery Delta rice-fallows; Bundelkhand Kharif pulse). Fits both Kharif rainfed uplands and Zaid/rice-fallow windows, fixing ~55 kg N/ha and eligible for NAFED PSS procurement."
+sources: ["PAU Package of Practices Kharif (Mash)", "ICAR-IIPR Kanpur Uradbean Manual", "FAO-56 Table 12"]

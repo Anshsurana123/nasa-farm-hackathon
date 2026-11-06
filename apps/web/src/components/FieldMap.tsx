@@ -159,6 +159,10 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
           pitch: 52,
           bearing: -18,
           maxPitch: 72,
+          maxBounds: [
+            [66.0, 5.0],
+            [99.0, 38.5],
+          ],
         });
 
         map.addControl(new maplibre.NavigationControl({ visualizePitch: true }), "top-right");
@@ -266,7 +270,48 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
         mapInstance.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-sync golden benchmark field beacons whenever goldenFields loads asynchronously
+  useEffect(() => {
+    let isMounted = true;
+    async function syncGoldenBeacons() {
+      const map = mapInstance.current;
+      if (!map || !goldenFields.length) return;
+      try {
+        const maplibre = await import("maplibre-gl");
+        if (!isMounted || !mapInstance.current) return;
+        for (const m of goldenMarkersRef.current) {
+          try {
+            m.remove();
+          } catch {
+            // Ignore
+          }
+        }
+        goldenMarkersRef.current = goldenFields.map((gf) => {
+          const el = document.createElement("div");
+          el.className =
+            "px-2 py-0.5 rounded bg-stone-950/90 border border-amber-400/80 text-amber-300 shadow-lg flex items-center justify-center text-[10px] font-mono font-bold cursor-pointer hover:scale-110 transition-transform hover:z-20";
+          el.textContent = regionFlag(gf.id);
+          el.title = `${gf.name} — Click to load benchmark profile`;
+          el.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            setIsOrbiting(false);
+            onSelect({ lat: gf.lat, lon: gf.lon, name: gf.name });
+          });
+
+          return new maplibre.Marker({ element: el }).setLngLat([gf.lon, gf.lat]).addTo(map);
+        });
+      } catch {
+        // Ignore
+      }
+    }
+    syncGoldenBeacons();
+    return () => {
+      isMounted = false;
+    };
+  }, [goldenFields, onSelect]);
 
   // Toggle map layers (Satellite vs Street Map)
   useEffect(() => {

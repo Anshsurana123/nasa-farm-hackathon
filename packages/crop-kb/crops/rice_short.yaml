@@ -1,0 +1,27 @@
+id: rice_short
+name: Rice (Short-Duration PR-126)
+family: poaceae
+group: cereal
+season_type: [warm]
+gdd_to_maturity: 1650
+base_temp_c: 10
+optimal_temp_c: [25, 32]
+max_temp_c: 40
+min_temp_c: 15
+duration_days: [93, 123]
+water_requirement_mm: [950, 1250]
+kc: [1.05, 1.18, 0.70]
+root_depth_m: 0.55
+drought_tolerance: 2
+heat_tolerance: 3
+waterlogging_tolerance: 5
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 110
+residue_t_ha: 4.8
+residue_cn_ratio: 58
+typical_yield_t_ha: [6.2, 7.5]
+aquacrop_name: PaddyRice
+good_predecessors: [dhaincha, moong, urad]
+bad_predecessors: []
+notes: "PAU flagship short-duration paddy variety PR-126 (matures in 93 days after transplanting / 123 days seed-to-seed vs 155 days for Pusa-44). Harvested by early October, opening a 25-30 day burn-free turnaround window before November wheat sowing with Happy Seeder while cutting irrigation demand by ~25% and retaining full FCI MSP procurement."
+sources: ["PAU Package of Practices Kharif (PR-126)", "FAO-56 Table 12", "Punjab Preservation of Subsoil Water Act 2009"]

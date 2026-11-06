@@ -1,10 +1,12 @@
 import type {
   CropSpec,
+  FarmConstraints,
   FieldGeometry,
   FieldProfile,
   GoldenField,
   RecommendRequest,
   StrategyRecommendation,
+  SuitabilityItem,
 } from "@/types/api";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -41,6 +43,40 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const fieldId = goldenMatch[1];
     const localRes = await fetch(`/golden/${fieldId}/profile.json`);
     if (localRes.ok) return localRes.json() as Promise<T>;
+  }
+  const goldenRecMatch = path.match(/^\/golden\/([^/]+)\/recommendations$/);
+  if (goldenRecMatch) {
+    const fieldId = goldenRecMatch[1];
+    const localRes = await fetch(`/golden/${fieldId}/recommendations.json`);
+    if (localRes.ok) return localRes.json() as Promise<T>;
+  }
+
+  // If live /recommend is requested while backend API is offline, serve precomputed golden recommendations
+  if (path === "/recommend" && init?.body) {
+    try {
+      const reqBody = JSON.parse(init.body as string) as RecommendRequest;
+      const fieldsRes = await fetch("/golden/fields.json");
+      if (fieldsRes.ok) {
+        const fields = (await fieldsRes.json()) as GoldenField[];
+        if (fields.length > 0) {
+          let closest = fields[0];
+          let minDist = Infinity;
+          for (const f of fields) {
+            const d = Math.hypot(f.lat - reqBody.field.lat, f.lon - reqBody.field.lon);
+            if (d < minDist) {
+              minDist = d;
+              closest = f;
+            }
+          }
+          const recRes = await fetch(`/golden/${closest.id}/recommendations.json`);
+          if (recRes.ok) {
+            return (await recRes.json()) as T;
+          }
+        }
+      }
+    } catch {
+      // Ignore and proceed
+    }
   }
 
   // If live /profile is requested but backend API is offline, adapt closest golden field
@@ -140,9 +176,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   goldenFields: () => request<GoldenField[]>("/golden"),
   goldenProfile: (id: string) => request<FieldProfile>(`/golden/${id}/profile`),
+  goldenRecommendations: (id: string) =>
+    request<StrategyRecommendation[]>(`/golden/${id}/recommendations`),
   crops: () => request<CropSpec[]>("/crops"),
   profile: (field: FieldGeometry) =>
     request<FieldProfile>("/profile", { method: "POST", body: JSON.stringify(field) }),
+  suitability: (req: { field: FieldGeometry; constraints?: FarmConstraints }) =>
+    request<SuitabilityItem[]>("/suitability", { method: "POST", body: JSON.stringify(req) }),
   recommend: (req: RecommendRequest) =>
     request<StrategyRecommendation[]>("/recommend", { method: "POST", body: JSON.stringify(req) }),
   geocode: (q: string) => request<import("@/types/api").GeocodeResult>(`/geocode?q=${encodeURIComponent(q)}`),

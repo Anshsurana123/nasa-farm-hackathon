@@ -1,0 +1,1012 @@
+[
+  {
+    "rank": 0,
+    "rotation": {
+      "id": "observed_baseline",
+      "steps": [
+        {
+          "year_index": 0,
+          "season_index": 0,
+          "crop_id": "cotton",
+          "sowing_doy": null,
+          "practices": [
+            "conventional"
+          ]
+        },
+        {
+          "year_index": 0,
+          "season_index": 1,
+          "crop_id": "chickpea",
+          "sowing_doy": null,
+          "practices": [
+            "conventional"
+          ]
+        },
+        {
+          "year_index": 0,
+          "season_index": 2,
+          "crop_id": "fallow",
+          "sowing_doy": null,
+          "practices": []
+        }
+      ],
+      "label": "Cotton \u2192 Chickpea \u2192 Fallow",
+      "is_baseline": true
+    },
+    "results": [
+      {
+        "rotation_id": "observed_baseline",
+        "scenario_set_id": "historical_1yr",
+        "yield_t_ha": {
+          "cotton": [
+            1.34,
+            1.48,
+            1.43,
+            1.48,
+            1.6,
+            1.6,
+            1.57,
+            1.34,
+            1.1,
+            1.7,
+            1.52,
+            1.26,
+            1.42,
+            1.8,
+            1.55,
+            1.66,
+            1.91,
+            1.51,
+            1.13,
+            1.27,
+            1.16,
+            1.69,
+            1.77,
+            1.51,
+            1.3,
+            1.91,
+            1.77,
+            1.53,
+            1.61,
+            1.76
+          ],
+          "chickpea": [
+            0.41,
+            0.29,
+            0.62,
+            0.76,
+            0.35,
+            0.35,
+            0.3,
+            0.27,
+            0.34,
+            0.29,
+            0.64,
+            0.24,
+            0.3,
+            0.31,
+            0.22,
+            0.42,
+            0.31,
+            0.31,
+            0.51,
+            0.47,
+            0.39,
+            0.24,
+            0.23,
+            0.29,
+            0.48,
+            0.5,
+            0.48,
+            0.52,
+            0.34,
+            0.37
+          ]
+        },
+        "irrigation_mm": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "profit_per_ha": [
+          54648.0,
+          66560.0,
+          83068.0,
+          77611.0,
+          87911.0,
+          43145.0,
+          69944.0,
+          47250.0,
+          42328.0,
+          67173.0,
+          83103.0,
+          19325.0,
+          50050.0,
+          72033.0,
+          58413.0,
+          77520.0,
+          62404.0,
+          40590.0,
+          46536.0,
+          47045.0,
+          20428.0,
+          72376.0,
+          74712.0,
+          56633.0,
+          39367.0,
+          78585.0,
+          106935.0,
+          84066.0,
+          81964.0,
+          77017.0
+        ],
+        "soc_delta_t_ha_10yr": -2.08,
+        "erosion_t_ha_yr": 3.54,
+        "n_balance_kg_ha_yr": 173.4,
+        "living_root_days_pct": 87.7,
+        "family_diversity_index": 0.693,
+        "soil_health_score": 41.1,
+        "profit_p10": 40467.7,
+        "profit_p50": 66866.5,
+        "profit_p90": 83199.3,
+        "cvar_profit_10": 26373.3
+      }
+    ],
+    "objective_scores": {
+      "profit": 66866.5,
+      "water_savings": -0.0,
+      "soil_health": 41.1,
+      "low_risk": 26373.3,
+      "low_labour": -25300.0,
+      "food_security": 0.5
+    },
+    "vs_baseline": {
+      "climate_resilience_score": 73.1,
+      "profit_regret": 40493.2,
+      "irrigation_spike_mm": 0.0
+    },
+    "why": [
+      "Current baseline practice for Yavatmal (Vidarbha), Maharashtra: Cotton \u2192 Chickpea \u2192 Fallow."
+    ],
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": null,
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      }
+    ],
+    "currency": "INR",
+    "currency_symbol": "\u20b9",
+    "practical_metrics": {
+      "turnaround_days_kharif_rabi": 18,
+      "urea_bags_saved_per_ha": 1.3,
+      "irrigations_saved_per_yr": 0,
+      "pumping_hours_saved_per_ha": 0,
+      "msp_assurance_level": "NAFED / PSS Supported",
+      "eligible_schemes": [
+        "Crop Diversification / Mera Pani Meri Virasat (\u20b917,500/ha state incentive)",
+        "NFSM-Pulses & NAFED e-Samridhi Assured MSP Procurement"
+      ],
+      "labor_cost_inr_per_ha": 25300.0,
+      "input_cost_inr_per_ha": 69500.0
+    },
+    "narrative_summary": "Strategy 'Cotton \u2192 Chickpea \u2192 Fallow': Against NASA GRACE-FO recorded regional water storage (TWS) decline of 0.7 cm/yr, this rotation reduces net irrigation by 0 mm/yr (0% savings) [AquaCrop]. RothC model forecasts a 10-year soil organic carbon change of -2.1 t C/ha, elevating soil health to 41/100. Under CACP/PAU price policies, median expected return is \u20b966,866/ha with a downside buffer (CVaR-10) of \u20b926,373/ha during extreme climate drought years.",
+    "is_fallback": false
+  },
+  {
+    "rank": 1,
+    "rotation": {
+      "id": "r0005",
+      "steps": [
+        {
+          "year_index": 0,
+          "season_index": 0,
+          "crop_id": "soybean",
+          "sowing_doy": null,
+          "practices": [
+            "residue_retained"
+          ]
+        },
+        {
+          "year_index": 0,
+          "season_index": 1,
+          "crop_id": "mustard",
+          "sowing_doy": null,
+          "practices": [
+            "zero_till",
+            "residue_retained"
+          ]
+        },
+        {
+          "year_index": 0,
+          "season_index": 2,
+          "crop_id": "fallow",
+          "sowing_doy": null,
+          "practices": [
+            "residue_retained"
+          ]
+        }
+      ],
+      "label": "Soybean \u2192 Mustard / rapeseed \u2192 Fallow",
+      "is_baseline": false
+    },
+    "results": [
+      {
+        "rotation_id": "r0005",
+        "scenario_set_id": "historical_1yr",
+        "yield_t_ha": {
+          "soybean": [
+            2.61,
+            2.86,
+            2.6,
+            2.87,
+            2.75,
+            2.7,
+            2.93,
+            2.55,
+            2.5,
+            2.71,
+            2.87,
+            2.21,
+            2.62,
+            2.88,
+            2.62,
+            3.01,
+            3.01,
+            2.76,
+            2.35,
+            2.53,
+            2.49,
+            2.82,
+            3.0,
+            2.74,
+            2.71,
+            3.01,
+            2.75,
+            2.76,
+            2.68,
+            2.88
+          ],
+          "mustard": [
+            0.51,
+            0.43,
+            0.94,
+            0.95,
+            0.51,
+            0.34,
+            0.34,
+            0.33,
+            0.44,
+            0.46,
+            0.67,
+            0.34,
+            0.48,
+            0.56,
+            0.33,
+            0.6,
+            0.43,
+            0.57,
+            0.65,
+            0.61,
+            0.52,
+            0.34,
+            0.42,
+            0.32,
+            0.67,
+            0.75,
+            0.61,
+            0.89,
+            0.57,
+            0.5
+          ]
+        },
+        "irrigation_mm": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "profit_per_ha": [
+          122914.0,
+          127698.0,
+          130809.0,
+          158807.0,
+          111325.0,
+          102249.0,
+          97385.0,
+          95170.0,
+          89399.0,
+          105577.0,
+          125411.0,
+          62338.0,
+          104453.0,
+          126609.0,
+          112628.0,
+          144053.0,
+          129529.0,
+          118301.0,
+          109828.0,
+          101095.0,
+          116589.0,
+          125076.0,
+          115781.0,
+          103053.0,
+          105800.0,
+          152985.0,
+          129227.0,
+          133780.0,
+          131339.0,
+          123357.0
+        ],
+        "soc_delta_t_ha_10yr": -0.38,
+        "erosion_t_ha_yr": 1.61,
+        "n_balance_kg_ha_yr": 25.1,
+        "living_root_days_pct": 68.5,
+        "family_diversity_index": 0.693,
+        "soil_health_score": 59.6,
+        "profit_p10": 97163.5,
+        "profit_p50": 117445.0,
+        "profit_p90": 134807.3,
+        "cvar_profit_10": 82302.3
+      }
+    ],
+    "objective_scores": {
+      "profit": 117445.0,
+      "water_savings": -0.0,
+      "soil_health": 59.6,
+      "low_risk": 82302.3,
+      "low_labour": -13830.0,
+      "food_security": 0.5
+    },
+    "vs_baseline": {
+      "irrigation_change_pct": 0.0,
+      "profit_change_pct": 75.6,
+      "soil_health_change_pts": 18.5,
+      "climate_resilience_score": 90.9,
+      "profit_regret": 35142.7,
+      "irrigation_spike_mm": 0.0
+    },
+    "why": [
+      "Elevates Soil Health Score to 59/100 (+18 pts vs. baseline) and changes 10-year topsoil organic carbon by -0.4 t C/ha, saving 3.7 bags/ha of 45-kg Urea via biological N fixation [RothC-lite \u00b7 SoilGrids].",
+      "Provides a 34-day Kharif-to-Rabi turnaround window for Happy Seeder / zero-till sowing with in-situ residue mulching \u2014 eliminating Oct\u2013Nov stubble burning monitored by NASA FIRMS.",
+      "Timely sowing schedule buffers crops against 122 annual extreme heat days (>35\u00b0C) and 45.1 March\u2013April terminal grain-filling heat days (>32\u00b0C) recorded by NASA POWER.",
+      "Delivers median net operating return of \u20b9117,445/ha (\u20b947,528/acre) with a worst-10% drought downside buffer (CVaR-10) of \u20b982,302/ha (\u20b933,307/acre) [CACP MSP 2024-25]. Eligible schemes: Crop Diversification / Mera Pani Meri Virasat (\u20b917,500/ha state incentive); CRM Sub-Mission on Crop Residue Management (50\u201380% Happy Seeder / CHC subsidy)."
+    ],
+    "provenance": [
+      {
+        "source": "Rothamsted Carbon Model (RothC-26.3)",
+        "product": "4-pool soil organic carbon turnover & ICAR N-balance model",
+        "period": null,
+        "resolution": null,
+        "doi": "10.1007/978-3-642-61094-3_17",
+        "url": null,
+        "mode": "observed"
+      },
+      {
+        "source": "NASA FIRMS",
+        "product": "MODIS / VIIRS Active Fire Detections",
+        "period": "2019-2024",
+        "resolution": null,
+        "doi": "10.5067/FIRMS/MODIS",
+        "url": "https://firms.modaps.eosdis.nasa.gov/",
+        "mode": "regional_climatology"
+      },
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IGP-corrected)",
+        "period": "1985-2024",
+        "resolution": null,
+        "doi": null,
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "CACP / Ministry of Agriculture (GoI)",
+        "product": "Minimum Support Prices (MSP 2024-25) & PAU Cost of Cultivation",
+        "period": "2024-2025",
+        "resolution": null,
+        "doi": null,
+        "url": "https://cacp.dacnet.nic.in/",
+        "mode": "observed"
+      }
+    ],
+    "currency": "INR",
+    "currency_symbol": "\u20b9",
+    "practical_metrics": {
+      "turnaround_days_kharif_rabi": 34,
+      "urea_bags_saved_per_ha": 3.7,
+      "irrigations_saved_per_yr": 0,
+      "pumping_hours_saved_per_ha": 0,
+      "msp_assurance_level": "NAFED / PSS Supported",
+      "eligible_schemes": [
+        "Crop Diversification / Mera Pani Meri Virasat (\u20b917,500/ha state incentive)",
+        "CRM Sub-Mission on Crop Residue Management (50\u201380% Happy Seeder / CHC subsidy)",
+        "National Mission on Edible Oils (NMEO-Oilseeds) Seed & Procurement Support"
+      ],
+      "labor_cost_inr_per_ha": 13830.0,
+      "input_cost_inr_per_ha": 50350.0
+    },
+    "narrative_summary": "Strategy 'Soybean \u2192 Mustard / rapeseed \u2192 Fallow': Against NASA GRACE-FO recorded regional water storage (TWS) decline of 0.7 cm/yr, this rotation reduces net irrigation by 0 mm/yr (0% savings) [AquaCrop]. RothC model forecasts a 10-year soil organic carbon change of -0.4 t C/ha, elevating soil health to 59/100. Under CACP/PAU price policies, median expected return is \u20b9117,445/ha with a downside buffer (CVaR-10) of \u20b982,302/ha during extreme climate drought years.",
+    "is_fallback": false
+  },
+  {
+    "rank": 2,
+    "rotation": {
+      "id": "r0010",
+      "steps": [
+        {
+          "year_index": 0,
+          "season_index": 0,
+          "crop_id": "sunflower",
+          "sowing_doy": null,
+          "practices": [
+            "residue_retained"
+          ]
+        },
+        {
+          "year_index": 0,
+          "season_index": 1,
+          "crop_id": "chickpea",
+          "sowing_doy": null,
+          "practices": [
+            "zero_till",
+            "residue_retained"
+          ]
+        },
+        {
+          "year_index": 0,
+          "season_index": 2,
+          "crop_id": "fallow",
+          "sowing_doy": null,
+          "practices": [
+            "residue_retained"
+          ]
+        }
+      ],
+      "label": "Sunflower \u2192 Chickpea \u2192 Fallow",
+      "is_baseline": false
+    },
+    "results": [
+      {
+        "rotation_id": "r0010",
+        "scenario_set_id": "historical_1yr",
+        "yield_t_ha": {
+          "sunflower": [
+            1.67,
+            2.06,
+            1.67,
+            2.06,
+            1.87,
+            1.87,
+            2.26,
+            1.67,
+            1.48,
+            2.06,
+            2.06,
+            1.47,
+            1.67,
+            2.07,
+            1.84,
+            2.26,
+            2.26,
+            1.87,
+            1.47,
+            1.67,
+            1.48,
+            2.07,
+            2.25,
+            2.07,
+            1.86,
+            2.26,
+            1.87,
+            1.87,
+            1.86,
+            2.06
+          ],
+          "chickpea": [
+            0.65,
+            0.52,
+            0.77,
+            0.86,
+            0.48,
+            0.56,
+            0.47,
+            0.45,
+            0.6,
+            0.45,
+            0.8,
+            0.47,
+            0.61,
+            0.55,
+            0.43,
+            0.61,
+            0.57,
+            0.54,
+            0.67,
+            0.73,
+            0.67,
+            0.44,
+            0.49,
+            0.48,
+            0.6,
+            0.73,
+            0.6,
+            0.68,
+            0.64,
+            0.58
+          ]
+        },
+        "irrigation_mm": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "profit_per_ha": [
+          122063.0,
+          106334.0,
+          112419.0,
+          142070.0,
+          123642.0,
+          105993.0,
+          153383.0,
+          105202.0,
+          86377.0,
+          113410.0,
+          152584.0,
+          94109.0,
+          119102.0,
+          119540.0,
+          128505.0,
+          162733.0,
+          158212.0,
+          108798.0,
+          109020.0,
+          98591.0,
+          82186.0,
+          113619.0,
+          160623.0,
+          141295.0,
+          103705.0,
+          166741.0,
+          115947.0,
+          109689.0,
+          128343.0,
+          124813.0
+        ],
+        "soc_delta_t_ha_10yr": -1.04,
+        "erosion_t_ha_yr": 1.67,
+        "n_balance_kg_ha_yr": 100.4,
+        "living_root_days_pct": 69.2,
+        "family_diversity_index": 0.693,
+        "soil_health_score": 54.1,
+        "profit_p10": 98142.8,
+        "profit_p50": 117524.5,
+        "profit_p90": 158453.1,
+        "cvar_profit_10": 87557.3
+      }
+    ],
+    "objective_scores": {
+      "profit": 117524.5,
+      "water_savings": -0.0,
+      "soil_health": 54.1,
+      "low_risk": 87557.3,
+      "low_labour": -13776.0,
+      "food_security": 0.5
+    },
+    "vs_baseline": {
+      "irrigation_change_pct": 0.0,
+      "profit_change_pct": 75.8,
+      "soil_health_change_pts": 13.0,
+      "climate_resilience_score": 91.0,
+      "profit_regret": 29967.2,
+      "irrigation_spike_mm": 0.0
+    },
+    "why": [
+      "Elevates Soil Health Score to 54/100 (+13 pts vs. baseline) and changes 10-year topsoil organic carbon by -1.0 t C/ha, saving 1.9 bags/ha of 45-kg Urea via biological N fixation [RothC-lite \u00b7 SoilGrids].",
+      "Provides a 42-day Kharif-to-Rabi turnaround window for Happy Seeder / zero-till sowing with in-situ residue mulching \u2014 eliminating Oct\u2013Nov stubble burning monitored by NASA FIRMS.",
+      "Timely sowing schedule buffers crops against 122 annual extreme heat days (>35\u00b0C) and 45.1 March\u2013April terminal grain-filling heat days (>32\u00b0C) recorded by NASA POWER.",
+      "Delivers median net operating return of \u20b9117,524/ha (\u20b947,561/acre) with a worst-10% drought downside buffer (CVaR-10) of \u20b987,557/ha (\u20b935,433/acre) [CACP MSP 2024-25]. Eligible schemes: CRM Sub-Mission on Crop Residue Management (50\u201380% Happy Seeder / CHC subsidy); NFSM-Pulses & NAFED e-Samridhi Assured MSP Procurement."
+    ],
+    "provenance": [
+      {
+        "source": "Rothamsted Carbon Model (RothC-26.3)",
+        "product": "4-pool soil organic carbon turnover & ICAR N-balance model",
+        "period": null,
+        "resolution": null,
+        "doi": "10.1007/978-3-642-61094-3_17",
+        "url": null,
+        "mode": "observed"
+      },
+      {
+        "source": "NASA FIRMS",
+        "product": "MODIS / VIIRS Active Fire Detections",
+        "period": "2019-2024",
+        "resolution": null,
+        "doi": "10.5067/FIRMS/MODIS",
+        "url": "https://firms.modaps.eosdis.nasa.gov/",
+        "mode": "regional_climatology"
+      },
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IGP-corrected)",
+        "period": "1985-2024",
+        "resolution": null,
+        "doi": null,
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "CACP / Ministry of Agriculture (GoI)",
+        "product": "Minimum Support Prices (MSP 2024-25) & PAU Cost of Cultivation",
+        "period": "2024-2025",
+        "resolution": null,
+        "doi": null,
+        "url": "https://cacp.dacnet.nic.in/",
+        "mode": "observed"
+      }
+    ],
+    "currency": "INR",
+    "currency_symbol": "\u20b9",
+    "practical_metrics": {
+      "turnaround_days_kharif_rabi": 42,
+      "urea_bags_saved_per_ha": 1.9,
+      "irrigations_saved_per_yr": 0,
+      "pumping_hours_saved_per_ha": 0,
+      "msp_assurance_level": "NAFED / PSS Supported",
+      "eligible_schemes": [
+        "CRM Sub-Mission on Crop Residue Management (50\u201380% Happy Seeder / CHC subsidy)",
+        "NFSM-Pulses & NAFED e-Samridhi Assured MSP Procurement",
+        "National Mission on Edible Oils (NMEO-Oilseeds) Seed & Procurement Support"
+      ],
+      "labor_cost_inr_per_ha": 13776.0,
+      "input_cost_inr_per_ha": 49150.0
+    },
+    "narrative_summary": "Strategy 'Sunflower \u2192 Chickpea \u2192 Fallow': Against NASA GRACE-FO recorded regional water storage (TWS) decline of 0.7 cm/yr, this rotation reduces net irrigation by 0 mm/yr (0% savings) [AquaCrop]. RothC model forecasts a 10-year soil organic carbon change of -1.0 t C/ha, elevating soil health to 54/100. Under CACP/PAU price policies, median expected return is \u20b9117,524/ha with a downside buffer (CVaR-10) of \u20b987,557/ha during extreme climate drought years.",
+    "is_fallback": false
+  },
+  {
+    "rank": 3,
+    "rotation": {
+      "id": "r0014",
+      "steps": [
+        {
+          "year_index": 0,
+          "season_index": 0,
+          "crop_id": "sorghum",
+          "sowing_doy": null,
+          "practices": [
+            "residue_retained"
+          ]
+        },
+        {
+          "year_index": 0,
+          "season_index": 1,
+          "crop_id": "chickpea",
+          "sowing_doy": null,
+          "practices": [
+            "zero_till",
+            "residue_retained"
+          ]
+        },
+        {
+          "year_index": 0,
+          "season_index": 2,
+          "crop_id": "fallow",
+          "sowing_doy": null,
+          "practices": [
+            "residue_retained"
+          ]
+        }
+      ],
+      "label": "Sorghum \u2192 Chickpea \u2192 Fallow",
+      "is_baseline": false
+    },
+    "results": [
+      {
+        "rotation_id": "r0014",
+        "scenario_set_id": "historical_1yr",
+        "yield_t_ha": {
+          "sorghum": [
+            3.2,
+            3.52,
+            3.2,
+            3.52,
+            3.35,
+            3.35,
+            3.67,
+            3.19,
+            3.03,
+            3.52,
+            3.51,
+            2.72,
+            3.19,
+            3.51,
+            3.35,
+            3.67,
+            3.67,
+            3.35,
+            2.86,
+            3.2,
+            3.04,
+            3.51,
+            3.68,
+            3.5,
+            3.36,
+            3.67,
+            3.35,
+            3.34,
+            3.36,
+            3.51
+          ],
+          "chickpea": [
+            0.57,
+            0.52,
+            0.77,
+            0.86,
+            0.48,
+            0.48,
+            0.47,
+            0.37,
+            0.59,
+            0.41,
+            0.72,
+            0.46,
+            0.57,
+            0.55,
+            0.43,
+            0.61,
+            0.49,
+            0.54,
+            0.67,
+            0.63,
+            0.59,
+            0.44,
+            0.5,
+            0.39,
+            0.6,
+            0.69,
+            0.6,
+            0.69,
+            0.63,
+            0.57
+          ]
+        },
+        "irrigation_mm": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "profit_per_ha": [
+          84293.0,
+          90787.0,
+          113517.0,
+          107626.0,
+          103525.0,
+          100882.0,
+          87036.0,
+          94166.0,
+          98288.0,
+          94915.0,
+          98129.0,
+          62225.0,
+          87412.0,
+          95794.0,
+          76580.0,
+          95578.0,
+          121034.0,
+          100773.0,
+          92460.0,
+          83107.0,
+          93228.0,
+          96515.0,
+          91694.0,
+          97869.0,
+          111651.0,
+          124729.0,
+          88093.0,
+          100313.0,
+          99059.0,
+          93016.0
+        ],
+        "soc_delta_t_ha_10yr": 0.21,
+        "erosion_t_ha_yr": 1.67,
+        "n_balance_kg_ha_yr": 108.4,
+        "living_root_days_pct": 71.2,
+        "family_diversity_index": 0.693,
+        "soil_health_score": 64.6,
+        "profit_p10": 84174.4,
+        "profit_p50": 95686.0,
+        "profit_p90": 111837.6,
+        "cvar_profit_10": 73970.7
+      }
+    ],
+    "objective_scores": {
+      "profit": 95686.0,
+      "water_savings": -0.0,
+      "soil_health": 64.6,
+      "low_risk": 73970.7,
+      "low_labour": -12576.0,
+      "food_security": 1.0
+    },
+    "vs_baseline": {
+      "irrigation_change_pct": 0.0,
+      "profit_change_pct": 43.1,
+      "soil_health_change_pts": 23.5,
+      "climate_resilience_score": 95.3,
+      "profit_regret": 21715.3,
+      "irrigation_spike_mm": 0.0
+    },
+    "why": [
+      "Elevates Soil Health Score to 64/100 (+23 pts vs. baseline) and changes 10-year topsoil organic carbon by +0.2 t C/ha, saving 1.9 bags/ha of 45-kg Urea via biological N fixation [RothC-lite \u00b7 SoilGrids].",
+      "Provides a 34-day Kharif-to-Rabi turnaround window for Happy Seeder / zero-till sowing with in-situ residue mulching \u2014 eliminating Oct\u2013Nov stubble burning monitored by NASA FIRMS.",
+      "Timely sowing schedule buffers crops against 122 annual extreme heat days (>35\u00b0C) and 45.1 March\u2013April terminal grain-filling heat days (>32\u00b0C) recorded by NASA POWER.",
+      "Delivers median net operating return of \u20b995,686/ha (\u20b938,723/acre) with a worst-10% drought downside buffer (CVaR-10) of \u20b973,970/ha (\u20b929,935/acre) [CACP MSP 2024-25]. Eligible schemes: CRM Sub-Mission on Crop Residue Management (50\u201380% Happy Seeder / CHC subsidy); NFSM-Pulses & NAFED e-Samridhi Assured MSP Procurement."
+    ],
+    "provenance": [
+      {
+        "source": "Rothamsted Carbon Model (RothC-26.3)",
+        "product": "4-pool soil organic carbon turnover & ICAR N-balance model",
+        "period": null,
+        "resolution": null,
+        "doi": "10.1007/978-3-642-61094-3_17",
+        "url": null,
+        "mode": "observed"
+      },
+      {
+        "source": "NASA FIRMS",
+        "product": "MODIS / VIIRS Active Fire Detections",
+        "period": "2019-2024",
+        "resolution": null,
+        "doi": "10.5067/FIRMS/MODIS",
+        "url": "https://firms.modaps.eosdis.nasa.gov/",
+        "mode": "regional_climatology"
+      },
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IGP-corrected)",
+        "period": "1985-2024",
+        "resolution": null,
+        "doi": null,
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "CACP / Ministry of Agriculture (GoI)",
+        "product": "Minimum Support Prices (MSP 2024-25) & PAU Cost of Cultivation",
+        "period": "2024-2025",
+        "resolution": null,
+        "doi": null,
+        "url": "https://cacp.dacnet.nic.in/",
+        "mode": "observed"
+      }
+    ],
+    "currency": "INR",
+    "currency_symbol": "\u20b9",
+    "practical_metrics": {
+      "turnaround_days_kharif_rabi": 34,
+      "urea_bags_saved_per_ha": 1.9,
+      "irrigations_saved_per_yr": 0,
+      "pumping_hours_saved_per_ha": 0,
+      "msp_assurance_level": "NAFED / PSS Supported",
+      "eligible_schemes": [
+        "CRM Sub-Mission on Crop Residue Management (50\u201380% Happy Seeder / CHC subsidy)",
+        "NFSM-Pulses & NAFED e-Samridhi Assured MSP Procurement"
+      ],
+      "labor_cost_inr_per_ha": 12576.0,
+      "input_cost_inr_per_ha": 45150.0
+    },
+    "narrative_summary": "Strategy 'Sorghum \u2192 Chickpea \u2192 Fallow': Against NASA GRACE-FO recorded regional water storage (TWS) decline of 0.7 cm/yr, this rotation reduces net irrigation by 0 mm/yr (0% savings) [AquaCrop]. RothC model forecasts a 10-year soil organic carbon change of +0.2 t C/ha, elevating soil health to 64/100. Under CACP/PAU price policies, median expected return is \u20b995,686/ha with a downside buffer (CVaR-10) of \u20b973,970/ha during extreme climate drought years.",
+    "is_fallback": false
+  }
+]

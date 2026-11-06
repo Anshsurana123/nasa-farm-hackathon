@@ -15,11 +15,13 @@ import type {
   FieldProfile,
   GoldenField,
   Priorities,
+  SoilHealthCardInput,
   StrategyRecommendation,
 } from "@/types/api";
 import { api } from "@/lib/api";
 import { getFallbackStrategies } from "@/lib/fallbackStrategies";
-import { isSouthAsia } from "@/lib/ui";
+import { type UnitSystem } from "@/lib/ui";
+import { useI18n } from "@/i18n";
 
 interface SelectedParcel {
   lat: number;
@@ -37,6 +39,9 @@ interface FieldContextValue {
   priorities: Priorities;
   constraints: FarmConstraints;
   selectedRank: number;
+  unitSystem: UnitSystem;
+  soilHealthCard: SoilHealthCardInput | null;
+  baselineOverride: string[] | null;
   loading: boolean;
   optimizing: boolean;
   error: string | null;
@@ -45,28 +50,36 @@ interface FieldContextValue {
   setPriorities: (p: Priorities) => void;
   setConstraints: (c: FarmConstraints) => void;
   setSelectedRank: (rank: number) => void;
+  setUnitSystem: (u: UnitSystem) => void;
+  setSoilHealthCard: (shc: SoilHealthCardInput | null) => void;
+  setBaselineOverride: (b: string[] | null) => void;
   setStrategies: (s: StrategyRecommendation[]) => void;
-  runOptimization: (overrideP?: Priorities, overrideC?: FarmConstraints) => Promise<void>;
+  runOptimization: (
+    overrideP?: Priorities,
+    overrideC?: FarmConstraints,
+    overrideShc?: SoilHealthCardInput | null,
+    overrideBase?: string[] | null
+  ) => Promise<void>;
 }
 
 const DEFAULT_PARCEL: SelectedParcel = {
-  lat: 30.2,
-  lon: 75.92,
-  name: "Sangrur, Punjab (hero field)",
+  lat: 30.19,
+  lon: 75.78,
+  name: "Sangrur, Punjab",
 };
 
 const DEFAULT_PRIORITIES: Priorities = {
-  profit: 1.0,
-  water_savings: 1.5,
-  soil_health: 1.2,
-  low_risk: 1.0,
-  low_labour: 0.0,
-  food_security: 0.0,
+  profit: 1.5,
+  water_savings: 2.0,
+  soil_health: 1.5,
+  low_risk: 1.5,
+  low_labour: 1.0,
+  food_security: 1.0,
 };
 
 const DEFAULT_CONSTRAINTS: FarmConstraints = {
   area_ha: 2.0,
-  irrigation: "limited",
+  irrigation: "full",
   irrigation_cap_mm: undefined,
   must_grow: [],
   exclude: [],
@@ -77,6 +90,7 @@ const DEFAULT_CONSTRAINTS: FarmConstraints = {
 const FieldContext = createContext<FieldContextValue | null>(null);
 
 export function FieldProvider({ children }: { children: ReactNode }) {
+  const { lang } = useI18n();
   const [goldenFields, setGoldenFields] = useState<GoldenField[]>([]);
   const [selectedField, setSelectedField] = useState<SelectedParcel>(DEFAULT_PARCEL);
   const [selectedGoldenId, setSelectedGoldenId] = useState<string | null>("sangrur");
@@ -86,6 +100,9 @@ export function FieldProvider({ children }: { children: ReactNode }) {
   const [priorities, setPrioritiesState] = useState<Priorities>(DEFAULT_PRIORITIES);
   const [constraints, setConstraintsState] = useState<FarmConstraints>(DEFAULT_CONSTRAINTS);
   const [selectedRank, setSelectedRankState] = useState<number>(1);
+  const [unitSystem, setUnitSystemState] = useState<UnitSystem>("acre");
+  const [soilHealthCard, setSoilHealthCardState] = useState<SoilHealthCardInput | null>(null);
+  const [baselineOverride, setBaselineOverrideState] = useState<string[] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [optimizing, setOptimizing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,10 +117,18 @@ export function FieldProvider({ children }: { children: ReactNode }) {
       const savedPrio = localStorage.getItem("tl_priorities");
       const savedConst = localStorage.getItem("tl_constraints");
       const savedRank = localStorage.getItem("tl_selected_rank");
+      const savedUnit = localStorage.getItem("tl_unit_system");
 
       if (savedParcel) {
         const parsed = JSON.parse(savedParcel) as SelectedParcel;
-        if (typeof parsed.lat === "number" && typeof parsed.lon === "number") {
+        if (
+          typeof parsed.lat === "number" &&
+          typeof parsed.lon === "number" &&
+          parsed.lat >= 5 &&
+          parsed.lat <= 38.5 &&
+          parsed.lon >= 66 &&
+          parsed.lon <= 99
+        ) {
           setSelectedField(parsed);
         }
       }
@@ -116,8 +141,11 @@ export function FieldProvider({ children }: { children: ReactNode }) {
       if (savedConst) {
         setConstraintsState({ ...DEFAULT_CONSTRAINTS, ...JSON.parse(savedConst) });
       }
-      if (savedRank) {
-        setSelectedRankState(Number(savedRank) || 1);
+      if (savedRank !== null) {
+        setSelectedRankState(Number(savedRank));
+      }
+      if (savedUnit === "acre" || savedUnit === "hectare") {
+        setUnitSystemState(savedUnit);
       }
     } catch {
       // Ignore storage errors
@@ -131,7 +159,9 @@ export function FieldProvider({ children }: { children: ReactNode }) {
       .goldenFields()
       .then((fields) => {
         setGoldenFields(fields);
-        if (!localStorage.getItem("tl_selected_field")) {
+        const validIds = new Set(fields.map((f) => f.id));
+        const savedGolden = localStorage.getItem("tl_selected_golden_id");
+        if (!localStorage.getItem("tl_selected_field") || (savedGolden && !validIds.has(savedGolden))) {
           const hero = fields.find((f) => f.id === "sangrur") ?? fields[0];
           if (hero) {
             setSelectedGoldenId(hero.id);
@@ -147,7 +177,7 @@ export function FieldProvider({ children }: { children: ReactNode }) {
       .catch((err) => console.warn("Could not load crops catalog:", err));
   }, []);
 
-  // Fetch profile + initial recommendations whenever selectedField changes
+  // Fetch profile + recommendations whenever selectedField, lang, soilHealthCard, or baselineOverride changes
   useEffect(() => {
     let isCancelled = false;
     setLoading(true);
@@ -160,7 +190,19 @@ export function FieldProvider({ children }: { children: ReactNode }) {
     fetchPromise
       .then((data) => {
         if (!isCancelled) {
-          setProfile(data);
+          if (soilHealthCard) {
+            const nextSoil = { ...data.soil };
+            if (soilHealthCard.ph !== undefined && soilHealthCard.ph !== null) {
+              nextSoil.ph = soilHealthCard.ph;
+            }
+            if (soilHealthCard.soc_pct !== undefined && soilHealthCard.soc_pct !== null) {
+              nextSoil.soc_g_per_kg = Number((soilHealthCard.soc_pct * 10).toFixed(2));
+            }
+            nextSoil.source = "farmer_test";
+            setProfile({ ...data, soil: nextSoil });
+          } else {
+            setProfile(data);
+          }
           setLoading(false);
         }
       })
@@ -171,13 +213,15 @@ export function FieldProvider({ children }: { children: ReactNode }) {
         }
       });
 
-    const sym = isSouthAsia(selectedField.lat, selectedField.lon) ? "₹" : "$";
     setOptimizing(true);
     api
       .recommend({
         field: { lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name },
         priorities,
         constraints,
+        language: (lang as "en" | "pa" | "hi") || "en",
+        soil_health_card: soilHealthCard,
+        baseline_override: baselineOverride,
       })
       .then((recs) => {
         if (!isCancelled && recs && recs.length > 0) {
@@ -189,7 +233,7 @@ export function FieldProvider({ children }: { children: ReactNode }) {
           setStrategies(
             getFallbackStrategies(
               { lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name },
-              sym
+              "₹"
             )
           );
         }
@@ -201,12 +245,20 @@ export function FieldProvider({ children }: { children: ReactNode }) {
     return () => {
       isCancelled = true;
     };
-  }, [selectedField.lat, selectedField.lon, selectedGoldenId]);
+  }, [selectedField.lat, selectedField.lon, selectedGoldenId, lang, soilHealthCard, baselineOverride]);
 
   const selectGolden = useCallback((field: GoldenField) => {
     const next = { lat: field.lat, lon: field.lon, name: field.name };
+    const defaultIrr: "none" | "limited" | "full" =
+      field.id === "vidarbha" || field.id === "bundelkhand"
+        ? "none"
+        : field.id === "bathinda"
+        ? "limited"
+        : "full";
     setSelectedGoldenId(field.id);
     setSelectedField(next);
+    setBaselineOverrideState(null);
+    setConstraintsState((prev) => ({ ...prev, irrigation: defaultIrr }));
     try {
       localStorage.setItem("tl_selected_golden_id", field.id);
       localStorage.setItem("tl_selected_field", JSON.stringify(next));
@@ -218,6 +270,7 @@ export function FieldProvider({ children }: { children: ReactNode }) {
   const selectLocation = useCallback((point: SelectedParcel) => {
     setSelectedGoldenId(null);
     setSelectedField(point);
+    setBaselineOverrideState(null);
     try {
       localStorage.setItem("tl_selected_golden_id", "");
       localStorage.setItem("tl_selected_field", JSON.stringify(point));
@@ -253,17 +306,43 @@ export function FieldProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setUnitSystem = useCallback((u: UnitSystem) => {
+    setUnitSystemState(u);
+    try {
+      localStorage.setItem("tl_unit_system", u);
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  const setSoilHealthCard = useCallback((shc: SoilHealthCardInput | null) => {
+    setSoilHealthCardState(shc);
+  }, []);
+
+  const setBaselineOverride = useCallback((b: string[] | null) => {
+    setBaselineOverrideState(b);
+  }, []);
+
   const runOptimization = useCallback(
-    async (overrideP?: Priorities, overrideC?: FarmConstraints) => {
+    async (
+      overrideP?: Priorities,
+      overrideC?: FarmConstraints,
+      overrideShc?: SoilHealthCardInput | null,
+      overrideBase?: string[] | null
+    ) => {
       const pToUse = overrideP ?? priorities;
       const cToUse = overrideC ?? constraints;
-      const sym = profile?.currency_symbol ?? (isSouthAsia(selectedField.lat, selectedField.lon) ? "₹" : "$");
+      const shcToUse = overrideShc !== undefined ? overrideShc : soilHealthCard;
+      const baseToUse = overrideBase !== undefined ? overrideBase : baselineOverride;
       setOptimizing(true);
       try {
         const recs = await api.recommend({
           field: { lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name },
           priorities: pToUse,
           constraints: cToUse,
+          language: (lang as "en" | "pa" | "hi") || "en",
+          soil_health_card: shcToUse,
+          baseline_override: baseToUse,
         });
         if (recs && recs.length > 0) {
           setStrategies(recs);
@@ -272,14 +351,14 @@ export function FieldProvider({ children }: { children: ReactNode }) {
         setStrategies(
           getFallbackStrategies(
             { lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name },
-            sym
+            "₹"
           )
         );
       } finally {
         setOptimizing(false);
       }
     },
-    [selectedField, priorities, constraints, profile]
+    [selectedField, priorities, constraints, lang, soilHealthCard, baselineOverride]
   );
 
   return (
@@ -294,6 +373,9 @@ export function FieldProvider({ children }: { children: ReactNode }) {
         priorities,
         constraints,
         selectedRank,
+        unitSystem,
+        soilHealthCard,
+        baselineOverride,
         loading,
         optimizing,
         error,
@@ -302,6 +384,9 @@ export function FieldProvider({ children }: { children: ReactNode }) {
         setPriorities,
         setConstraints,
         setSelectedRank,
+        setUnitSystem,
+        setSoilHealthCard,
+        setBaselineOverride,
         setStrategies,
         runOptimization,
       }}

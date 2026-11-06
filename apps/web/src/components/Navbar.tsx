@@ -70,7 +70,7 @@ export const WORKFLOW_ROUTES = [
     href: "/crops",
     step: "05",
     key: "nav.crops",
-    shortLabel: "Crop KB (21)",
+    shortLabel: "Crop KB (23)",
     desc: "Botanical Specs & Suitability",
     icon: Sprout,
     accent: "text-emerald-400",
@@ -96,6 +96,8 @@ export function Navbar() {
     goldenFields,
     selectedField,
     selectedGoldenId,
+    unitSystem,
+    setUnitSystem,
     selectGolden,
     selectLocation,
   } = useField();
@@ -291,6 +293,35 @@ export function Navbar() {
               <Moon className="w-4 h-4 text-slate-700" />
             )}
           </button>
+
+          {/* Area Unit Switcher: Per Acre (Killa) vs Per Hectare */}
+          <div
+            className="flex items-center rounded-lg border border-line p-0.5 bg-surface text-xs font-mono"
+            title="Switch between Indian farm unit (Per Acre / Killa) and metric (Per Hectare)"
+          >
+            <button
+              type="button"
+              onClick={() => setUnitSystem("acre")}
+              className={`px-2 py-1 rounded-md font-bold transition-colors cursor-pointer text-[11px] ${
+                unitSystem === "acre"
+                  ? "bg-amber-500 text-slate-950"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              /Acre
+            </button>
+            <button
+              type="button"
+              onClick={() => setUnitSystem("hectare")}
+              className={`px-2 py-1 rounded-md font-bold transition-colors cursor-pointer text-[11px] ${
+                unitSystem === "hectare"
+                  ? "bg-amber-500 text-slate-950"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              /Ha
+            </button>
+          </div>
 
           {/* Language Switcher */}
           <div className="flex items-center rounded-lg border border-line p-0.5 bg-surface text-xs">

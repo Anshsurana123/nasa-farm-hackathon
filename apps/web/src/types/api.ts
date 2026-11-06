@@ -7,6 +7,15 @@ export interface DataProvenance {
   resolution?: string | null;
   doi?: string | null;
   url?: string | null;
+  mode?: "observed" | "regional_climatology" | "fallback_estimate";
+}
+
+export interface SoilHealthCardInput {
+  ph?: number | null;
+  soc_pct?: number | null;
+  available_n_kg_ha?: number | null;
+  available_p_kg_ha?: number | null;
+  available_k_kg_ha?: number | null;
 }
 
 export interface FieldGeometry {
@@ -94,6 +103,8 @@ export interface FieldProfile {
   agro_climatic_notes: string[];
   currency?: string;
   currency_symbol?: string;
+  agro_zone?: string | null;
+  is_fallback?: boolean;
 }
 
 export interface GoldenField {
@@ -189,6 +200,17 @@ export interface SimulationResult {
   cvar_profit_10: number;
 }
 
+export interface PracticalFarmerMetrics {
+  turnaround_days_kharif_rabi: number;
+  urea_bags_saved_per_ha: number;
+  irrigations_saved_per_yr: number;
+  pumping_hours_saved_per_ha: number;
+  msp_assurance_level: string;
+  eligible_schemes: string[];
+  labor_cost_inr_per_ha: number;
+  input_cost_inr_per_ha: number;
+}
+
 export interface StrategyRecommendation {
   rank: number;
   rotation: Rotation;
@@ -199,12 +221,27 @@ export interface StrategyRecommendation {
   provenance: DataProvenance[];
   currency?: string;
   currency_symbol?: string;
+  practical_metrics?: PracticalFarmerMetrics | null;
+  narrative_summary?: string | null;
+  is_fallback?: boolean;
 }
 
 export interface RecommendRequest {
   field: FieldGeometry;
   priorities?: Priorities;
   constraints?: FarmConstraints;
+  language?: "en" | "pa" | "hi";
+  soil_health_card?: SoilHealthCardInput | null;
+  baseline_override?: string[] | null;
+}
+
+export interface SuitabilityItem {
+  crop_id: string;
+  score: number;
+  thermal_fit: number;
+  water_fit: number;
+  sowing_months: number[];
+  reasons: string[];
 }
 
 export interface GeocodeResult {

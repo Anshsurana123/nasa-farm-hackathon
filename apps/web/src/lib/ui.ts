@@ -3,9 +3,12 @@
 
 import type { FieldProfile, SimulationResult, StrategyRecommendation } from "@/types/api";
 
+export type UnitSystem = "acre" | "hectare";
+export const ACRES_PER_HA = 2.47105;
+
 export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-export const isSouthAsia = (lat: number, lon: number) => lat >= 20 && lat <= 35 && lon >= 68 && lon <= 90;
+export const isSouthAsia = (lat: number, lon: number) => lat >= 5 && lat <= 38.5 && lon >= 66 && lon <= 99;
 
 export const mean = (xs?: number[] | null): number | null =>
   xs && xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
@@ -29,8 +32,24 @@ export const fmtMoney = (v: number | null | undefined, sym: string, compact = tr
   const sign = v < 0 ? "-" : "";
   if (compact && sym === "₹" && abs >= 100000) return `${sign}₹${(abs / 100000).toFixed(2)}L`;
   if (compact && abs >= 10000) return `${sign}${sym}${Math.round(abs / 1000)}k`;
-  return `${sign}${sym}${Math.round(abs).toLocaleString()}`;
+  return `${sign}${sym}${Math.round(abs).toLocaleString("en-IN")}`;
 };
+
+export const fmtAreaMoney = (
+  vPerHa: number | null | undefined,
+  sym: string,
+  unit: UnitSystem = "acre",
+  compact = true
+) => {
+  if (vPerHa === null || vPerHa === undefined || Number.isNaN(vPerHa)) return "—";
+  const scaled = unit === "acre" ? vPerHa / ACRES_PER_HA : vPerHa;
+  return fmtMoney(scaled, sym, compact);
+};
+
+export const fmtAreaUnit = (unit: UnitSystem = "acre") => (unit === "acre" ? "/acre" : "/ha");
+
+export const scaleByUnit = (vPerHa: number, unit: UnitSystem = "acre") =>
+  unit === "acre" ? vPerHa / ACRES_PER_HA : vPerHa;
 
 export const fmtSigned = (v: number, digits = 0, unit = "") =>
   `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(digits)}${unit}`;
@@ -149,18 +168,43 @@ export function cropMeta(cropId?: string | null): CropMeta {
   };
 }
 
+const CROP_LABELS: Record<string, string> = {
+  rice_puddled: "Puddled Rice",
+  rice_short: "Short Rice (PR-126)",
+  rice_dsr: "DSR Rice",
+  basmati: "Basmati Rice",
+  wheat: "Wheat",
+  maize: "Maize",
+  moong: "Greengram (Moong)",
+  urad: "Blackgram (Urad)",
+  groundnut: "Groundnut",
+  chickpea: "Chickpea (Chana)",
+  mustard: "Mustard (Sarson)",
+  pigeon_pea: "Pigeon Pea (Tur)",
+  pearl_millet: "Pearl Millet (Bajra)",
+  sorghum: "Sorghum (Jowar)",
+  soybean: "Soybean",
+  cotton: "Cotton",
+  lentil: "Lentil (Masoor)",
+  barley: "Barley",
+  sunflower: "Sunflower",
+  potato: "Potato",
+  sugarcane: "Sugarcane",
+  guar: "Cluster Bean (Guar)",
+  berseem: "Berseem Clover",
+  dhaincha: "Dhaincha (Green Manure)",
+  fallow: "Fallow",
+};
+
 export const cropName = (cropId: string) =>
+  CROP_LABELS[cropId] ??
   cropId
-    .replace("rice_dsr", "DSR Rice")
-    .replace("rice_puddled", "Puddled Rice")
     .replace(/_/g, " ")
     .replace(/^\w/, (m) => m.toUpperCase());
 
-export function seasonName(lat: number, lon: number, idx: number): string {
-  if (isSouthAsia(lat, lon)) return ["Kharif", "Rabi", "Zaid"][idx] ?? `S${idx + 1}`;
-  if (lat >= -10 && lat <= 12 && lon >= 25 && lon <= 50) return ["Long rains", "Short rains", "Dry"][idx] ?? `S${idx + 1}`;
-  if (lat < -10) return ["Summer", "Winter", "Spring"][idx] ?? `S${idx + 1}`;
-  return ["Summer", "Winter", "Cover"][idx] ?? `S${idx + 1}`;
+export function seasonName(lat: number, _lon: number, idx: number): string {
+  if (lat < 16.5) return ["Kuruvai (Kharif)", "Samba (Rabi)", "Navarai (Summer)"][idx] ?? `S${idx + 1}`;
+  return ["Kharif", "Rabi", "Zaid"][idx] ?? `S${idx + 1}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -211,19 +255,26 @@ export interface RegionContext {
 }
 
 export function regionContext(lat: number, lon: number, goldenId: string | null): RegionContext {
-  if (goldenId === "sangrur" || goldenId === "ludhiana" || goldenId === "bathinda" || isSouthAsia(lat, lon))
-    return { key: "punjab", icon: "IN-PB", code: "SECTOR // NW-INDIA" };
-  if (goldenId === "fresno" || (lat >= 32 && lat <= 42.5 && lon >= -125 && lon <= -114))
-    return { key: "california", icon: "US-CA", code: "SECTOR // CENTRAL-VALLEY" };
-  if (goldenId === "iowa" || (lat >= 36 && lat <= 49 && lon >= -105 && lon <= -80))
-    return { key: "cornbelt", icon: "US-IA", code: "SECTOR // CORN-BELT" };
-  if (goldenId === "machakos" || (lat >= -15 && lat <= 12 && lon >= 25 && lon <= 52))
-    return { key: "eastafrica", icon: "KE-MC", code: "SECTOR // EAST-AFRICA" };
-  return { key: "global", icon: "EO-GLB", code: "SECTOR // GLOBAL-PARCEL" };
+  if (goldenId === "vidarbha" || (lat >= 17.5 && lat <= 23.0 && lon >= 75.0 && lon <= 81.0))
+    return { key: "punjab", icon: "IN-MH", code: "SECTOR // DECCAN-VERTISOL" };
+  if (goldenId === "bundelkhand" || (lat >= 23.5 && lat <= 26.8 && lon >= 77.5 && lon <= 81.5))
+    return { key: "punjab", icon: "IN-UP", code: "SECTOR // BUNDELKHAND" };
+  if (goldenId === "thanjavur" || lat < 16.5)
+    return { key: "punjab", icon: "IN-TN", code: "SECTOR // CAUVERY-DELTA" };
+  if (goldenId === "bathinda")
+    return { key: "punjab", icon: "IN-BT", code: "SECTOR // MALWA-COTTON" };
+  return { key: "punjab", icon: "IN-PB", code: "SECTOR // INDO-GANGETIC" };
 }
 
 export const regionFlag = (id: string) =>
-  ({ sangrur: "IN·PB", ludhiana: "IN·LD", bathinda: "IN·BT", iowa: "US·IA", fresno: "US·CA", machakos: "KE·MK" })[id] ?? "GLB";
+  ({
+    sangrur: "PB·SG",
+    ludhiana: "PB·LD",
+    bathinda: "PB·BT",
+    vidarbha: "MH·VD",
+    bundelkhand: "UP·BK",
+    thanjavur: "TN·TJ",
+  })[id] ?? "IN·AG";
 
-export const currencyFor = (profile: FieldProfile | null, lat: number, lon: number) =>
-  profile?.currency_symbol ?? (isSouthAsia(lat, lon) ? "₹" : "$");
+export const currencyFor = (profile: FieldProfile | null, _lat: number, _lon: number) =>
+  profile?.currency_symbol ?? "₹";

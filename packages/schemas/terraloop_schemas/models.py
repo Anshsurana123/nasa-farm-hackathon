@@ -19,6 +19,17 @@ class DataProvenance(BaseModel):
     resolution: str | None = None
     doi: str | None = None
     url: str | None = None
+    mode: Literal["observed", "regional_climatology", "fallback_estimate"] = "observed"
+
+
+class SoilHealthCardInput(BaseModel):
+    """Optional local laboratory values from an Indian Government Soil Health Card (SHC)."""
+
+    ph: float | None = Field(None, ge=3.5, le=10.5)
+    soc_pct: float | None = Field(None, ge=0.05, le=5.0, description="Organic Carbon (%) on SHC")
+    available_n_kg_ha: float | None = Field(None, ge=0, le=1000)
+    available_p_kg_ha: float | None = Field(None, ge=0, le=500)
+    available_k_kg_ha: float | None = Field(None, ge=0, le=1500)
 
 
 # ---------------------------------------------------------------------------
@@ -116,8 +127,10 @@ class FieldProfile(BaseModel):
     seasons_per_year: int | None = None
     crop_history: list[InferredSeason] = []
     agro_climatic_notes: list[str] = []
-    currency: str = "USD"
-    currency_symbol: str = "$"
+    currency: str = "INR"
+    currency_symbol: str = "₹"
+    agro_zone: str | None = None
+    is_fallback: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -242,6 +255,32 @@ class SimulationResult(BaseModel):
     cvar_profit_10: float
 
 
+class PracticalFarmerMetrics(BaseModel):
+    """Actionable farm-level metrics in Indian agricultural units."""
+
+    turnaround_days_kharif_rabi: int = Field(
+        20, description="Days between Kharif harvest and Rabi sowing (>=20d enables burn-free sowing)"
+    )
+    urea_bags_saved_per_ha: float = Field(
+        0.0, description="45-kg Urea bags saved per ha/yr via biological N fixation and residue retention"
+    )
+    irrigations_saved_per_yr: int = Field(
+        0, description="Standard 75 mm flood irrigations saved per year vs baseline"
+    )
+    pumping_hours_saved_per_ha: int = Field(
+        0, description="5 HP submersible borewell pumping hours saved per ha/yr vs baseline"
+    )
+    msp_assurance_level: str = Field(
+        "MSP Assured (FCI / State)",
+        description="Market procurement certainty: 'MSP Assured (FCI / State)', 'NAFED / PSS Supported', or 'Mandi Market-Linked'",
+    )
+    eligible_schemes: list[str] = Field(
+        default_factory=list, description="Matching central/state Indian agricultural schemes"
+    )
+    labor_cost_inr_per_ha: float = 0.0
+    input_cost_inr_per_ha: float = 0.0
+
+
 class StrategyRecommendation(BaseModel):
     rank: int
     rotation: Rotation
@@ -252,5 +291,8 @@ class StrategyRecommendation(BaseModel):
     )
     why: list[str] = []
     provenance: list[DataProvenance] = []
-    currency: str = "USD"
-    currency_symbol: str = "$"
+    currency: str = "INR"
+    currency_symbol: str = "₹"
+    practical_metrics: PracticalFarmerMetrics | None = None
+    narrative_summary: str | None = None
+    is_fallback: bool = False

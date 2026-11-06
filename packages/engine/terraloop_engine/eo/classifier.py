@@ -2,7 +2,6 @@
 
 Pure-NumPy probabilistic multi-class classifier distinguishing Kharif rice/maize/cotton
 and Rabi wheat/mustard from HLS NDVI phenological curve parameters.
-Validated against ESA WorldCereal 2021 labels (macro F1 > 0.90).
 """
 
 from __future__ import annotations

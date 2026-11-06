@@ -1,0 +1,297 @@
+{
+  "field": {
+    "lat": 20.39,
+    "lon": 78.13,
+    "polygon": null,
+    "name": "Yavatmal (Vidarbha), Maharashtra"
+  },
+  "climate": {
+    "baseline_period": "1985-2004",
+    "recent_period": "2005-2024",
+    "mean_tmax_c": 33.73,
+    "mean_tmin_c": 20.72,
+    "annual_precip_mm": 952.8,
+    "recent_annual_precip_mm": 1063.5,
+    "precip_change_pct": 11.6,
+    "tmax_change_c": -0.47,
+    "heat_days_per_year": 122.2,
+    "recent_heat_days_per_year": 115.6,
+    "frost_days_per_year": 0.0,
+    "longest_dry_spell_days_mean": 10.4,
+    "annual_et0_mm": 1848.7,
+    "gdd_base10_per_year": 5512.0,
+    "monthly_precip_mm": [
+      11.5,
+      8.4,
+      16.4,
+      11.7,
+      17.7,
+      170.9,
+      296.9,
+      233.1,
+      162.9,
+      57.3,
+      15.1,
+      6.3
+    ],
+    "monthly_tmax_c": [
+      30.1,
+      33.9,
+      38.2,
+      42.0,
+      43.4,
+      37.0,
+      31.3,
+      29.8,
+      30.2,
+      30.5,
+      29.6,
+      29.0
+    ],
+    "monthly_tmin_c": [
+      13.1,
+      16.0,
+      20.6,
+      25.3,
+      28.7,
+      26.8,
+      24.0,
+      23.3,
+      22.6,
+      19.7,
+      15.7,
+      12.7
+    ],
+    "wettest_months": [
+      6,
+      7,
+      8,
+      9
+    ],
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": null,
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      }
+    ]
+  },
+  "water": {
+    "root_zone_moisture_percentile": [
+      35.8,
+      38.8,
+      40.5,
+      28.0,
+      27.1,
+      27.7,
+      34.5,
+      33.9,
+      32.7,
+      27.1,
+      26.7,
+      27.4
+    ],
+    "groundwater_trend_cm_per_year": -0.65,
+    "climatic_water_balance_mm": -840.5,
+    "irrigation_detected": null,
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": null,
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA GRACE / GRACE-FO",
+        "product": "Tellus Regional Terrestrial Water Storage (TWS) Mascon (JPL V04, 3° native)",
+        "period": "2002-2024",
+        "resolution": "0.5 deg grid (native ~3 deg mascon), monthly",
+        "doi": "10.5067/TEMSC-3MJ62",
+        "url": "https://grace.jpl.nasa.gov/",
+        "mode": "regional_climatology"
+      },
+      {
+        "source": "NASA SMAP",
+        "product": "SPL4SMGP (L4 Root-Zone Soil Moisture)",
+        "period": "2015-2024",
+        "resolution": "9 km, daily",
+        "doi": "10.5067/K2VT90DE20GV",
+        "url": "https://smap.jpl.nasa.gov/",
+        "mode": "regional_climatology"
+      }
+    ]
+  },
+  "soil": {
+    "texture_class": "clay",
+    "sand_pct": 26.2,
+    "silt_pct": 30.6,
+    "clay_pct": 43.2,
+    "soc_g_per_kg": 8.8,
+    "ph": 6.9,
+    "bulk_density_g_cm3": 1.59,
+    "cec_cmol_kg": 44.5,
+    "nitrogen_g_kg": 1.01,
+    "field_capacity_vol": 0.392,
+    "wilting_point_vol": 0.26,
+    "slope_pct": 1.6,
+    "source": "modelled",
+    "provenance": [
+      {
+        "source": "ISRIC SoilGrids 2.0",
+        "product": "Topsoil 0-30 cm weighted mean",
+        "period": null,
+        "resolution": "250 m",
+        "doi": "10.5194/soil-7-217-2021",
+        "url": "https://soilgrids.org/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA NASADEM",
+        "product": "NASADEM_HGT (30 m DEM)",
+        "period": null,
+        "resolution": "30 m",
+        "doi": "10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001",
+        "url": "https://earthdata.nasa.gov/",
+        "mode": "regional_climatology"
+      }
+    ]
+  },
+  "hazards": {
+    "drought_frequency": 0.15,
+    "extreme_rain_days_per_year": 1.55,
+    "heat_stress_probability": 1.0,
+    "frost_risk": 0.0,
+    "erosion_risk_class": "moderate",
+    "residue_burning_detected": false,
+    "terminal_heat_days_per_year": 45.1
+  },
+  "seasons_per_year": 2,
+  "crop_history": [
+    {
+      "year": 2020,
+      "season_index": 0,
+      "start": "2020-07-14",
+      "peak": "2020-09-02",
+      "end": "2020-10-27",
+      "crop_group": "cotton",
+      "crop_id": "cotton",
+      "confidence": 0.85,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2020,
+      "season_index": 1,
+      "start": "2020-02-05",
+      "peak": "2020-02-05",
+      "end": "2020-03-31",
+      "crop_group": "chickpea",
+      "crop_id": "chickpea",
+      "confidence": 0.85,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2021,
+      "season_index": 0,
+      "start": "2021-07-09",
+      "peak": "2021-09-07",
+      "end": "2021-10-27",
+      "crop_group": "cotton",
+      "crop_id": "cotton",
+      "confidence": 0.85,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2021,
+      "season_index": 1,
+      "start": "2020-12-26",
+      "peak": "2021-02-04",
+      "end": "2021-03-31",
+      "crop_group": "chickpea",
+      "crop_id": "chickpea",
+      "confidence": 0.85,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2022,
+      "season_index": 0,
+      "start": "2022-07-09",
+      "peak": "2022-09-07",
+      "end": "2022-11-01",
+      "crop_group": "cotton",
+      "crop_id": "cotton",
+      "confidence": 0.85,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2022,
+      "season_index": 1,
+      "start": "2021-12-26",
+      "peak": "2022-02-04",
+      "end": "2022-03-21",
+      "crop_group": "chickpea",
+      "crop_id": "chickpea",
+      "confidence": 0.85,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2023,
+      "season_index": 0,
+      "start": "2023-07-09",
+      "peak": "2023-09-07",
+      "end": "2023-10-27",
+      "crop_group": "cotton",
+      "crop_id": "cotton",
+      "confidence": 0.85,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2023,
+      "season_index": 1,
+      "start": "2022-12-26",
+      "peak": "2023-02-04",
+      "end": "2023-03-21",
+      "crop_group": "chickpea",
+      "crop_id": "chickpea",
+      "confidence": 0.85,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2024,
+      "season_index": 0,
+      "start": "2024-07-13",
+      "peak": "2024-09-06",
+      "end": "2024-10-31",
+      "crop_group": "cotton",
+      "crop_id": "cotton",
+      "confidence": 0.85,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2024,
+      "season_index": 1,
+      "start": "2023-12-26",
+      "peak": "2024-02-04",
+      "end": "2024-03-25",
+      "crop_group": "chickpea",
+      "crop_id": "chickpea",
+      "confidence": 0.85,
+      "confirmed_by_farmer": false
+    }
+  ],
+  "agro_climatic_notes": [
+    "Wheat terminal heat stress: grain-fill period (1 Mar-15 Apr) averages 45.1 days/yr with Tmax > 32 C.",
+    "Annual rainfall has increased by 12% between periods.",
+    "Evaporative demand exceeds rainfall by 840 mm/yr: crops depend on irrigation; water-efficient rotations matter."
+  ],
+  "currency": "INR",
+  "currency_symbol": "₹",
+  "agro_zone": "Western / Central Deccan Plateau (Vidarbha Black Cotton Vertisol Belt)",
+  "is_fallback": false
+}
