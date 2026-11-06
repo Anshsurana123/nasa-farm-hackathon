@@ -9,11 +9,11 @@ from __future__ import annotations
 import json
 import shutil
 import sys
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from terraloop_engine import crop_kb, profiler
-from terraloop_engine.data import nasa_power
+from terraloop_engine.data import gee, nasa_power
 from terraloop_schemas import FarmConstraints, FieldGeometry, Priorities
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -113,6 +113,45 @@ def main(ids: list[str]) -> None:
                 f"P50=INR {rk.results[0].profit_p50:,.0f}/ha, SOC_10yr={rk.results[0].soc_delta_t_ha_10yr:+.2f} t/ha)",
                 flush=True,
             )
+
+        # 4. Audit trail entry with timestamp
+        now_utc = datetime.now(UTC).isoformat()
+        audit_entry = {
+            "field_id": fid,
+            "field_name": name,
+            "coordinates": {"lat": lat, "lon": lon},
+            "timestamp_utc": now_utc,
+            "gee_live": gee.is_live(),
+            "data_mode": prof.data_mode,
+            "is_fallback": prof.is_fallback,
+            "soil_source": prof.soil.source,
+            "soil_provenance_modes": [p.mode for p in prof.soil.provenance],
+            "crop_history_seasons_detected": len(prof.crop_history),
+            "firms_residue_burning_detected": prof.hazards.residue_burning_detected,
+            "grace_tws_trend_cm_yr": prof.water.groundwater_trend_cm_per_year,
+            "smap_root_zone_months": len(prof.water.root_zone_moisture_percentile or []),
+        }
+
+        audit_path = GOLDEN / "gee_audit_log.json"
+        existing_audit = {}
+        if audit_path.exists():
+            try:
+                existing_audit = json.loads(audit_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                existing_audit = {}
+        existing_audit[fid] = audit_entry
+        audit_json_str = json.dumps(existing_audit, indent=2)
+        audit_path.write_text(audit_json_str, encoding="utf-8")
+        (WEB_GOLDEN / "gee_audit_log.json").write_text(audit_json_str, encoding="utf-8")
+
+        log_line = (
+            f"[{now_utc}] field={fid} lat={lat:.2f} lon={lon:.2f} data_mode={prof.data_mode} "
+            f"is_fallback={prof.is_fallback} seasons={len(prof.crop_history)} gee_live={gee.is_live()}\n"
+        )
+        with open(GOLDEN / "precompute.log", "a", encoding="utf-8") as f_log:
+            f_log.write(log_line)
+        with open(WEB_GOLDEN / "precompute.log", "a", encoding="utf-8") as f_log:
+            f_log.write(log_line)
 
 
 if __name__ == "__main__":

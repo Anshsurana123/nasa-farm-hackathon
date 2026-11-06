@@ -1,0 +1,44 @@
+{
+  "bundelkhand": {
+    "field_id": "bundelkhand",
+    "field_name": "Jhansi (Bundelkhand), Uttar Pradesh",
+    "coordinates": {
+      "lat": 25.38,
+      "lon": 78.62
+    },
+    "timestamp_utc": "2026-11-06T12:52:11.819479+00:00",
+    "gee_live": true,
+    "data_mode": "observed",
+    "is_fallback": false,
+    "soil_source": "modelled",
+    "soil_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "crop_history_seasons_detected": 10,
+    "firms_residue_burning_detected": false,
+    "grace_tws_trend_cm_yr": 0.39,
+    "smap_root_zone_months": 12
+  },
+  "thanjavur": {
+    "field_id": "thanjavur",
+    "field_name": "Thanjavur (Cauvery Delta), Tamil Nadu",
+    "coordinates": {
+      "lat": 10.72,
+      "lon": 79.25
+    },
+    "timestamp_utc": "2026-11-06T12:52:26.332547+00:00",
+    "gee_live": true,
+    "data_mode": "observed",
+    "is_fallback": false,
+    "soil_source": "modelled",
+    "soil_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "crop_history_seasons_detected": 12,
+    "firms_residue_burning_detected": false,
+    "grace_tws_trend_cm_yr": 0.55,
+    "smap_root_zone_months": 12
+  }
+}

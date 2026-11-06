@@ -1,7 +1,7 @@
 {
   "field": {
-    "lat": 25.45,
-    "lon": 78.57,
+    "lat": 25.38,
+    "lon": 78.62,
     "polygon": null,
     "name": "Jhansi (Bundelkhand), Uttar Pradesh"
   },
@@ -10,29 +10,29 @@
     "recent_period": "2005-2024",
     "mean_tmax_c": 33.64,
     "mean_tmin_c": 20.15,
-    "annual_precip_mm": 863.2,
-    "recent_annual_precip_mm": 948.7,
-    "precip_change_pct": 9.9,
+    "annual_precip_mm": 876.8,
+    "recent_annual_precip_mm": 958.8,
+    "precip_change_pct": 9.4,
     "tmax_change_c": -0.79,
     "heat_days_per_year": 139.8,
     "recent_heat_days_per_year": 125.5,
     "frost_days_per_year": 0.0,
     "longest_dry_spell_days_mean": 13.5,
-    "annual_et0_mm": 1823.2,
+    "annual_et0_mm": 1824.1,
     "gdd_base10_per_year": 5287.0,
     "monthly_precip_mm": [
-      14.4,
-      13.2,
-      12.0,
-      7.0,
-      17.7,
-      118.9,
-      271.6,
-      257.9,
-      157.0,
-      24.4,
-      4.7,
-      7.2
+      14.9,
+      13.3,
+      12.3,
+      6.9,
+      18.0,
+      120.7,
+      274.5,
+      260.4,
+      159.6,
+      24.3,
+      5.4,
+      7.5
     ],
     "monthly_tmax_c": [
       25.1,
@@ -94,18 +94,18 @@
       72.2,
       72.2,
       77.8,
-      65.0,
-      65.0,
-      35.0,
-      75.0,
+      70.0,
+      70.0,
+      40.0,
+      70.0,
+      60.0,
       55.0,
+      60.0,
       65.0,
-      60.0,
-      60.0,
       65.0
     ],
     "groundwater_trend_cm_per_year": 0.39,
-    "climatic_water_balance_mm": -917.3,
+    "climatic_water_balance_mm": -906.3,
     "irrigation_detected": null,
     "provenance": [
       {
@@ -147,18 +147,18 @@
     ]
   },
   "soil": {
-    "texture_class": "sandy loam",
-    "sand_pct": 62.0,
-    "silt_pct": 22.0,
-    "clay_pct": 16.0,
-    "soc_g_per_kg": 4.2,
-    "ph": 7.3,
-    "bulk_density_g_cm3": 1.52,
-    "cec_cmol_kg": null,
-    "nitrogen_g_kg": 0.48,
-    "field_capacity_vol": 0.193,
-    "wilting_point_vol": 0.101,
-    "slope_pct": 5.26,
+    "texture_class": "loam",
+    "sand_pct": 44.7,
+    "silt_pct": 31.2,
+    "clay_pct": 24.2,
+    "soc_g_per_kg": 6.5,
+    "ph": 7.4,
+    "bulk_density_g_cm3": 1.46,
+    "cec_cmol_kg": 21.2,
+    "nitrogen_g_kg": 0.94,
+    "field_capacity_vol": 0.276,
+    "wilting_point_vol": 0.152,
+    "slope_pct": 6.55,
     "source": "modelled",
     "provenance": [
       {
@@ -168,7 +168,7 @@
         "resolution": "250 m",
         "doi": "10.5194/soil-7-217-2021",
         "url": "https://soilgrids.org/",
-        "mode": "regional_climatology"
+        "mode": "observed"
       },
       {
         "source": "NASA NASADEM",
@@ -182,7 +182,7 @@
     ]
   },
   "hazards": {
-    "drought_frequency": 0.29,
+    "drought_frequency": 0.25,
     "extreme_rain_days_per_year": 0.93,
     "heat_stress_probability": 1.0,
     "frost_risk": 0.0,
@@ -210,28 +210,72 @@
       }
     ]
   },
-  "seasons_per_year": 1,
+  "seasons_per_year": 2,
   "crop_history": [
+    {
+      "year": 2020,
+      "season_index": 0,
+      "start": "2020-06-30",
+      "peak": "2020-09-08",
+      "end": "2020-10-18",
+      "crop_group": "sorghum",
+      "crop_id": "sorghum",
+      "confidence": 0.89,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2020,
+      "season_index": 1,
+      "start": "2020-01-22",
+      "peak": "2020-01-22",
+      "end": "2020-03-27",
+      "crop_group": "wheat",
+      "crop_id": "wheat",
+      "confidence": 0.96,
+      "confirmed_by_farmer": false
+    },
     {
       "year": 2021,
       "season_index": 0,
-      "start": "2021-05-21",
-      "peak": "2021-08-14",
-      "end": "2021-08-14",
+      "start": "2021-07-20",
+      "peak": "2021-09-28",
+      "end": "2021-11-27",
       "crop_group": "sorghum",
       "crop_id": "sorghum",
-      "confidence": 0.67,
+      "confidence": 0.93,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2021,
+      "season_index": 1,
+      "start": "2020-11-17",
+      "peak": "2021-01-21",
+      "end": "2021-03-22",
+      "crop_group": "wheat",
+      "crop_id": "wheat",
+      "confidence": 0.96,
       "confirmed_by_farmer": false
     },
     {
       "year": 2022,
       "season_index": 0,
-      "start": "2022-09-18",
-      "peak": "2022-09-18",
-      "end": "2022-12-27",
+      "start": "2022-06-30",
+      "peak": "2022-09-08",
+      "end": "2022-09-08",
       "crop_group": "sorghum",
       "crop_id": "sorghum",
-      "confidence": 0.69,
+      "confidence": 0.96,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2022,
+      "season_index": 1,
+      "start": "2021-11-27",
+      "peak": "2022-01-26",
+      "end": "2022-04-01",
+      "crop_group": "wheat",
+      "crop_id": "wheat",
+      "confidence": 0.96,
       "confirmed_by_farmer": false
     },
     {
@@ -239,10 +283,43 @@
       "season_index": 0,
       "start": "2023-06-30",
       "peak": "2023-09-13",
-      "end": "2024-01-06",
+      "end": "2023-10-28",
       "crop_group": "sorghum",
       "crop_id": "sorghum",
-      "confidence": 0.69,
+      "confidence": 0.96,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2023,
+      "season_index": 1,
+      "start": "2022-11-22",
+      "peak": "2023-01-11",
+      "end": "2023-03-22",
+      "crop_group": "wheat",
+      "crop_id": "wheat",
+      "confidence": 0.96,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2024,
+      "season_index": 0,
+      "start": "2024-06-29",
+      "peak": "2024-09-17",
+      "end": "2024-10-22",
+      "crop_group": "sorghum",
+      "crop_id": "sorghum",
+      "confidence": 0.96,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2024,
+      "season_index": 1,
+      "start": "2023-11-17",
+      "peak": "2024-01-11",
+      "end": "2024-03-31",
+      "crop_group": "wheat",
+      "crop_id": "wheat",
+      "confidence": 0.96,
       "confirmed_by_farmer": false
     }
   ],
@@ -259,12 +336,11 @@
   ],
   "agro_climatic_notes": [
     "Wheat terminal heat stress: grain-fill period (1 Mar-15 Apr) averages 40.6 days/yr with Tmax > 32 C.",
-    "Evaporative demand exceeds rainfall by 917 mm/yr: crops depend on irrigation; water-efficient rotations matter.",
-    "Topsoil organic carbon is low (4.2 g/kg): residue retention and legumes help."
+    "Evaporative demand exceeds rainfall by 906 mm/yr: crops depend on irrigation; water-efficient rotations matter."
   ],
   "currency": "INR",
   "currency_symbol": "₹",
   "agro_zone": "Central Plateau & Hills (Bundelkhand Semi-Arid Zone)",
-  "is_fallback": true,
-  "data_mode": "fallback_synthetic"
+  "is_fallback": false,
+  "data_mode": "observed"
 }

@@ -763,6 +763,29 @@ def test_soil_health_breakdown_and_observed_golden_provenance():
     assert bd["total_score"] == top_rec.results[0].soil_health_score
 
 
+def test_igp_march_tmax_bias_correction_matches_imd_normal():
+    """Verify that Indo-Gangetic bias correction on NASA POWER T2M_MAX matches the IMD 1981-2010 normal within 1.0 C.
+
+    IMD Station 42099 (Ludhiana P.A.U.) Climatological Tables 1981-2010 reports March Mean Daily
+    Maximum Temperature (Tmax) of 27.3 C. Raw MERRA-2 exhibits an un-irrigated warm bias (~31.8 to 32.3 C).
+    After applying the -4.5 C offset, the March mean must fall within 1.0 C of the 27.3 C IMD normal.
+    """
+    from terraloop_engine.data import nasa_power
+
+    # Test across 30-year synthetic climatology baseline for Ludhiana (30.82 N, 75.68 E)
+    df_raw = nasa_power.synthetic_daily_weather(30.82, 75.68, (1981, 2010))
+    raw_mar = float(df_raw[df_raw.index.month == 3]["T2M_MAX"].mean())
+    assert raw_mar > 31.0, f"Expected uncorrected MERRA-2 warm bias > 31 C, got {raw_mar:.2f} C"
+
+    df_cor = nasa_power.apply_igp_irrigation_bias_correction(df_raw, 30.82, 75.68)
+    cor_mar = float(df_cor[df_cor.index.month == 3]["T2M_MAX"].mean())
+
+    imd_ludhiana_normal = 27.3
+    assert abs(cor_mar - imd_ludhiana_normal) <= 1.0, (
+        f"Corrected March Tmax {cor_mar:.2f} C deviates from IMD normal {imd_ludhiana_normal} C by > 1.0 C"
+    )
+
+
 def test_benchmarks_doc_matches_live_engine_reproducibility():
     """Enforce that committed docs/BENCHMARKS.md matches live engine execution 100%."""
     import importlib.util

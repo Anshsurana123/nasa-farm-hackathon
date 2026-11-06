@@ -370,7 +370,7 @@ NASA/
 │   ├── engine/              # Python: profiler, simulation, optimiser, risk
 │   │   ├── data/            # NASA + soil clients (GEE, earthaccess, POWER, AppEEARS)
 │   │   ├── eo/              # phenology, crop-history classifier, boundaries
-│   │   ├── models/          # aquacrop_runner, rothc, rusle, nbalance, soil_health
+│   │   ├── models/          # fao56_runner (aquacrop_runner shim), rothc, rusle, nbalance, soil_health
 │   │   ├── climate/         # ensembles, CMIP6 bias correction
 │   │   ├── optimize/        # nsga2, surrogate, priority selection
 │   │   └── explain/         # why-cards, LLM tools

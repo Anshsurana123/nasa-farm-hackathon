@@ -42,8 +42,8 @@
   {
     "id": "bundelkhand",
     "name": "Jhansi (Bundelkhand), Uttar Pradesh",
-    "lat": 25.45,
-    "lon": 78.57,
+    "lat": 25.38,
+    "lon": 78.62,
     "region": "Central Semi-Arid Hard-Rock Drought Zone",
     "story": "Chronic water scarcity and shallow red-black soils with high runoff—transitioning to drought-hardy pearl millet, sorghum, urad, groundnut, lentil, and mustard rotations.",
     "baseline_rotation": "sorghum -> wheat",
@@ -52,8 +52,8 @@
   {
     "id": "thanjavur",
     "name": "Thanjavur (Cauvery Delta), Tamil Nadu",
-    "lat": 10.79,
-    "lon": 79.14,
+    "lat": 10.72,
+    "lon": 79.25,
     "region": "Southern Coastal Alluvial Rice Bowl",
     "story": "Frost-free tropical delta with SW + NE monsoon bimodal rain—replacing water-heavy double puddled paddy with DSR + rice-fallow blackgram (urad) and greengram (moong) pulses.",
     "baseline_rotation": "rice_puddled -> rice_puddled -> urad",

@@ -77,7 +77,7 @@ Composite 0–100 index mapping rotation outputs directly onto the **5 USDA-NRCS
   - Rabi (Winter, peak in Jan–Apr): Peak in January $\rightarrow$ Mustard; peak in Feb–Apr $\rightarrow$ Wheat.
   - Zaid (Pre-monsoon, peak in May–Jun) $\rightarrow$ Summer Moong or fodder.
 
-## Crop Simulation: FAO-56 / FAO-33 Daily Soil-Water Balance (implemented: `models/aquacrop_runner.py`, TASK-M02, M03)
+## Crop Simulation: FAO-56 / FAO-33 Daily Soil-Water Balance (implemented: `models/fao56_runner.py` with `aquacrop_runner.py` shim, TASK-M02, M03)
 - Daily root-zone soil-water-crop simulation based on FAO Irrigation & Drainage Paper No. 56 (Allen et al., 1998) and Paper No. 33 (Doorenbos & Kassam, 1979):
   - Daily crop evapotranspiration $ET_c = K_c(t) \times ET_0$ with 4-stage piecewise linear $K_c$ curve (`kc_ini`, `kc_mid`, `kc_end`) and $-10\%$ evaporation reduction under retained surface mulch (`happy_seeder` / `residue_retained`).
   - Root-zone water balance across Total Available Water ($TAW = 1000(\theta_{FC} - \theta_{WP})Z_r$) and Readily Available Water ($RAW = p \cdot TAW$) using Saxton-Rawls (2006) hydraulic properties, daily depletion $D_{r,t}$, and water stress coefficient $K_s(t)$.

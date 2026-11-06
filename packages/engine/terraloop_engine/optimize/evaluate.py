@@ -26,7 +26,10 @@ from terraloop_schemas import (
 )
 
 from terraloop_engine import crop_kb
-from terraloop_engine.models import aquacrop_runner, economics, rusle, soil_health
+from terraloop_engine.models import economics, fao56_runner, rusle, soil_health
+
+# Backward-compatible alias
+aquacrop_runner = fao56_runner
 from terraloop_engine.optimize import rotations as rot_mod
 
 

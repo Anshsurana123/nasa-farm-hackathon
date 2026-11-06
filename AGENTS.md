@@ -35,7 +35,7 @@ packages/engine/            all science + logic, NO web code here
     models/agroclimate.py   ET0, GDD, dry spells                           [WORKING]
     models/soil.py          texture class, Saxton-Rawls                    [WORKING]
     models/rusle.py         erosion (REFERENCE STYLE for all models)       [WORKING]
-    models/aquacrop_runner.py  yield/water simulation                      [STUB + spec]
+    models/fao56_runner.py     yield/water simulation (aquacrop_runner shim)  [WORKING]
     models/soil_health.py   RothC-lite, N balance, soil health score       [PARTIAL]
     climate/ensembles.py    historical + CMIP6 scenarios                   [STUBS]
     optimize/rotations.py   candidate generation + constraints             [WORKING]
@@ -99,7 +99,7 @@ FieldProfile + FarmConstraints
   └─ suitability.rank_crops ──> candidate crop list
   └─ optimize.rotations.generate_rotations ──> list[Rotation]   (+ baseline_rice_wheat)
 Rotation x ScenarioSet (climate.ensembles)
-  └─ models.aquacrop_runner.simulate_rotation  -> yields, irrigation
+  └─ models.fao56_runner.simulate_rotation  -> yields, irrigation
   └─ models.soil_health (RothC, N, score), models.rusle -> SimulationResult
 list[SimulationResult] + Priorities
   └─ optimize.selection.select_top ──> top 3 ──> explain.why_cards ──> StrategyRecommendation

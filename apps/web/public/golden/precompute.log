@@ -1,0 +1,2 @@
+[2026-11-06T12:52:11.819479+00:00] field=bundelkhand lat=25.38 lon=78.62 data_mode=observed is_fallback=False seasons=10 gee_live=True
+[2026-11-06T12:52:26.332547+00:00] field=thanjavur lat=10.72 lon=79.25 data_mode=observed is_fallback=False seasons=12 gee_live=True

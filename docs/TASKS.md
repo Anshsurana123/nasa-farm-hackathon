@@ -47,7 +47,7 @@ Legend: ✅ done · ⬜ todo · 🟡 partial
 | ✔ | ID | Task | Needs | AC |
 |---|---|---|---|---|
 | ✅ | M01 | Review all 21 crop YAMLs against sources; add AquaCrop parameter overrides for crops with `aquacrop_name: null` in `packages/crop-kb/aquacrop_params/<id>.yaml` | n/a | Every crop has either a built-in name or an override file |
-| ✅ | M02 | `aquacrop_runner.to_aquacrop_weather` + `simulate_rotation` (spec in docstring) | M01 | Wheat at Ludhiana 2010–2020 mean yield 3.5–6 t/ha; rice irrigation > maize irrigation |
+| ✅ | M02 | `fao56_runner.to_daily_simulation_weather` + `simulate_rotation` (`aquacrop_runner.py` shim) | M01 | Wheat at Ludhiana 2010–2020 mean yield 3.5–6 t/ha; rice irrigation > maize irrigation |
 | ✅ | M03 | Puddled vs DSR rice calibration | M02 | DSR irrigation 10–30% below puddled; yields within 15% |
 | ✅ | M05 | `rothc_lite` (spec in docstring) | n/a | Constant inputs → SOC converges; residue burning → lower SOC than retention over 10 yrs |
 | ✅ | M06 | `n_balance` | n/a | Legume season shows lower fertiliser need |
@@ -112,7 +112,7 @@ Add one line per finished task: `YYYY-MM-DD TASK-ID: what changed, anything surp
 2026-10-05 M07: Implemented soil_health_score on 5 USDA-NRCS principles + SOC delta + RUSLE erosion; documented weights in METHODOLOGY.md.
 2026-10-05 C01: Implemented historical_members (moving multi-year blocks) & quantile_map in climate/ensembles.py; verified >=30 members.
 2026-10-05 M08: Compiled packages/crop-kb/economics/punjab.yaml with CACP/PAU MSP and cultivation costs; implemented profit_per_ha in models/economics.py.
-2026-10-05 M02: Implemented to_aquacrop_weather & simulate_rotation in models/aquacrop_runner.py; verified wheat yield & rice/maize irrigation.
+2026-10-05 M02: Implemented to_daily_simulation_weather & simulate_rotation in models/fao56_runner.py (with aquacrop_runner.py compatibility shim); verified wheat yield & rice/maize irrigation.
 2026-10-05 M03: Calibrated puddled vs DSR rice (24.2% water saving, yields within 5-10%); passed calibration test.
 2026-10-05 O02: Implemented evaluate_rotation & evaluate_candidates in optimize/evaluate.py; baseline vs regenerative alternatives produce distinct multi-objective trade-offs in < 5s.
 2026-10-05 A03: Wired /recommend endpoint in terraloop_api/main.py connecting profile -> suitability -> candidates -> simulation -> selection -> why-cards.
