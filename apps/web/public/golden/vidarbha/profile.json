@@ -10,9 +10,9 @@
     "recent_period": "2005-2024",
     "mean_tmax_c": 33.73,
     "mean_tmin_c": 20.72,
-    "annual_precip_mm": 952.8,
-    "recent_annual_precip_mm": 1063.5,
-    "precip_change_pct": 11.6,
+    "annual_precip_mm": 1119.3,
+    "recent_annual_precip_mm": 1152.9,
+    "precip_change_pct": 3.0,
     "tmax_change_c": -0.47,
     "heat_days_per_year": 122.2,
     "recent_heat_days_per_year": 115.6,
@@ -21,18 +21,18 @@
     "annual_et0_mm": 1848.7,
     "gdd_base10_per_year": 5512.0,
     "monthly_precip_mm": [
-      11.5,
-      8.4,
-      16.4,
-      11.7,
-      17.7,
-      170.9,
-      296.9,
-      233.1,
-      162.9,
-      57.3,
-      15.1,
-      6.3
+      10.2,
+      6.9,
+      21.6,
+      16.8,
+      18.3,
+      191.3,
+      377.3,
+      240.6,
+      195.8,
+      44.9,
+      11.2,
+      1.2
     ],
     "monthly_tmax_c": [
       30.1,
@@ -77,26 +77,35 @@
         "doi": null,
         "url": "https://power.larc.nasa.gov/",
         "mode": "observed"
+      },
+      {
+        "source": "NASA GPM IMERG",
+        "product": "GPM_3IMERGDF (V07)",
+        "period": "2000-2024",
+        "resolution": "0.1 deg, daily",
+        "doi": "10.5067/GPM/IMERGDF/DAY/07",
+        "url": "https://gpm.nasa.gov/data/imerg",
+        "mode": "observed"
       }
     ]
   },
   "water": {
     "root_zone_moisture_percentile": [
-      35.8,
-      38.8,
-      40.5,
-      28.0,
-      27.1,
-      27.7,
-      34.5,
-      33.9,
-      32.7,
-      27.1,
-      26.7,
-      27.4
+      72.2,
+      72.2,
+      72.2,
+      70.0,
+      90.0,
+      65.0,
+      60.0,
+      75.0,
+      75.0,
+      60.0,
+      55.0,
+      75.0
     ],
-    "groundwater_trend_cm_per_year": -0.65,
-    "climatic_water_balance_mm": -840.5,
+    "groundwater_trend_cm_per_year": 1.11,
+    "climatic_water_balance_mm": -712.6,
     "irrigation_detected": null,
     "provenance": [
       {
@@ -109,22 +118,31 @@
         "mode": "observed"
       },
       {
+        "source": "NASA GPM IMERG",
+        "product": "GPM_3IMERGDF (V07)",
+        "period": "2000-2024",
+        "resolution": "0.1 deg, daily",
+        "doi": "10.5067/GPM/IMERGDF/DAY/07",
+        "url": "https://gpm.nasa.gov/data/imerg",
+        "mode": "observed"
+      },
+      {
         "source": "NASA GRACE / GRACE-FO",
         "product": "Tellus Regional Terrestrial Water Storage (TWS) Mascon (JPL V04, 3° native)",
         "period": "2002-2024",
         "resolution": "0.5 deg grid (native ~3 deg mascon), monthly",
         "doi": "10.5067/TEMSC-3MJ62",
         "url": "https://grace.jpl.nasa.gov/",
-        "mode": "regional_climatology"
+        "mode": "observed"
       },
       {
         "source": "NASA SMAP",
-        "product": "SPL4SMGP (L4 Root-Zone Soil Moisture)",
+        "product": "SPL4SMGP V008 (L4 Root-Zone Soil Moisture)",
         "period": "2015-2024",
         "resolution": "9 km, daily",
         "doi": "10.5067/K2VT90DE20GV",
         "url": "https://smap.jpl.nasa.gov/",
-        "mode": "regional_climatology"
+        "mode": "observed"
       }
     ]
   },
@@ -140,7 +158,7 @@
     "nitrogen_g_kg": 1.01,
     "field_capacity_vol": 0.392,
     "wilting_point_vol": 0.26,
-    "slope_pct": 1.6,
+    "slope_pct": 4.2,
     "source": "modelled",
     "provenance": [
       {
@@ -159,139 +177,71 @@
         "resolution": "30 m",
         "doi": "10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001",
         "url": "https://earthdata.nasa.gov/",
-        "mode": "regional_climatology"
+        "mode": "observed"
       }
     ]
   },
   "hazards": {
-    "drought_frequency": 0.15,
+    "drought_frequency": 0.08,
     "extreme_rain_days_per_year": 1.55,
     "heat_stress_probability": 1.0,
     "frost_risk": 0.0,
-    "erosion_risk_class": "moderate",
+    "erosion_risk_class": "high",
     "residue_burning_detected": false,
-    "terminal_heat_days_per_year": 45.1
+    "terminal_heat_days_per_year": 45.1,
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": null,
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA FIRMS",
+        "product": "MODIS / VIIRS Active Fire Detections",
+        "period": "2019-2024",
+        "resolution": "375 m / 1 km",
+        "doi": "10.5067/FIRMS/MODIS",
+        "url": "https://firms.modaps.eosdis.nasa.gov/",
+        "mode": "observed"
+      }
+    ]
   },
-  "seasons_per_year": 2,
+  "seasons_per_year": 1,
   "crop_history": [
     {
       "year": 2020,
       "season_index": 0,
-      "start": "2020-07-14",
-      "peak": "2020-09-02",
-      "end": "2020-10-27",
+      "start": "2020-06-10",
+      "peak": "2020-10-18",
+      "end": "2021-03-07",
       "crop_group": "cotton",
       "crop_id": "cotton",
-      "confidence": 0.85,
+      "confidence": 0.65,
       "confirmed_by_farmer": false
-    },
+    }
+  ],
+  "crop_history_provenance": [
     {
-      "year": 2020,
-      "season_index": 1,
-      "start": "2020-02-05",
-      "peak": "2020-02-05",
-      "end": "2020-03-31",
-      "crop_group": "chickpea",
-      "crop_id": "chickpea",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2021,
-      "season_index": 0,
-      "start": "2021-07-09",
-      "peak": "2021-09-07",
-      "end": "2021-10-27",
-      "crop_group": "cotton",
-      "crop_id": "cotton",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2021,
-      "season_index": 1,
-      "start": "2020-12-26",
-      "peak": "2021-02-04",
-      "end": "2021-03-31",
-      "crop_group": "chickpea",
-      "crop_id": "chickpea",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2022,
-      "season_index": 0,
-      "start": "2022-07-09",
-      "peak": "2022-09-07",
-      "end": "2022-11-01",
-      "crop_group": "cotton",
-      "crop_id": "cotton",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2022,
-      "season_index": 1,
-      "start": "2021-12-26",
-      "peak": "2022-02-04",
-      "end": "2022-03-21",
-      "crop_group": "chickpea",
-      "crop_id": "chickpea",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2023,
-      "season_index": 0,
-      "start": "2023-07-09",
-      "peak": "2023-09-07",
-      "end": "2023-10-27",
-      "crop_group": "cotton",
-      "crop_id": "cotton",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2023,
-      "season_index": 1,
-      "start": "2022-12-26",
-      "peak": "2023-02-04",
-      "end": "2023-03-21",
-      "crop_group": "chickpea",
-      "crop_id": "chickpea",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2024,
-      "season_index": 0,
-      "start": "2024-07-13",
-      "peak": "2024-09-06",
-      "end": "2024-10-31",
-      "crop_group": "cotton",
-      "crop_id": "cotton",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2024,
-      "season_index": 1,
-      "start": "2023-12-26",
-      "peak": "2024-02-04",
-      "end": "2024-03-25",
-      "crop_group": "chickpea",
-      "crop_id": "chickpea",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
+      "source": "NASA HLS",
+      "product": "HLSL30 / HLSS30 (Harmonized Landsat Sentinel-2)",
+      "period": "2019-2024",
+      "resolution": "30 m, 2-3 day",
+      "doi": "10.5067/HLS/HLSL30.002",
+      "url": "https://hls.gsfc.nasa.gov/",
+      "mode": "observed"
     }
   ],
   "agro_climatic_notes": [
     "Wheat terminal heat stress: grain-fill period (1 Mar-15 Apr) averages 45.1 days/yr with Tmax > 32 C.",
-    "Annual rainfall has increased by 12% between periods.",
-    "Evaporative demand exceeds rainfall by 840 mm/yr: crops depend on irrigation; water-efficient rotations matter."
+    "Evaporative demand exceeds rainfall by 713 mm/yr: crops depend on irrigation; water-efficient rotations matter."
   ],
   "currency": "INR",
   "currency_symbol": "₹",
   "agro_zone": "Western / Central Deccan Plateau (Vidarbha Black Cotton Vertisol Belt)",
-  "is_fallback": false
+  "is_fallback": false,
+  "data_mode": "observed"
 }

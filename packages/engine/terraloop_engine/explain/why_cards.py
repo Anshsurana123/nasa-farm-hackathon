@@ -14,11 +14,12 @@ from terraloop_schemas import DataProvenance, FieldProfile, StrategyRecommendati
 
 from ..data import gee
 
-_AQUACROP_PROV = DataProvenance(
-    source="FAO-56 / AquaCrop Soil-Water Balance",
+_FAO56_PROV = DataProvenance(
+    source="FAO-56 / FAO-33 Soil-Water Balance",
     product="Daily root-zone depletion, percolation & thermal stress model",
     period="1985-2024",
-    url="https://www.fao.org/land-water/databases-and-software/aquacrop/en/",
+    doi="10.1016/S0378-3774(98)00051-8",
+    url="https://www.fao.org/3/x0490e/x0490e00.htm",
     mode="observed",
 )
 
@@ -101,39 +102,39 @@ def why_cards(
             if language == "hi":
                 cards.append(
                     f"आधार फसल चक्र की तुलना में {int(pct_saved)}% सिंचाई जल ({int(diff_mm)} मिमी/वर्ष — लगभग "
-                    f"{irr_saved_cnt:.0f} पानी और {int(pump_hrs)} घंटे/हेक्टेयर 5-HP ट्यूबवेल पंपिंग) बचाता है [AquaCrop]। "
+                    f"{irr_saved_cnt:.0f} पानी और {int(pump_hrs)} घंटे/हेक्टेयर 5-HP ट्यूबवेल पंपिंग) बचाता है [FAO-56]। "
                     f"NASA GRACE क्षेत्रीय जल भंडारण (TWS) में {abs(gw_trend):.1f} सेमी/वर्ष की गिरावट को देखते हुए यह अत्यंत महत्वपूर्ण है।"
                 )
             elif language == "pa":
                 cards.append(
                     f"ਬੇਸਲਾਈਨ ਫ਼ਸਲੀ ਚੱਕਰ ਦੇ ਮੁਕਾਬਲੇ {int(pct_saved)}% ਸਿੰਚਾਈ ਪਾਣੀ ({int(diff_mm)} ਮਿਲੀਮੀਟਰ/ਸਾਲ — ਲਗਭਗ "
-                    f"{irr_saved_cnt:.0f} ਪਾਣੀ ਅਤੇ {int(pump_hrs)} ਘੰਟੇ/ਹੈਕਟੇਅਰ 5-HP ਮੋਟਰ ਪੰਪਿੰਗ) ਬਚਾਉਂਦਾ ਹੈ [AquaCrop]। "
+                    f"{irr_saved_cnt:.0f} ਪਾਣੀ ਅਤੇ {int(pump_hrs)} ਘੰਟੇ/ਹੈਕਟੇਅਰ 5-HP ਮੋਟਰ ਪੰਪਿੰਗ) ਬਚਾਉਂਦਾ ਹੈ [FAO-56]। "
                     f"NASA GRACE ਖੇਤਰੀ ਪਾਣੀ ਭੰਡਾਰ (TWS) ਵਿੱਚ {abs(gw_trend):.1f} ਸੈਂਟੀਮੀਟਰ/ਸਾਲ ਦੀ ਗਿਰਾਵਟ ਨੂੰ ਰੋਕਣ ਲਈ ਇਹ ਬਹੁਤ ਜ਼ਰੂਰੀ ਹੈ।"
                 )
             else:
                 cards.append(
                     f"Saves {int(pct_saved)}% irrigation water ({int(diff_mm)} mm/yr — ~{irr_saved_cnt:.0f} flood irrigations "
-                    f"and {int(pump_hrs)} hrs/ha of 5-HP borewell pumping) vs. baseline [AquaCrop]. "
+                    f"and {int(pump_hrs)} hrs/ha of 5-HP borewell pumping) vs. baseline [FAO-56]. "
                     f"Directly counters regional GRACE-FO terrestrial water storage decline of {abs(gw_trend):.1f} cm/yr."
                 )
-            provenances.extend([_AQUACROP_PROV, gee.provenance_with_mode(_GRACE_PROV)])
+            provenances.extend([_FAO56_PROV, gee.provenance_with_mode(_GRACE_PROV)])
         elif diff_mm < -30:
             if language == "hi":
                 cards.append(
-                    f"फसल सघनता के लिए {int(abs(diff_mm))} मिमी/वर्ष अतिरिक्त सिंचाई की आवश्यकता है [AquaCrop], "
+                    f"फसल सघनता के लिए {int(abs(diff_mm))} मिमी/वर्ष अतिरिक्त सिंचाई की आवश्यकता है [FAO-56], "
                     f"जिसकी भरपाई उच्च शुद्ध लाभ और मृदा सुधार से होती है।"
                 )
             elif language == "pa":
                 cards.append(
-                    f"ਫ਼ਸਲ ਦੀ ਸਘਨਤਾ ਲਈ {int(abs(diff_mm))} ਮਿਲੀਮੀਟਰ/ਸਾਲ ਵਾਧੂ ਸਿੰਚਾਈ ਦੀ ਲੋੜ ਹੈ [AquaCrop], "
+                    f"ਫ਼ਸਲ ਦੀ ਸਘਨਤਾ ਲਈ {int(abs(diff_mm))} ਮਿਲੀਮੀਟਰ/ਸਾਲ ਵਾਧੂ ਸਿੰਚਾਈ ਦੀ ਲੋੜ ਹੈ [FAO-56], "
                     f"ਜਿਸਦੀ ਭਰਪਾਈ ਵੱਧ ਮੁਨਾਫ਼ੇ ਅਤੇ ਮਿੱਟੀ ਦੀ ਸਿਹਤ ਨਾਲ ਹੁੰਦੀ ਹੈ।"
                 )
             else:
                 cards.append(
-                    f"Requires {int(abs(diff_mm))} mm/yr additional irrigation to support crop intensification [AquaCrop], "
+                    f"Requires {int(abs(diff_mm))} mm/yr additional irrigation to support crop intensification [FAO-56], "
                     f"compensated by higher net margins and soil carbon restoration."
                 )
-            provenances.append(_AQUACROP_PROV)
+            provenances.append(_FAO56_PROV)
 
     # 2. Soil Health, Carbon & 45-kg Urea Bags card
     soc_delta = sim_res.soc_delta_t_ha_10yr
@@ -254,7 +255,7 @@ def grounded_llm_explain(
 ) -> str:
     """TASK-X02: Grounded agronomic explainer.
 
-    Strictly restricted to verified numbers produced by AquaCrop, RothC, GRACE,
+    Strictly restricted to verified numbers produced by FAO-56, RothC, GRACE,
     POWER, and CACP. Never invents or speculates on numeric parameters.
     Supports 'en', 'pa' (Punjabi), and 'hi' (Hindi).
     """
@@ -289,21 +290,21 @@ def grounded_llm_explain(
         text = (
             f"रणनीति '{rot_name}': नासा GRACE उपग्रह द्वारा दर्ज {gw_trend:.1f} सेमी/वर्ष क्षेत्रीय जल भंडारण (TWS) गिरावट के "
             f"विरुद्ध, यह चक्र आधार की तुलना में प्रति वर्ष {int(irr_saved)} मिमी ({int(irr_saved_pct)}%) सिंचाई जल की बचत करता है "
-            f"[AquaCrop]। RothC मॉडल के अनुसार, यह 10 वर्षों में मिट्टी में {soc_c:+.1f} टन कार्बन/हेक्टेयर का परिवर्तन करता है "
+            f"[FAO-56]। RothC मॉडल के अनुसार, यह 10 वर्षों में मिट्टी में {soc_c:+.1f} टन कार्बन/हेक्टेयर का परिवर्तन करता है "
             f"और मृदा स्वास्थ्य स्कोर को {score}/100 तक बढ़ाता है। CACP न्यूनतम समर्थन मूल्य अनुसार, अपेक्षित वार्षिक लाभ "
             f"₹{p50:,}/हेक्टेयर है, जबकि गंभीर जलवायु प्रतिकूलता में न्यूनतम डाउनसाइड सुरक्षा (CVaR-10) ₹{cvar:,}/हेक्टेयर सुनिश्चित रहती है।"
         )
     elif language == "pa":
         text = (
             f"ਰਣਨੀਤੀ '{rot_name}': ਨਾਸਾ GRACE ਵੱਲੋਂ ਦਰਜ {gw_trend:.1f} ਸੈਂਟੀਮੀਟਰ/ਸਾਲ ਖੇਤਰੀ ਪਾਣੀ ਭੰਡਾਰ (TWS) ਦੇ ਨਿਘਾਰ ਦੇ ਮੁਕਾਬਲੇ, "
-            f"ਇਹ ਚੱਕਰ ਬੇਸਲਾਈਨ ਨਾਲੋਂ {int(irr_saved)} ਮਿਲੀਮੀਟਰ ({int(irr_saved_pct)}%) ਸਿੰਚਾਈ ਪਾਣੀ ਦੀ ਬਚਤ ਕਰਦਾ ਹੈ [AquaCrop]। "
+            f"ਇਹ ਚੱਕਰ ਬੇਸਲਾਈਨ ਨਾਲੋਂ {int(irr_saved)} ਮਿਲੀਮੀਟਰ ({int(irr_saved_pct)}%) ਸਿੰਚਾਈ ਪਾਣੀ ਦੀ ਬਚਤ ਕਰਦਾ ਹੈ [FAO-56]। "
             f"RothC ਮਾਡਲ ਅਨੁਸਾਰ ਇਹ 10 ਸਾਲਾਂ ਵਿੱਚ ਮਿੱਟੀ ਵਿੱਚ {soc_c:+.1f} ਟਨ ਕਾਰਬਨ/ਹੈਕਟੇਅਰ ਦਾ ਵਾਧਾ ਕਰਕੇ ਮਿੱਟੀ ਸਿਹਤ ਸਕੋਰ {score}/100 "
             f"ਤੱਕ ਪਹੁੰਚਾਉਂਦਾ ਹੈ। CACP ਮੁੱਲਾਂ ਮੁਤਾਬਕ ਔਸਤ ਸਾਲਾਨਾ ਮੁਨਾਫ਼ਾ ₹{p50:,}/ਹੈਕਟੇਅਰ ਅਤੇ ਸੋਕੇ ਦੇ ਸਾਲਾਂ ਵਿੱਚ ਸੁਰੱਖਿਅਤ ਸੀਮਾ (CVaR-10) ₹{cvar:,}/ਹੈਕਟੇਅਰ ਹੈ।"
         )
     else:
         text = (
             f"Strategy '{rot_name}': Against NASA GRACE-FO recorded regional water storage (TWS) decline of {gw_trend:.1f} cm/yr, "
-            f"this rotation reduces net irrigation by {int(irr_saved)} mm/yr ({int(irr_saved_pct)}% savings) [AquaCrop]. "
+            f"this rotation reduces net irrigation by {int(irr_saved)} mm/yr ({int(irr_saved_pct)}% savings) [FAO-56]. "
             f"RothC model forecasts a 10-year soil organic carbon change of {soc_c:+.1f} t C/ha, elevating soil health "
             f"to {score}/100. Under CACP/PAU price policies, median expected return is ₹{p50:,}/ha with a downside buffer (CVaR-10) of ₹{cvar:,}/ha during extreme climate drought years."
         )

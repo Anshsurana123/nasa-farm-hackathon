@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import os
 import zlib
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -26,6 +27,28 @@ from ..cache import disk_cache
 log = logging.getLogger(__name__)
 
 _initialised = False
+
+
+def _load_dotenv_if_needed() -> None:
+    """Load GEE_PROJECT from workspace .env if not already present in os.environ."""
+    if os.environ.get("GEE_PROJECT"):
+        return
+    candidates = [
+        Path.cwd() / ".env",
+        Path(__file__).resolve().parents[4] / ".env",
+    ]
+    for env_path in candidates:
+        if env_path.is_file():
+            for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+                line = raw_line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k = k.strip()
+                v = v.strip().strip("'").strip('"')
+                if k and k not in os.environ:
+                    os.environ[k] = v
+            break
 
 IMERG_PROVENANCE = DataProvenance(
     source="NASA GPM IMERG",
@@ -38,7 +61,7 @@ IMERG_PROVENANCE = DataProvenance(
 
 SMAP_PROVENANCE = DataProvenance(
     source="NASA SMAP",
-    product="SPL4SMGP (L4 Root-Zone Soil Moisture)",
+    product="SPL4SMGP V008 (L4 Root-Zone Soil Moisture)",
     period="2015-2024",
     resolution="9 km, daily",
     doi="10.5067/K2VT90DE20GV",
@@ -95,7 +118,10 @@ def init() -> bool:
     global _initialised
     if _initialised:
         return True
+    if os.environ.get("GEE_DISABLE") == "1":
+        return False
     try:
+        _load_dotenv_if_needed()
         import ee
 
         project = os.environ.get("GEE_PROJECT")
@@ -107,9 +133,22 @@ def init() -> bool:
         return False
 
 
-def provenance_with_mode(prov: DataProvenance) -> DataProvenance:
-    """Return a copy of the provenance tagged with 'observed' if GEE is live, else 'regional_climatology'."""
-    mode = "observed" if _initialised else "regional_climatology"
+def is_live() -> bool:
+    """Return True if Google Earth Engine is initialized and active."""
+    return _initialised
+
+
+def provenance_with_mode(prov: DataProvenance, unknown_if_offline: bool = False) -> DataProvenance:
+    """Return a copy of the provenance tagged with 'observed' if GEE is live.
+
+    When GEE is offline the mode is 'regional_climatology' (sources with an honest climatology fallback, e.g.
+    GRACE/SMAP/NASADEM) or 'unknown' when ``unknown_if_offline=True`` (sources with no fallback that must never
+    be fabricated, e.g. FIRMS fire detections and HLS NDVI crop history).
+    """
+    if _initialised:
+        mode = "observed"
+    else:
+        mode = "unknown" if unknown_if_offline else "regional_climatology"
     return prov.model_copy(update={"mode": mode})
 
 
@@ -118,21 +157,57 @@ def _imerg_daily_live(lat: float, lon: float, start: str, end: str) -> pd.Series
     import ee
 
     pt = ee.Geometry.Point([lon, lat])
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end)
+    n_days = (end_ts - start_ts).days
+
+    if n_days <= 60:
+        col = (
+            ee.ImageCollection("NASA/GPM_L3/IMERG_V07")
+            .filterBounds(pt)
+            .filterDate(start, end)
+            .select("precipitation")
+        )
+        data = col.getRegion(pt, 10000).getInfo()
+        if len(data) <= 1:
+            raise RuntimeError("Empty IMERG response from GEE")
+        header = data[0]
+        rows = data[1:]
+        df_ee = pd.DataFrame(rows, columns=header)
+        df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms").dt.date
+        # IMERG_V07 half-hourly rate (mm/hr) * 0.5 hr = mm per 30-min interval
+        daily = df_ee.groupby("date")["precipitation"].sum() * 0.5
+        return pd.Series(daily.values, index=pd.to_datetime(daily.index), name="precipitation_mm")
+
+    # Multi-year queries use NASA/GPM_L3/IMERG_MONTHLY_V07 to avoid 400k half-hourly image limit
     col = (
-        ee.ImageCollection("NASA/GPM_L3/IMERG_V07")
+        ee.ImageCollection("NASA/GPM_L3/IMERG_MONTHLY_V07")
         .filterBounds(pt)
         .filterDate(start, end)
         .select("precipitation")
     )
     data = col.getRegion(pt, 10000).getInfo()
     if len(data) <= 1:
-        raise RuntimeError("Empty IMERG response from GEE")
+        raise RuntimeError("Empty IMERG MONTHLY response from GEE")
     header = data[0]
-    rows = data[1:]
-    df_ee = pd.DataFrame(rows, columns=header)
-    df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms").dt.date
-    daily = df_ee.groupby("date")["precipitation"].sum()
-    return pd.Series(daily.values, index=pd.to_datetime(daily.index), name="precipitation_mm")
+    df_ee = pd.DataFrame(data[1:], columns=header).dropna(subset=["precipitation"])
+    df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms")
+    df_ee["days_in_month"] = df_ee["date"].dt.days_in_month
+    df_ee["month_mm"] = df_ee["precipitation"].astype(float) * 24.0 * df_ee["days_in_month"]
+
+    idx = pd.date_range(start_ts, end_ts, freq="D")
+    daily_vals = np.zeros(len(idx), dtype=float)
+    ym_to_mm = {
+        (int(r["date"].year), int(r["date"].month)): float(r["month_mm"])
+        for _, r in df_ee.iterrows()
+    }
+    for (y, m), total_mm in ym_to_mm.items():
+        mask = (idx.year == y) & (idx.month == m)
+        n_m = int(mask.sum())
+        if n_m > 0:
+            daily_vals[mask] = round(total_mm / n_m, 3)
+
+    return pd.Series(daily_vals, index=idx, name="precipitation_mm")
 
 
 def imerg_daily(lat: float, lon: float, start: str, end: str) -> pd.Series:
@@ -173,18 +248,34 @@ def _smap_rootzone_live(lat: float, lon: float, start: str, end: str) -> pd.Seri
     import ee
 
     pt = ee.Geometry.Point([lon, lat])
-    col = (
-        ee.ImageCollection("NASA/SMAP/SPL4SMGP/007")
-        .filterBounds(pt)
-        .filterDate(start, end)
-        .select("sm_rootzone")
-    )
+    start_ts = max(pd.Timestamp("2015-04-01"), pd.Timestamp(start))
+    end_ts = pd.Timestamp(end)
+    n_days = (end_ts - start_ts).days
+
+    if n_days <= 45:
+        col = (
+            ee.ImageCollection("NASA/SMAP/SPL4SMGP/008")
+            .filterBounds(pt)
+            .filterDate(start_ts.strftime("%Y-%m-%d"), end_ts.strftime("%Y-%m-%d"))
+            .select("sm_rootzone")
+        )
+    else:
+        # Construct bi-monthly asset IDs (1st and 15th of each month) to avoid 30k-image GEE memory limit
+        asset_ids: list[str] = []
+        months = pd.date_range(start_ts.replace(day=1), end_ts, freq="MS")
+        for m_dt in months:
+            for day_num in (1, 15):
+                cand = pd.Timestamp(year=m_dt.year, month=m_dt.month, day=day_num)
+                if start_ts <= cand <= end_ts:
+                    asset_ids.append(f"NASA/SMAP/SPL4SMGP/008/{cand.strftime('%Y%m%d')}_0130")
+        col = ee.ImageCollection(asset_ids).select("sm_rootzone")
+
     data = col.getRegion(pt, 9000).getInfo()
     if len(data) <= 1:
         raise RuntimeError("Empty SMAP response from GEE")
     header = data[0]
     rows = data[1:]
-    df_ee = pd.DataFrame(rows, columns=header)
+    df_ee = pd.DataFrame(rows, columns=header).dropna(subset=["sm_rootzone"])
     df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms").dt.date
     daily = df_ee.groupby("date")["sm_rootzone"].mean()
     return pd.Series(daily.values, index=pd.to_datetime(daily.index), name="sm_rootzone_m3_m3")
@@ -324,38 +415,43 @@ def slope_pct(lat: float, lon: float, buffer_m: int = 100) -> float:
 
 
 @disk_cache(namespace="gee_firms_live")
-def _fire_detections_live(lat: float, lon: float, start: str, end: str, buffer_m: int = 500) -> pd.DataFrame:
+def _fire_detections_live(lat: float, lon: float, start: str, end: str, buffer_m: int = 2500) -> pd.DataFrame:
     import ee
 
     pt = ee.Geometry.Point([lon, lat])
-    col = ee.ImageCollection("FIRMS").filterBounds(pt.buffer(buffer_m)).filterDate(start, end)
+    col = (
+        ee.ImageCollection("FIRMS")
+        .filterBounds(pt.buffer(buffer_m))
+        .filterDate(start, end)
+        .select(["T21", "confidence"])
+    )
     data = col.getRegion(pt.buffer(buffer_m), 1000).getInfo()
     if len(data) <= 1:
-        return pd.DataFrame(columns=["date", "confidence", "frp"])
+        return pd.DataFrame(columns=["date", "confidence", "T21", "frp"])
     header = data[0]
-    df_ee = pd.DataFrame(data[1:], columns=header)
-    df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms").dt.date
-    return df_ee[["date", "confidence", "T21"]]
+    df_ee = pd.DataFrame(data[1:], columns=header).dropna(subset=["T21", "confidence"])
+    if df_ee.empty:
+        return pd.DataFrame(columns=["date", "confidence", "T21", "frp"])
+    df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms").dt.strftime("%Y-%m-%d")
+    df_ee["confidence"] = df_ee["confidence"].astype(float)
+    df_ee["T21"] = df_ee["T21"].astype(float)
+    df_ee["frp"] = (df_ee["T21"] - 300.0).clip(lower=5.0).round(1)
+    df_ee = df_ee[df_ee["confidence"] >= 30.0].drop_duplicates(subset=["date"]).sort_values("date")
+    return df_ee[["date", "confidence", "T21", "frp"]].reset_index(drop=True)
 
 
-def fire_detections(lat: float, lon: float, start: str, end: str, buffer_m: int = 500) -> pd.DataFrame:
-    """TASK-D07: FIRMS active-fire detections near the field (date, confidence, frp)."""
+def fire_detections(lat: float, lon: float, start: str, end: str, buffer_m: int = 2500) -> pd.DataFrame:
+    """TASK-D07: FIRMS active-fire detections near the field (date, confidence, T21, frp).
+
+    Returns an empty DataFrame if GEE is offline (never fabricates fire detections).
+    """
     if init():
         try:
             return _fire_detections_live(lat, lon, start, end, buffer_m=buffer_m)
         except Exception as exc:  # noqa: BLE001
             log.warning("GEE FIRMS call failed: %s", exc)
 
-    # Central Punjab rice-wheat belt (Sangrur, Ludhiana): severe Oct-Nov paddy stubble burning
-    is_central_punjab_rice_belt = (29.5 <= lat <= 32.5) and (75.2 <= lon <= 77.5)
-    if is_central_punjab_rice_belt:
-        fire_rows = []
-        for y in range(2019, 2024):
-            fire_rows.append({"date": f"{y}-10-28", "confidence": 85, "frp": 24.5})
-            fire_rows.append({"date": f"{y}-11-04", "confidence": 92, "frp": 38.2})
-        return pd.DataFrame(fire_rows)
-
-    return pd.DataFrame(columns=["date", "confidence", "frp"])
+    return pd.DataFrame(columns=["date", "confidence", "T21", "frp"])
 
 
 @disk_cache(namespace="gee_ndvi_live")
@@ -363,64 +459,48 @@ def _ndvi_timeseries_live(lat: float, lon: float, start: str, end: str, buffer_m
     import ee
 
     pt = ee.Geometry.Point([lon, lat])
-    s2 = ee.ImageCollection("NASA/HLS/HLSS30/v002").filterBounds(pt).filterDate(start, end)
+    s2 = (
+        ee.ImageCollection("NASA/HLS/HLSS30/v002")
+        .filterBounds(pt)
+        .filterDate(start, end)
+        .select(["B8", "B4", "Fmask"])
+    )
     data = s2.getRegion(pt, 30).getInfo()
     if len(data) <= 1:
         raise RuntimeError("Empty HLS response from GEE")
     header = data[0]
-    df_ee = pd.DataFrame(data[1:], columns=header)
-    df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms")
-    if "B8" in df_ee.columns and "B4" in df_ee.columns:
-        df_ee["ndvi"] = (df_ee["B8"] - df_ee["B4"]) / (df_ee["B8"] + df_ee["B4"])
-        return df_ee[["date", "ndvi"]].dropna()
-    raise RuntimeError("HLS bands B8/B4 missing")
+    df_ee = pd.DataFrame(data[1:], columns=header).dropna(subset=["B8", "B4"])
+    if "Fmask" in df_ee.columns:
+        fmask = df_ee["Fmask"].fillna(0).astype(int)
+        # Bit 1 = cloud, Bit 2 = cloud shadow/adjacent, Bit 3 = snow/ice
+        df_ee = df_ee[(fmask & 14) == 0]
+    df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms").dt.floor("D")
+    b8 = df_ee["B8"].astype(float)
+    b4 = df_ee["B4"].astype(float)
+    denom = b8 + b4
+    valid = denom > 0
+    df_ee = df_ee[valid].copy()
+    df_ee["ndvi"] = ((b8[valid] - b4[valid]) / denom[valid]).round(3)
+    df_ee = df_ee[df_ee["ndvi"].between(0.05, 0.95)]
+    if df_ee.empty:
+        raise RuntimeError("No cloud-free HLS observations found")
+    daily = df_ee.groupby("date", as_index=False)["ndvi"].max().sort_values("date")
+    daily["sensor"] = "HLS_S30"
+    return daily[["date", "ndvi", "sensor"]].reset_index(drop=True)
 
 
 def ndvi_timeseries(lat: float, lon: float, start: str, end: str, buffer_m: int = 60) -> pd.DataFrame:
-    """TASK-D08: HLS (30 m) NDVI time series, cloud-masked via Fmask (fallback regional phenology)."""
+    """TASK-D08: HLS (30 m) NDVI time series, cloud-masked via Fmask.
+
+    Returns an empty DataFrame if GEE is offline (never fabricates a synthetic NDVI curve).
+    """
     if init():
         try:
             return _ndvi_timeseries_live(lat, lon, start, end, buffer_m=buffer_m)
         except Exception as exc:  # noqa: BLE001
             log.warning("GEE HLS call failed: %s", exc)
 
-    idx = pd.date_range(start, end, freq="8D")
-    doy = idx.dayofyear.to_numpy()
-    rng = np.random.default_rng(int(abs(lat * 100 + lon)))
-    noise = rng.normal(0.0, 0.02, len(idx))
-
-    if (29.5 <= lat <= 32.5) and (75.2 <= lon <= 77.5):
-        # Central Punjab (Sangrur / Ludhiana): Puddled Rice (Kharif peak ~0.78 at DOY 245) + Wheat (Rabi peak ~0.78 at DOY 60)
-        rabi_hump = 0.56 * np.exp(-0.5 * ((doy - 60) / 26) ** 2)
-        kharif_hump = 0.58 * np.exp(-0.5 * ((doy - 245) / 26) ** 2)
-        ndvi = np.clip(0.20 + rabi_hump + kharif_hump + noise, 0.14, 0.86)
-    elif (28.5 <= lat <= 31.2) and (73.5 <= lon < 75.2):
-        # SW Punjab (Bathinda): Kharif Cotton (moderate peak ~0.58 at DOY 255) + Rabi Wheat (peak ~0.74 at DOY 60)
-        rabi_hump = 0.54 * np.exp(-0.5 * ((doy - 60) / 26) ** 2)
-        kharif_hump = 0.38 * np.exp(-0.5 * ((doy - 255) / 30) ** 2)
-        ndvi = np.clip(0.18 + rabi_hump + kharif_hump + noise, 0.12, 0.82)
-    elif (18.0 <= lat < 23.0) and (75.0 <= lon <= 80.5):
-        # Vidarbha (Akola): Kharif Cotton/Soybean (peak ~0.57 at DOY 250) + Rabi Chickpea (peak ~0.48 at DOY 38)
-        rabi_hump = 0.30 * np.exp(-0.5 * ((doy - 38) / 24) ** 2)
-        kharif_hump = 0.39 * np.exp(-0.5 * ((doy - 250) / 28) ** 2)
-        ndvi = np.clip(0.18 + rabi_hump + kharif_hump + noise, 0.12, 0.78)
-    elif (23.5 <= lat < 27.0) and (77.5 <= lon <= 81.5):
-        # Bundelkhand (Jhansi): Kharif Sorghum/Bajra (peak ~0.52 at DOY 240) + Rabi Wheat/Mustard (peak ~0.56 at DOY 45)
-        rabi_hump = 0.38 * np.exp(-0.5 * ((doy - 45) / 25) ** 2)
-        kharif_hump = 0.34 * np.exp(-0.5 * ((doy - 240) / 25) ** 2)
-        ndvi = np.clip(0.17 + rabi_hump + kharif_hump + noise, 0.12, 0.76)
-    elif lat < 15.0:
-        # Cauvery Delta (Thanjavur): Samba Rice (high peak ~0.76 at DOY 280, Oct) + Rice-fallow Urad/Pulse (peak ~0.52 at DOY 50, Feb)
-        rabi_hump = 0.34 * np.exp(-0.5 * ((doy - 50) / 22) ** 2)
-        kharif_hump = 0.56 * np.exp(-0.5 * ((doy - 280) / 28) ** 2)
-        ndvi = np.clip(0.20 + rabi_hump + kharif_hump + noise, 0.14, 0.85)
-    else:
-        # Standard Indian double-cropped plain
-        rabi_hump = 0.50 * np.exp(-0.5 * ((doy - 55) / 26) ** 2)
-        kharif_hump = 0.52 * np.exp(-0.5 * ((doy - 245) / 26) ** 2)
-        ndvi = np.clip(0.19 + rabi_hump + kharif_hump + noise, 0.12, 0.84)
-
-    return pd.DataFrame({"date": idx, "ndvi": np.round(ndvi, 3), "sensor": "HLS_S30"})
+    return pd.DataFrame(columns=["date", "ndvi", "sensor"])
 
 
 @disk_cache(namespace="gee_cmip6_live")

@@ -82,7 +82,9 @@ def main(ids: list[str]) -> None:
         recs = recommend(
             RecommendRequest(
                 field=FieldGeometry(lat=lat, lon=lon, name=name),
-                priorities=Priorities(profit=4.0, water_savings=4.5, soil_health=4.0, low_risk=3.5, low_labour=3.0),
+                priorities=Priorities(
+                    profit=4.0, water_savings=4.5, soil_health=4.0, low_risk=4.0, low_labour=3.0, food_security=3.5
+                ),
                 constraints=FarmConstraints(irrigation=irrigation_mode, rotation_years=1),
             )
         )

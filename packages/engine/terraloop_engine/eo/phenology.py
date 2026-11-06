@@ -51,7 +51,7 @@ def smooth(ndvi: pd.Series) -> pd.Series:
         s.index = pd.to_datetime(s.index)
     s = s.sort_index()
 
-    resampled = s.resample("5D").mean()
+    resampled = s.resample("5D").max()
     interpolated = resampled.interpolate(method="time").bfill().ffill()
 
     vals = np.clip(interpolated.to_numpy(dtype=float), -0.2, 1.0)
@@ -159,7 +159,7 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
 
     if p_month in (7, 8, 9, 10, 11):
         season_index = 0
-        if p_val >= 0.65 or is_cauvery_delta:
+        if is_cauvery_delta:
             crop_group = "rice"
             crop_id = "rice_puddled"
         elif is_sw_punjab or is_vidarbha:
@@ -168,6 +168,9 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
         elif is_bundelkhand:
             crop_group = "sorghum"
             crop_id = "sorghum"
+        elif p_val >= 0.65:
+            crop_group = "rice"
+            crop_id = "rice_puddled"
         else:
             crop_group = "maize"
             crop_id = "maize"
@@ -179,7 +182,7 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
         elif is_vidarbha:
             crop_group = "chickpea"
             crop_id = "chickpea"
-        elif p_month == 1 and p_val < 0.60 and not is_bundelkhand:
+        elif p_month == 1 and p_val < 0.60 and not is_bundelkhand and not is_sw_punjab:
             crop_group = "mustard"
             crop_id = "mustard"
         else:
@@ -190,6 +193,9 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
         crop_group = "moong"
         crop_id = "moong"
 
+    amplitude = float(season.get("amplitude", 0.35))
+    confidence = round(float(np.clip(0.55 + 0.65 * amplitude, 0.60, 0.96)), 2)
+
     return InferredSeason(
         year=p_date.year,
         season_index=season_index,
@@ -198,19 +204,26 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
         end=e_date,
         crop_group=crop_group,
         crop_id=crop_id,
-        confidence=0.85,
+        confidence=confidence,
     )
 
 
 def infer_history(ndvi: pd.Series, lat: float, lon: float) -> list[InferredSeason]:
     """Full pipeline: irregular NDVI -> smoothed -> detected seasons -> classified crop history.
 
-    Orders seasons within each year by (year, season_index) so Kharif (0) precedes Rabi (1) and Zaid (2).
+    Orders seasons within each year by (year, season_index) so Kharif (0) precedes Rabi (1) and Zaid (2),
+    keeping the highest-confidence peak per (year, season_index) slot.
     """
     if ndvi.empty:
         return []
     smoothed = smooth(ndvi)
     seasons = detect_seasons(smoothed)
-    inferred = [classify_season(s, lat, lon) for s in seasons]
+    by_slot: dict[tuple[int, int], InferredSeason] = {}
+    for s in seasons:
+        inf = classify_season(s, lat, lon)
+        key = (inf.year, inf.season_index)
+        if key not in by_slot or inf.confidence > by_slot[key].confidence:
+            by_slot[key] = inf
+    inferred = list(by_slot.values())
     inferred.sort(key=lambda s: (s.year, s.season_index))
     return inferred

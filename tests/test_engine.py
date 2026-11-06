@@ -263,10 +263,12 @@ def test_phenology_double_hump_seasons_and_crop_history():
     assert wheat_count >= 4, f"Expected >= 4 wheat seasons, got {wheat_count}"
 
 
-def test_gee_sources_and_provenance():
+def test_gee_sources_and_provenance(monkeypatch):
     from terraloop_engine.data import gee
 
-    # D03: IMERG daily series
+    monkeypatch.setenv("GEE_DISABLE", "1")
+
+    # D03: IMERG daily series (offline regional climatology fallback)
     imerg = gee.imerg_daily(30.23, 75.84, "2020-01-01", "2020-12-31")
     assert not imerg.empty
     assert 400.0 <= imerg.sum() <= 950.0  # plausible Punjab rainfall
@@ -291,16 +293,16 @@ def test_gee_sources_and_provenance():
     assert slope_bundelkhand > slope_punjab
     assert gee.NASADEM_PROVENANCE.doi is not None
 
-    # D07: FIRMS fire detections
+    # D07: FIRMS fire detections — offline mode returns empty DataFrame + mode="unknown" (never fabricates fires)
     fires = gee.fire_detections(30.23, 75.84, "2019-01-01", "2023-12-31")
-    assert not fires.empty
-    fire_months = pd.to_datetime(fires["date"]).dt.month
-    assert (fire_months.isin([10, 11])).any()
+    assert fires.empty
+    assert gee.provenance_with_mode(gee.FIRMS_PROVENANCE, unknown_if_offline=True).mode == "unknown"
     assert gee.FIRMS_PROVENANCE.doi is not None
 
-    # D08: HLS NDVI timeseries
+    # D08: HLS NDVI timeseries — offline mode returns empty DataFrame + mode="unknown" (never fabricates Gaussian NDVI)
     ndvi_df = gee.ndvi_timeseries(30.23, 75.84, "2023-01-01", "2023-12-31")
-    assert len(ndvi_df) >= 40, f"Expected >= 40 observations per year, got {len(ndvi_df)}"
+    assert ndvi_df.empty
+    assert gee.provenance_with_mode(gee.HLS_PROVENANCE, unknown_if_offline=True).mode == "unknown"
     assert gee.HLS_PROVENANCE.doi is not None
 
 
@@ -309,6 +311,7 @@ def test_profiler_with_gee_and_d11_safeguards(punjab_profile, monkeypatch):
 
     from terraloop_engine.data import nasa_power, soilgrids
 
+    monkeypatch.setenv("GEE_DISABLE", "1")
     # Mock weather and soilgrids to use synthetic offline data
     synth_weather = synthetic_punjab_weather((1985, 2024))
     monkeypatch.setattr(nasa_power, "fetch_daily", lambda req: synth_weather)
@@ -335,15 +338,12 @@ def test_profiler_with_gee_and_d11_safeguards(punjab_profile, monkeypatch):
     assert profile.soil.slope_pct is not None
     assert profile.soil.slope_pct < 2.0
 
-    # Verify D07: Residue burning detected
-    assert profile.hazards.residue_burning_detected is True
-
-    # Verify E02: Crop history shows rice & wheat
-    assert len(profile.crop_history) >= 8
-    assert profile.seasons_per_year == 2
-    groups = [h.crop_group for h in profile.crop_history]
-    assert "rice" in groups
-    assert "wheat" in groups
+    # Verify D07 & E02: When GEE is offline, FIRMS burning and HLS crop history are honestly reported as unknown
+    assert profile.hazards.residue_burning_detected is None
+    assert any(p.mode == "unknown" for p in profile.hazards.provenance)
+    assert profile.crop_history == []
+    assert any(p.mode == "unknown" for p in profile.crop_history_provenance)
+    assert profile.data_mode == "hybrid_regional"
 
     # Verify D11: Terminal heat days computed & no rainfall trend note > 30%
     assert profile.hazards.terminal_heat_days_per_year is not None
@@ -486,7 +486,7 @@ def test_grounded_llm_explain(punjab_profile):
 
     # Test English
     text_en = why_cards.grounded_llm_explain(punjab_profile, rec, base_rec, language="en")
-    assert "AquaCrop" in text_en
+    assert "FAO-56" in text_en
     assert "GRACE" in text_en
     assert "RothC" in text_en
     assert "700 mm/yr" in text_en or "48%" in text_en  # 1450 - 750 = 700
@@ -494,14 +494,14 @@ def test_grounded_llm_explain(punjab_profile):
     # Test Hindi
     text_hi = why_cards.grounded_llm_explain(punjab_profile, rec, base_rec, language="hi")
     assert "नासा GRACE" in text_hi
-    assert "AquaCrop" in text_hi
+    assert "FAO-56" in text_hi
     assert "RothC" in text_hi
     assert "75/100" in text_hi
 
     # Test Punjabi
     text_pa = why_cards.grounded_llm_explain(punjab_profile, rec, base_rec, language="pa")
     assert "ਨਾਸਾ GRACE" in text_pa
-    assert "AquaCrop" in text_pa
+    assert "FAO-56" in text_pa
     assert "RothC" in text_pa
 
 
@@ -696,6 +696,90 @@ def test_soil_health_card_override_and_baseline_override(punjab_profile):
     crops = crop_kb.load_crops()
     custom_base = rotations.derive_baseline_rotation(updated, crops, baseline_override=["maize", "wheat", "moong"])
     assert [s.crop_id for s in custom_base.steps] == ["maize", "wheat", "moong"]
+
+
+def test_irrigated_sangrur_wheat_yield_and_march_heat_sanity():
+    """Verify irrigated Sangrur wheat lands near the ~5.0 t/ha Punjab average after March Tmax bias correction."""
+    import json
+    from pathlib import Path
+
+    from terraloop_engine.climate import ensembles
+    from terraloop_engine.optimize import evaluate
+    from terraloop_schemas import FarmConstraints, FieldProfile, Rotation, RotationStep
+
+    golden = Path("data/golden/sangrur")
+    prof = FieldProfile.model_validate_json((golden / "profile.json").read_text(encoding="utf-8"))
+    raw_w = json.loads((golden / "weather.json").read_text(encoding="utf-8"))
+    w_df = pd.DataFrame(raw_w["data"], index=pd.to_datetime(raw_w["index"]), columns=raw_w["columns"]).astype(float)
+
+    # Verify March-April terminal heat days (Tmax > 32 C between Mar 1 and Apr 15) is bias-corrected (< 15 d/yr)
+    assert prof.hazards.terminal_heat_days_per_year is not None
+    assert prof.hazards.terminal_heat_days_per_year < 15.0
+
+    # Verify irrigated Rabi wheat ensemble median yield is near the 5.0 t/ha state/district mean
+    rot_wheat = Rotation(id="wheat_sanity", steps=[RotationStep(year_index=0, season_index=1, crop_id="wheat")])
+    _, members = ensembles.build_scenario_set("historical", power_df=w_df, rotation_years=1)
+    ev = evaluate.evaluate_rotation(rot_wheat, members, prof, FarmConstraints(irrigation="full"))
+    med_wheat = float(np.median(ev.yield_t_ha["wheat"]))
+    assert 4.7 <= med_wheat <= 5.4, f"Expected Sangrur irrigated wheat median in [4.7, 5.4] t/ha, got {med_wheat:.2f}"
+
+
+def test_soil_health_breakdown_and_observed_golden_provenance():
+    """Verify soil_health_breakdown components, MSP procurement ranking, and live observed GEE provenance in goldens."""
+    import json
+    from pathlib import Path
+
+    from terraloop_schemas import FieldProfile, StrategyRecommendation
+
+    sangrur_prof = FieldProfile.model_validate_json(
+        Path("data/golden/sangrur/profile.json").read_text(encoding="utf-8")
+    )
+    assert sangrur_prof.data_mode == "observed"
+    assert sangrur_prof.hazards.residue_burning_detected is True
+    assert all(p.mode == "observed" for p in sangrur_prof.water.provenance)
+    assert all(p.mode == "observed" for p in sangrur_prof.hazards.provenance)
+    assert all(p.mode == "observed" for p in sangrur_prof.crop_history_provenance)
+
+    recs_raw = json.loads(Path("data/golden/sangrur/recommendations.json").read_text(encoding="utf-8"))
+    recs = [StrategyRecommendation.model_validate(r) for r in recs_raw]
+    top_rec = recs[1]
+    assert top_rec.data_mode == "observed"
+    assert top_rec.practical_metrics is not None
+    assert top_rec.practical_metrics.msp_assurance_level == "MSP Assured (FCI / State)"
+
+    bd = top_rec.results[0].soil_health_breakdown
+    for key in (
+        "disturbance_minimization",
+        "soil_armor_cover",
+        "living_roots",
+        "biodiversity",
+        "biological_n_livestock",
+        "soc_modifier",
+        "erosion_modifier",
+        "burning_penalty",
+        "total_score",
+    ):
+        assert key in bd, f"Missing soil_health_breakdown key: {key}"
+    assert bd["total_score"] == top_rec.results[0].soil_health_score
+
+
+def test_benchmarks_doc_matches_live_engine_reproducibility():
+    """Enforce that committed docs/BENCHMARKS.md matches live engine execution 100%."""
+    import importlib.util
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location(
+        "run_validation_benchmarks", root / "scripts" / "run_validation_benchmarks.py"
+    )
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    generated = mod.run_benchmarks().strip()
+    committed = (root / "docs" / "BENCHMARKS.md").read_text(encoding="utf-8").strip()
+    assert generated == committed, "docs/BENCHMARKS.md is out of sync with scripts/run_validation_benchmarks.py"
+
 
 
 

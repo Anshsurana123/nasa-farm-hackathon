@@ -109,13 +109,26 @@ def evaluate_rotation(
                 prec_leg = prev_cid in crops and crops[prev_cid].group in ("legume", "cover")
                 practices = sim_step.get("practices", [])
 
-                # Deterministic mandi price realization draw per weather year & crop market_risk
+                # Deterministic mandi price realization draw per weather year, procurement_type & market_risk
                 c_econ = econ_table.get(cid, {})
                 m_risk = float(c_econ.get("market_risk", 0.12))
+                proc_type = str(c_econ.get("procurement_type", "nafed_pss"))
                 seed = zlib.crc32(f"{member_id}_{cid}_{member_idx}".encode())
-                # Map seed to normal-like shock in [-1.65, +1.45] scaled by market_risk
+                # Map seed to shock in [-0.5, +0.5]
                 u_val = ((seed % 1000) / 1000.0) - 0.5
-                price_mult = float(np.clip(1.0 + 1.85 * m_risk * u_val, 0.55, 1.35))
+                if proc_type == "msp_assured":
+                    # Assured FCI / state procurement at MSP floor
+                    price_mult = float(np.clip(1.0 + 0.80 * m_risk * u_val, 0.95, 1.05))
+                elif proc_type == "nafed_pss":
+                    # NAFED / PSS 25% procurement ceiling -> moderate mandi discount in surplus years
+                    base_realization = 0.94
+                    shock = (2.1 * m_risk * u_val) if u_val < 0 else (1.4 * m_risk * u_val)
+                    price_mult = float(np.clip(base_realization + shock, 0.68, 1.18))
+                else:
+                    # Open mandi-linked crop without assured procurement -> higher price discount & volatility
+                    base_realization = 0.86
+                    shock = (2.6 * m_risk * u_val) if u_val < 0 else (1.8 * m_risk * u_val)
+                    price_mult = float(np.clip(base_realization + shock, 0.52, 1.25))
 
                 econ_res = economics.profit_per_ha(
                     cid,
@@ -125,6 +138,7 @@ def evaluate_rotation(
                     currency=profile.currency or "INR",
                     price_multiplier=price_mult,
                     preceded_by_legume=prec_leg,
+                    irrigation=constraints.irrigation,
                 )
                 tot_profit += float(econ_res["profit_per_ha"])
 
@@ -223,15 +237,14 @@ def evaluate_rotation(
 
     fam_div = float(soil_health.family_shannon_index(rotation, crops))
 
-    sh_score = float(
-        soil_health.soil_health_score(
-            rotation=rotation,
-            crops=crops,
-            soc_delta_10yr=soc_delta,
-            erosion_t_ha_yr=ann_erosion,
-            has_livestock=constraints.has_livestock,
-        )
+    sh_breakdown = soil_health.soil_health_breakdown(
+        rotation=rotation,
+        crops=crops,
+        soc_delta_10yr=soc_delta,
+        erosion_t_ha_yr=ann_erosion,
+        has_livestock=constraints.has_livestock,
     )
+    sh_score = float(sh_breakdown["total_score"])
 
     return SimulationResult(
         rotation_id=rotation.id,
@@ -245,6 +258,7 @@ def evaluate_rotation(
         living_root_days_pct=living_roots_pct,
         family_diversity_index=fam_div,
         soil_health_score=sh_score,
+        soil_health_breakdown=sh_breakdown,
         profit_p10=round(p10, 1),
         profit_p50=round(p50, 1),
         profit_p90=round(p90, 1),
@@ -330,10 +344,17 @@ def compute_practical_farmer_metrics(
     urea_bags_saved = round(ann_n_saved_kg / 20.7, 1)  # 45 kg * 46% N = 20.7 kg N per bag
 
     # 3. MSP Assurance Level
-    if all(p == "msp_assured" for p in proc_types) and proc_types:
+    main_proc_types = [
+        str(econ_crops.get(s.crop_id, {}).get("procurement_type", "nafed_pss"))
+        for s in rotation.steps
+        if s.crop_id in crops and s.crop_id != "fallow" and s.season_index in (0, 1)
+    ]
+    if main_proc_types and all(p == "msp_assured" for p in main_proc_types) and not any(p == "mandi_linked" for p in proc_types):
         msp_level = "MSP Assured (FCI / State)"
     elif any(p == "mandi_linked" for p in proc_types):
         msp_level = "Mandi Market-Linked"
+    elif any(p == "msp_assured" for p in main_proc_types):
+        msp_level = "MSP Assured (FCI / State)"
     else:
         msp_level = "NAFED / PSS Supported"
 

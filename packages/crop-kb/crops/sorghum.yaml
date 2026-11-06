@@ -19,9 +19,9 @@ n_fixation_kg_ha: 0
 n_demand_kg_ha: 90
 residue_t_ha: 6.0
 residue_cn_ratio: 70
-typical_yield_t_ha: [2.0, 4.5]
+typical_yield_t_ha: [1.0, 2.0]
 aquacrop_name: Sorghum
 good_predecessors: [pigeon_pea, common_bean, chickpea, soybean, dhaincha]
 bad_predecessors: [sorghum]
-notes: "Drought-resilient staple cereal for the Kenya golden field (Machakos bimodal short/long rains) and prime kharif fodder crop in Punjab (SL 44). Dense root system extracts subsoil water under severe moisture stress; root exudates contain sorgoleone (potent allelopathic weed suppressant, but requires adequate nitrogen for sensitive following crops)."
-sources: ["FAO-56 Table 12 (sorghum)", "KALRO Dryland Agriculture Technical Guides", "PAU Package of Practices Kharif (fodder)", "FAO ECOCROP"]
+notes: "Drought-resilient Kharif coarse cereal across semi-arid India (Bundelkhand, Deccan plateau; hybrids CSH 16, CSV 27) and dual-purpose grain/fodder crop in North-West India. Dense root system extracts subsoil water under severe moisture stress."
+sources: ["FAO-56 Table 12 (sorghum)", "ICAR-IIMR Sorghum Cultivation Practices", "DES Ministry of Agriculture District Yield Statistics", "FAO ECOCROP"]

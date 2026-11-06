@@ -1,14 +1,15 @@
-"""Reproducible engine validation & benchmark suite for TerraLoop India.
+"""Reproducible engine benchmark & empirical comparison suite for TerraLoop India.
 
 Run (from repo root):
     uv run python scripts/run_validation_benchmarks.py --write-docs
 
-Executes the actual TerraLoop biophysical engine across 5 verification benchmarks:
-  1. Soil Texture & Root-Zone Water Holding Sensitivity (Sandy Loam vs Alluvial Loam vs Vertisol Clay)
-  2. March Terminal Heatwave Sensitivity (Reproducing the 2022 North India Wheat Heat Shock)
-  3. Rice Establishment Hydrology & Stubble Turnaround Window (Puddled Pusa-44 vs Short-Duration PR-126 vs DSR)
-  4. 10-Year RothC-Lite Soil Organic Carbon & Biological N / Urea Savings Trajectory
-  5. 6 Indian Agro-Climatic Golden Benchmark Fields (Baseline vs Rank #1 Strategy)
+Executes the TerraLoop biophysical engine across 6 reproducible benchmarks:
+  1. Empirical Ground-Truth Comparison against DES / ICRISAT District-Level Yield Statistics
+  2. Soil Texture & Root-Zone Water Holding Sensitivity (Sandy Loam vs Alluvial Loam vs Vertisol Clay)
+  3. March Terminal Heatwave Sensitivity (Reproducing the 2022 North India Wheat Heat Shock)
+  4. Rice Establishment Hydrology & Stubble Turnaround Window (Puddled Pusa-44 vs Short-Duration PR-126 vs DSR)
+  5. 10-Year RothC-Lite SOC, Biological N & Soil Health Score Component Breakdown
+  6. 6 Indian Agro-Climatic Golden Benchmark Fields (Baseline vs Rank #1 Strategy)
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ import json
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from terraloop_engine import crop_kb, profiler
 from terraloop_engine.climate import ensembles
@@ -39,8 +41,8 @@ ROOT = Path(__file__).resolve().parents[1]
 GOLDEN = ROOT / "data" / "golden"
 
 
-def _load_sangrur_weather() -> pd.DataFrame:
-    w_path = GOLDEN / "sangrur" / "weather.json"
+def _load_field_weather(field_id: str, lat: float, lon: float) -> pd.DataFrame:
+    w_path = GOLDEN / field_id / "weather.json"
     if w_path.exists():
         raw = json.loads(w_path.read_text(encoding="utf-8"))
         df = pd.DataFrame(raw["data"], columns=raw["columns"])
@@ -49,7 +51,27 @@ def _load_sangrur_weather() -> pd.DataFrame:
         return df.astype(float).sort_index()
     from terraloop_engine.data import nasa_power
 
-    return nasa_power.synthetic_daily_weather(30.19, 75.78, (1995, 2024))
+    return nasa_power.synthetic_daily_weather(lat, lon, (1995, 2024))
+
+
+def _load_sangrur_weather() -> pd.DataFrame:
+    return _load_field_weather("sangrur", 30.19, 75.78)
+
+
+# Published 5-year mean district yields (t/ha) from Directorate of Economics & Statistics (DES,
+# Ministry of Agriculture & Farmers Welfare, APY District Statistics 2018-2023) and ICRISAT
+# District-Level Data (DLD) for India. Note: paddy yields are reported as rough paddy (1.49x milled rice).
+DISTRICT_GROUND_TRUTH: list[tuple[str, str, str, str, float, str]] = [
+    ("sangrur", "Sangrur, Punjab", "wheat", "Rabi Wheat (Irrigated)", 5.08, "DES Punjab / Statistical Abstract of Punjab (2019–23)"),
+    ("sangrur", "Sangrur, Punjab", "rice_puddled", "Kharif Paddy (Rough Rice)", 7.35, "DES Punjab / PAU District Paddy Yield (2019–23)"),
+    ("ludhiana", "Ludhiana, Punjab", "wheat", "Rabi Wheat (Irrigated)", 5.02, "DES Punjab / ICRISAT DLD Ludhiana (2019–23)"),
+    ("ludhiana", "Ludhiana, Punjab", "rice_puddled", "Kharif Paddy (Rough Rice)", 7.20, "DES Punjab / ICRISAT DLD Ludhiana (2019–23)"),
+    ("bathinda", "Bathinda, Punjab", "wheat", "Rabi Wheat (Canal/Tubewell)", 4.82, "DES Punjab / ICRISAT DLD Bathinda (2019–23)"),
+    ("vidarbha", "Yavatmal, Maharashtra", "cotton", "Kharif Cotton (Rainfed)", 1.35, "DES Maharashtra / ICRISAT DLD Yavatmal Seed Cotton"),
+    ("vidarbha", "Yavatmal, Maharashtra", "chickpea", "Rabi Gram / Chickpea (Rainfed)", 1.15, "DES Maharashtra / ICRISAT DLD Yavatmal"),
+    ("bundelkhand", "Jhansi, Uttar Pradesh", "sorghum", "Kharif Jowar / Sorghum (Rainfed)", 1.32, "DES Uttar Pradesh / ICRISAT DLD Jhansi"),
+    ("thanjavur", "Thanjavur, Tamil Nadu", "rice_puddled", "Kuruvai/Samba Paddy (Irrigated)", 5.85, "Season & Crop Report Tamil Nadu / ICRISAT DLD"),
+]
 
 
 def run_benchmarks() -> str:
@@ -57,27 +79,66 @@ def run_benchmarks() -> str:
     crops = crop_kb.load_crops()
 
     lines: list[str] = []
-    lines.append("# TerraLoop India — Reproducible Biophysical & Economic Validation Report")
+    lines.append("# TerraLoop India — Empirical Ground-Truth Comparison & Sensitivity Benchmarks")
     lines.append("")
     lines.append(
         "> **Reproducibility Guarantee:** Every number in this document is generated directly by executing "
-        "`uv run python scripts/run_validation_benchmarks.py --write-docs` against the TerraLoop simulation engine "
-        "(`packages/engine/terraloop_engine/`)."
+        "`uv run python scripts/run_validation_benchmarks.py --write-docs` against the TerraLoop FAO-56 / FAO-33 "
+        "simulation engine (`packages/engine/terraloop_engine/`), enforced in CI via `git diff --exit-code docs/BENCHMARKS.md`."
     )
     lines.append("")
 
     # -----------------------------------------------------------------------
-    # Benchmark 1: Soil Texture Sensitivity
+    # Benchmark 1: Empirical Ground-Truth Comparison vs DES / ICRISAT District Data
     # -----------------------------------------------------------------------
-    lines.append("## 1. Soil Texture & Root-Zone Water Balance Sensitivity (`models/aquacrop_runner.py`)")
+    lines.append("## 1. Empirical Yield Comparison vs. DES / ICRISAT District-Level Data")
     lines.append("")
     lines.append(
-        "Evaluates FAO-56 daily root-zone soil moisture depletion (`TAW`, `RAW`, `Ks`, deep percolation) across "
-        "three representative Indian soil textures under both Rainfed/Limited and Full Irrigation regimes (2020–2021 cycle)."
+        "Compares 30-year historical ensemble median simulated yields (`FAO-56 / FAO-33 daily soil-water balance`) "
+        "against published 5-year district mean yields from the Directorate of Economics & Statistics (DES, Ministry "
+        "of Agriculture & Farmers Welfare) and ICRISAT District-Level Database (DLD)."
     )
     lines.append("")
     lines.append(
-        "| Soil Texture Class | Sand / Clay (%) | FC / WP (m³/m³) | Rainfed Wheat Yield (t/ha) | Irrigated Wheat Irrigation (mm) | DSR Rice Yield (t/ha) | DSR Rice Irrigation (mm) |"
+        "| District | Crop & Regime | Observed District Mean (t/ha) | Simulated Median Yield (t/ha) | Absolute Error (t/ha) | Relative Error (%) | Reference Source |"
+    )
+    lines.append("| :--- | :--- | :---: | :---: | :---: | :---: | :--- |")
+
+    for fid, d_name, cid, c_label, obs_y, ref_src in DISTRICT_GROUND_TRUTH:
+        p_path = GOLDEN / fid / "profile.json"
+        if not p_path.exists():
+            continue
+        prof_d = FieldProfile.model_validate_json(p_path.read_text(encoding="utf-8"))
+        w_d = _load_field_weather(fid, prof_d.field.lat, prof_d.field.lon)
+        irr_mode = "none" if fid in ("vidarbha", "bundelkhand") else ("limited" if fid == "bathinda" else "full")
+        s_idx = 1 if cid in ("wheat", "chickpea") else 0
+        rot_single = Rotation(
+            id=f"gt_{fid}_{cid}",
+            steps=[RotationStep(year_index=0, season_index=s_idx, crop_id=cid, practices=["puddling"] if cid == "rice_puddled" else [])],
+        )
+        _, mem_d = ensembles.build_scenario_set("historical", power_df=w_d, rotation_years=1)
+        ev_d = evaluate.evaluate_rotation(rot_single, mem_d, prof_d, FarmConstraints(irrigation=irr_mode))
+        sim_vals = ev_d.yield_t_ha.get(cid, [0.0])
+        sim_med = float(np.median(sim_vals))
+        abs_err = sim_med - obs_y
+        rel_err = (abs_err / obs_y) * 100.0 if obs_y > 0 else 0.0
+        lines.append(
+            f"| **{d_name}** | {c_label} | {obs_y:.2f} | **{sim_med:.2f}** | {abs_err:+.2f} | **{rel_err:+.1f}%** | {ref_src} |"
+        )
+    lines.append("")
+
+    # -----------------------------------------------------------------------
+    # Benchmark 2: Soil Texture Sensitivity
+    # -----------------------------------------------------------------------
+    lines.append("## 2. Soil Texture & Root-Zone Water Balance Sensitivity (`models/aquacrop_runner.py`)")
+    lines.append("")
+    lines.append(
+        "Evaluates FAO-56 daily root-zone soil moisture depletion (`TAW`, `RAW`, `Ks`, deep percolation) across "
+        "three representative Indian soil textures under both Rainfed and Full Irrigation regimes (2020–2021 cycle)."
+    )
+    lines.append("")
+    lines.append(
+        "| Soil Texture Class | Sand / Clay (%) | FC / WP (m³/m³) | Rainfed Wheat Yield (t/ha) | Irrigated Wheat Yield (t/ha) | Irrigated Wheat Water (mm) | DSR Rice Water (mm) |"
     )
     lines.append("| :--- | :---: | :---: | :---: | :---: | :---: | :---: |")
 
@@ -111,19 +172,19 @@ def run_benchmarks() -> str:
         )[0]
         lines.append(
             f"| {label} | {sand_p:.0f}% / {clay_p:.0f}% | {fc:.3f} / {wp:.3f} | "
-            f"**{w_rf['yield_t_ha']:.2f}** | **{w_ir['irrigation_mm']:.0f}** | "
-            f"**{d_ir['yield_t_ha']:.2f}** | **{d_ir['irrigation_mm']:.0f}** |"
+            f"**{w_rf['yield_t_ha']:.2f}** | **{w_ir['yield_t_ha']:.2f}** | **{w_ir['irrigation_mm']:.0f}** | "
+            f"**{d_ir['irrigation_mm']:.0f}** |"
         )
     lines.append("")
 
     # -----------------------------------------------------------------------
-    # Benchmark 2: March 2022 Terminal Heatwave Sensitivity
+    # Benchmark 3: March 2022 Terminal Heatwave Sensitivity
     # -----------------------------------------------------------------------
-    lines.append("## 2. Rabi Wheat Terminal Heatwave Sensitivity (March–April Grain-Filling Shock)")
+    lines.append("## 3. Rabi Wheat Terminal Heatwave Sensitivity (March–April Grain-Filling Shock)")
     lines.append("")
     lines.append(
-        "Tests the thermal senescence response during the final 40% of the Rabi wheat cycle (March–April grain filling, "
-        "`Tmax > 31.5°C`) under baseline climate, a `+4.5°C` heat anomaly (analogous to the March 2022 North India heatwave), "
+        "Tests the thermal senescence response during the final 35% of the Rabi wheat cycle (March–April grain filling, "
+        "`Tmax > 32.0°C`) under baseline climate, a `+4.5°C` heat anomaly (analogous to the March 2022 North India heatwave), "
         "and `+4.5°C` with **Happy Seeder surface residue mulch** (`-1.0°C` soil/canopy cooling + `-10%` evaporation)."
     )
     lines.append("")
@@ -149,13 +210,13 @@ def run_benchmarks() -> str:
     )
 
     res_norm = aquacrop_runner.simulate_rotation(
-        rot_wheat_conv, w_df, loam_soil, FarmConstraints(irrigation="full"), start_year=2021
+        rot_wheat_conv, w_df, loam_soil, FarmConstraints(irrigation="full"), start_year=2020
     )[0]
     res_shock = aquacrop_runner.simulate_rotation(
-        rot_wheat_conv, w_heat, loam_soil, FarmConstraints(irrigation="full"), start_year=2021
+        rot_wheat_conv, w_heat, loam_soil, FarmConstraints(irrigation="full"), start_year=2020
     )[0]
     res_hs_shock = aquacrop_runner.simulate_rotation(
-        rot_wheat_hs, w_heat, loam_soil, FarmConstraints(irrigation="full"), start_year=2021
+        rot_wheat_hs, w_heat, loam_soil, FarmConstraints(irrigation="full"), start_year=2020
     )[0]
 
     drop_conv = (res_shock["yield_t_ha"] - res_norm["yield_t_ha"]) / res_norm["yield_t_ha"] * 100.0
@@ -167,14 +228,14 @@ def run_benchmarks() -> str:
     lines.append("")
 
     # -----------------------------------------------------------------------
-    # Benchmark 3: Rice Hydrology & Kharif-to-Rabi Turnaround Days
+    # Benchmark 4: Rice Hydrology & Kharif-to-Rabi Turnaround Days
     # -----------------------------------------------------------------------
-    lines.append("## 3. Kharif Rice Hydrology & Stubble-Burning Turnaround Window")
+    lines.append("## 4. Kharif Rice Hydrology & Stubble-Burning Turnaround Window")
     lines.append("")
     lines.append(
-        "Compares Puddled Long-Duration Rice (`rice_puddled`, 142 days, 180 mm puddling + standing water), "
-        "PAU Short-Duration Rice (`rice_short` PR-126, 123 days), and Direct-Seeded Rice (`rice_dsr`, 125 days, "
-        "0 mm puddling + Alternate Wetting & Drying) on Sangrur Alluvial Loam."
+        "Compares Puddled Long-Duration Rice (`rice_puddled`, 130 days, 175 mm puddling + 3.5 mm/day flooded percolation), "
+        "PAU Short-Duration Rice (`rice_short` PR-126, 108 days, 175 mm puddling), and Direct-Seeded Rice (`rice_dsr`, 127 days, "
+        "75 mm pre-sowing rauni wetting + Alternate Wetting & Drying at 2.55 mm/day percolation) on Sangrur Alluvial Loam."
     )
     lines.append("")
     lines.append(
@@ -197,7 +258,7 @@ def run_benchmarks() -> str:
             ],
         )
         sim_r = aquacrop_runner.simulate_rotation(
-            rot_r, w_df, loam_soil, FarmConstraints(irrigation="full"), start_year=2021
+            rot_r, w_df, loam_soil, FarmConstraints(irrigation="full"), start_year=2020
         )[0]
         if base_rice_irr is None:
             base_rice_irr = sim_r["irrigation_mm"]
@@ -211,12 +272,14 @@ def run_benchmarks() -> str:
     lines.append("")
 
     # -----------------------------------------------------------------------
-    # Benchmark 4: 10-Year RothC-Lite SOC & Urea Savings
+    # Benchmark 5: 10-Year RothC-Lite SOC, Urea Savings & Soil Health Breakdown
     # -----------------------------------------------------------------------
-    lines.append("## 4. 10-Year RothC-Lite Soil Organic Carbon & Biological Nitrogen Trajectory")
+    lines.append("## 5. 10-Year RothC-Lite Soil Organic Carbon, Biological N & Soil Health Score Breakdown")
     lines.append("")
     lines.append(
-        "Evaluates 30-member ensemble outcomes on Sangrur Alluvial Loam (`SOC = 5.2 g/kg`) across three management systems."
+        "Evaluates 30-member ensemble outcomes on Sangrur Alluvial Loam across four management systems, "
+        "including the transparent component-by-component breakdown of the 0–100 Soil Health Index "
+        "(5 USDA-NRCS principles × 15 pts max = 75 pts + SOC & RUSLE modifiers ±25 pts − 5 pt residue burning penalty)."
     )
     lines.append("")
     lines.append(
@@ -287,21 +350,38 @@ def run_benchmarks() -> str:
     ]
 
     base_eval_res = None
+    eval_pairs: list[tuple[str, evaluate.SimulationResult]] = []
     for sys_name, rot_obj in bench_rotations:
         ev_res = evaluate.evaluate_rotation(rot_obj, members, sangrur_prof, FarmConstraints(irrigation="full"))
         if base_eval_res is None:
             base_eval_res = ev_res
+        eval_pairs.append((sys_name, ev_res))
         pm = evaluate.compute_practical_farmer_metrics(rot_obj, ev_res, base_eval_res, crops)
         lines.append(
             f"| {sys_name} | **{ev_res.soc_delta_t_ha_10yr:+.2f}** | **{ev_res.soil_health_score:.1f}** | "
             f"{ev_res.n_balance_kg_ha_yr:+.1f} | **{pm.urea_bags_saved_per_ha:.1f} bags** | **{pm.turnaround_days_kharif_rabi} d** |"
         )
     lines.append("")
+    lines.append("### Soil Health Index Component & Weight Breakdown (`models/soil_health.py`)")
+    lines.append("")
+    lines.append(
+        "| Rotation System | Armor (/15) | Min Disturbance (/15) | Diversity (/15) | Living Roots (/15) | Organic N (/15) | SOC Mod | Erosion Mod | Burn Penalty | Total (/100) |"
+    )
+    lines.append("| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |")
+    for sys_name, ev_res in eval_pairs:
+        bd = ev_res.soil_health_breakdown
+        lines.append(
+            f"| {sys_name} | {bd.get('soil_armor_cover', 0):.1f} | {bd.get('disturbance_minimization', 0):.1f} | "
+            f"{bd.get('biodiversity', 0):.1f} | {bd.get('living_roots', 0):.1f} | "
+            f"{bd.get('biological_n_livestock', 0):.1f} | {bd.get('soc_modifier', 0):+.1f} | "
+            f"{bd.get('erosion_modifier', 0):+.1f} | {bd.get('burning_penalty', 0):+.1f} | **{ev_res.soil_health_score:.1f}** |"
+        )
+    lines.append("")
 
     # -----------------------------------------------------------------------
-    # Benchmark 5: All 6 Indian Golden Fields Summary
+    # Benchmark 6: All 6 Indian Golden Fields Summary
     # -----------------------------------------------------------------------
-    lines.append("## 5. Six Indian Agro-Climatic Golden Benchmark Fields (Precomputed Engine Outputs)")
+    lines.append("## 6. Six Indian Agro-Climatic Golden Benchmark Fields (Precomputed Engine Outputs)")
     lines.append("")
     lines.append(
         "| Benchmark Field | Agro-Climatic Zone | Baseline Rotation | Rank #1 Recommended Strategy | Irrigation Change | Median Net Profit (₹/ha) | 10-Yr SOC Delta (t C/ha) | Soil Health Score |"
@@ -335,5 +415,5 @@ if __name__ == "__main__":
     report_md = run_benchmarks()
     print(report_md)
     if "--write-docs" in sys.argv:
-        (ROOT / "docs" / "VALIDATION.md").write_text(report_md, encoding="utf-8")
-        print("\n[OK] Wrote docs/VALIDATION.md from live engine outputs.")
+        (ROOT / "docs" / "BENCHMARKS.md").write_text(report_md, encoding="utf-8")
+        print("\n[OK] Wrote docs/BENCHMARKS.md from live engine outputs.")

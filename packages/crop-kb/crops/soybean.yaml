@@ -19,9 +19,9 @@ n_fixation_kg_ha: 80
 n_demand_kg_ha: 30
 residue_t_ha: 3.0
 residue_cn_ratio: 30
-typical_yield_t_ha: [2.0, 3.5]
+typical_yield_t_ha: [1.4, 2.3]
 aquacrop_name: Soybean
 good_predecessors: [maize, wheat, barley]
 bad_predecessors: [soybean]
-notes: "Kharif legume alternative to puddled rice in Punjab (varieties SL 958, SL 525) and core crop of the Iowa corn-soy golden field. Requires well-drained loamy soils (sensitive to monsoon waterlogging); needs Bradyrhizobium inoculation in non-traditional fields. Supplies a 40-50 kg N/ha credit to succeeding wheat or maize."
-sources: ["FAO-56 Table 12 (soybean)", "PAU Package of Practices Kharif", "Iowa State Univ. Extension PM 1853"]
+notes: "Major Kharif oilseed-legume across central and peninsular India (Vidarbha, Malwa, Bundelkhand; varieties JS 20-34, JS 95-60, SL 958). Requires well-drained soils (sensitive to prolonged monsoon waterlogging); supplies a 40-50 kg N/ha biological nitrogen credit to succeeding Rabi wheat, chickpea, or mustard."
+sources: ["FAO-56 Table 12 (soybean)", "ICAR-IISR Indore Soybean Production Technology", "DES Ministry of Agriculture District Yield Statistics"]

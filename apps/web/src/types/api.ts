@@ -7,7 +7,7 @@ export interface DataProvenance {
   resolution?: string | null;
   doi?: string | null;
   url?: string | null;
-  mode?: "observed" | "regional_climatology" | "fallback_estimate";
+  mode?: "observed" | "regional_climatology" | "fallback_estimate" | "unknown";
 }
 
 export interface SoilHealthCardInput {
@@ -78,6 +78,7 @@ export interface HazardSummary {
   erosion_risk_class?: "low" | "moderate" | "high" | "very_high" | null;
   residue_burning_detected?: boolean | null;
   terminal_heat_days_per_year?: number | null;
+  provenance?: DataProvenance[];
 }
 
 export interface InferredSeason {
@@ -100,11 +101,13 @@ export interface FieldProfile {
   hazards: HazardSummary;
   seasons_per_year?: number | null;
   crop_history: InferredSeason[];
+  crop_history_provenance?: DataProvenance[];
   agro_climatic_notes: string[];
   currency?: string;
   currency_symbol?: string;
   agro_zone?: string | null;
   is_fallback?: boolean;
+  data_mode?: "observed" | "hybrid_regional" | "fallback_synthetic";
 }
 
 export interface GoldenField {
@@ -194,6 +197,7 @@ export interface SimulationResult {
   living_root_days_pct: number;
   family_diversity_index: number;
   soil_health_score: number;
+  soil_health_breakdown?: Record<string, number>;
   profit_p10: number;
   profit_p50: number;
   profit_p90: number;
@@ -224,6 +228,7 @@ export interface StrategyRecommendation {
   practical_metrics?: PracticalFarmerMetrics | null;
   narrative_summary?: string | null;
   is_fallback?: boolean;
+  data_mode?: "observed" | "hybrid_regional" | "fallback_synthetic";
 }
 
 export interface RecommendRequest {

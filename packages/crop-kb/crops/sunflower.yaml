@@ -2,7 +2,7 @@ id: sunflower
 name: Sunflower
 family: asteraceae
 group: oilseed
-season_type: [warm]
+season_type: [cool]
 gdd_to_maturity: 1500
 base_temp_c: 7
 optimal_temp_c: [20, 30]

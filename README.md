@@ -27,9 +27,9 @@ Every recommendation, chart, and metric in TerraLoop carries end-to-end data pro
 
 | Dataset | Product ID / Collection | Spatial / Temporal Resolution | Engine Integration | Reference / DOI |
 |---|---|---|---|---|
-| **NASA POWER** | Daily Agroclimatology (`AG`) | 0.5° × 0.625°, Daily (1981–2024) | Tmax, Tmin, Precip, Solar Rad → Hargreaves ET₀, GDD, AquaCrop weather | [power.larc.nasa.gov](https://power.larc.nasa.gov/) |
+| **NASA POWER** | Daily Agroclimatology (`AG`) | 0.5° × 0.625°, Daily (1981–2024) | Tmax, Tmin, Precip, Solar Rad → Hargreaves ET₀, GDD, FAO-56 daily weather | [power.larc.nasa.gov](https://power.larc.nasa.gov/) |
 | **NASA GPM IMERG** | `NASA/GPM_L3/IMERG_V07` | 0.1°, Daily (2000–2024) | Precipitation totals, monsoon distribution, dry spells, RUSLE R-factor | [10.5067/GPM/IMERGDF/DAY/07](https://doi.org/10.5067/GPM/IMERGDF/DAY/07) |
-| **NASA SMAP** | `NASA/SMAP/SPL4SMGP/007` | 9 km, Daily (2015–2024) | 12 monthly root-zone soil moisture percentiles vs 10-year climatology | [10.5067/K2VT90DE20GV](https://doi.org/10.5067/K2VT90DE20GV) |
+| **NASA SMAP** | `NASA/SMAP/SPL4SMGP/008` | 9 km, Daily (2015–2024) | 12 monthly root-zone soil moisture percentiles vs 10-year climatology | [10.5067/K2VT90DE20GV](https://doi.org/10.5067/K2VT90DE20GV) |
 | **NASA GRACE / GRACE-FO** | `NASA/GRACE/MASS_GRIDS_V04/MASCON_CRI` | ~0.5° (native 3°), Monthly | Terrestrial water storage / groundwater trend rate (cm/yr) | [10.5067/TEMSC-3MJ62](https://doi.org/10.5067/TEMSC-3MJ62) |
 | **NASA NASADEM** | `NASA/NASADEM_HGT/001` | 30 m Elevation | Topographic field slope (%) for RUSLE LS erosion factor | [10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001](https://doi.org/10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001) |
 | **NASA FIRMS** | `FIRMS` (MODIS / VIIRS) | 375 m / 1 km | Detection of Oct–Nov crop residue (paddy stubble) burning | [10.5067/FIRMS/MODIS](https://doi.org/10.5067/FIRMS/MODIS) |
@@ -42,13 +42,14 @@ Every recommendation, chart, and metric in TerraLoop carries end-to-end data pro
 
 TerraLoop links Earth observations directly to rigorous agronomic models:
 
-1. **AquaCrop-OSPy 3.1 (FAO):** Daily soil-water-crop simulation simulating water productivity, canopy expansion, and harvest index. Calibrated for puddled rice (180 mm ponding, 3.0 mm/day percolation) vs Direct Seeded Rice (DSR, non-puddled, 2.3 mm/day percolation), demonstrating a validated 20–25% irrigation reduction.
+1. **FAO-56 / FAO-33 Soil-Water Balance (`models/aquacrop_runner.py`):** Daily root-zone soil moisture depletion (`TAW`, `RAW`, water stress coefficient `Ks`, stage-wise `Kc`, deep percolation, and reproductive thermal senescence). Calibrated for puddled transplanted rice (175 mm puddling, 3.5 mm/day flooded percolation) vs PAU Short-Duration PR-126 (~21% water saved from 22 fewer field days) and Direct Seeded Rice + AWD (75 mm pre-sowing wetting, 2.55 mm/day percolation on loam, ~27.5% irrigation reduction).
 2. **RothC-lite 26.3 Carbon Model:** 5-pool monthly carbon model (DPM, RPM, BIO, HUM, IOM) based on Coleman & Jenkinson (1996) and Falloon et al. (1998). Simulates decadal topsoil organic carbon accretion ($\Delta$ t C/ha/10yr) accounting for in-situ mulching vs stubble burning penalties.
 3. **Nitrogen Mass Balance & Legume Credit:** Seasonal N balance accounting for crop removal, BNF by legumes (moong, dhaincha, chickpea), and granting a 25 kg N/ha synthetic fertilizer credit to succeeding cereals.
-4. **5 USDA-NRCS Soil Health Principles Index:** 0–100 composite index evaluating soil disturbance, ground cover, living root duration, Shannon botanical family diversity, and livestock integration.
+4. **5 USDA-NRCS Soil Health Principles Index:** 0–100 composite index with transparent component breakdown (`soil_health_breakdown`: 5 principles × 15 pts max = 75 pts + SOC & RUSLE modifiers ±25 pts − 5 pt residue burning penalty).
 5. **RUSLE Soil Erosion:** Revised Universal Soil Loss Equation screening using NASADEM slope and GPM IMERG rainfall erosivity.
-6. **Agro-Economics:** Profit distributions ($P_{10}, P_{50}, P_{90}$) and Downside Risk ($CVaR_{10}$) based on official Indian Commission for Agricultural Costs & Prices (CACP) MSP and Punjab Agricultural University (PAU) comprehensive cultivation costs.
-7. **Wheat Terminal Heat Stress:** Explicit tracking of days with $T_{max} > 32^\circ\text{C}$ during reproductive grain-filling (1 March–15 April), alerting farmers to heat-vulnerable cultivars.
+6. **Agro-Economics & Procurement Risk:** Profit distributions ($P_{10}, P_{50}, P_{90}$) and Downside Risk ($CVaR_{10}$) based on official Indian Commission for Agricultural Costs & Prices (CACP 2024–25) MSP, state $A_2 + FL$ cost of cultivation (Punjab paddy ₹64,500/ha, wheat ₹48,500/ha), and procurement assurance (`msp_assured`, `nafed_pss`, `mandi_linked`).
+7. **Wheat Terminal Heat Stress:** Explicit tracking of days with $T_{max} > 32^\circ\text{C}$ during reproductive grain-filling (1 March–15 April) with 12-month Indo-Gangetic irrigation cooling bias correction.
+8. **Reproducible Benchmarks (`docs/BENCHMARKS.md`):** Automated empirical comparison against DES / ICRISAT district-level yield statistics across 6 Indian agro-climatic zones (`uv run python scripts/run_validation_benchmarks.py --write-docs`).
 
 ---
 
@@ -62,18 +63,18 @@ TerraLoop links Earth observations directly to rigorous agronomic models:
 │   │   │   ├── profiler.py   # Synthesizes NASA data into FieldProfile
 │   │   │   ├── data/         # NASA POWER, ISRIC, Google Earth Engine clients
 │   │   │   ├── eo/           # HLS NDVI smoothing, phenology & crop history
-│   │   │   ├── models/       # AquaCrop, RothC, N-balance, Soil Health, RUSLE, Economics
+│   │   │   ├── models/       # FAO-56 water balance, RothC, N-balance, Soil Health, RUSLE, Economics
 │   │   │   ├── optimize/     # Candidate rotation generator & multi-objective selection
 │   │   │   └── explain/      # Deterministic why-cards with provenance citations
-│   └── crop-kb/              # Agronomic parameters for 21 crops + AquaCrop overrides
+│   └── crop-kb/              # Agronomic parameters for 23 crops + CACP A2+FL economics
 ├── apps/
 │   ├── api/                  # FastAPI backend (/profile, /recommend, /golden)
 │   └── web/                  # Next.js 16 (Turbopack) frontend + Tailwind CSS + i18n
 ├── data/
-│   ├── golden/               # Verified benchmark demo fields (Sangrur, Ludhiana, etc.)
+│   ├── golden/               # Precomputed benchmark demo fields (Sangrur, Ludhiana, etc.)
 │   └── cache/                # Disk-cached API responses for zero-network resilience
 ├── tests/                    # Pytest test suite (100% offline-passing)
-└── docs/                     # BUILD_PLAN, METHODOLOGY, DATASETS, TASKS
+└── docs/                     # BUILD_PLAN, METHODOLOGY, BENCHMARKS, DATASETS, TASKS
 ```
 
 ---

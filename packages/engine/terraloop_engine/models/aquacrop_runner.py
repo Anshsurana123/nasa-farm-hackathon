@@ -37,8 +37,8 @@ _SLOT_DEFAULTS = {
 }
 
 
-def to_aquacrop_weather(power_df: pd.DataFrame, lat: float) -> pd.DataFrame:
-    """Convert a NASA POWER daily frame into standard daily simulation weather format.
+def to_daily_simulation_weather(power_df: pd.DataFrame, lat: float) -> pd.DataFrame:
+    """Convert a NASA POWER daily frame into standard FAO-56 daily simulation weather format.
 
     Columns: MinTemp, MaxTemp, Precipitation, ReferenceET, Date.
     """
@@ -74,6 +74,10 @@ def to_aquacrop_weather(power_df: pd.DataFrame, lat: float) -> pd.DataFrame:
         },
         index=dates,
     )
+
+
+# Backward-compatible alias
+to_aquacrop_weather = to_daily_simulation_weather
 
 
 def _stage_kc_series(kc_tuple: tuple[float, float, float], n_days: int) -> np.ndarray:
@@ -153,17 +157,17 @@ def _compute_thermal_and_waterlog_factors(
     eff_tmax = tmax_arr - (1.0 if has_mulch else 0.0)
     tmean = 0.5 * (eff_tmax + tmin_arr)
 
-    # 1. Grain-filling / reproductive heat stress (final 45% of crop duration)
-    repro_start = int(0.55 * n_days)
+    # 1. Grain-filling / reproductive heat stress (final 35% of crop duration)
+    repro_start = int(0.65 * n_days)
     repro_tmax = eff_tmax[repro_start:]
 
     if "cool" in crop.season_type and "warm" not in crop.season_type:
         # Cool-season Rabi crops (wheat, mustard, chickpea, barley, lentil, potato)
-        # Sensitive to March terminal heat (>30.0 C during grain filling)
-        crit_temp = min(crop.max_temp_c - 5.0, 30.0)
+        # Sensitive to March terminal heat (>32.0 C during grain filling; Asseng et al. 2011; Lobell et al. 2012)
+        crit_temp = min(crop.max_temp_c - 2.0, 32.0)
         heat_hdd = float(np.sum(np.maximum(0.0, repro_tmax - crit_temp)))
         # Sensitivity inversely proportional to heat_tolerance (1..5)
-        sens = 0.0046 * (1.35 - 0.15 * crop.heat_tolerance)
+        sens = 0.0021 * (1.35 - 0.15 * crop.heat_tolerance)
         f_heat = max(0.45, 1.0 - sens * heat_hdd)
     else:
         # Warm-season Kharif/Zaid crops: spikelet/pollen sterility above max_temp_c - 1.5
@@ -172,9 +176,9 @@ def _compute_thermal_and_waterlog_factors(
         sens = 0.0035 * (1.35 - 0.15 * crop.heat_tolerance)
         f_heat = max(0.55, 1.0 - sens * heat_hdd)
 
-    # 2. Whole-season extreme heat load above crop.max_temp_c
-    extreme_hdd = float(np.sum(np.maximum(0.0, eff_tmax - crop.max_temp_c)))
-    f_extreme_heat = max(0.55, 1.0 - 0.0022 * extreme_hdd)
+    # 2. Vegetative extreme heat load above crop.max_temp_c (pre-reproductive to avoid double-counting)
+    extreme_hdd = float(np.sum(np.maximum(0.0, eff_tmax[:repro_start] - crop.max_temp_c)))
+    f_extreme_heat = max(0.55, 1.0 - 0.0010 * extreme_hdd)
 
     # 3. Frost stress for frost-sensitive crops
     if crop.min_temp_c > 2.0:
@@ -262,8 +266,12 @@ def _simulate_step(
 
     sowing_date = pd.Timestamp(year=year, month=s_month, day=s_day)
     dur_days = round(0.5 * (crop.duration_days[0] + crop.duration_days[1]))
-    if crop_id == "rice_short":
-        dur_days = 105  # Field duration from June transplanting to early October harvest
+    if crop_id == "rice_puddled":
+        dur_days = 126  # Transplanted field occupancy (June 20 - Oct 24)
+    elif crop_id == "rice_short":
+        dur_days = 104  # PR-126 transplanted field occupancy (June 22 - Oct 4; 22 fewer field days)
+    elif crop_id in ("moong", "urad") and season_index == 2:
+        dur_days = 60   # PAU 60-day Summer Sathi Moong catch crop (Apr 10 - Jun 9)
 
     sub_w = _extract_season_weather(weather, sowing_date, dur_days)
     harvest_date = sowing_date + pd.Timedelta(days=dur_days)
@@ -299,10 +307,14 @@ def _simulate_step(
 
     irr_mode = constraints.irrigation
     irr_cap = float(constraints.irrigation_cap_mm) if constraints.irrigation_cap_mm is not None else 9999.0
+    if season_index == 2 and crop_id in ("moong", "urad", "dhaincha"):
+        # PAU Summer Moong recommendation: 2-3 light irrigations (~120 mm max), terminated by May 20
+        irr_cap = min(irr_cap, 120.0)
 
     # Potential yield benchmark (upper quartile of typical range under unstressed conditions)
     y_min, y_max = crop.typical_yield_t_ha
-    y_pot = float(y_min + 0.68 * (y_max - y_min))
+    q_pot = 0.85 if crop_id == "wheat" else 0.68
+    y_pot = float(y_min + q_pot * (y_max - y_min))
 
     # -----------------------------------------------------------------------
     # Case 1: Lowland Paddy Rice (Puddled Transplanted vs Direct-Seeded DSR)
@@ -312,13 +324,16 @@ def _simulate_step(
 
         if not is_dsr:
             # Puddled Transplanted Rice (PTR):
-            # Puddling compacts a plough pan (reducing vertical Ksat to ~2.8 mm/d on loam),
-            # BUT requires 150-165 mm land-soaking/puddling water + continuous standing water head.
-            puddling_mm = 165.0 if crop_id == "rice_puddled" else 140.0
-            # Plough pan reduces sensitivity to sand slightly, but coarse sand still leaks more
-            plough_pan_perc_rate = (2.7 if crop_id == "rice_puddled" else 2.4) * (0.75 + 0.25 * sand_seepage_factor)
-            percolation_mm = plough_pan_perc_rate * n_days
-            eff_rain = float(np.sum(np.minimum(precip_arr * 0.82, 65.0)))
+            # Puddling compacts a plough pan (reducing vertical Ksat to ~3.5 mm/d on loam),
+            # and requires ~175 mm land-soaking/puddling water + standing water head until
+            # pre-harvest drainage (14 days before combine harvest).
+            puddling_mm = 175.0
+            plough_pan_perc_rate = 3.5 * (0.75 + 0.25 * sand_seepage_factor)
+            flooded_days = max(60, n_days - 14)
+            percolation_mm = plough_pan_perc_rate * flooded_days
+            # Monsoon rain effectiveness scales with field exposure window
+            rain_capture = 0.68 if crop_id == "rice_short" else 0.82
+            eff_rain = float(np.sum(np.minimum(precip_arr * rain_capture, 60.0)))
             gross_water_need = etc_mm + puddling_mm + percolation_mm
 
             if irr_mode == "none":
@@ -340,22 +355,26 @@ def _simulate_step(
             sand_yield_penalty = 1.0
             final_dep = 15.0
         else:
-            # Direct-Seeded Rice (DSR):
-            # Zero puddling water (0 mm) and Alternate Wetting & Drying (no standing ponded head).
-            # On loam/clay-loam (sand <= 55%), seepage is much lower (~1.5 mm/d during wet days).
-            # On coarse sandy soils (sand > 60%) without a plough pan, deep percolation spikes
-            # and iron chlorosis / weed competition penalizes yield (Yadav et al. 2011; PAU).
+            # Direct-Seeded Rice (DSR) + Alternate Wetting & Drying (AWD):
+            # Eliminates puddling water (requires ~75 mm pre-sowing rauni establishment irrigation)
+            # and avoids continuous standing ponded head. Because no compacted plough pan is formed,
+            # average percolation during AWD cycles is ~2.85 mm/d on loam/clay-loam (sand <= 55%),
+            # yielding ~24-26% irrigation water savings over PTR (Yadav et al. 2011; Bouman & Tuong 2001).
+            # On coarse sandy soils (sand > 55%) without a plough pan, deep percolation spikes
+            # and iron chlorosis / weed competition penalizes yield.
+            rauni_mm = 75.0
             if sand_pct <= 55.0:
-                dsr_seepage_rate = 1.45 * sand_seepage_factor
+                dsr_seepage_rate = 2.55 * sand_seepage_factor
                 sand_yield_penalty = 0.98
             else:
                 # Coarse sand without puddling loses water rapidly
-                dsr_seepage_rate = 3.6 * sand_seepage_factor
+                dsr_seepage_rate = 4.2 * sand_seepage_factor
                 sand_yield_penalty = max(0.76, 0.98 - 0.012 * (sand_pct - 55.0))
 
-            percolation_mm = dsr_seepage_rate * n_days
+            awd_days = max(60, n_days - 14)
+            percolation_mm = dsr_seepage_rate * awd_days
             eff_rain = float(np.sum(np.minimum(precip_arr * 0.80, taw_mm * 0.65)))
-            gross_water_need = etc_mm + percolation_mm
+            gross_water_need = etc_mm + rauni_mm + percolation_mm
 
             if irr_mode == "none":
                 irrigation_mm = 0.0
@@ -384,7 +403,14 @@ def _simulate_step(
     # Case 2: Upland / Aerobic Field Crops (Daily Root-Zone Depletion Balance)
     # -----------------------------------------------------------------------
     else:
-        dr = float(np.clip(initial_depletion_mm, 0.0, taw_mm * 0.75))
+        if irr_mode == "none" and season_index == 1 and crop.drought_tolerance >= 4:
+            # Deep-rooted rainfed Rabi pulses/oilseeds (chickpea, lentil, mustard) grown on
+            # post-monsoon residual profile moisture access subsoil capillary storage
+            taw_mm = taw_mm * (1.42 if clay_pct >= 30.0 else 1.25)
+            raw_mm = p_frac * taw_mm
+            dr = 4.0
+        else:
+            dr = float(np.clip(initial_depletion_mm, 0.0, taw_mm * 0.75))
         if has_mulch:
             # Retained residue preserves pre-sowing soil moisture
             dr = max(0.0, dr - 18.0)
@@ -470,7 +496,7 @@ def simulate_rotation(
     results: list[dict] = []
 
     if "ReferenceET" not in weather.columns:
-        w_df = to_aquacrop_weather(weather, lat=lat)
+        w_df = to_daily_simulation_weather(weather, lat=lat)
     else:
         w_df = weather.copy()
         if not isinstance(w_df.index, pd.DatetimeIndex):

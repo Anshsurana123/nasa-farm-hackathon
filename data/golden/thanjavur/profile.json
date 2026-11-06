@@ -10,29 +10,29 @@
     "recent_period": "2005-2024",
     "mean_tmax_c": 33.43,
     "mean_tmin_c": 24.12,
-    "annual_precip_mm": 968.3,
-    "recent_annual_precip_mm": 1087.1,
-    "precip_change_pct": 12.3,
+    "annual_precip_mm": 1199.5,
+    "recent_annual_precip_mm": 1084.9,
+    "precip_change_pct": -9.6,
     "tmax_change_c": -0.24,
     "heat_days_per_year": 138.4,
     "recent_heat_days_per_year": 137.9,
     "frost_days_per_year": 0.0,
-    "longest_dry_spell_days_mean": 12.7,
+    "longest_dry_spell_days_mean": 11.2,
     "annual_et0_mm": 1722.9,
     "gdd_base10_per_year": 6167.0,
     "monthly_precip_mm": [
-      25.8,
-      11.5,
-      14.9,
-      32.7,
-      67.6,
-      52.6,
-      62.7,
-      89.4,
-      119.7,
-      181.2,
-      246.8,
-      122.8
+      25.5,
+      14.0,
+      17.2,
+      32.4,
+      87.9,
+      63.2,
+      92.6,
+      130.1,
+      122.0,
+      209.5,
+      245.4,
+      102.4
     ],
     "monthly_tmax_c": [
       29.6,
@@ -63,10 +63,10 @@
       21.4
     ],
     "wettest_months": [
+      8,
       9,
       10,
-      11,
-      12
+      11
     ],
     "provenance": [
       {
@@ -77,26 +77,35 @@
         "doi": null,
         "url": "https://power.larc.nasa.gov/",
         "mode": "observed"
+      },
+      {
+        "source": "NASA GPM IMERG",
+        "product": "GPM_3IMERGDF (V07)",
+        "period": "2000-2024",
+        "resolution": "0.1 deg, daily",
+        "doi": "10.5067/GPM/IMERGDF/DAY/07",
+        "url": "https://gpm.nasa.gov/data/imerg",
+        "mode": "observed"
       }
     ]
   },
   "water": {
     "root_zone_moisture_percentile": [
-      64.5,
-      61.2,
-      63.4,
-      63.7,
-      61.3,
-      65.7,
-      64.2,
-      65.8,
+      61.1,
       66.7,
-      67.7,
+      72.2,
       70.0,
-      64.5
+      80.0,
+      65.0,
+      75.0,
+      60.0,
+      60.0,
+      55.0,
+      50.0,
+      50.0
     ],
-    "groundwater_trend_cm_per_year": -0.5,
-    "climatic_water_balance_mm": -695.2,
+    "groundwater_trend_cm_per_year": 0.55,
+    "climatic_water_balance_mm": -580.7,
     "irrigation_detected": null,
     "provenance": [
       {
@@ -109,22 +118,31 @@
         "mode": "observed"
       },
       {
+        "source": "NASA GPM IMERG",
+        "product": "GPM_3IMERGDF (V07)",
+        "period": "2000-2024",
+        "resolution": "0.1 deg, daily",
+        "doi": "10.5067/GPM/IMERGDF/DAY/07",
+        "url": "https://gpm.nasa.gov/data/imerg",
+        "mode": "observed"
+      },
+      {
         "source": "NASA GRACE / GRACE-FO",
         "product": "Tellus Regional Terrestrial Water Storage (TWS) Mascon (JPL V04, 3° native)",
         "period": "2002-2024",
         "resolution": "0.5 deg grid (native ~3 deg mascon), monthly",
         "doi": "10.5067/TEMSC-3MJ62",
         "url": "https://grace.jpl.nasa.gov/",
-        "mode": "regional_climatology"
+        "mode": "observed"
       },
       {
         "source": "NASA SMAP",
-        "product": "SPL4SMGP (L4 Root-Zone Soil Moisture)",
+        "product": "SPL4SMGP V008 (L4 Root-Zone Soil Moisture)",
         "period": "2015-2024",
         "resolution": "9 km, daily",
         "doi": "10.5067/K2VT90DE20GV",
         "url": "https://smap.jpl.nasa.gov/",
-        "mode": "regional_climatology"
+        "mode": "observed"
       }
     ]
   },
@@ -140,7 +158,7 @@
     "nitrogen_g_kg": 0.78,
     "field_capacity_vol": 0.354,
     "wilting_point_vol": 0.22,
-    "slope_pct": 0.4,
+    "slope_pct": 5.16,
     "source": "modelled",
     "provenance": [
       {
@@ -159,139 +177,59 @@
         "resolution": "30 m",
         "doi": "10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001",
         "url": "https://earthdata.nasa.gov/",
-        "mode": "regional_climatology"
+        "mode": "observed"
       }
     ]
   },
   "hazards": {
-    "drought_frequency": 0.15,
-    "extreme_rain_days_per_year": 1.45,
+    "drought_frequency": 0.17,
+    "extreme_rain_days_per_year": 1.23,
     "heat_stress_probability": 1.0,
     "frost_risk": 0.0,
-    "erosion_risk_class": "low",
+    "erosion_risk_class": "very_high",
     "residue_burning_detected": false,
-    "terminal_heat_days_per_year": 44.1
+    "terminal_heat_days_per_year": 44.1,
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": null,
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA FIRMS",
+        "product": "MODIS / VIIRS Active Fire Detections",
+        "period": "2019-2024",
+        "resolution": "375 m / 1 km",
+        "doi": "10.5067/FIRMS/MODIS",
+        "url": "https://firms.modaps.eosdis.nasa.gov/",
+        "mode": "observed"
+      }
+    ]
   },
-  "seasons_per_year": 2,
-  "crop_history": [
+  "seasons_per_year": null,
+  "crop_history": [],
+  "crop_history_provenance": [
     {
-      "year": 2020,
-      "season_index": 0,
-      "start": "2020-08-08",
-      "peak": "2020-10-02",
-      "end": "2020-12-01",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2020,
-      "season_index": 1,
-      "start": "2020-01-06",
-      "peak": "2020-02-20",
-      "end": "2020-03-31",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2021,
-      "season_index": 0,
-      "start": "2021-08-03",
-      "peak": "2021-10-02",
-      "end": "2021-12-06",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2021,
-      "season_index": 1,
-      "start": "2020-12-31",
-      "peak": "2021-02-19",
-      "end": "2021-04-05",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2022,
-      "season_index": 0,
-      "start": "2022-08-13",
-      "peak": "2022-10-07",
-      "end": "2022-11-26",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2022,
-      "season_index": 1,
-      "start": "2022-01-05",
-      "peak": "2022-02-19",
-      "end": "2022-04-05",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2023,
-      "season_index": 0,
-      "start": "2023-08-13",
-      "peak": "2023-10-07",
-      "end": "2023-12-01",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2023,
-      "season_index": 1,
-      "start": "2022-12-31",
-      "peak": "2023-02-19",
-      "end": "2023-03-31",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2024,
-      "season_index": 0,
-      "start": "2024-08-12",
-      "peak": "2024-10-01",
-      "end": "2024-11-25",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
-    },
-    {
-      "year": 2024,
-      "season_index": 1,
-      "start": "2024-01-05",
-      "peak": "2024-02-19",
-      "end": "2024-03-30",
-      "crop_group": "rice",
-      "crop_id": "rice_puddled",
-      "confidence": 0.85,
-      "confirmed_by_farmer": false
+      "source": "NASA HLS",
+      "product": "HLSL30 / HLSS30 (Harmonized Landsat Sentinel-2)",
+      "period": "2019-2024",
+      "resolution": "30 m, 2-3 day",
+      "doi": "10.5067/HLS/HLSL30.002",
+      "url": "https://hls.gsfc.nasa.gov/",
+      "mode": "observed"
     }
   ],
   "agro_climatic_notes": [
     "Wheat terminal heat stress: grain-fill period (1 Mar-15 Apr) averages 44.1 days/yr with Tmax > 32 C.",
-    "Annual rainfall has increased by 12% between periods.",
-    "Evaporative demand exceeds rainfall by 695 mm/yr: crops depend on irrigation; water-efficient rotations matter."
+    "Evaporative demand exceeds rainfall by 581 mm/yr: crops depend on irrigation; water-efficient rotations matter."
   ],
   "currency": "INR",
   "currency_symbol": "₹",
   "agro_zone": "East Coast Plains & Deltas (Cauvery / Coastal Alluvial Zone)",
-  "is_fallback": false
+  "is_fallback": true,
+  "data_mode": "fallback_synthetic"
 }

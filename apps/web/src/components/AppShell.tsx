@@ -38,7 +38,16 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useI18n();
-  const { profile, loading, error } = useField();
+  const { profile, strategies, loading, error } = useField();
+
+  const isFallbackData =
+    Boolean(profile?.is_fallback) ||
+    profile?.data_mode === "fallback_synthetic" ||
+    strategies.some((s) => s.is_fallback || s.data_mode === "fallback_synthetic");
+  const isHybridRegional =
+    !isFallbackData &&
+    (profile?.data_mode === "hybrid_regional" ||
+      strategies.some((s) => s.data_mode === "hybrid_regional"));
 
   const currentIdx = WORKFLOW_ROUTES.findIndex((r) =>
     r.href === "/" ? pathname === "/" : pathname.startsWith(r.href)
@@ -115,6 +124,39 @@ export function AppShell({
         {showTelemetry && profile && (
           <div className="no-print">
             <TelemetryBar profile={profile} />
+          </div>
+        )}
+
+        {/* Data Mode / Fallback Transparency Banner */}
+        {profile && (isFallbackData || isHybridRegional) && (
+          <div
+            role="status"
+            className={`p-3.5 rounded-xl border text-xs font-mono flex items-start gap-2.5 no-print ${
+              isFallbackData
+                ? "bg-amber-500/15 border-amber-500/45 text-amber-600 dark:text-amber-300"
+                : "bg-cyan-500/10 border-cyan-500/35 text-cyan-600 dark:text-cyan-300"
+            }`}
+          >
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <div>
+              {isFallbackData ? (
+                <>
+                  <span className="font-bold uppercase">FALLBACK DATA MODE (SYNTHETIC / REGIONAL CLIMATOLOGY): </span>
+                  <span>
+                    Live NASA POWER / SoilGrids APIs were unreachable for this coordinate. Showing regional
+                    climatology estimates rather than observed field telemetry.
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="font-bold uppercase">HYBRID REGIONAL DATA MODE: </span>
+                  <span>
+                    NASA POWER and SoilGrids are observed, while GEE satellite layers (GRACE, SMAP, NASADEM) use
+                    regional climatology and FIRMS/HLS are marked unknown unless Earth Engine is active.
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         )}
 

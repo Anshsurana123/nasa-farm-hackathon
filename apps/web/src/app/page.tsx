@@ -106,7 +106,7 @@ export default function MissionControlPage() {
   // Regional narrative metadata
   let sectorTitle = "Global Agro-Climatic Intelligence & Subsurface Modeling";
   let sectorDesc =
-    "Dynamic parcel diagnostics coupling NASA POWER daily agroclimatology, ISRIC SoilGrids 250m soil physics, NASA SMAP root-zone moisture, and FAO AquaCrop simulation.";
+    "Dynamic parcel diagnostics coupling NASA POWER daily agroclimatology, ISRIC SoilGrids 250m soil physics, NASA SMAP root-zone moisture, and FAO-56 / FAO-33 Soil-Water Balance simulation.";
   let sectorBadge = "GLOBAL EO SWATH";
   let badgeTone = "border-cyan-500/45 bg-cyan-500/15 text-cyan-600 dark:text-cyan-300";
 

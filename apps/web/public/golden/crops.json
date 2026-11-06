@@ -189,8 +189,8 @@
     "max_temp_c": 35.0,
     "min_temp_c": -3.0,
     "duration_days": [
-      130,
-      160
+      105,
+      130
     ],
     "water_requirement_mm": [
       250.0,
@@ -201,9 +201,9 @@
       1.0,
       0.35
     ],
-    "root_depth_m": 1.0,
+    "root_depth_m": 1.25,
     "drought_tolerance": 4,
-    "heat_tolerance": 2,
+    "heat_tolerance": 3,
     "waterlogging_tolerance": 1,
     "n_fixation_kg_ha": 60.0,
     "n_demand_kg_ha": 20.0,
@@ -442,7 +442,7 @@
       1.5,
       2.2
     ],
-    "aquacrop_name": null,
+    "aquacrop_name": "Soybean",
     "good_predecessors": [
       "wheat",
       "barley",
@@ -558,8 +558,8 @@
     "residue_t_ha": 6.0,
     "residue_cn_ratio": 60.0,
     "typical_yield_t_ha": [
-      4.0,
-      7.0
+      3.8,
+      5.8
     ],
     "aquacrop_name": "Maize",
     "good_predecessors": [
@@ -1067,8 +1067,8 @@
     "residue_t_ha": 6.0,
     "residue_cn_ratio": 70.0,
     "typical_yield_t_ha": [
-      2.0,
-      4.5
+      1.0,
+      2.0
     ],
     "aquacrop_name": "Sorghum",
     "good_predecessors": [
@@ -1081,11 +1081,11 @@
     "bad_predecessors": [
       "sorghum"
     ],
-    "notes": "Drought-resilient staple cereal for the Kenya golden field (Machakos bimodal short/long rains) and prime kharif fodder crop in Punjab (SL 44). Dense root system extracts subsoil water under severe moisture stress; root exudates contain sorgoleone (potent allelopathic weed suppressant, but requires adequate nitrogen for sensitive following crops).",
+    "notes": "Drought-resilient Kharif coarse cereal across semi-arid India (Bundelkhand, Deccan plateau; hybrids CSH 16, CSV 27) and dual-purpose grain/fodder crop in North-West India. Dense root system extracts subsoil water under severe moisture stress.",
     "sources": [
       "FAO-56 Table 12 (sorghum)",
-      "KALRO Dryland Agriculture Technical Guides",
-      "PAU Package of Practices Kharif (fodder)",
+      "ICAR-IIMR Sorghum Cultivation Practices",
+      "DES Ministry of Agriculture District Yield Statistics",
       "FAO ECOCROP"
     ]
   },
@@ -1127,8 +1127,8 @@
     "residue_t_ha": 3.0,
     "residue_cn_ratio": 30.0,
     "typical_yield_t_ha": [
-      2.0,
-      3.5
+      1.4,
+      2.3
     ],
     "aquacrop_name": "Soybean",
     "good_predecessors": [
@@ -1139,11 +1139,11 @@
     "bad_predecessors": [
       "soybean"
     ],
-    "notes": "Kharif legume alternative to puddled rice in Punjab (varieties SL 958, SL 525) and core crop of the Iowa corn-soy golden field. Requires well-drained loamy soils (sensitive to monsoon waterlogging); needs Bradyrhizobium inoculation in non-traditional fields. Supplies a 40-50 kg N/ha credit to succeeding wheat or maize.",
+    "notes": "Major Kharif oilseed-legume across central and peninsular India (Vidarbha, Malwa, Bundelkhand; varieties JS 20-34, JS 95-60, SL 958). Requires well-drained soils (sensitive to prolonged monsoon waterlogging); supplies a 40-50 kg N/ha biological nitrogen credit to succeeding Rabi wheat, chickpea, or mustard.",
     "sources": [
       "FAO-56 Table 12 (soybean)",
-      "PAU Package of Practices Kharif",
-      "Iowa State Univ. Extension PM 1853"
+      "ICAR-IISR Indore Soybean Production Technology",
+      "DES Ministry of Agriculture District Yield Statistics"
     ]
   },
   {
@@ -1152,7 +1152,7 @@
     "family": "asteraceae",
     "group": "oilseed",
     "season_type": [
-      "warm"
+      "cool"
     ],
     "gdd_to_maturity": 1500.0,
     "base_temp_c": 7.0,
@@ -1249,7 +1249,7 @@
       0.9,
       1.4
     ],
-    "aquacrop_name": null,
+    "aquacrop_name": "Soybean",
     "good_predecessors": [
       "wheat",
       "barley",
@@ -1280,13 +1280,13 @@
     "base_temp_c": 0.0,
     "optimal_temp_c": [
       12.0,
-      25.0
+      22.0
     ],
     "max_temp_c": 35.0,
     "min_temp_c": -5.0,
     "duration_days": [
-      130,
-      145
+      140,
+      165
     ],
     "water_requirement_mm": [
       400.0,

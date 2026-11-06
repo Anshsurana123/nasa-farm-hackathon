@@ -263,17 +263,39 @@ def n_balance(
 # TASK-M07: Composite Soil Health Score (USDA-NRCS 5 Principles Framework)
 # ---------------------------------------------------------------------------
 
-def soil_health_score(
+def soil_health_breakdown(
     rotation: Rotation,
     crops: dict[str, CropSpec],
     soc_delta_10yr: float = 0.0,
     erosion_t_ha_yr: float = 5.0,
     has_livestock: bool = False,
-) -> float:
-    """Calculate composite Soil Health Score (0-100) based on 5 USDA-NRCS principles + SOC & RUSLE."""
+) -> dict[str, float]:
+    """Calculate component sub-scores and modifiers for the composite Soil Health Score (0-100).
+
+    Components (weights):
+      - disturbance_minimization (0..15 pts): tillage intensity & residue burning avoidance
+      - soil_armor_cover (0..15 pts): surface residue mulch & canopy cover
+      - living_roots (0..15 pts): active root days per year (/ 330 d)
+      - biodiversity (0..15 pts): botanical family Shannon diversity index (H' / 0.95)
+      - biological_n_livestock (0..15 pts): symbiotic legume N fixation & fodder/livestock integration
+      - soc_modifier (-15..+18 pts): 10-year RothC-lite soil organic carbon trajectory
+      - erosion_modifier (-10..+10 pts): RUSLE annual soil loss hazard relative to 5 t/ha/yr tolerance
+      - burning_penalty (-8..0 pts): direct thermal sterilization penalty for open-field burning
+      - total_score (0..100 pts): clipped sum
+    """
     total_steps = len(rotation.steps)
     if total_steps == 0:
-        return 30.0
+        return {
+            "disturbance_minimization": 6.0,
+            "soil_armor_cover": 6.0,
+            "living_roots": 6.0,
+            "biodiversity": 6.0,
+            "biological_n_livestock": 6.0,
+            "soc_modifier": 0.0,
+            "erosion_modifier": 0.0,
+            "burning_penalty": 0.0,
+            "total_score": 30.0,
+        }
 
     # 1. Disturbance Minimization (15 max)
     till_scores = []
@@ -281,14 +303,14 @@ def soil_health_score(
     for step in rotation.steps:
         practices = step.practices
         if is_burning_practice(practices):
-            till_scores.append(1.5)
+            till_scores.append(3.5)
             any_burning = True
         elif any(p in ("no_till", "zero_till", "happy_seeder") for p in practices):
             till_scores.append(15.0)
         elif any(p in ("reduced_till", "strip_till", "direct_seeded") for p in practices):
             till_scores.append(12.0)
         elif step.crop_id in ("rice_puddled", "rice_short"):
-            till_scores.append(4.5)  # Intensive puddling disperses soil aggregates
+            till_scores.append(5.5)  # Intensive puddling disperses soil aggregates
         else:
             till_scores.append(8.0)  # Conventional tillage
     disturbance_score = float(np.mean(till_scores))
@@ -297,13 +319,13 @@ def soil_health_score(
     cover_fractions = []
     for step in rotation.steps:
         if step.crop_id == "fallow":
-            cover_fractions.append(0.25 if "residue_retained" in step.practices else 0.0)
+            cover_fractions.append(0.30 if "residue_retained" in step.practices else 0.15)
         else:
             base_cov = 0.72
             if any(p in ("residue_retained", "happy_seeder") for p in step.practices):
                 base_cov = 0.96
             elif is_burning_practice(step.practices):
-                base_cov = 0.30
+                base_cov = 0.42
             cover_fractions.append(base_cov)
     cover_score = min(15.0, 15.0 * float(np.mean(cover_fractions)))
 
@@ -320,7 +342,7 @@ def soil_health_score(
 
     # 4. Biodiversity (15 max)
     shannon_h = family_shannon_index(rotation, crops)
-    biodiversity_score = min(15.0, (shannon_h / 0.95) * 15.0) if shannon_h > 0 else 3.0
+    biodiversity_score = min(15.0, (shannon_h / 0.95) * 15.0) if shannon_h > 0 else 4.0
 
     # 5. Biological N / Green Manure / Livestock Integration (15 max)
     has_legume_or_green = any(
@@ -338,24 +360,51 @@ def soil_health_score(
     elif has_livestock:
         livestock_score = 9.0
     else:
-        livestock_score = 4.0
+        livestock_score = 4.5
 
     base_sum = disturbance_score + cover_score + living_roots_score + biodiversity_score + livestock_score
 
-    # Modifiers:
-    # SOC Trajectory modifier (-15 to +18 pts) — strongly rewards net carbon sequestration
+    # Modifiers (aligned with docs/METHODOLOGY.md):
+    # SOC Trajectory modifier (-10 to +15 pts)
     if soc_delta_10yr >= 0:
-        soc_mod = min(18.0, (soc_delta_10yr / 2.0) * 14.0)
+        soc_mod = min(15.0, (soc_delta_10yr / 2.2) * 15.0)
     else:
-        soc_mod = max(-15.0, (soc_delta_10yr / 1.2) * 10.0)
+        soc_mod = max(-10.0, (soc_delta_10yr / 2.2) * 10.0)
 
-    # Erosion Hazard modifier (-10 to +10 pts)
+    # Erosion Hazard modifier (-8 to +10 pts)
     if erosion_t_ha_yr <= 5.0:
         erosion_mod = 10.0 * (1.0 - (erosion_t_ha_yr / 5.0))
     else:
-        erosion_mod = max(-10.0, -((erosion_t_ha_yr - 5.0) / 15.0) * 10.0)
+        erosion_mod = max(-8.0, -((erosion_t_ha_yr - 5.0) / 20.0) * 8.0)
 
-    burning_penalty = -8.0 if any_burning else 0.0
+    burning_penalty = -5.0 if any_burning else 0.0
 
-    total_score = base_sum + soc_mod + erosion_mod + burning_penalty
-    return round(float(np.clip(total_score, 0.0, 100.0)), 1)
+    total_score = round(float(np.clip(base_sum + soc_mod + erosion_mod + burning_penalty, 0.0, 100.0)), 1)
+    return {
+        "disturbance_minimization": round(disturbance_score, 1),
+        "soil_armor_cover": round(cover_score, 1),
+        "living_roots": round(living_roots_score, 1),
+        "biodiversity": round(biodiversity_score, 1),
+        "biological_n_livestock": round(livestock_score, 1),
+        "soc_modifier": round(soc_mod, 1),
+        "erosion_modifier": round(erosion_mod, 1),
+        "burning_penalty": round(burning_penalty, 1),
+        "total_score": total_score,
+    }
+
+
+def soil_health_score(
+    rotation: Rotation,
+    crops: dict[str, CropSpec],
+    soc_delta_10yr: float = 0.0,
+    erosion_t_ha_yr: float = 5.0,
+    has_livestock: bool = False,
+) -> float:
+    """Calculate composite Soil Health Score (0-100) based on 5 USDA-NRCS principles + SOC & RUSLE."""
+    return soil_health_breakdown(
+        rotation=rotation,
+        crops=crops,
+        soc_delta_10yr=soc_delta_10yr,
+        erosion_t_ha_yr=erosion_t_ha_yr,
+        has_livestock=has_livestock,
+    )["total_score"]

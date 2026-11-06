@@ -180,7 +180,7 @@ export function RotationExplorer({
               NSGA-II // MULTI-OBJECTIVE SOLVER
             </span>
             <span className="text-muted hidden sm:inline">
-              FAO AquaCrop-OSPy · RothC-26.3 · USDA-NRCS
+              FAO-56 Water Balance · RothC-26.3 · USDA-NRCS
             </span>
           </div>
           <h3 className="font-serif text-xl sm:text-2xl font-bold text-foreground mt-1 tracking-tight">
@@ -1038,6 +1038,16 @@ function SoilHealthRadar({
   const bRes = baseline.results[0];
 
   const computeAxes = (s: StrategyRecommendation, r?: typeof fRes) => {
+    const bd = r?.soil_health_breakdown;
+    if (bd && typeof bd.soil_armor_cover === "number") {
+      return [
+        Math.round((bd.soil_armor_cover / 15) * 100),
+        Math.round((bd.disturbance_minimization / 15) * 100),
+        Math.round((bd.living_roots / 15) * 100),
+        Math.round((bd.biodiversity / 15) * 100),
+        Math.round((bd.biological_n_livestock / 15) * 100),
+      ];
+    }
     const practices = s.rotation.steps.flatMap((st) => st.practices);
     const hasMulch = practices.some((p) => p.includes("residue_retained") || p.includes("mulch"));
     const hasBurn = practices.some((p) => p.includes("burned"));
@@ -1149,6 +1159,38 @@ function SoilHealthRadar({
           return <circle key={i} cx={p.x} cy={p.y} r="3" fill="#34d399" />;
         })}
       </svg>
+
+      {/* Explicit Soil Health Component & Weight Breakdown */}
+      {fRes?.soil_health_breakdown && (
+        <div className="w-full mt-2 pt-2 border-t border-line space-y-1 text-[10px] font-mono">
+          <div className="flex justify-between text-muted uppercase font-bold">
+            <span>Soil Health Component (Weight)</span>
+            <span>Selected vs Base</span>
+          </div>
+          {[
+            { key: "disturbance_minimization", label: "1. Min Disturbance (/15)" },
+            { key: "soil_armor_cover", label: "2. Soil Armor (/15)" },
+            { key: "living_roots", label: "3. Living Roots (/15)" },
+            { key: "biodiversity", label: "4. Biodiversity (/15)" },
+            { key: "biological_n_livestock", label: "5. Bio-N / Fodder (/15)" },
+            { key: "soc_modifier", label: "+ SOC 10yr Mod (-15..+18)" },
+            { key: "erosion_modifier", label: "+ RUSLE Mod (-10..+10)" },
+            { key: "burning_penalty", label: "+ Burn Penalty (-8..0)" },
+          ].map((item) => {
+            const fVal = fRes.soil_health_breakdown?.[item.key] ?? 0;
+            const bVal = bRes?.soil_health_breakdown?.[item.key] ?? 0;
+            return (
+              <div key={item.key} className="flex justify-between items-center">
+                <span className="text-muted">{item.label}</span>
+                <span>
+                  <strong className="text-emerald-400">{fVal > 0 && item.key.includes("mod") ? `+${fVal}` : fVal}</strong>
+                  <span className="text-muted"> vs {bVal > 0 && item.key.includes("mod") ? `+${bVal}` : bVal}</span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Accessible fallback table */}
       <table className="sr-only">

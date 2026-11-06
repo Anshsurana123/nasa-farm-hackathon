@@ -403,6 +403,7 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
                 currency_symbol="₹",
                 agro_zone=economics.detect_agro_zone(req.field.lat, req.field.lon),
                 is_fallback=True,
+                data_mode="fallback_synthetic",
                 agro_climatic_notes=profiler.build_notes(
                     c, s, WaterSummary(climatic_water_balance_mm=wb), h, lat=req.field.lat
                 ),
@@ -439,6 +440,8 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     rank_scores = {r.crop_id: r.score for r in ranked_crops}
     top_ids = {r.crop_id for r in ranked_crops[:10] if r.score >= 0.22}
     # Always include key regional diversification & staple crops if suitable
+    is_punjab_belt = prof.field.lat >= 28.5
+    is_semi_arid_limited = req.constraints.irrigation == "limited" and prof.climate.annual_precip_mm < 520.0
     for key_cid in (
         "wheat",
         "rice_short",
@@ -454,8 +457,14 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         "sorghum",
         "pearl_millet",
     ):
+        if is_punjab_belt and key_cid in ("soybean", "sorghum", "pigeon_pea"):
+            continue
+        if is_semi_arid_limited and key_cid in ("rice_puddled", "rice_short", "rice_dsr", "basmati"):
+            continue
         if rank_scores.get(key_cid, 0.0) >= 0.25:
             top_ids.add(key_cid)
+    if is_semi_arid_limited:
+        top_ids -= {"rice_puddled", "rice_short", "rice_dsr", "basmati"}
     top_ids |= set(req.constraints.must_grow)
     filtered_crops = {cid: crops[cid] for cid in top_ids if cid in crops}
 
@@ -495,6 +504,8 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
 
     # 4. Baseline rotation (current farm practice from satellite history, regional benchmark, or farmer 1-tap override)
     baseline_rot = rotations.derive_baseline_rotation(prof, crops, baseline_override=req.baseline_override)
+    base_seq = [s.crop_id for s in baseline_rot.steps]
+    candidate_rotations = [r for r in candidate_rotations if [s.crop_id for s in r.steps] != base_seq]
     all_rotations = [baseline_rot] + candidate_rotations
 
     # 5. Evaluate all candidates across historical weather ensemble
@@ -509,45 +520,71 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     baseline_result = sim_results[0]
     baseline_pm = evaluate.compute_practical_farmer_metrics(baseline_rot, baseline_result, baseline_result, crops)
 
-    # 6. Map to objective scores for Pareto / Priority selection
-    cand_obj_dicts: list[dict[str, float]] = []
+    # 6. Map to objective scores for Pareto / Priority selection (incorporating procurement_type & market_risk)
+    econ_crops = economics.load_economics("punjab").get("crops", {})
+    is_bundelkhand = (23.5 <= prof.field.lat < 27.0) and (77.5 <= prof.field.lon <= 81.5)
+
+    def _build_objective_dict(
+        rot: rotations.Rotation,
+        res: evaluate.SimulationResult,
+        pm: evaluate.PracticalFarmerMetrics,
+    ) -> dict[str, float]:
+        mean_irr = float(np.mean(res.irrigation_mm)) if res.irrigation_mm else 0.0
+        active_cids = [s.crop_id for s in rot.steps if s.crop_id != "fallow"]
+        main_cids = [s.crop_id for s in rot.steps if s.crop_id != "fallow" and s.season_index in (0, 1)]
+        proc_factors: list[float] = []
+        msp_count = 0
+        for cid in active_cids:
+            c_econ = econ_crops.get(cid, {})
+            p_type = str(c_econ.get("procurement_type", "nafed_pss"))
+            m_risk = float(c_econ.get("market_risk", 0.12))
+            if p_type == "msp_assured":
+                p_base = 1.0
+                if cid in main_cids:
+                    msp_count += 1
+            elif p_type == "nafed_pss":
+                p_base = 0.78
+            else:
+                p_base = 0.52
+            proc_factors.append(p_base * (1.0 - 0.60 * m_risk))
+        proc_assurance = float(np.mean(proc_factors)) if proc_factors else 0.75
+        if msp_count >= 2:
+            proc_assurance = min(1.0, proc_assurance + 0.12)
+        elif msp_count == 1:
+            proc_assurance = min(0.96, proc_assurance + 0.05)
+
+        if msp_count >= 2:
+            food_sec = 1.0
+        elif any(cid in ("wheat", "rice_puddled", "rice_short", "rice_dsr") for cid in active_cids):
+            food_sec = 0.88
+        elif is_bundelkhand and any(cid in ("sorghum", "pearl_millet") for cid in active_cids):
+            food_sec = 0.92
+        elif any(cid in ("maize", "chickpea", "pigeon_pea", "urad", "moong", "lentil") for cid in active_cids):
+            food_sec = 0.68
+        elif any(cid in ("sorghum", "pearl_millet") for cid in active_cids):
+            food_sec = 0.60
+        else:
+            food_sec = 0.45
+
+        return {
+            "profit": round(res.profit_p50 * (0.82 + 0.18 * proc_assurance), 1),
+            "water_savings": -mean_irr,
+            "soil_health": res.soil_health_score,
+            "low_risk": round(res.cvar_profit_10 * proc_assurance, 1),
+            "low_labour": -pm.labor_cost_inr_per_ha,
+            "food_security": round(food_sec * proc_assurance, 3),
+        }
+
+    cand_obj_dicts: list[dict[str, float]] = [
+        _build_objective_dict(baseline_rot, baseline_result, baseline_pm)
+    ]
     cand_pms = [baseline_pm]
     labels: list[str] = [baseline_rot.label or baseline_rot.id]
 
-    baseline_mean_irr = float(np.mean(baseline_result.irrigation_mm)) if baseline_result.irrigation_mm else 0.0
-    cand_obj_dicts.append(
-        {
-            "profit": baseline_result.profit_p50,
-            "water_savings": -baseline_mean_irr,
-            "soil_health": baseline_result.soil_health_score,
-            "low_risk": baseline_result.cvar_profit_10,
-            "low_labour": -baseline_pm.labor_cost_inr_per_ha,
-            "food_security": 1.0
-            if any(
-                s.crop_id in ("wheat", "rice_puddled", "rice_short", "rice_dsr", "maize", "sorghum", "pearl_millet")
-                for s in baseline_rot.steps
-            )
-            else 0.5,
-        }
-    )
-
     for r, res in zip(all_rotations[1:], sim_results[1:], strict=False):
-        mean_irr = float(np.mean(res.irrigation_mm)) if res.irrigation_mm else 0.0
         pm = evaluate.compute_practical_farmer_metrics(r, res, baseline_result, crops)
         cand_pms.append(pm)
-        obj_dict = {
-            "profit": res.profit_p50,
-            "water_savings": -mean_irr,
-            "soil_health": res.soil_health_score,
-            "low_risk": res.cvar_profit_10,
-            "low_labour": -pm.labor_cost_inr_per_ha,
-            "food_security": 1.0
-            if any(
-                s.crop_id in ("wheat", "rice_puddled", "rice_short", "rice_dsr", "maize", "sorghum", "pearl_millet")
-                for s in r.steps
-            )
-            else 0.5,
-        }
+        obj_dict = _build_objective_dict(r, res, pm)
         cand_obj_dicts.append(obj_dict)
         labels.append(r.label or r.id)
 
@@ -570,6 +607,8 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     baseline_res_metrics = evaluate.compute_resilience_and_regret(baseline_result)
     base_label = baseline_rot.label or baseline_rot.id
     field_label = prof.field.name or "this field"
+    rec_is_fallback = prof.is_fallback or used_fallback_weather
+    rec_data_mode = "fallback_synthetic" if rec_is_fallback else prof.data_mode
 
     if req.language == "hi":
         base_why = [f"{field_label} के लिए वर्तमान आधार फसल चक्र: {base_label}।"]
@@ -599,7 +638,8 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         currency="INR",
         currency_symbol="₹",
         practical_metrics=baseline_pm,
-        is_fallback=(prof.is_fallback or used_fallback_weather),
+        is_fallback=rec_is_fallback,
+        data_mode=rec_data_mode,
     )
     baseline_rec.narrative_summary = why_cards.grounded_llm_explain(
         prof, baseline_rec, baseline_rec, language=req.language
@@ -645,7 +685,8 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
             currency="INR",
             currency_symbol="₹",
             practical_metrics=chosen_pm,
-            is_fallback=(prof.is_fallback or used_fallback_weather),
+            is_fallback=rec_is_fallback,
+            data_mode=rec_data_mode,
         )
         cards, provs = why_cards.why_cards(prof, rec, baseline_rec, language=req.language)
         rec.why = cards

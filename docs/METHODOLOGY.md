@@ -77,12 +77,14 @@ Composite 0–100 index mapping rotation outputs directly onto the **5 USDA-NRCS
   - Rabi (Winter, peak in Jan–Apr): Peak in January $\rightarrow$ Mustard; peak in Feb–Apr $\rightarrow$ Wheat.
   - Zaid (Pre-monsoon, peak in May–Jun) $\rightarrow$ Summer Moong or fodder.
 
-## Crop Simulation: AquaCrop-OSPy (implemented: `models/aquacrop_runner.py`, TASK-M02, M03)
-- Daily soil-water-crop simulation using AquaCrop-OSPy 3.1:
-  - Transpiration driven by water productivity ($WP^*$) and green canopy cover ($CC$).
-  - Soil water balance across soil layers using Saxton-Rawls hydraulic properties ($FC, WP, SAT$).
-  - Puddled rice modeled with 180 mm ponding requirement and 3.0 mm/day percolation.
-  - Direct Seeded Rice (DSR) eliminates ponding requirement and reduces deep percolation to 2.3 mm/day, yielding a 20–25% net irrigation saving.
+## Crop Simulation: FAO-56 / FAO-33 Daily Soil-Water Balance (implemented: `models/aquacrop_runner.py`, TASK-M02, M03)
+- Daily root-zone soil-water-crop simulation based on FAO Irrigation & Drainage Paper No. 56 (Allen et al., 1998) and Paper No. 33 (Doorenbos & Kassam, 1979):
+  - Daily crop evapotranspiration $ET_c = K_c(t) \times ET_0$ with 4-stage piecewise linear $K_c$ curve (`kc_ini`, `kc_mid`, `kc_end`) and $-10\%$ evaporation reduction under retained surface mulch (`happy_seeder` / `residue_retained`).
+  - Root-zone water balance across Total Available Water ($TAW = 1000(\theta_{FC} - \theta_{WP})Z_r$) and Readily Available Water ($RAW = p \cdot TAW$) using Saxton-Rawls (2006) hydraulic properties, daily depletion $D_{r,t}$, and water stress coefficient $K_s(t)$.
+  - Reproductive heat stress above $32.0^\circ\text{C}$ during the final $35\%$ of the Rabi cycle (Asseng et al., 2011; Lobell et al., 2012), buffered by $-1.0^\circ\text{C}$ canopy/topsoil cooling under Happy Seeder surface straw mulch (Sidhu et al., 2007).
+  - Puddled Transplanted Rice (`rice_puddled`, 126 field days) modeled with $175\text{ mm}$ puddling requirement and $3.5\text{ mm/day}$ plough-pan percolation until pre-harvest drainage (14 days before harvest).
+  - PAU Short-Duration Rice (`rice_short` PR-126, 104 field days) saves $\sim 21\%$ irrigation water from 22 fewer field days and expands the Kharif-to-Rabi turnaround window from 11 to 30 days.
+  - Direct-Seeded Rice + AWD (`rice_dsr`) replaces $175\text{ mm}$ puddling with a $75\text{ mm}$ pre-sowing *rauni* wetting and $2.55\text{ mm/day}$ AWD percolation on medium/fine soils, saving $\sim 25\text{--}28\%$ irrigation water (Yadav et al., 2011; Bouman & Tuong, 2001).
 
 ## Multi-Objective Risk Evaluation & Economics (implemented: `optimize/evaluate.py`, `models/economics.py`, TASK-O02, M08)
 - **Historical Climate Ensemble:** Multi-year moving blocks from 40-year daily weather records ($N \ge 30$ members).

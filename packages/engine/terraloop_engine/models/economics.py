@@ -62,6 +62,7 @@ def profit_per_ha(
     currency: str | None = "INR",
     price_multiplier: float = 1.0,
     preceded_by_legume: bool = False,
+    irrigation: str = "full",
 ) -> dict[str, float | str]:
     """Calculate gross revenue, cost of cultivation, labour cost, and net profit per hectare.
 
@@ -73,6 +74,8 @@ def profit_per_ha(
         currency: 'INR' (default) or 'USD'.
         price_multiplier: Realized market price factor (1.0 = median MSP/mandi price).
         preceded_by_legume: True if preceding season fixed biological nitrogen (saves ~1.2 bags Urea/ha).
+        irrigation: Irrigation regime ('full', 'limited', or 'none'). Rainfed dryland regimes
+            incur lower irrigation pumping and input costs per CACP dryland state budgets.
 
     Returns:
         dict with revenue_per_ha, cost_per_ha, labor_cost_per_ha, profit_per_ha,
@@ -87,6 +90,14 @@ def profit_per_ha(
     labor_inr = float(crop_data.get("labor_cost_per_ha", round(cost_inr * 0.30)))
     market_risk = float(crop_data.get("market_risk", 0.12))
     procurement_type = str(crop_data.get("procurement_type", "nafed_pss"))
+
+    if irrigation == "none":
+        # CACP rainfed dryland state A2+FL cost vs high-input irrigated Punjab A2+FL cost
+        cost_inr *= 0.62
+        labor_inr *= 0.72
+    elif irrigation == "limited":
+        cost_inr *= 0.88
+        labor_inr *= 0.92
 
     # Practice-based adjustments to operating & labour costs (PAU Farm Management budgets)
     if any(p in ("no_till", "zero_till", "happy_seeder", "direct_seeded") for p in practices):

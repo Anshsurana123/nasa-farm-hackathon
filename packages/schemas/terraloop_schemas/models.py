@@ -19,7 +19,7 @@ class DataProvenance(BaseModel):
     resolution: str | None = None
     doi: str | None = None
     url: str | None = None
-    mode: Literal["observed", "regional_climatology", "fallback_estimate"] = "observed"
+    mode: Literal["observed", "regional_climatology", "fallback_estimate", "unknown"] = "observed"
 
 
 class SoilHealthCardInput(BaseModel):
@@ -104,6 +104,7 @@ class HazardSummary(BaseModel):
         None,
         description="Days with Tmax > 32 C during wheat grain-fill (1 Mar - 15 Apr in NH, 1 Sep - 15 Oct in SH)",
     )
+    provenance: list[DataProvenance] = []
 
 
 class InferredSeason(BaseModel):
@@ -126,11 +127,13 @@ class FieldProfile(BaseModel):
     hazards: HazardSummary
     seasons_per_year: int | None = None
     crop_history: list[InferredSeason] = []
+    crop_history_provenance: list[DataProvenance] = []
     agro_climatic_notes: list[str] = []
     currency: str = "INR"
     currency_symbol: str = "₹"
     agro_zone: str | None = None
     is_fallback: bool = False
+    data_mode: Literal["observed", "hybrid_regional", "fallback_synthetic"] = "observed"
 
 
 # ---------------------------------------------------------------------------
@@ -195,7 +198,7 @@ class Priorities(BaseModel):
     soil_health: float = Field(1.0, ge=0)
     low_risk: float = Field(1.0, ge=0)
     low_labour: float = Field(0.0, ge=0)
-    food_security: float = Field(0.0, ge=0)
+    food_security: float = Field(1.0, ge=0)
 
 
 class FarmConstraints(BaseModel):
@@ -249,6 +252,10 @@ class SimulationResult(BaseModel):
     living_root_days_pct: float
     family_diversity_index: float
     soil_health_score: float = Field(..., ge=0, le=100)
+    soil_health_breakdown: dict[str, float] = Field(
+        default_factory=dict,
+        description="5 USDA-NRCS principles + SOC & erosion modifier component scores",
+    )
     profit_p10: float
     profit_p50: float
     profit_p90: float
@@ -296,3 +303,4 @@ class StrategyRecommendation(BaseModel):
     practical_metrics: PracticalFarmerMetrics | None = None
     narrative_summary: str | None = None
     is_fallback: bool = False
+    data_mode: Literal["observed", "hybrid_regional", "fallback_synthetic"] = "observed"

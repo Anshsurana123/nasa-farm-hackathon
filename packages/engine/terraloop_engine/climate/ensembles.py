@@ -196,22 +196,16 @@ def build_scenario_set(
             members[member_id] = corrected_df
 
         scen_id = f"cmip6_{ssp}_{horizon}"
+        cmip_prov = gee.provenance_with_mode(gee.CMIP6_PROVENANCE).model_copy(
+            update={"period": f"{start_year}-{end_year}"}
+        )
         scenario_set = ScenarioSet(
             id=scen_id,
             kind="cmip6",
             ssp=ssp,
             horizon=horizon,
             members=list(members.keys()),
-            provenance=[
-                DataProvenance(
-                    source="NASA NEX-GDDP-CMIP6",
-                    product="High-Resolution Downscaled Climate Projections",
-                    period=f"{start_year}-{end_year}",
-                    resolution="0.25 deg, daily",
-                    doi="10.7917/OASIS/NEX-GDDP-CMIP6",
-                    url="https://www.nasa.gov/nex/gddp",
-                )
-            ],
+            provenance=[cmip_prov],
         )
         return scenario_set, members
 

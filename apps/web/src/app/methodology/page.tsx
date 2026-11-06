@@ -55,7 +55,7 @@ export default function MethodologyPage() {
                   <td className="py-3 pr-4 text-muted">Daily Agroclimatology (AG)</td>
                   <td className="py-3 pr-4">0.5° × 0.625°, Daily</td>
                   <td className="py-3 pr-4 font-sans">
-                    Tmax, Tmin, Radiation, Rain → Hargreaves ET₀, GDD, AquaCrop weather
+                    Tmax, Tmin, Radiation, Rain → Hargreaves ET₀, GDD, FAO-56 daily water balance weather
                   </td>
                   <td className="py-3 text-cyan-400">power.larc.nasa.gov</td>
                 </tr>
@@ -132,13 +132,14 @@ export default function MethodologyPage() {
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             <div className="p-4 rounded-xl bg-surface-2/60 border border-line space-y-2">
               <h3 className="font-mono font-bold text-xs uppercase text-emerald-400">
-                01 // AquaCrop-OSPy 3.1 (FAO)
+                01 // FAO-56 / FAO-33 Soil-Water Balance
               </h3>
               <p className="text-muted leading-relaxed">
-                Daily canopy growth, transpiration, and yield simulation. Calibrated for Punjab
-                conditions: puddled paddy rice requires 180 mm ponding and 3.0 mm/day deep
-                percolation; Direct-Seeded Rice (DSR) eliminates puddling and lowers percolation to
-                2.3 mm/day, yielding a validated 20–25% irrigation saving.
+                Daily root-zone moisture depletion (TAW, RAW, Ks), evapotranspiration (ETc / ETa),
+                and thermal heat stress simulation. Calibrated against PAU trials: puddled paddy
+                rice requires 175 mm land-soaking and 3.5 mm/day plough-pan percolation; Direct-Seeded
+                Rice (DSR) + AWD uses 75 mm pre-sowing wetting and 2.85 mm/day percolation on loam,
+                saving ~25% irrigation water.
               </p>
             </div>
 

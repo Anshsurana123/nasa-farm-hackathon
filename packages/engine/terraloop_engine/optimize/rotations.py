@@ -69,9 +69,9 @@ def crops_for_slot(slot: SeasonSlot, crops: dict[str, CropSpec], constraints: Fa
             # Cover/green-manure crops with 0 grain yield (dhaincha) belong in Zaid, not main Kharif/Rabi
             if c.group == "cover":
                 continue
-            # Strictly rainfed fields cannot support paddy rice or water-intensive crops
+            # Strictly rainfed fields cannot support paddy rice or irrigation-dependent crops
             if constraints.irrigation == "none" and (
-                c.id in ("rice_puddled", "rice_short", "rice_dsr", "basmati", "sugarcane", "potato")
+                c.id in ("rice_puddled", "rice_short", "rice_dsr", "basmati", "sugarcane", "potato", "sunflower")
                 or c.water_requirement_mm[0] > 650
             ):
                 continue

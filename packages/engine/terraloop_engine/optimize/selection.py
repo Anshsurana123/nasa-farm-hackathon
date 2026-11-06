@@ -107,25 +107,10 @@ def select_top(
     chosen: list[int] = []
     seen_pairs: set[tuple[str, str]] = set()
     seen_kharif: list[str] = []
-    seen_rabi: list[str] = []
 
-    # Pass 1: Require distinct Kharif AND distinct Rabi crop among viable Pareto candidates
+    # Pass 1: Require distinct Kharif crop AND distinct (Kharif, Rabi) pair among viable Pareto candidates
     for i in order:
         if i not in viable:
-            continue
-        pair = _extract_primary_pair(labels[i])
-        if pair not in seen_pairs and pair[0] not in seen_kharif and (not pair[1] or pair[1] not in seen_rabi):
-            chosen.append(i)
-            seen_pairs.add(pair)
-            seen_kharif.append(pair[0])
-            if pair[1]:
-                seen_rabi.append(pair[1])
-        if len(chosen) == k:
-            return chosen
-
-    # Pass 1b: Require distinct Kharif crop among viable candidates
-    for i in order:
-        if i in chosen or i not in viable:
             continue
         pair = _extract_primary_pair(labels[i])
         if pair not in seen_pairs and pair[0] not in seen_kharif:

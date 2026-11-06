@@ -47,8 +47,10 @@ def summarise_climate(
     df: pd.DataFrame,
     lat: float,
     prov_mode: str = "observed",
+    imerg_precip: pd.Series | None = None,
+    imerg_prov: DataProvenance | None = None,
 ) -> tuple[ClimateSummary, HazardSummary, float]:
-    """Compute climate + hazard indicators from a daily POWER DataFrame.
+    """Compute climate + hazard indicators from a daily POWER DataFrame (+ optional GPM IMERG V07 series).
 
     Returns (climate, hazards, annual climatic water balance P-ET0 in mm).
     Pure function: easy to unit-test with synthetic data.
@@ -71,18 +73,45 @@ def summarise_climate(
     def annual_sum(frame: pd.DataFrame, col: str) -> float:
         return float(frame[col].groupby(frame.index.year).sum().mean())
 
-    monthly_p = df["PRECTOTCORR"].groupby([years, df.index.month]).sum().groupby(level=1).mean()
+    # TASK-D11: Use homogeneous satellite-gauge GPM IMERG era (2001+) for rainfall statistics
+    # and rainfall trend so pre-2001 MERRA-2 gauge inhomogeneity does not skew trends.
+    if imerg_precip is not None and not imerg_precip.empty:
+        p_series = imerg_precip.copy()
+        if not isinstance(p_series.index, pd.DatetimeIndex):
+            p_series.index = pd.to_datetime(p_series.index)
+    elif (years >= 2001).any() and (years <= 2000).any():
+        p_series = df.loc[years >= 2001, "PRECTOTCORR"]
+    else:
+        p_series = df["PRECTOTCORR"]
+
+    p_years = p_series.index.year
+    if (p_years >= 2001).all() and p_years.max() >= 2015:
+        p_base = p_series[(p_years >= 2001) & (p_years <= 2012)]
+        p_recent = p_series[(p_years >= 2013) & (p_years <= 2024)]
+        if p_base.empty:
+            p_base = p_series
+        if p_recent.empty:
+            p_recent = p_series
+    else:
+        p_base = p_series[(p_years >= BASELINE[0]) & (p_years <= BASELINE[1])]
+        p_recent = p_series[(p_years >= RECENT[0]) & (p_years <= RECENT[1])]
+        if p_base.empty:
+            p_base = p_series
+        if p_recent.empty:
+            p_recent = p_series
+
+    monthly_p = p_series.groupby([p_years, p_series.index.month]).sum().groupby(level=1).mean()
     monthly_tx = df["T2M_MAX"].groupby(df.index.month).mean()
     monthly_tn = df["T2M_MIN"].groupby(df.index.month).mean()
     monthly_p_list = [round(float(monthly_p.get(m, 0.0)), 1) for m in range(1, 13)]
     wet_months = agroclimate.wettest_window(monthly_p_list, length=4)
 
-    annual_p_base = annual_sum(base, "PRECTOTCORR")
-    annual_p_recent = annual_sum(recent, "PRECTOTCORR")
-    annual_p_all = annual_sum(df, "PRECTOTCORR")
+    annual_p_base = float(p_base.groupby(p_base.index.year).sum().mean())
+    annual_p_recent = float(p_recent.groupby(p_recent.index.year).sum().mean())
+    annual_p_all = float(p_series.groupby(p_years).sum().mean())
     annual_et0 = annual_sum(df, "ET0")
 
-    yearly_p = df["PRECTOTCORR"].groupby(years).sum()
+    yearly_p = p_series.groupby(p_years).sum()
     drought_freq = float((yearly_p < 0.8 * yearly_p.mean()).mean())
     heat_by_year = (df["T2M_MAX"] > HEAT_THRESHOLD_C).groupby(years).sum()
 
@@ -92,6 +121,11 @@ def summarise_climate(
     else:
         is_terminal = (df.index.month == 3) | ((df.index.month == 4) & (df.index.day <= 15))
     terminal_heat_per_yr = float((is_terminal & (df["T2M_MAX"] > 32.0)).groupby(years).sum().mean())
+
+    power_prov = nasa_power.provenance(df.index.min().date(), df.index.max().date(), mode=prov_mode)
+    clim_provs = [power_prov]
+    if imerg_prov is not None:
+        clim_provs.append(imerg_prov)
 
     climate = ClimateSummary(
         baseline_period=f"{base.index.year.min()}-{base.index.year.max()}",
@@ -112,7 +146,7 @@ def summarise_climate(
         monthly_tmax_c=[round(float(monthly_tx.get(m, np.nan)), 1) for m in range(1, 13)],
         monthly_tmin_c=[round(float(monthly_tn.get(m, np.nan)), 1) for m in range(1, 13)],
         wettest_months=wet_months,
-        provenance=[nasa_power.provenance(df.index.min().date(), df.index.max().date(), mode=prov_mode)],
+        provenance=clim_provs,
     )
 
     hazards = HazardSummary(
@@ -121,6 +155,7 @@ def summarise_climate(
         heat_stress_probability=round(float((heat_by_year >= 10).mean()), 2),
         frost_risk=round(float(((df["T2M_MIN"] < FROST_THRESHOLD_C).groupby(years).sum() > 0).mean()), 2),
         terminal_heat_days_per_year=round(terminal_heat_per_yr, 1),
+        provenance=[power_prov],
     )
     return climate, hazards, round(annual_p_all - annual_et0, 1)
 
@@ -274,7 +309,20 @@ def build_profile(
         weather = nasa_power.synthetic_daily_weather(field.lat, field.lon, (start.year, end.year))
         power_mode = "regional_climatology"
 
-    climate, hazards, water_balance = summarise_climate(weather, field.lat, prov_mode=power_mode)
+    imerg_s = None
+    imerg_prov = None
+    if gee.init():
+        try:
+            imerg_s = gee.imerg_daily(field.lat, field.lon, start="2001-01-01", end=str(end))
+            imerg_prov = gee.IMERG_PROVENANCE.model_copy(update={"mode": "observed"})
+        except Exception:
+            log.warning("GEE IMERG lookup failed; using POWER post-2001 IMERG-fused series", exc_info=True)
+    if imerg_prov is None:
+        imerg_prov = gee.IMERG_PROVENANCE.model_copy(update={"mode": power_mode})  # type: ignore[arg-type]
+
+    climate, hazards, water_balance = summarise_climate(
+        weather, field.lat, prov_mode=power_mode, imerg_precip=imerg_s, imerg_prov=imerg_prov
+    )
 
     soil_mode = "observed"
     try:
@@ -334,24 +382,32 @@ def build_profile(
     )
 
     # 3. FIRMS fire detections (TASK-D07)
+    firms_mode = "unknown"
     try:
-        fire_df = gee.fire_detections(field.lat, field.lon, start=f"{end.year - 4}-01-01", end=str(end))
-        if not fire_df.empty and "date" in fire_df.columns:
-            fire_dates = pd.to_datetime(fire_df["date"])
-            oct_nov = (fire_dates.dt.month == 10) | (fire_dates.dt.month == 11)
-            hazards.residue_burning_detected = bool(oct_nov.any())
+        if gee.init():
+            fire_df = gee.fire_detections(field.lat, field.lon, start=f"{end.year - 4}-01-01", end=str(end))
+            firms_mode = "observed"
+            if not fire_df.empty and "date" in fire_df.columns:
+                fire_dates = pd.to_datetime(fire_df["date"])
+                oct_nov = (fire_dates.dt.month == 10) | (fire_dates.dt.month == 11)
+                hazards.residue_burning_detected = bool(oct_nov.any())
+            else:
+                hazards.residue_burning_detected = False
         else:
-            hazards.residue_burning_detected = False
+            hazards.residue_burning_detected = None
     except Exception:
         log.warning("FIRMS fire detections lookup failed", exc_info=True)
-        hazards.residue_burning_detected = False
+        hazards.residue_burning_detected = None
+    hazards.provenance.append(gee.FIRMS_PROVENANCE.model_copy(update={"mode": firms_mode}))  # type: ignore[arg-type]
 
     # 4. Phenology & crop history (TASK-E01, E02)
     crop_history = []
     seasons_per_year = None
+    hls_mode = "unknown"
     try:
         ndvi_df = gee.ndvi_timeseries(field.lat, field.lon, start=f"{end.year - 4}-01-01", end=str(end))
         if not ndvi_df.empty and "ndvi" in ndvi_df.columns:
+            hls_mode = "observed" if gee.is_live() else "regional_climatology"
             s_ndvi = pd.Series(ndvi_df["ndvi"].values, index=pd.to_datetime(ndvi_df["date"]))
             crop_history = phenology.infer_history(s_ndvi, field.lat, field.lon)
             if crop_history:
@@ -359,6 +415,7 @@ def build_profile(
                 seasons_per_year = round(len(crop_history) / max(1, len(set(years_detected))))
     except Exception:
         log.warning("Phenology crop history inference failed", exc_info=True)
+    crop_history_prov = [gee.HLS_PROVENANCE.model_copy(update={"mode": hls_mode})]  # type: ignore[arg-type]
 
     # Erosion screening using NASADEM slope
     if soil_summary.sand_pct is not None and soil_summary.soc_g_per_kg is not None:
@@ -377,6 +434,13 @@ def build_profile(
     curr_info = economics.get_currency_info(region)
     agro_zone = economics.detect_agro_zone(field.lat, field.lon)
 
+    if power_mode != "observed" or soil_mode != "observed":
+        data_mode = "fallback_synthetic"
+    elif not gee.is_live():
+        data_mode = "hybrid_regional"
+    else:
+        data_mode = "observed"
+
     profile = FieldProfile(
         field=field,
         climate=climate,
@@ -385,11 +449,13 @@ def build_profile(
         hazards=hazards,
         seasons_per_year=seasons_per_year,
         crop_history=crop_history,
+        crop_history_provenance=crop_history_prov,
         agro_climatic_notes=build_notes(climate, soil_summary, water, hazards, lat=field.lat),
         currency=curr_info["code"],
         currency_symbol=curr_info["symbol"],
         agro_zone=agro_zone,
-        is_fallback=(power_mode != "observed" and soil_mode != "observed"),
+        is_fallback=(data_mode == "fallback_synthetic"),
+        data_mode=data_mode,  # type: ignore[arg-type]
     )
 
     if soil_health_card is not None:

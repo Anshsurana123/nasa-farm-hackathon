@@ -31,7 +31,7 @@ const serif = Fraunces({
 export const metadata: Metadata = {
   title: "TerraLoop — NASA Earth Observation & Agronomic Decision System",
   description:
-    "Interactive multi-page crop rotation, soil stratigraphy, and aquifer conservation platform powered by NASA POWER, SMAP, GRACE-FO, FIRMS, ISRIC SoilGrids, and FAO AquaCrop.",
+    "Interactive multi-page crop rotation, soil stratigraphy, and aquifer conservation platform powered by NASA POWER, SMAP, GRACE-FO, FIRMS, ISRIC SoilGrids, and FAO-56 Water Balance.",
 };
 
 export const viewport: Viewport = {

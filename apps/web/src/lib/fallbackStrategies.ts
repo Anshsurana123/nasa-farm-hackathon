@@ -78,6 +78,7 @@ export function getFallbackStrategies(_field?: FieldGeometry, _currencySymbol: s
       narrative_summary:
         "Current Farm Baseline ('Puddled Rice → Wheat → Fallow'): Requires 1,233 mm/yr of irrigation and leaves only 11 days before wheat sowing, leading to residue burning and -1.94 t C/ha soil carbon loss over 10 years.",
       is_fallback: true,
+      data_mode: "fallback_synthetic",
     },
     {
       rank: 1,
@@ -119,12 +120,12 @@ export function getFallbackStrategies(_field?: FieldGeometry, _currencySymbol: s
         profit_regret: 12100.0,
       },
       why: [
-        "Saves 28% irrigation water (349 mm/yr — ~5 flood irrigations and 192 hrs/ha of 5-HP borewell pumping) vs. baseline [AquaCrop].",
+        "Saves 28% irrigation water (349 mm/yr — ~5 flood irrigations and 192 hrs/ha of 5-HP borewell pumping) vs. baseline [FAO-56].",
         "Elevates Soil Health Score to 89/100 and builds +2.0 t C/ha over 10 years, saving 3.9 bags/ha of 45-kg Urea via summer Moong nitrogen fixation [RothC-lite].",
         "Provides a 26-day Kharif-to-Rabi turnaround window for Happy Seeder zero-till wheat sowing without stubble burning [NASA FIRMS].",
       ],
       provenance: [
-        { source: "FAO-56 / AquaCrop", product: "Root-Zone Water Balance", period: "1985-2024", mode: "fallback_estimate" },
+        { source: "FAO-56 / FAO-33 Soil-Water Balance", product: "Root-Zone Water Balance", period: "1985-2024", mode: "fallback_estimate" },
         { source: "RothC-26.3", product: "Soil Carbon & N-Balance", period: "10-yr horizon", mode: "fallback_estimate" },
       ],
       currency: "INR",
@@ -146,6 +147,7 @@ export function getFallbackStrategies(_field?: FieldGeometry, _currencySymbol: s
       narrative_summary:
         "Strategy 'DSR Rice → Wheat → Greengram (Moong)': Replaces puddled paddy with Direct-Seeded Rice, Happy Seeder wheat, and 60-day summer Moong, cutting irrigation by 28% (5 irrigations saved) while adding ₹48,923/ha in net income.",
       is_fallback: true,
+      data_mode: "fallback_synthetic",
     },
     {
       rank: 2,
@@ -187,12 +189,12 @@ export function getFallbackStrategies(_field?: FieldGeometry, _currencySymbol: s
         profit_regret: 14200.0,
       },
       why: [
-        "Saves 47% irrigation water (582 mm/yr — ~8 flood irrigations and 320 hrs/ha of 5-HP borewell pumping) vs. baseline [AquaCrop].",
+        "Saves 47% irrigation water (582 mm/yr — ~8 flood irrigations and 320 hrs/ha of 5-HP borewell pumping) vs. baseline [FAO-56].",
         "3-family rotation (Poaceae + Brassicaceae + Fabaceae) reaches 93/100 Soil Health Score and saves 3.6 bags/ha of 45-kg Urea.",
         "Provides a 34-day harvest-to-sowing window and qualifies for ₹17,500/ha Crop Diversification incentive.",
       ],
       provenance: [
-        { source: "FAO-56 / AquaCrop", product: "Root-Zone Water Balance", period: "1985-2024", mode: "fallback_estimate" },
+        { source: "FAO-56 / FAO-33 Soil-Water Balance", product: "Root-Zone Water Balance", period: "1985-2024", mode: "fallback_estimate" },
       ],
       currency: "INR",
       currency_symbol: "₹",
@@ -214,6 +216,7 @@ export function getFallbackStrategies(_field?: FieldGeometry, _currencySymbol: s
       narrative_summary:
         "Strategy 'Maize → Mustard → Greengram (Moong)': Maximum aquifer rescue rotation cutting irrigation by 47% (8 irrigations saved) while qualifying for the ₹17,500/ha paddy diversification incentive.",
       is_fallback: true,
+      data_mode: "fallback_synthetic",
     },
     {
       rank: 3,
@@ -280,6 +283,7 @@ export function getFallbackStrategies(_field?: FieldGeometry, _currencySymbol: s
       narrative_summary:
         "Strategy 'Short Rice (PR-126) → Wheat → Greengram (Moong)': Zero-risk transition for Rice-Wheat farmers retaining 100% FCI MSP procurement while opening a 30-day burn-free Happy Seeder window and saving 21% water.",
       is_fallback: true,
+      data_mode: "fallback_synthetic",
     },
   ];
 }
