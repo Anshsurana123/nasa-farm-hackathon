@@ -30,9 +30,7 @@ _initialised = False
 
 
 def _load_dotenv_if_needed() -> None:
-    """Load GEE_PROJECT from workspace .env if not already present in os.environ."""
-    if os.environ.get("GEE_PROJECT"):
-        return
+    """Load GEE_PROJECT and credentials from workspace .env if not already present in os.environ."""
     candidates = [
         Path.cwd() / ".env",
         Path(__file__).resolve().parents[4] / ".env",
@@ -113,6 +111,83 @@ CMIP6_PROVENANCE = DataProvenance(
 )
 
 
+def _resolve_credentials(ee_module) -> tuple[object | None, str | None]:
+    """Resolve Earth Engine credentials and project from environment.
+
+    Supports headless/serverless deployments (Vercel, Cloud Run, Docker):
+      1. GEE_SERVICE_ACCOUNT_KEY (or EE_SERVICE_ACCOUNT_KEY):
+         - Raw JSON string of service account key
+         - Base64-encoded JSON string
+         - Path to a service account JSON file
+      2. GOOGLE_APPLICATION_CREDENTIALS: path to service account JSON file
+      3. GEE_PROJECT: explicit project ID override
+
+    Returns (credentials, project_id).
+    """
+    import base64
+    import json
+
+    try:
+        from google.oauth2 import service_account
+    except ImportError:
+        return None, None
+
+    scopes = getattr(
+        getattr(ee_module, "oauth", None),
+        "SCOPES",
+        [
+            "https://www.googleapis.com/auth/earthengine",
+            "https://www.googleapis.com/auth/cloud-platform",
+        ],
+    )
+
+    raw_key = os.environ.get("GEE_SERVICE_ACCOUNT_KEY") or os.environ.get("EE_SERVICE_ACCOUNT_KEY")
+    if raw_key:
+        raw_key = raw_key.strip()
+        # Case A: File path
+        try:
+            key_path = Path(raw_key)
+            if key_path.is_file():
+                creds = service_account.Credentials.from_service_account_file(str(key_path), scopes=scopes)
+                proj = getattr(creds, "project_id", None)
+                return creds, proj
+        except (OSError, ValueError) as exc:
+            log.debug("GEE service account file read skipped: %s", exc)
+
+        # Case B: Inline JSON or Base64-encoded JSON
+        key_dict = None
+        if raw_key.startswith("{"):
+            try:
+                key_dict = json.loads(raw_key)
+            except json.JSONDecodeError as exc:
+                log.debug("GEE_SERVICE_ACCOUNT_KEY JSON decode skipped: %s", exc)
+        else:
+            try:
+                decoded = base64.b64decode(raw_key).decode("utf-8")
+                if decoded.strip().startswith("{"):
+                    key_dict = json.loads(decoded)
+            except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+                log.debug("GEE_SERVICE_ACCOUNT_KEY base64 decode skipped: %s", exc)
+
+        if key_dict and isinstance(key_dict, dict):
+            creds = service_account.Credentials.from_service_account_info(key_dict, scopes=scopes)
+            proj = key_dict.get("project_id")
+            return creds, proj
+
+    gac = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if gac:
+        try:
+            gac_path = Path(gac)
+            if gac_path.is_file():
+                creds = service_account.Credentials.from_service_account_file(str(gac_path), scopes=scopes)
+                proj = getattr(creds, "project_id", None)
+                return creds, proj
+        except (OSError, ValueError) as exc:
+            log.debug("GOOGLE_APPLICATION_CREDENTIALS read skipped: %s", exc)
+
+    return None, None
+
+
 def init() -> bool:
     """Initialise Earth Engine once per process. Returns True if successfully initialized."""
     global _initialised
@@ -124,8 +199,12 @@ def init() -> bool:
         _load_dotenv_if_needed()
         import ee
 
-        project = os.environ.get("GEE_PROJECT")
-        ee.Initialize(project=project)
+        creds, creds_proj = _resolve_credentials(ee)
+        project = os.environ.get("GEE_PROJECT") or creds_proj
+        if creds is not None:
+            ee.Initialize(credentials=creds, project=project)
+        else:
+            ee.Initialize(project=project)
         _initialised = True
         return True
     except Exception as exc:  # noqa: BLE001

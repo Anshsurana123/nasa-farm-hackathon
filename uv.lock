@@ -3506,6 +3506,8 @@ name = "terraloop-engine"
 version = "0.1.0"
 source = { editable = "packages/engine" }
 dependencies = [
+    { name = "earthengine-api" },
+    { name = "google-auth" },
     { name = "httpx" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -3544,7 +3546,9 @@ sim = [
 requires-dist = [
     { name = "aquacrop", marker = "extra == 'sim'", specifier = ">=3.0" },
     { name = "earthaccess", marker = "extra == 'earthdata'", specifier = ">=0.10" },
+    { name = "earthengine-api", specifier = ">=1.0" },
     { name = "earthengine-api", marker = "extra == 'gee'", specifier = ">=1.0" },
+    { name = "google-auth", specifier = ">=2.0" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "lightgbm", marker = "extra == 'opt'", specifier = ">=4.3" },
     { name = "netcdf4", marker = "extra == 'earthdata'", specifier = ">=1.6" },

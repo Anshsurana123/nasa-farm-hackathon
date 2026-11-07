@@ -25,3 +25,50 @@ def test_cache_dir_falls_back_to_tmp_when_unwritable(monkeypatch, tmp_path):
     monkeypatch.setenv("TERRALOOP_CACHE_DIR", str(blocker / "cache"))  # parent is a file -> mkdir fails
     monkeypatch.setattr(cache.tempfile, "gettempdir", lambda: str(tmp_path))
     assert cache.cache_dir() == Path(tmp_path) / "terraloop-cache"
+
+
+def test_gee_service_account_credentials_resolution(monkeypatch, tmp_path):
+    import base64
+    import json
+    from unittest.mock import MagicMock
+
+    from terraloop_engine.data import gee
+
+    mock_ee = MagicMock()
+    mock_ee.oauth.SCOPES = ["https://www.googleapis.com/auth/earthengine"]
+
+    # 1. No credentials configured
+    monkeypatch.delenv("GEE_SERVICE_ACCOUNT_KEY", raising=False)
+    monkeypatch.delenv("EE_SERVICE_ACCOUNT_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    creds, proj = gee._resolve_credentials(mock_ee)
+    assert creds is None and proj is None
+
+    # 2. Raw JSON string in GEE_SERVICE_ACCOUNT_KEY
+    fake_key = {"project_id": "test-vercel-proj", "client_email": "test@test.iam.gserviceaccount.com"}
+    monkeypatch.setenv("GEE_SERVICE_ACCOUNT_KEY", json.dumps(fake_key))
+    monkeypatch.setattr(
+        "google.oauth2.service_account.Credentials.from_service_account_info",
+        lambda info, scopes: ("mock_creds", info["project_id"]),
+    )
+    creds, proj = gee._resolve_credentials(mock_ee)
+    assert creds == ("mock_creds", "test-vercel-proj")
+    assert proj == "test-vercel-proj"
+
+    # 3. Base64-encoded JSON in GEE_SERVICE_ACCOUNT_KEY
+    b64_key = base64.b64encode(json.dumps(fake_key).encode()).decode()
+    monkeypatch.setenv("GEE_SERVICE_ACCOUNT_KEY", b64_key)
+    creds, proj = gee._resolve_credentials(mock_ee)
+    assert proj == "test-vercel-proj"
+
+    # 4. File path in GOOGLE_APPLICATION_CREDENTIALS
+    monkeypatch.delenv("GEE_SERVICE_ACCOUNT_KEY", raising=False)
+    key_file = tmp_path / "sa.json"
+    key_file.write_text(json.dumps(fake_key))
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", str(key_file))
+    monkeypatch.setattr(
+        "google.oauth2.service_account.Credentials.from_service_account_file",
+        lambda path, scopes: MagicMock(project_id="file-proj"),
+    )
+    creds, proj = gee._resolve_credentials(mock_ee)
+    assert proj == "file-proj"
