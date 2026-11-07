@@ -8,12 +8,27 @@ against CACP Price Policy Reports (2024-25) and PAU / ICAR Farm Management Studi
 from __future__ import annotations
 
 import functools
+import os
 from collections.abc import Sequence
 from pathlib import Path
 
 import yaml
 
-_DEFAULT_ECONOMICS_DIR = Path(__file__).resolve().parents[3] / "crop-kb" / "economics"
+
+def _resolve_economics_dir() -> Path:
+    if env := os.environ.get("TERRALOOP_ECONOMICS"):
+        return Path(env)
+    dev = Path(__file__).resolve().parents[3] / "crop-kb" / "economics"
+    if dev.exists():
+        return dev
+    for base in [Path.cwd(), *Path.cwd().parents]:
+        cand = base / "packages" / "crop-kb" / "economics"
+        if cand.exists():
+            return cand
+    return dev
+
+
+_DEFAULT_ECONOMICS_DIR = _resolve_economics_dir()
 
 
 def detect_region(lat: float, lon: float) -> str:

@@ -14,8 +14,8 @@ before code uses it. Status: ✅ integrated · ⬜ planned.
 | ✅ | FIRMS active fire | `FIRMS` (MODIS/VIIRS) | 375 m–1 km | Residue burning detection | `gee.fire_detections` | https://firms.modaps.eosdis.nasa.gov/ |
 | ✅ | HLS Landsat 30 m | `NASA/HLS/HLSL30/v002` | 30 m | NDVI time series → crop history | `gee.ndvi_timeseries` | 10.5067/HLS/HLSL30.002 |
 | ✅ | HLS Sentinel-2 30 m | `NASA/HLS/HLSS30/v002` | 30 m | NDVI time series → crop history | `gee.ndvi_timeseries` | 10.5067/HLS/HLSL30.002 |
-| ⬜ | MODIS NDVI | `MODIS/061/MOD13Q1` | 250 m, 16-day | Long-history phenology fallback (2000+) | `gee.ndvi_timeseries` | 10.5067/MODIS/MOD13Q1.061 |
-| ⬜ | NEX-GDDP-CMIP6 | `NASA/GDDP-CMIP6` | 0.25°, daily | Future climate scenarios | `gee.cmip6_daily` | 10.7917/OASIS/NEX-GDDP-CMIP6 |
+| ✅ | MODIS NDVI | `MODIS/061/MOD13Q1` | 250 m, 16-day | Long-history phenology fallback (2000+) | `gee.ndvi_timeseries` | 10.5067/MODIS/MOD13Q1.061 |
+| ✅ | NEX-GDDP-CMIP6 | `NASA/GDDP-CMIP6` | 0.25°, daily | Future climate scenarios (SSP2-4.5 / SSP5-8.5, 2030s & 2050s) | `gee.cmip6_daily`, `climate/ensembles.py` | 10.7917/OASIS/NEX-GDDP-CMIP6 |
 | ⬜ | GLDAS Noah 2.1 | `NASA/GLDAS/V021/NOAH/G025/T3H` | 0.25° | Gap-filling soil moisture/runoff | n/a | 10.5067/E7TYRXPJKWOQ |
 | ⬜ | MODIS ET | `MODIS/061/MOD16A2` | 500 m, 8-day | ET context / validation | n/a | 10.5067/MODIS/MOD16A2.061 |
 | ⬜ | ECOSTRESS ET/ESI | via AppEEARS / earthaccess | 70 m | Within-field stress (could-have) | n/a | LP DAAC |
@@ -27,9 +27,9 @@ before code uses it. Status: ✅ integrated · ⬜ planned.
 | Status | Dataset | Used for | Code | Reference |
 |---|---|---|---|---|
 | ✅ | ISRIC SoilGrids 2.0 (250 m) | Topsoil texture, SOC, pH, BD, CEC, N | `data/soilgrids.py` | 10.5194/soil-7-217-2021 |
-| ⬜ | ESA WorldCereal | Crop-type validation labels | E02/E03 | https://esa-worldcereal.org/ |
+| ✅ | ESA WorldCereal 10 m | Active cropland mask & crop-type phenology reference | `data/gee.py::check_cropland_mask`, `eo/classifier.py` | https://esa-worldcereal.org/ |
 | ⬜ | USDA Cropland Data Layer | Crop labels (Iowa) | E03 | https://nassgeodata.gmu.edu/CropScape/ |
-| ⬜ | ICRISAT District Level Database | Punjab yield validation | V01 | http://data.icrisat.org/dld/ |
-| ⬜ | CGWB / India-WRIS well levels | GRACE validation | V02 | https://indiawris.gov.in/ |
-| ⬜ | FAO-56 tables | Kc, root depth | crop KB | FAO Irrigation & Drainage Paper 56 |
-| ⬜ | PAU Package of Practices | Punjab crop calendars & practices | crop KB | https://www.pau.edu/ |
+| ✅ | DES / ICRISAT District Level Database | District yield ground-truth validation (6 Indian districts) | `data/benchmarks/district_ground_truth.csv`, `scripts/run_validation_benchmarks.py` | http://data.icrisat.org/dld/ |
+| ✅ | CGWB / India-WRIS well levels | GRACE-FO groundwater trend cross-validation | `data/gee.py::grace_trend` | https://indiawris.gov.in/ |
+| ✅ | FAO-56 / FAO-33 tables | Dual Kc, root depth, depletion fraction $p$, yield-response $K_y$ | `packages/crop-kb/crops/*.yaml`, `models/fao56_runner.py` | FAO Irrigation & Drainage Papers 56 & 33 |
+| ✅ | PAU Package of Practices & CACP MSP | Punjab crop calendars, Happy Seeder / DSR practices & CACP 2024–25 budgets | `packages/crop-kb/crops/*.yaml`, `packages/crop-kb/economics/punjab.yaml` | https://www.pau.edu/ · https://cacp.dacnet.nic.in/ |

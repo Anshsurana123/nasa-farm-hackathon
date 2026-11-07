@@ -49,18 +49,18 @@
 - **Comparison Table (from `data/golden/sangrur/recommendations.json` & `docs/BENCHMARKS.md`):**
   | Metric | Baseline (`Puddled Rice ➔ Wheat`) | Strategy 1 (`DSR Rice ➔ Wheat ➔ Moong`) | Strategy 3 (`Maize ➔ Wheat ➔ Moong`) |
   |---|---|---|---|
-  | **Net Irrigation** | 1,213 mm/yr | **993 mm/yr (-18.1% H₂O)** | **548 mm/yr (-54.8% H₂O)** |
-  | **Borewell Savings** | Baseline | **3 Irrigations / 121 Pump Hrs/ha saved** | **9 Irrigations / 366 Pump Hrs/ha saved** |
+  | **Net Irrigation** | 1,207 mm/yr | **1,037 mm/yr (-14.1% H₂O)** | **490 mm/yr (-59.3% H₂O)** |
+  | **Borewell Savings** | Baseline | **2 Irrigations / 94 Pump Hrs/ha saved** | **10 Irrigations / 394 Pump Hrs/ha saved** |
   | **Kharif→Rabi Window** | 11 days (High Burn Risk) | **26 days (Happy Seeder Window)** | **34 days (Zero Burning Needed)** |
   | **10-Yr Soil Carbon** | -1.86 t C/ha | **+2.79 t C/ha (+4.65 t C/ha vs Base)** | **+3.08 t C/ha (+4.94 t C/ha vs Base)** |
   | **45-kg Urea Saved** | 0 bags | **3.5 bags/ha (1.4 bags/acre)** | **3.5 bags/ha (1.4 bags/acre)** |
-  | **Median Net Profit** | ₹1,72,186 /ha (₹69,681 /acre) | **₹2,12,637 /ha (₹86,051 /acre)** | **₹1,77,974 /ha (₹72,024 /acre)** |
+  | **Median Net Profit** | ₹1,74,438 /ha (₹70,593 /acre) | **₹2,23,110 /ha (₹90,290 /acre)** | **₹1,84,696 /ha (₹74,744 /acre)** |
 
 ### Slide 5: Scientific Integrity & Provenance
 - **Header:** Transparent Provenance & Reproducible Benchmarks
 - **Highlights:**
   - **Every Number Has Provenance (`mode: "observed"` vs `"regional_climatology"` vs `"unknown"`):** Provenance badges display clickable DOIs, live GEE observation status, and an explicit UI fallback banner when offline/regional climatology is active.
-  - **Soil Texture & Mulch Physics:** Rainfed wheat yields `1.19 t/ha` on Coarse Loamy Sand vs `2.07 t/ha` on Alluvial Loam; Happy Seeder residue mulch (`residue_retained`) cuts soil evaporation (`Ke`) by 10% and buffers `+4.5°C` March heatwave yield loss from `-23.4%` to `-15.2%`.
+  - **Soil Texture & Mulch Physics:** Rainfed wheat yields `1.22 t/ha` on Coarse Loamy Sand vs `1.88 t/ha` on Alluvial Loam; Happy Seeder residue mulch (`residue_retained`) cuts soil evaporation (`Ke`) by 10% and buffers `+4.5°C` March heatwave yield loss from `-21.0%` to `-12.6%`.
   - **Reproducible Benchmark Script:** Anyone can run `uv run python scripts/run_validation_benchmarks.py --write-docs` offline to verify every table in `docs/BENCHMARKS.md`.
 
 ### Slide 6: Built for Real Indian Farmers

@@ -1,0 +1,11 @@
+# Keep CLI uploads small. data/golden, packages/crop-kb and uv.lock MUST stay (the api service reads them at runtime).
+.venv
+.git
+.pytest_cache
+.ruff_cache
+data/cache
+**/node_modules
+**/.next
+**/__pycache__
+.env
+.env*.local

@@ -47,7 +47,7 @@ Evaluates FAO-56 daily root-zone soil moisture depletion (`TAW`, `RAW`, `Ks`, de
 | Indo-Gangetic Alluvial Loam (Sangrur / Ludhiana) | 44% / 20% | 0.254 / 0.127 | **2.40** | **5.23** | **325** | **758** |
 | Deccan Black Cotton Vertisol (Vidarbha Clay) | 22% / 50% | 0.424 / 0.296 | **2.42** | **5.23** | **325** | **662** |
 
-> **Process Note on Irrigated vs Rainfed Response:** Under full irrigation, daily root-zone soil water depletion $D_r$ is replenished before reaching RAW, maintaining water stress coefficient $K_s = 1.0$ continuously. Consequently, simulated irrigated wheat yield (~5.21 t/ha on sand, 5.21 t/ha on loam, 5.19 t/ha on Vertisol) is governed by radiation, temperature, and potential yield parameters rather than soil water storage. The physical impact of soil texture is expressed through the **irrigation volume required** to maintain that unstressed condition (542 mm on coarse loamy sand vs 391 mm on alluvial loam vs 351 mm on Vertisol clay) and through the **rainfed yield** (1.19 t/ha on sand vs 2.07 t/ha on loam).
+> **Process Note on Irrigated vs Rainfed Response:** Under full irrigation, daily root-zone soil water depletion $D_r$ is replenished before reaching RAW, maintaining water stress coefficient $K_s = 1.0$ continuously. Consequently, simulated irrigated wheat yield (~5.23 t/ha on sand, 5.23 t/ha on loam, 5.23 t/ha on Vertisol) is governed by radiation, temperature, and potential yield parameters rather than soil water storage. The physical impact of soil texture is expressed through the **irrigation volume required** to maintain that unstressed condition (402 mm on coarse loamy sand vs 325 mm on alluvial loam vs 325 mm on Vertisol clay) and through the **rainfed yield** (1.47 t/ha on sand vs 2.40 t/ha on loam).
 
 ## 3. Rabi Wheat Terminal Heatwave Sensitivity (March–April Grain-Filling Shock)
 
@@ -65,9 +65,9 @@ Compares Puddled Long-Duration Rice (`rice_puddled`, 126 field days, 175 mm pudd
 
 | Kharif Rice System | Duration (days) | Turnaround Before Wheat (days) | Irrigation (mm) | Water Saved vs Puddled (%) | Simulated Yield (t/ha) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| Puddled Long-Duration Rice (Pusa-44) | 130 d | **11 days** | **914 mm** | **0.0%** | **7.00 t/ha** |
-| Short-Duration Rice (PAU PR-126) | 108 d | **30 days** | **718 mm** | **21.4%** | **7.08 t/ha** |
-| Direct-Seeded Rice (DSR + AWD) | 127 d | **26 days** | **697 mm** | **23.7%** | **6.38 t/ha** |
+| Puddled Long-Duration Rice (Pusa-44) | 126 d | **11 days** | **914 mm** | **0.0%** | **7.00 t/ha** |
+| Short-Duration Rice (PAU PR-126) | 104 d | **30 days** | **718 mm** | **21.4%** | **7.08 t/ha** |
+| Direct-Seeded Rice (DSR + AWD) | 128 d | **26 days** | **697 mm** | **23.7%** | **6.38 t/ha** |
 
 ## 5. 10-Year RothC-Lite Soil Organic Carbon, Biological N & Soil Health Score Breakdown
 
@@ -93,9 +93,9 @@ Evaluates 30-member ensemble outcomes on Sangrur Alluvial Loam across four manag
 
 | Benchmark Field | Agro-Climatic Zone | Baseline Rotation | Rank #1 Recommended Strategy | Irrigation Change | Median Net Profit (₹/ha) | 10-Yr SOC Delta (t C/ha) | Soil Health Score |
 | :--- | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
-| **Sangrur, Punjab** (`sangrur`) | Trans-Gangetic Plains (Alluvial Rice–Wheat Belt) | Puddled Rice → Wheat → Fallow | **DSR Rice → Wheat → Mung bean** | **-18.1%** | **₹212,637** | **+2.79** | **78/100** |
-| **Ludhiana, Punjab** (`ludhiana`) | Trans-Gangetic Plains (Alluvial Rice–Wheat Belt) | Puddled Rice → Wheat → Fallow | **DSR Rice → Wheat → Mung bean** | **-19.9%** | **₹215,220** | **+2.81** | **85/100** |
-| **Bathinda, Punjab** (`bathinda`) | Trans-Gangetic Semi-Arid Belt (South-West Punjab / Haryana) | Cotton → Wheat → Fallow | **Blackgram → Wheat → Fallow** | **-57.0%** | **₹132,041** | **-0.20** | **63/100** |
-| **Yavatmal (Vidarbha), Maharashtra** (`vidarbha`) | Western / Central Deccan Plateau (Vidarbha Black Cotton Vertisol Belt) | Cotton → Chickpea → Fallow | **Soybean → Wheat → Fallow** | **+0.0%** | **₹50,536** | **+0.87** | **63/100** |
-| **Jhansi (Bundelkhand), Uttar Pradesh** (`bundelkhand`) | Central Plateau & Hills (Bundelkhand Semi-Arid Zone) | Sorghum → Wheat → Fallow | **Maize → Chickpea → Fallow** | **+0.0%** | **₹116,264** | **+0.15** | **55/100** |
-| **Thanjavur (Cauvery Delta), Tamil Nadu** (`thanjavur`) | East Coast Plains & Deltas (Cauvery / Coastal Alluvial Zone) | Puddled Rice → Puddled Rice → Mung bean | **Soybean → DSR Rice → Mung bean** | **-55.3%** | **₹203,422** | **+2.11** | **74/100** |
+| **Sangrur, Punjab** (`sangrur`) | Trans-Gangetic Plains (Alluvial Rice–Wheat Belt) | Puddled Rice → Wheat → Fallow | **DSR Rice → Wheat → Mung bean** | **-14.1%** | **₹223,110** | **+2.79** | **78/100** |
+| **Ludhiana, Punjab** (`ludhiana`) | Trans-Gangetic Plains (Alluvial Rice–Wheat Belt) | Puddled Rice → Wheat → Fallow | **DSR Rice → Wheat → Mung bean** | **-15.2%** | **₹223,652** | **+2.81** | **85/100** |
+| **Bathinda, Punjab** (`bathinda`) | Trans-Gangetic Semi-Arid Belt (South-West Punjab / Haryana) | Cotton → Wheat → Fallow | **Blackgram → Wheat → Fallow** | **-52.2%** | **₹149,335** | **-0.20** | **63/100** |
+| **Yavatmal (Vidarbha), Maharashtra** (`vidarbha`) | Western / Central Deccan Plateau (Vidarbha Black Cotton Vertisol Belt) | Cotton → Chickpea → Fallow | **Blackgram → Wheat → Fallow** | **+0.0%** | **₹61,336** | **-0.15** | **54/100** |
+| **Jhansi (Bundelkhand), Uttar Pradesh** (`bundelkhand`) | Central Plateau & Hills (Bundelkhand Semi-Arid Zone) | Sorghum → Wheat → Fallow | **Maize → Chickpea → Fallow** | **+0.0%** | **₹118,434** | **+0.15** | **55/100** |
+| **Thanjavur (Cauvery Delta), Tamil Nadu** (`thanjavur`) | East Coast Plains & Deltas (Cauvery / Coastal Alluvial Zone) | Puddled Rice → Puddled Rice → Mung bean | **Short Rice (PR-126) → DSR Rice → Mung bean** | **-24.2%** | **₹260,344** | **+2.48** | **74/100** |

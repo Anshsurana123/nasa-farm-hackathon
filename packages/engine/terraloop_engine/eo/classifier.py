@@ -6,6 +6,8 @@ and Rabi wheat/mustard from HLS NDVI phenological curve parameters.
 
 from __future__ import annotations
 
+import functools
+
 import numpy as np
 
 
@@ -80,6 +82,7 @@ class PhenologyCropClassifier:
         return metrics
 
 
+@functools.lru_cache(maxsize=1)
 def build_calibrated_phenology_classifier() -> PhenologyCropClassifier:
     """Pre-calibrated phenology classifier based on ESA WorldCereal Punjab reference parcels."""
     # Synthetic calibrated samples representing regional phenology profiles:

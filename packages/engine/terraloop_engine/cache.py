@@ -11,6 +11,7 @@ import hashlib
 import io
 import json
 import os
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TypeVar
@@ -24,7 +25,12 @@ _DEFAULT = Path(__file__).resolve().parents[3] / "data" / "cache"
 
 def cache_dir() -> Path:
     p = Path(os.environ.get("TERRALOOP_CACHE_DIR", _DEFAULT))
-    p.mkdir(parents=True, exist_ok=True)
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        # Read-only deployment filesystems (e.g. Vercel Functions) only allow writes under the temp dir.
+        p = Path(tempfile.gettempdir()) / "terraloop-cache"
+        p.mkdir(parents=True, exist_ok=True)
     return p
 
 

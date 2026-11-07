@@ -233,6 +233,7 @@ def run_benchmarks() -> str:
     rot_wheat = Rotation(id="wheat_single", steps=[RotationStep(year_index=0, season_index=1, crop_id="wheat")])
     rot_dsr = Rotation(id="dsr_single", steps=[RotationStep(year_index=0, season_index=0, crop_id="rice_dsr")])
 
+    bench2_rows: list[dict[str, float]] = []
     for label, sand_p, silt_p, clay_p, soc_g in soils_spec:
         fc, wp = soil.saxton_rawls(sand_p, clay_p, soc_g)
         s_obj = SoilSummary(
@@ -253,19 +254,29 @@ def run_benchmarks() -> str:
         d_ir = aquacrop_runner.simulate_rotation(
             rot_dsr, w_df, s_obj, FarmConstraints(irrigation="full"), start_year=2020
         )[0]
+        bench2_rows.append(
+            {
+                "rf_y": float(w_rf["yield_t_ha"]),
+                "ir_y": float(w_ir["yield_t_ha"]),
+                "ir_mm": float(w_ir["irrigation_mm"]),
+            }
+        )
         lines.append(
             f"| {label} | {sand_p:.0f}% / {clay_p:.0f}% | {fc:.3f} / {wp:.3f} | "
             f"**{w_rf['yield_t_ha']:.2f}** | **{w_ir['yield_t_ha']:.2f}** | **{w_ir['irrigation_mm']:.0f}** | "
             f"**{d_ir['irrigation_mm']:.0f}** |"
         )
+    r_sand, r_loam, r_clay = bench2_rows[0], bench2_rows[1], bench2_rows[2]
     lines.append("")
     lines.append(
-        "> **Process Note on Irrigated vs Rainfed Response:** Under full irrigation, daily root-zone soil water depletion "
-        "$D_r$ is replenished before reaching RAW, maintaining water stress coefficient $K_s = 1.0$ continuously. Consequently, "
-        "simulated irrigated wheat yield (~5.21 t/ha on sand, 5.21 t/ha on loam, 5.19 t/ha on Vertisol) is governed by radiation, "
-        "temperature, and potential yield parameters rather than soil water storage. The physical impact of soil texture is expressed "
-        "through the **irrigation volume required** to maintain that unstressed condition (542 mm on coarse loamy sand vs 391 mm on "
-        "alluvial loam vs 351 mm on Vertisol clay) and through the **rainfed yield** (1.19 t/ha on sand vs 2.07 t/ha on loam)."
+        f"> **Process Note on Irrigated vs Rainfed Response:** Under full irrigation, daily root-zone soil water depletion "
+        f"$D_r$ is replenished before reaching RAW, maintaining water stress coefficient $K_s = 1.0$ continuously. Consequently, "
+        f"simulated irrigated wheat yield (~{r_sand['ir_y']:.2f} t/ha on sand, {r_loam['ir_y']:.2f} t/ha on loam, "
+        f"{r_clay['ir_y']:.2f} t/ha on Vertisol) is governed by radiation, temperature, and potential yield parameters "
+        f"rather than soil water storage. The physical impact of soil texture is expressed through the **irrigation volume required** "
+        f"to maintain that unstressed condition ({r_sand['ir_mm']:.0f} mm on coarse loamy sand vs {r_loam['ir_mm']:.0f} mm on "
+        f"alluvial loam vs {r_clay['ir_mm']:.0f} mm on Vertisol clay) and through the **rainfed yield** "
+        f"({r_sand['rf_y']:.2f} t/ha on sand vs {r_loam['rf_y']:.2f} t/ha on loam)."
     )
     lines.append("")
 
@@ -358,7 +369,7 @@ def run_benchmarks() -> str:
             base_rice_irr = sim_r["irrigation_mm"]
         saved_pct = (base_rice_irr - sim_r["irrigation_mm"]) / base_rice_irr * 100.0
         t_days = rotations.compute_turnaround_days(rot_r, crops)
-        dur_mean = int(sum(crops[cid].duration_days) / 2)
+        dur_mean = int(sim_r["duration_days"])
         lines.append(
             f"| {r_label} | {dur_mean} d | **{t_days} days** | **{sim_r['irrigation_mm']:.0f} mm** | "
             f"**{saved_pct:.1f}%** | **{sim_r['yield_t_ha']:.2f} t/ha** |"

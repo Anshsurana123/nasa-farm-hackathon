@@ -22,6 +22,8 @@ import numpy as np
 import pandas as pd
 from terraloop_schemas import InferredSeason
 
+from terraloop_engine.eo import classifier as clf_mod
+
 
 def _savgol_smooth(y: np.ndarray, window_length: int = 9) -> np.ndarray:
     """Pure NumPy Savitzky-Golay smoothing (order 2 polynomial) without scipy."""
@@ -194,7 +196,16 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
         crop_id = "moong"
 
     amplitude = float(season.get("amplitude", 0.35))
-    confidence = round(float(np.clip(0.55 + 0.65 * amplitude, 0.60, 0.96)), 2)
+    dur_days = max(30, (e_date - s_date).days)
+    clf = clf_mod.build_calibrated_phenology_classifier()
+    feat = np.array(
+        [[p_date.timetuple().tm_yday, s_date.timetuple().tm_yday, dur_days, p_val, p_val * dur_days * 0.65]],
+        dtype=float,
+    )
+    ml_pred = clf.predict(feat)[0]
+    ml_match = (ml_pred == crop_group) or (ml_pred == "mungbean" and crop_group == "moong")
+    base_conf = 0.57 + 0.65 * amplitude + (0.04 if ml_match else 0.0)
+    confidence = round(float(np.clip(base_conf, 0.60, 0.96)), 2)
 
     return InferredSeason(
         year=p_date.year,

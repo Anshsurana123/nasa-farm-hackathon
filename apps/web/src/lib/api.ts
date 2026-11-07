@@ -9,7 +9,15 @@ import type {
   SuitabilityItem,
 } from "@/types/api";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// On Vercel:
+// - In the browser: uses relative `/api` (routed to the FastAPI service via top-level rewrite).
+// - On the server: uses `process.env.API_URL` injected by the Vercel service binding.
+// - In local standalone dev: falls back to NEXT_PUBLIC_API_URL or http://localhost:8000.
+export const API_URL = (
+  typeof window === "undefined"
+    ? (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000")
+    : (process.env.NEXT_PUBLIC_API_URL || "/api")
+).replace(/\/$/, "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let backendError: string | null = null;

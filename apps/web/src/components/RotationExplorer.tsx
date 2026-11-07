@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type {
+  ClimateScenarioId,
   FarmConstraints,
   FieldGeometry,
   FieldProfile,
@@ -86,10 +87,13 @@ export function RotationExplorer({
   const [activeTab, setActiveTab] = useState<"cards" | "pareto" | "whatif">(initialTab ?? "cards");
   const [paretoViewMode, setParetoViewMode] = useState<"3d" | "2d">("3d");
 
-  // What-If Shock parameters (TASK-F06)
+  // What-If Shock & CMIP6 Climate Horizon parameters (TASK-F06, TASK-C02)
+  const [climateScenario, setClimateScenario] = useState<ClimateScenarioId>("historical");
   const [droughtShockPct, setDroughtShockPct] = useState<number>(15);
   const [priceShockPct, setPriceShockPct] = useState<number>(-5);
   const [fertilizerShockPct, setFertilizerShockPct] = useState<number>(25);
+  const [stressedStrategies, setStressedStrategies] = useState<StrategyRecommendation[] | null>(null);
+  const [stressLoading, setStressLoading] = useState<boolean>(false);
 
   const strategies = internalStrategies.length > 0 ? internalStrategies : (externalStrategies ?? []);
   const loading = externalLoading ?? internalLoading;
@@ -112,6 +116,7 @@ export function RotationExplorer({
         language: (lang as "en" | "pa" | "hi") || "en",
         soil_health_card: soilHealthCard,
         baseline_override: baselineOverride,
+        climate_scenario: climateScenario,
       });
       if (recs && recs.length > 0) {
         setInternalStrategies(recs);
@@ -127,8 +132,35 @@ export function RotationExplorer({
     }
   };
 
+  const runStressSimulation = async (overrideScenario?: ClimateScenarioId) => {
+    const scen = overrideScenario ?? climateScenario;
+    setStressLoading(true);
+    try {
+      const recs = await api.recommend({
+        field,
+        priorities,
+        constraints,
+        language: (lang as "en" | "pa" | "hi") || "en",
+        soil_health_card: soilHealthCard,
+        baseline_override: baselineOverride,
+        climate_scenario: scen,
+        drought_shock_pct: droughtShockPct,
+        price_shock_pct: priceShockPct,
+        fertilizer_shock_pct: fertilizerShockPct,
+      });
+      if (recs && recs.length > 0) {
+        setStressedStrategies(recs);
+      }
+    } catch (err) {
+      console.warn("Stress simulation fallback to client sensitivity model", err);
+    } finally {
+      setStressLoading(false);
+    }
+  };
+
   useEffect(() => {
     setInternalStrategies([]);
+    setStressedStrategies(null);
     if (!externalStrategies && field) {
       fetchRecommendations();
     }
@@ -498,6 +530,24 @@ export function RotationExplorer({
                   <option value="none">Rainfed Only</option>
                 </select>
               </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-muted">Rotation Horizon:</span>
+                <select
+                  value={constraints.rotation_years}
+                  onChange={(e) => {
+                    const nextYrs = parseInt(e.target.value, 10) || 1;
+                    const nextC = { ...constraints, rotation_years: nextYrs };
+                    setConstraints(nextC);
+                    fetchRecommendations(priorities, nextC);
+                  }}
+                  className="px-2.5 py-1 rounded-lg border border-line-strong bg-surface text-foreground text-[11px] font-mono outline-none cursor-pointer"
+                >
+                  <option value={1}>1 Year (Annual Cycle)</option>
+                  <option value={2}>2 Years (Alternating Pest-Break)</option>
+                  <option value={3}>3 Years (Multi-Year Sequence)</option>
+                </select>
+              </div>
             </div>
 
             <button
@@ -689,6 +739,11 @@ export function RotationExplorer({
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                             <div className="flex items-center gap-2">
+                              {constraints.rotation_years > 1 && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-500 border border-cyan-500/40">
+                                  Yr {step.year_index + 1}
+                                </span>
+                              )}
                               <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-foreground/10 text-foreground">
                                 {sLabel} ({spanCols.window})
                               </span>
@@ -767,6 +822,166 @@ export function RotationExplorer({
                 </div>
               </div>
             )}
+
+            {/* Seasonal Field Operations, Irrigation & Budget Ledger */}
+            {focusedStrategy?.practical_metrics?.seasonal_operations &&
+              focusedStrategy.practical_metrics.seasonal_operations.length > 0 && (
+                <div className="p-5 rounded-2xl bg-background/60 border border-line space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-cyan-400" />
+                      <h4 className="font-display font-bold text-sm text-foreground">
+                        Seasonal Field Operations, Irrigation &amp; Budget Ledger —{" "}
+                        {focusedStrategy.rotation.label}
+                      </h4>
+                    </div>
+                    <span className="text-[10px] font-mono text-muted">
+                      PAU / ICAR Package of Practices · FAO-56 Irrigation Schedule · CACP 2024–25 Budget
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-xl border border-line">
+                    <table className="w-full text-left text-xs tabular-nums">
+                      <caption className="sr-only">
+                        Seasonal operations, irrigation schedule, input costs, and net margins for{" "}
+                        {focusedStrategy.rotation.label}
+                      </caption>
+                      <thead className="bg-foreground/[0.05] text-foreground font-mono text-[10px] uppercase tracking-wider border-b border-line">
+                        <tr>
+                          <th scope="col" className="py-3 px-3.5">
+                            Season &amp; Crop
+                          </th>
+                          <th scope="col" className="py-3 px-3">
+                            Sowing → Harvest Window
+                          </th>
+                          <th scope="col" className="py-3 px-3">
+                            Target Yield
+                          </th>
+                          <th scope="col" className="py-3 px-3">
+                            Irrigation Schedule
+                          </th>
+                          <th scope="col" className="py-3 px-3">
+                            BNF &amp; Urea Credit
+                          </th>
+                          <th scope="col" className="py-3 px-3">
+                            Input / Labour Outlay
+                          </th>
+                          <th scope="col" className="py-3 px-3">
+                            Seasonal Net Margin
+                          </th>
+                          <th scope="col" className="py-3 px-3.5">
+                            Agronomic Field Guidance
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-line text-foreground/90">
+                        {focusedStrategy.practical_metrics.seasonal_operations.map((op, opIdx) => {
+                          const isFallow = op.crop_id === "fallow";
+                          return (
+                            <tr
+                              key={`${op.year_index}-${op.season_index}-${opIdx}`}
+                              className="hover:bg-foreground/[0.03] transition-colors"
+                            >
+                              <th scope="row" className="py-3 px-3.5 font-sans font-bold">
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="text-[10px] font-mono text-muted">
+                                    {constraints.rotation_years > 1 ? `Yr ${op.year_index + 1} · ` : ""}
+                                    {op.season_name}
+                                  </span>
+                                  <span className="text-foreground">{op.crop_name}</span>
+                                </div>
+                              </th>
+                              <td className="py-3 px-3 font-mono text-[11px]">
+                                <div className="flex flex-col">
+                                  <span>
+                                    {op.sowing_window} → {op.harvest_window}
+                                  </span>
+                                  <span className="text-[10px] text-muted">{op.duration_days} field days</span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 font-mono font-bold text-foreground">
+                                {isFallow
+                                  ? "—"
+                                  : unitSystem === "acre"
+                                  ? `${(op.yield_t_ha * 4.047).toFixed(1)} q/ac`
+                                  : `${op.yield_t_ha.toFixed(2)} t/ha`}
+                              </td>
+                              <td className="py-3 px-3 font-mono">
+                                {isFallow ? (
+                                  <span className="text-muted">0 mm (Rainfed Mulch)</span>
+                                ) : (
+                                  <div className="flex flex-col">
+                                    <span className="font-bold text-cyan-400">{op.irrigation_mm} mm</span>
+                                    <span className="text-[10px] text-muted">
+                                      ~{op.irrigations_count} irrigations
+                                    </span>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 font-mono">
+                                {op.n_fixation_kg_ha > 0 || op.urea_saved_kg_ha > 0 ? (
+                                  <div className="flex flex-col text-emerald-400">
+                                    {op.n_fixation_kg_ha > 0 && (
+                                      <span className="font-bold">+{op.n_fixation_kg_ha} kg N/ha BNF</span>
+                                    )}
+                                    {op.urea_saved_kg_ha > 0 && (
+                                      <span className="text-[10px]">
+                                        Saves {Math.round(scaleByUnit(op.urea_saved_kg_ha, unitSystem))} kg Urea
+                                        {fmtAreaUnit(unitSystem)}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted">Standard N</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 font-mono text-[11px]">
+                                {isFallow ? (
+                                  "—"
+                                ) : (
+                                  <div className="flex flex-col">
+                                    <span>
+                                      {fmtAreaMoney(
+                                        op.input_cost_inr_ha,
+                                        currencySymbol,
+                                        unitSystem,
+                                        false
+                                      )}
+                                      {fmtAreaUnit(unitSystem)}
+                                    </span>
+                                    <span className="text-[10px] text-muted">
+                                      Labour:{" "}
+                                      {fmtAreaMoney(
+                                        op.labor_cost_inr_ha,
+                                        currencySymbol,
+                                        unitSystem,
+                                        false
+                                      )}
+                                    </span>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 font-mono font-bold text-emerald-400">
+                                {isFallow
+                                  ? "—"
+                                  : `${fmtAreaMoney(
+                                      op.net_profit_inr_ha,
+                                      currencySymbol,
+                                      unitSystem,
+                                      false
+                                    )}${fmtAreaUnit(unitSystem)}`}
+                              </td>
+                              <td className="py-3 px-3.5 text-[11px] text-foreground/85 max-w-xs leading-snug">
+                                {op.agronomic_guidance}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
           </div>
         )}
 
@@ -861,14 +1076,47 @@ export function RotationExplorer({
         {/* VIEW MODE 3: What-If Stress Lab */}
         {activeTab === "whatif" && (
           <div className="space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h4 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
-                <FlaskConical className="w-4 h-4 text-amber-400" />
-                <span>What-If Hydro-Climatic &amp; Market Stress Perturbation Lab</span>
-              </h4>
-              <span className="text-[11px] font-mono text-muted">
-                Perturb ET₀ drought anomaly, MSP/market price, and synthetic N-fertilizer cost
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h4 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
+                  <FlaskConical className="w-4 h-4 text-amber-400" />
+                  <span>What-If Hydro-Climatic, CMIP6 &amp; Market Stress Perturbation Lab</span>
+                </h4>
+                <p className="text-[11px] font-mono text-muted mt-0.5">
+                  Perturb NASA NEX-GDDP-CMIP6 future climate ensembles, ET₀ drought anomaly, MSP/market price, and synthetic N-fertilizer cost
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 text-xs font-mono">
+                <label className="flex items-center gap-2">
+                  <span className="text-muted text-[11px]">Climate Scenario:</span>
+                  <select
+                    value={climateScenario}
+                    onChange={(e) => {
+                      const nextScen = e.target.value as ClimateScenarioId;
+                      setClimateScenario(nextScen);
+                      runStressSimulation(nextScen);
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg border border-amber-500/40 bg-surface text-foreground text-[11px] font-mono outline-none cursor-pointer"
+                  >
+                    <option value="historical">Historical Baseline (1995–2024 NASA POWER)</option>
+                    <option value="ssp245_2030s">CMIP6 SSP2-4.5 Near-Term (2030s: +1.15°C)</option>
+                    <option value="ssp245_2050s">CMIP6 SSP2-4.5 Mid-Century (2050s: +1.85°C)</option>
+                    <option value="ssp585_2030s">CMIP6 SSP5-8.5 High-Emission (2030s: +1.45°C)</option>
+                    <option value="ssp585_2050s">CMIP6 SSP5-8.5 High-Emission (2050s: +2.65°C)</option>
+                  </select>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => runStressSimulation()}
+                  disabled={stressLoading}
+                  className="px-3.5 py-1.5 rounded-lg text-[11px] font-mono font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${stressLoading ? "animate-spin" : ""}`} />
+                  <span>{stressLoading ? "Simulating CMIP6..." : "Run FAO-56 Stress Sim"}</span>
+                </button>
+              </div>
             </div>
 
             {/* Shock Sliders */}
@@ -884,7 +1132,10 @@ export function RotationExplorer({
                   max="40"
                   step="5"
                   value={droughtShockPct}
-                  onChange={(e) => setDroughtShockPct(parseInt(e.target.value))}
+                  onChange={(e) => {
+                    setDroughtShockPct(parseInt(e.target.value));
+                    setStressedStrategies(null);
+                  }}
                   className="w-full accent-amber-500 cursor-pointer"
                 />
                 <span className="text-[10px] font-mono text-muted block">
@@ -905,7 +1156,10 @@ export function RotationExplorer({
                   max="25"
                   step="5"
                   value={priceShockPct}
-                  onChange={(e) => setPriceShockPct(parseInt(e.target.value))}
+                  onChange={(e) => {
+                    setPriceShockPct(parseInt(e.target.value));
+                    setStressedStrategies(null);
+                  }}
                   className="w-full accent-cyan-400 cursor-pointer"
                 />
                 <span className="text-[10px] font-mono text-muted block">
@@ -924,7 +1178,10 @@ export function RotationExplorer({
                   max="50"
                   step="10"
                   value={fertilizerShockPct}
-                  onChange={(e) => setFertilizerShockPct(parseInt(e.target.value))}
+                  onChange={(e) => {
+                    setFertilizerShockPct(parseInt(e.target.value));
+                    setStressedStrategies(null);
+                  }}
                   className="w-full accent-rose-500 cursor-pointer"
                 />
                 <span className="text-[10px] font-mono text-muted block">
@@ -935,15 +1192,19 @@ export function RotationExplorer({
 
             {/* Stressed Performance Comparative Matrix */}
             <div className="overflow-x-auto rounded-2xl border border-line">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-xs tabular-nums">
+                <caption className="sr-only">
+                  Hydro-climatic, CMIP6, and market stress test results across candidate rotation strategies
+                </caption>
                 <thead className="bg-foreground/[0.05] text-foreground font-mono text-[11px] uppercase tracking-wider border-b border-line">
                   <tr>
-                    <th className="py-3.5 px-4">Rotation Strategy</th>
-                    <th className="py-3.5 px-3">Baseline Margin</th>
-                    <th className="py-3.5 px-3">Stressed Margin</th>
-                    <th className="py-3.5 px-3">Regret / Drawdown</th>
-                    <th className="py-3.5 px-3">Stressed Irrigation</th>
-                    <th className="py-3.5 px-3">Resilience Class</th>
+                    <th scope="col" className="py-3.5 px-4">Rotation Strategy</th>
+                    <th scope="col" className="py-3.5 px-3">Baseline Margin</th>
+                    <th scope="col" className="py-3.5 px-3">Stressed Margin</th>
+                    <th scope="col" className="py-3.5 px-3">CVaR-10 Worst-Decile</th>
+                    <th scope="col" className="py-3.5 px-3">Regret / Drawdown</th>
+                    <th scope="col" className="py-3.5 px-3">Stressed Irrigation</th>
+                    <th scope="col" className="py-3.5 px-3">Resilience Class</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line text-foreground/90 font-mono">
@@ -954,20 +1215,45 @@ export function RotationExplorer({
                       ? res.irrigation_mm.reduce((a, b) => a + b, 0) / res.irrigation_mm.length
                       : 1200;
 
+                    const matchedEngineStress = stressedStrategies?.find(
+                      (s) => s.rotation.id === strat.rotation.id || s.rank === strat.rank
+                    )?.results?.[0];
+
+                    const cmipTempPen =
+                      climateScenario === "ssp585_2050s"
+                        ? 0.88
+                        : climateScenario === "ssp245_2050s"
+                        ? 0.92
+                        : climateScenario === "ssp585_2030s"
+                        ? 0.94
+                        : climateScenario === "ssp245_2030s"
+                        ? 0.96
+                        : 1.0;
+
                     const extraIrr = normIrr * (droughtShockPct / 100);
-                    const stressedIrr = Math.round(normIrr + extraIrr);
+                    const stressedIrr = matchedEngineStress?.irrigation_mm?.length
+                      ? Math.round(
+                          matchedEngineStress.irrigation_mm.reduce((a, b) => a + b, 0) /
+                            matchedEngineStress.irrigation_mm.length
+                        )
+                      : Math.round(normIrr + extraIrr);
                     const pumpUnitCost = isSA ? 8.5 : 0.45;
                     const fertUnitCost = isSA ? 95 : 1.2;
                     const fertLegumeUnitCost = isSA ? 25 : 0.35;
                     const pumpPenalty = extraIrr * pumpUnitCost;
-                    const revMult = 1 + priceShockPct / 100;
+                    const revMult = (1 + priceShockPct / 100) * cmipTempPen;
                     const fertPenalty =
                       (res?.n_balance_kg_ha_yr ?? 30) > 15
                         ? fertilizerShockPct * fertUnitCost
                         : fertilizerShockPct * fertLegumeUnitCost;
 
-                    const stressedP = Math.round(normP * revMult - pumpPenalty - fertPenalty);
-                    const drop = normP - stressedP;
+                    const stressedP = matchedEngineStress
+                      ? Math.round(matchedEngineStress.profit_p50)
+                      : Math.round(normP * revMult - pumpPenalty - fertPenalty);
+                    const stressedCvar = matchedEngineStress
+                      ? Math.round(matchedEngineStress.cvar_profit_10)
+                      : Math.round(stressedP * 0.84);
+                    const drop = Math.max(0, Math.round(normP - stressedP));
                     const isBase = strat.rank === 0;
                     const dropThreshold = isSA ? 18000 : 250;
 
@@ -980,7 +1266,7 @@ export function RotationExplorer({
                             : "hover:bg-foreground/[0.04] transition-colors"
                         }
                       >
-                        <td className="py-3.5 px-4 font-sans font-bold flex items-center gap-2">
+                        <th scope="row" className="py-3.5 px-4 font-sans font-bold flex items-center gap-2">
                           <span
                             className={`px-1.5 py-0.5 rounded text-[9px] font-mono uppercase ${
                               isBase
@@ -991,10 +1277,13 @@ export function RotationExplorer({
                             {isBase ? "REF" : `S0${strat.rank}`}
                           </span>
                           <span>{strat.rotation.label ?? strat.rotation.id}</span>
-                        </td>
+                        </th>
                         <td className="py-3.5 px-3">{fmtMoney(normP, currencySymbol)}</td>
                         <td className="py-3.5 px-3 font-bold text-emerald-500">
                           {fmtMoney(stressedP, currencySymbol)}
+                        </td>
+                        <td className="py-3.5 px-3 text-amber-400">
+                          {fmtMoney(stressedCvar, currencySymbol)}
                         </td>
                         <td className="py-3.5 px-3 text-rose-500">
                           −{fmtMoney(drop, currencySymbol)}

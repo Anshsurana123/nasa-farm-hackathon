@@ -13,11 +13,25 @@ from pathlib import Path
 import yaml
 from terraloop_schemas import CropSpec
 
-_DEFAULT_DIR = Path(__file__).resolve().parents[2] / "crop-kb" / "crops"
+
+def _find_dir(subdir: str) -> Path:
+    dev = Path(__file__).resolve().parents[2] / "crop-kb" / subdir
+    if dev.exists():
+        return dev
+    for base in [Path.cwd(), *Path.cwd().parents]:
+        cand = base / "packages" / "crop-kb" / subdir
+        if cand.exists():
+            return cand
+    return dev
+
+
+_DEFAULT_DIR = _find_dir("crops")
 
 
 def kb_dir() -> Path:
-    return Path(os.environ.get("TERRALOOP_CROP_KB", _DEFAULT_DIR))
+    if env := os.environ.get("TERRALOOP_CROP_KB"):
+        return Path(env)
+    return _find_dir("crops")
 
 
 @functools.lru_cache(maxsize=1)
@@ -41,11 +55,13 @@ def get_crop(crop_id: str) -> CropSpec:
     return crops[crop_id]
 
 
-_DEFAULT_PARAMS_DIR = Path(__file__).resolve().parents[2] / "crop-kb" / "aquacrop_params"
+_DEFAULT_PARAMS_DIR = _find_dir("aquacrop_params")
 
 
 def aquacrop_params_dir() -> Path:
-    return Path(os.environ.get("TERRALOOP_AQUACROP_PARAMS", _DEFAULT_PARAMS_DIR))
+    if env := os.environ.get("TERRALOOP_AQUACROP_PARAMS"):
+        return Path(env)
+    return _find_dir("aquacrop_params")
 
 
 @functools.lru_cache(maxsize=1)

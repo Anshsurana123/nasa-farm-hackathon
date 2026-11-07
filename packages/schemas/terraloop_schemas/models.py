@@ -208,7 +208,7 @@ class FarmConstraints(BaseModel):
     must_grow: list[str] = []
     exclude: list[str] = []
     has_livestock: bool = False
-    rotation_years: int = Field(3, ge=1, le=6)
+    rotation_years: int = Field(1, ge=1, le=6)
 
 
 # ---------------------------------------------------------------------------
@@ -262,6 +262,29 @@ class SimulationResult(BaseModel):
     cvar_profit_10: float
 
 
+class SeasonalOperationStep(BaseModel):
+    """Actionable per-season field operation, water, nutrient, and margin entry."""
+
+    year_index: int = 0
+    season_index: int = 0
+    season_name: str = "Kharif"
+    crop_id: str = "fallow"
+    crop_name: str = "Fallow"
+    sowing_window: str = ""
+    harvest_window: str = ""
+    duration_days: int = 60
+    practices: list[str] = Field(default_factory=list)
+    yield_t_ha: float = 0.0
+    irrigation_mm: float = 0.0
+    irrigations_count: int = 0
+    input_cost_inr_ha: float = 0.0
+    labor_cost_inr_ha: float = 0.0
+    net_profit_inr_ha: float = 0.0
+    n_fixation_kg_ha: float = 0.0
+    urea_saved_kg_ha: float = 0.0
+    agronomic_guidance: str = ""
+
+
 class PracticalFarmerMetrics(BaseModel):
     """Actionable farm-level metrics in Indian agricultural units."""
 
@@ -286,6 +309,10 @@ class PracticalFarmerMetrics(BaseModel):
     )
     labor_cost_inr_per_ha: float = 0.0
     input_cost_inr_per_ha: float = 0.0
+    seasonal_operations: list[SeasonalOperationStep] = Field(
+        default_factory=list,
+        description="Per-season actionable field operation, budget, irrigation, and nutrient ledger",
+    )
 
 
 class StrategyRecommendation(BaseModel):

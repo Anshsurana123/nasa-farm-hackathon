@@ -6,8 +6,8 @@
       "lat": 25.38,
       "lon": 78.62
     },
-    "timestamp_utc": "2026-11-06T12:52:11.819479+00:00",
-    "gee_live": true,
+    "timestamp_utc": "2026-11-07T09:52:40.294765+00:00",
+    "gee_live": false,
     "data_mode": "observed",
     "is_fallback": false,
     "soil_source": "modelled",
@@ -27,8 +27,8 @@
       "lat": 10.72,
       "lon": 79.25
     },
-    "timestamp_utc": "2026-11-06T12:52:26.332547+00:00",
-    "gee_live": true,
+    "timestamp_utc": "2026-11-07T09:52:56.268217+00:00",
+    "gee_live": false,
     "data_mode": "observed",
     "is_fallback": false,
     "soil_source": "modelled",
@@ -39,6 +39,90 @@
     "crop_history_seasons_detected": 12,
     "firms_residue_burning_detected": false,
     "grace_tws_trend_cm_yr": 0.55,
+    "smap_root_zone_months": 12
+  },
+  "sangrur": {
+    "field_id": "sangrur",
+    "field_name": "Sangrur, Punjab",
+    "coordinates": {
+      "lat": 30.19,
+      "lon": 75.78
+    },
+    "timestamp_utc": "2026-11-07T09:52:03.694714+00:00",
+    "gee_live": false,
+    "data_mode": "observed",
+    "is_fallback": false,
+    "soil_source": "modelled",
+    "soil_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "crop_history_seasons_detected": 10,
+    "firms_residue_burning_detected": true,
+    "grace_tws_trend_cm_yr": -4.15,
+    "smap_root_zone_months": 12
+  },
+  "ludhiana": {
+    "field_id": "ludhiana",
+    "field_name": "Ludhiana, Punjab",
+    "coordinates": {
+      "lat": 30.82,
+      "lon": 75.68
+    },
+    "timestamp_utc": "2026-11-07T09:52:19.669263+00:00",
+    "gee_live": false,
+    "data_mode": "observed",
+    "is_fallback": false,
+    "soil_source": "modelled",
+    "soil_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "crop_history_seasons_detected": 10,
+    "firms_residue_burning_detected": true,
+    "grace_tws_trend_cm_yr": -4.15,
+    "smap_root_zone_months": 12
+  },
+  "bathinda": {
+    "field_id": "bathinda",
+    "field_name": "Bathinda, Punjab",
+    "coordinates": {
+      "lat": 30.12,
+      "lon": 74.86
+    },
+    "timestamp_utc": "2026-11-07T09:52:33.693969+00:00",
+    "gee_live": false,
+    "data_mode": "observed",
+    "is_fallback": false,
+    "soil_source": "modelled",
+    "soil_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "crop_history_seasons_detected": 10,
+    "firms_residue_burning_detected": true,
+    "grace_tws_trend_cm_yr": -4.15,
+    "smap_root_zone_months": 12
+  },
+  "vidarbha": {
+    "field_id": "vidarbha",
+    "field_name": "Yavatmal (Vidarbha), Maharashtra",
+    "coordinates": {
+      "lat": 20.39,
+      "lon": 78.13
+    },
+    "timestamp_utc": "2026-11-07T09:52:37.834209+00:00",
+    "gee_live": false,
+    "data_mode": "observed",
+    "is_fallback": false,
+    "soil_source": "modelled",
+    "soil_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "crop_history_seasons_detected": 1,
+    "firms_residue_burning_detected": false,
+    "grace_tws_trend_cm_yr": 1.11,
     "smap_root_zone_months": 12
   }
 }

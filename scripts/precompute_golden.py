@@ -14,7 +14,7 @@ from pathlib import Path
 
 from terraloop_engine import crop_kb, profiler
 from terraloop_engine.data import gee, nasa_power
-from terraloop_schemas import FarmConstraints, FieldGeometry, Priorities
+from terraloop_schemas import FarmConstraints, FieldGeometry, FieldProfile, Priorities
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -62,20 +62,36 @@ def main(ids: list[str]) -> None:
         web_field_dir = WEB_GOLDEN / fid
         web_field_dir.mkdir(parents=True, exist_ok=True)
 
-        # 1. Build and save FieldProfile
-        prof = profiler.build_profile(FieldGeometry(lat=lat, lon=lon, name=name))
-        prof_json_str = prof.model_dump_json(indent=2)
-        (field_dir / "profile.json").write_text(prof_json_str, encoding="utf-8")
-        (web_field_dir / "profile.json").write_text(prof_json_str, encoding="utf-8")
+        # 1. Build and save FieldProfile (preserve existing live GEE observed profile when GEE is offline)
+        existing_prof_path = field_dir / "profile.json"
+        if existing_prof_path.exists() and not gee.is_live():
+            existing_prof = FieldProfile.model_validate_json(existing_prof_path.read_text(encoding="utf-8"))
+            if existing_prof.data_mode == "observed":
+                prof = existing_prof
+                prof_json_str = prof.model_dump_json(indent=2)
+                (web_field_dir / "profile.json").write_text(prof_json_str, encoding="utf-8")
+            else:
+                prof = profiler.build_profile(FieldGeometry(lat=lat, lon=lon, name=name))
+                prof_json_str = prof.model_dump_json(indent=2)
+                existing_prof_path.write_text(prof_json_str, encoding="utf-8")
+                (web_field_dir / "profile.json").write_text(prof_json_str, encoding="utf-8")
+        else:
+            prof = profiler.build_profile(FieldGeometry(lat=lat, lon=lon, name=name))
+            prof_json_str = prof.model_dump_json(indent=2)
+            existing_prof_path.write_text(prof_json_str, encoding="utf-8")
+            (web_field_dir / "profile.json").write_text(prof_json_str, encoding="utf-8")
 
         # 2. Fetch or generate 30-year daily weather (1995-2024) for 30 historical ensemble members
+        weather_path = field_dir / "weather.json"
         try:
             w_df = nasa_power.fetch_daily(
                 nasa_power.PowerRequest(lat=lat, lon=lon, start=date(1995, 1, 1), end=date(2024, 12, 31))
             )
+            _save_weather_json(w_df, weather_path)
         except Exception:  # noqa: BLE001
-            w_df = nasa_power.synthetic_daily_weather(lat, lon, (1995, 2024))
-        _save_weather_json(w_df, field_dir / "weather.json")
+            if not weather_path.exists():
+                w_df = nasa_power.synthetic_daily_weather(lat, lon, (1995, 2024))
+                _save_weather_json(w_df, weather_path)
 
         # 3. Compute default recommendations (using the newly saved profile & weather)
         irrigation_mode = "none" if fid in ("vidarbha", "bundelkhand") else ("limited" if fid == "bathinda" else "full")

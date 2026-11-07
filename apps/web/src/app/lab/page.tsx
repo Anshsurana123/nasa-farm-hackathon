@@ -51,7 +51,7 @@ export default function LabPage() {
             className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
           >
             <Sparkles className="w-4 h-4" />
-            <span>Explore 21-Crop Atlas</span>
+            <span>Explore 23-Crop Atlas</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>

@@ -204,6 +204,27 @@ export interface SimulationResult {
   cvar_profit_10: number;
 }
 
+export interface SeasonalOperationStep {
+  year_index: number;
+  season_index: number;
+  season_name: string;
+  crop_id: string;
+  crop_name: string;
+  sowing_window: string;
+  harvest_window: string;
+  duration_days: number;
+  practices: string[];
+  yield_t_ha: number;
+  irrigation_mm: number;
+  irrigations_count: number;
+  input_cost_inr_ha: number;
+  labor_cost_inr_ha: number;
+  net_profit_inr_ha: number;
+  n_fixation_kg_ha: number;
+  urea_saved_kg_ha: number;
+  agronomic_guidance: string;
+}
+
 export interface PracticalFarmerMetrics {
   turnaround_days_kharif_rabi: number;
   urea_bags_saved_per_ha: number;
@@ -213,6 +234,7 @@ export interface PracticalFarmerMetrics {
   eligible_schemes: string[];
   labor_cost_inr_per_ha: number;
   input_cost_inr_per_ha: number;
+  seasonal_operations?: SeasonalOperationStep[];
 }
 
 export interface StrategyRecommendation {
@@ -231,6 +253,13 @@ export interface StrategyRecommendation {
   data_mode?: "observed" | "hybrid_regional" | "fallback_synthetic";
 }
 
+export type ClimateScenarioId =
+  | "historical"
+  | "ssp245_2030s"
+  | "ssp245_2050s"
+  | "ssp585_2030s"
+  | "ssp585_2050s";
+
 export interface RecommendRequest {
   field: FieldGeometry;
   priorities?: Priorities;
@@ -238,10 +267,15 @@ export interface RecommendRequest {
   language?: "en" | "pa" | "hi";
   soil_health_card?: SoilHealthCardInput | null;
   baseline_override?: string[] | null;
+  climate_scenario?: ClimateScenarioId;
+  drought_shock_pct?: number;
+  price_shock_pct?: number;
+  fertilizer_shock_pct?: number;
 }
 
 export interface SuitabilityItem {
   crop_id: string;
+  name?: string;
   score: number;
   thermal_fit: number;
   water_fit: number;

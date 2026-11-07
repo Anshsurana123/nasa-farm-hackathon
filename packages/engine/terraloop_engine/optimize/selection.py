@@ -1,4 +1,4 @@
-"""Priority-based selection from evaluated candidates. (TASK-O04 implemented, O03 pending)
+"""Multi-objective NSGA-II sorting and priority-based selection from evaluated candidates. (TASK-O03, TASK-O04)
 
 Each candidate carries objective values (all oriented so HIGHER IS BETTER):
     profit        : median profit per ha
@@ -249,3 +249,18 @@ def nsga2_select(
             break
 
     return selected
+
+
+def annotate_pareto_metrics(candidates: list[dict[str, float]]) -> list[dict[str, float]]:
+    """Compute NSGA-II non-dominated front rank (1 = Pareto front) and crowding distance per candidate."""
+    if not candidates:
+        return []
+    fronts = fast_non_dominated_sort(candidates)
+    out = [dict(c) for c in candidates]
+    for rank_idx, front in enumerate(fronts, start=1):
+        cd_map = crowding_distance(candidates, front)
+        for c_idx in front:
+            out[c_idx]["pareto_front"] = float(rank_idx)
+            raw_cd = cd_map.get(c_idx, 0.0)
+            out[c_idx]["crowding_distance"] = 99.0 if raw_cd == float("inf") else round(float(raw_cd), 3)
+    return out

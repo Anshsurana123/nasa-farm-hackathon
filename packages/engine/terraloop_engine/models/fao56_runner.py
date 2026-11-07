@@ -234,6 +234,8 @@ def _simulate_step(
     if crop_id == "fallow" or crop_id not in crops:
         return {
             "crop_id": crop_id,
+            "season_index": season_index,
+            "practices": list(practices),
             "yield_t_ha": 0.0,
             "irrigation_mm": 0.0,
             "eta_mm": 0.0,
@@ -498,6 +500,8 @@ def _simulate_step(
 
     step_result = {
         "crop_id": crop_id,
+        "season_index": season_index,
+        "practices": list(practices),
         "yield_t_ha": round(float(actual_yield), 2),
         "irrigation_mm": round(float(irrigation_mm), 1),
         "eta_mm": round(float(eta_mm), 1),
@@ -550,6 +554,7 @@ def simulate_rotation(
             crops=crops,
             initial_depletion_mm=current_depletion_mm,
         )
+        res["year_index"] = step.year_index
         current_depletion_mm = next_dep
         results.append(res)
 

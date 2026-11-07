@@ -22,11 +22,12 @@ from terraloop_schemas import (
     FieldProfile,
     PracticalFarmerMetrics,
     Rotation,
+    SeasonalOperationStep,
     SimulationResult,
 )
 
 from terraloop_engine import crop_kb
-from terraloop_engine.models import economics, fao56_runner, rusle, soil_health
+from terraloop_engine.models import economics, fao56_runner, rusle, soil_health, surrogate
 
 # Backward-compatible alias
 aquacrop_runner = fao56_runner
@@ -67,6 +68,8 @@ def evaluate_rotation(
     profile: FieldProfile,
     constraints: FarmConstraints,
     scenario_set_id: str = "historical",
+    price_shock_pct: float = 0.0,
+    fertilizer_shock_pct: float = 0.0,
 ) -> SimulationResult:
     """Evaluate a single rotation across all climate ensemble members."""
     crops = crop_kb.load_crops()
@@ -133,6 +136,9 @@ def evaluate_rotation(
                     shock = (2.6 * m_risk * u_val) if u_val < 0 else (1.8 * m_risk * u_val)
                     price_mult = float(np.clip(base_realization + shock, 0.52, 1.25))
 
+                if price_shock_pct != 0.0:
+                    price_mult = max(0.25, price_mult * (1.0 + price_shock_pct / 100.0))
+
                 econ_res = economics.profit_per_ha(
                     cid,
                     y_val,
@@ -143,7 +149,16 @@ def evaluate_rotation(
                     preceded_by_legume=prec_leg,
                     irrigation=constraints.irrigation,
                 )
-                tot_profit += float(econ_res["profit_per_ha"])
+                step_profit = float(econ_res["profit_per_ha"])
+                if fertilizer_shock_pct != 0.0 and cid in crops:
+                    c_spec = crops[cid]
+                    synth_n_kg = max(
+                        0.0,
+                        c_spec.n_demand_kg_ha - c_spec.n_fixation_kg_ha - (25.0 if prec_leg else 0.0),
+                    )
+                    unit_n_cost = 14.0 if (profile.currency or "INR") == "INR" else 0.18
+                    step_profit -= synth_n_kg * unit_n_cost * (fertilizer_shock_pct / 100.0)
+                tot_profit += step_profit
 
         ann_irr = tot_irr / rotation_years
         ann_profit = tot_profit / rotation_years
@@ -275,6 +290,8 @@ def evaluate_candidates(
     profile: FieldProfile,
     constraints: FarmConstraints,
     scenario_set_id: str = "historical",
+    price_shock_pct: float = 0.0,
+    fertilizer_shock_pct: float = 0.0,
 ) -> list[SimulationResult]:
     """Evaluate a list of candidate rotations across climate members."""
     return [
@@ -284,9 +301,61 @@ def evaluate_candidates(
             profile=profile,
             constraints=constraints,
             scenario_set_id=scenario_set_id,
+            price_shock_pct=price_shock_pct,
+            fertilizer_shock_pct=fertilizer_shock_pct,
         )
         for r in rotations
     ]
+
+
+def _build_step_guidance(
+    crop_id: str,
+    season_index: int,
+    practices: list[str],
+    prec_leg: bool,
+    irrigation_mode: str,
+    dur_days: int,
+) -> tuple[str, str, str]:
+    """Return (sowing_window, harvest_window, agronomic_guidance) for a rotation step."""
+    windows = {
+        0: ("Jun 15 – Jul 05", "Oct 05 – Oct 25"),
+        1: ("Nov 01 – Nov 20", "Apr 01 – Apr 18"),
+        2: ("Apr 10 – Apr 22", "Jun 08 – Jun 20"),
+    }
+    sow_win, harv_win = windows.get(season_index, ("Jun 15", "Oct 15"))
+    if crop_id == "rice_short":
+        sow_win, harv_win = "Jun 20 – Jun 28", "Oct 01 – Oct 08"
+    elif crop_id == "rice_dsr":
+        sow_win, harv_win = "Jun 05 – Jun 18", "Oct 05 – Oct 15"
+    elif crop_id == "rice_puddled":
+        sow_win, harv_win = "Jun 15 – Jun 25", "Oct 22 – Nov 05"
+    elif crop_id in ("mustard", "chickpea", "lentil"):
+        sow_win, harv_win = "Oct 18 – Nov 10", "Mar 15 – Mar 30"
+
+    notes: list[str] = []
+    if crop_id == "rice_dsr":
+        notes.append("Drill-seed at 20 kg/ha after 75 mm pre-sowing rauni irrigation; apply AWD wetting/drying")
+    elif crop_id == "rice_short":
+        notes.append("Transplant 25-day PR-126 seedlings; stop irrigation 14 days before harvest for early Oct clearance")
+    elif crop_id == "rice_puddled":
+        notes.append("Conventional puddled transplanted paddy (high percolation & narrow Rabi turnaround)")
+    elif "happy_seeder" in practices:
+        notes.append("Direct-drill with PAU Happy Seeder / Super SMS into standing rice mulch without burning")
+    elif any(p in ("zero_till", "no_till") for p in practices):
+        notes.append("Zero-till seed-cum-fertilizer drill into anchored crop residue")
+    elif "residue_retained" in practices:
+        notes.append("Retain surface crop residue as organic soil armor to conserve root-zone moisture")
+
+    if prec_leg:
+        notes.append("Reduce basal Urea dose by 25 kg N/ha (~55 kg Urea/ha) using preceding legume BNF credit")
+    if irrigation_mode == "none":
+        notes.append("Rainfed conservation profile (ridge-furrow / compartment bunding)")
+    elif irrigation_mode == "limited":
+        notes.append("Deficit irrigation only at critical flowering and grain-filling stages")
+
+    if not notes:
+        notes.append(f"Standard regional package of practices ({dur_days}d field cycle)")
+    return sow_win, harv_win, "; ".join(notes) + "."
 
 
 def compute_practical_farmer_metrics(
@@ -294,11 +363,13 @@ def compute_practical_farmer_metrics(
     sim_result: SimulationResult,
     baseline_result: SimulationResult | None = None,
     crops: dict[str, CropSpec] | None = None,
+    constraints: FarmConstraints | None = None,
 ) -> PracticalFarmerMetrics:
     """Translate biophysical simulation outputs into practical Indian farmer decision metrics."""
     if crops is None:
         crops = crop_kb.load_crops()
     econ_crops = economics.load_economics("punjab").get("crops", {})
+    irr_mode = constraints.irrigation if constraints is not None else "full"
 
     rotation_years = max(1, max(s.year_index for s in rotation.steps) + 1)
     turnaround_days = rot_mod.compute_turnaround_days(rotation, crops)
@@ -315,13 +386,34 @@ def compute_practical_farmer_metrics(
     # 1 mm/ha = 10 m3; standard 5 HP submersible pump delivers ~18 m3/hr -> 0.55 hr per mm/ha
     pumping_hours_saved = round(water_saved_mm * 0.55)
 
+    # Estimate relative water demand weights across steps so seasonal irrigation sums to total simulated irrigation
+    step_water_weights: list[float] = []
+    for s in rotation.steps:
+        if s.crop_id in crops and s.crop_id != "fallow":
+            c_spec = crops[s.crop_id]
+            w_mid = 0.5 * (c_spec.water_requirement_mm[0] + c_spec.water_requirement_mm[1])
+            if s.crop_id == "rice_puddled":
+                w_mid *= 1.25
+            elif s.crop_id == "rice_dsr":
+                w_mid *= 0.88
+            elif s.crop_id == "rice_short":
+                w_mid *= 0.92
+            step_water_weights.append(max(20.0, w_mid))
+        else:
+            step_water_weights.append(0.0)
+    total_w_weight = sum(step_water_weights) or 1.0
+    total_sim_irr = cand_irr * rotation_years
+
     # 2. Biological N fixation + retained residue N savings -> 45-kg Urea bags saved (1 bag = 20.7 kg N)
     tot_n_saved_kg = 0.0
     tot_labor_inr = 0.0
     tot_cost_inr = 0.0
     proc_types: list[str] = []
+    seasonal_ops: list[SeasonalOperationStep] = []
+    season_names = {0: "Kharif (Monsoon)", 1: "Rabi (Winter)", 2: "Zaid (Summer)"}
 
     for idx, s in enumerate(rotation.steps):
+        s_name = season_names.get(s.season_index, f"Season {s.season_index + 1}")
         if s.crop_id in crops and s.crop_id != "fallow":
             c_spec = crops[s.crop_id]
             prev_cid = rotation.steps[idx - 1].crop_id
@@ -332,16 +424,75 @@ def compute_practical_farmer_metrics(
             n_res = soil_health.n_balance(
                 c_spec, yield_t_ha=mean_y, preceded_by_legume=prec_leg, residue_retained=ret_res
             )
-            # Credit both direct fertilizer reduction and 50% of legume symbiotic N fixation
-            tot_n_saved_kg += n_res["fertilizer_saved_kg_ha"] + 0.45 * c_spec.n_fixation_kg_ha
+            step_n_saved = float(n_res["fertilizer_saved_kg_ha"] + 0.45 * c_spec.n_fixation_kg_ha)
+            tot_n_saved_kg += step_n_saved
 
             econ_res = economics.profit_per_ha(
-                s.crop_id, mean_y, practices=s.practices, preceded_by_legume=prec_leg
+                s.crop_id,
+                mean_y,
+                practices=s.practices,
+                preceded_by_legume=prec_leg,
+                irrigation=irr_mode,
             )
-            tot_labor_inr += float(econ_res["labor_cost_per_ha"])
-            tot_cost_inr += float(econ_res["cost_per_ha"])
+            step_labor = float(econ_res["labor_cost_per_ha"])
+            step_cost = float(econ_res["cost_per_ha"])
+            step_profit = float(econ_res["profit_per_ha"])
+            tot_labor_inr += step_labor
+            tot_cost_inr += step_cost
             c_proc = str(econ_crops.get(s.crop_id, {}).get("procurement_type", "nafed_pss"))
             proc_types.append(c_proc)
+
+            step_irr_mm = round(total_sim_irr * (step_water_weights[idx] / total_w_weight), 1)
+            step_irr_cnt = max(0, round(step_irr_mm / 70.0)) if step_irr_mm > 20.0 else 0
+            dur_d = int(rot_mod._step_duration_days(s.crop_id, crops))
+            sow_win, harv_win, guidance = _build_step_guidance(
+                s.crop_id, s.season_index, s.practices, prec_leg, irr_mode, dur_d
+            )
+            seasonal_ops.append(
+                SeasonalOperationStep(
+                    year_index=s.year_index,
+                    season_index=s.season_index,
+                    season_name=s_name,
+                    crop_id=s.crop_id,
+                    crop_name=c_spec.name,
+                    sowing_window=sow_win,
+                    harvest_window=harv_win,
+                    duration_days=dur_d,
+                    practices=list(s.practices),
+                    yield_t_ha=round(mean_y, 2),
+                    irrigation_mm=step_irr_mm,
+                    irrigations_count=step_irr_cnt,
+                    input_cost_inr_ha=round(step_cost, 0),
+                    labor_cost_inr_ha=round(step_labor, 0),
+                    net_profit_inr_ha=round(step_profit, 0),
+                    n_fixation_kg_ha=round(float(c_spec.n_fixation_kg_ha), 1),
+                    urea_saved_kg_ha=round(step_n_saved / 0.46, 1),
+                    agronomic_guidance=guidance,
+                )
+            )
+        else:
+            seasonal_ops.append(
+                SeasonalOperationStep(
+                    year_index=s.year_index,
+                    season_index=s.season_index,
+                    season_name=s_name,
+                    crop_id="fallow",
+                    crop_name="Summer Fallow / Residue Mulch",
+                    sowing_window="Apr 15",
+                    harvest_window="Jun 15",
+                    duration_days=60,
+                    practices=list(s.practices),
+                    yield_t_ha=0.0,
+                    irrigation_mm=0.0,
+                    irrigations_count=0,
+                    input_cost_inr_ha=0.0,
+                    labor_cost_inr_ha=0.0,
+                    net_profit_inr_ha=0.0,
+                    n_fixation_kg_ha=0.0,
+                    urea_saved_kg_ha=0.0,
+                    agronomic_guidance="Retain anchored wheat stubble mulch on soil surface; avoid summer deep ploughing.",
+                )
+            )
 
     ann_n_saved_kg = tot_n_saved_kg / rotation_years
     urea_bags_saved = round(ann_n_saved_kg / 20.7, 1)  # 45 kg * 46% N = 20.7 kg N per bag
@@ -390,7 +541,47 @@ def compute_practical_farmer_metrics(
         eligible_schemes=schemes,
         labor_cost_inr_per_ha=round(tot_labor_inr / rotation_years, 0),
         input_cost_inr_per_ha=round(tot_cost_inr / rotation_years, 0),
+        seasonal_operations=seasonal_ops,
     )
+
+
+def prescreen_rotations_with_surrogate(
+    rotations: list[Rotation],
+    profile: FieldProfile,
+    crops: dict[str, CropSpec] | None = None,
+    max_candidates: int = 32,
+) -> list[Rotation]:
+    """TASK-O05: Fast polynomial Ridge surrogate pre-screener for large rotation pools."""
+    if len(rotations) <= max_candidates:
+        return rotations
+    crops = crops or crop_kb.load_crops()
+    features = []
+    targets = []
+    for rot in rotations:
+        yrs = max(1, max(s.year_index for s in rot.steps) + 1)
+        water_req = 0.0
+        n_fix = 0.0
+        dur_tot = 0.0
+        for s in rot.steps:
+            if s.crop_id in crops and s.crop_id != "fallow":
+                c = crops[s.crop_id]
+                water_req += 0.5 * (c.water_requirement_mm[0] + c.water_requirement_mm[1])
+                n_fix += c.n_fixation_kg_ha
+                dur_tot += 0.5 * (c.duration_days[0] + c.duration_days[1])
+        x_vec = [water_req / yrs, n_fix / yrs, dur_tot / yrs, float(profile.soil.clay_pct or 22.0)]
+        score_proxy = (n_fix / yrs) * 1.5 - (water_req / yrs) * 0.08 + (dur_tot / yrs) * 0.2
+        features.append(x_vec)
+        targets.append(score_proxy)
+    X_arr = np.asarray(features, dtype=float)
+    y_arr = np.asarray(targets, dtype=float)
+    model = surrogate.train_crop_surrogate(X_arr, y_arr, degree=2, alpha=0.5)
+    preds = np.asarray(model.predict(X_arr), dtype=float).ravel()
+    ranked_idx = np.argsort(-preds)
+    selected: list[Rotation] = []
+    for idx in ranked_idx:
+        if rotations[int(idx)].is_baseline or len(selected) < max_candidates:
+            selected.append(rotations[int(idx)])
+    return selected
 
 
 def compute_resilience_and_regret(

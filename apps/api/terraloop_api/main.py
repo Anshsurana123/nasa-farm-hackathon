@@ -46,6 +46,32 @@ GOLDEN_DIR = REPO_ROOT / "data" / "golden"
 
 app = FastAPI(title="TerraLoop India API", version="0.2.0")
 
+# Public path prefix. On Vercel the top-level rewrite `/api/(.*)` forwards to this service with the
+# prefix intact; locally (uvicorn on :8000) requests arrive without it. Both must resolve to the same routes.
+API_PATH_PREFIX = "/" + os.environ.get("API_PATH_PREFIX", "/api").strip("/")
+
+
+class _PathPrefixMiddleware:
+    """Pure ASGI middleware: mark `API_PATH_PREFIX` as the ASGI root_path when a request carries it.
+
+    Starlette strips `root_path` from the path before routing, and FastAPI uses it to build the
+    `/docs` -> `openapi.json` URL, so `/api/health` and `/health` both hit the same handler.
+    """
+
+    def __init__(self, asgi_app, prefix: str) -> None:
+        self.app = asgi_app
+        self.prefix = prefix
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket") and self.prefix != "/" and not scope.get("root_path"):
+            path: str = scope["path"]
+            if path == self.prefix or path.startswith(self.prefix + "/"):
+                scope = {**scope, "root_path": self.prefix}
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(_PathPrefixMiddleware, prefix=API_PATH_PREFIX)
+
 cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "*").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
@@ -366,6 +392,16 @@ class RecommendRequest(BaseModel):
     language: Literal["en", "pa", "hi"] = "en"
     soil_health_card: SoilHealthCardInput | None = None
     baseline_override: list[str] | None = None
+    climate_scenario: Literal[
+        "historical",
+        "ssp245_2030s",
+        "ssp245_2050s",
+        "ssp585_2030s",
+        "ssp585_2050s",
+    ] = "historical"
+    drought_shock_pct: float = 0.0
+    price_shock_pct: float = 0.0
+    fertilizer_shock_pct: float = 0.0
 
 
 @app.post("/recommend", response_model=list[StrategyRecommendation])
@@ -412,7 +448,7 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     if req.soil_health_card is not None:
         prof = profiler.apply_soil_health_card_override(prof, req.soil_health_card)
 
-    # 2. Historical Weather Ensemble (30 years -> 30 ensemble members; instant offline for golden fields)
+    # 2. Weather Ensemble (30 years historical or NASA NEX-GDDP-CMIP6 future scenario)
     crops = crop_kb.load_crops()
     weather_df = _load_golden_weather(matched_golden_id) if matched_golden_id else None
     used_fallback_weather = False
@@ -429,11 +465,39 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         used_fallback_weather = True
 
     rot_years = req.constraints.rotation_years
-    scenario_set, members = ensembles.build_scenario_set(
-        kind="historical",
-        power_df=weather_df,
-        rotation_years=rot_years,
-    )
+    if req.climate_scenario == "historical":
+        scenario_set, members = ensembles.build_scenario_set(
+            kind="historical",
+            power_df=weather_df,
+            rotation_years=rot_years,
+            lat=prof.field.lat,
+            lon=prof.field.lon,
+        )
+    else:
+        ssp_part, horizon_part = req.climate_scenario.split("_", 1)
+        scenario_set, members = ensembles.build_scenario_set(
+            kind="cmip6",
+            power_df=weather_df,
+            ssp=ssp_part,  # type: ignore[arg-type]
+            horizon=horizon_part,  # type: ignore[arg-type]
+            rotation_years=rot_years,
+            lat=prof.field.lat,
+            lon=prof.field.lon,
+        )
+
+    if req.drought_shock_pct > 0.0:
+        precip_scale = max(0.20, 1.0 - req.drought_shock_pct / 100.0)
+        heat_delta = 0.03 * req.drought_shock_pct
+        shocked_members: dict[str, pd.DataFrame] = {}
+        for m_id, m_df in members.items():
+            df_s = m_df.copy()
+            if "PRECTOTCORR" in df_s.columns:
+                df_s["PRECTOTCORR"] = (df_s["PRECTOTCORR"] * precip_scale).clip(lower=0.0)
+            for tcol in ("T2M", "T2M_MAX", "T2M_MIN"):
+                if tcol in df_s.columns:
+                    df_s[tcol] = df_s[tcol] + heat_delta
+            shocked_members[m_id] = df_s
+        members = shocked_members
 
     # 3. Generate candidate rotations pre-screened by suitability (no arbitrary alphabetical [:35] cut!)
     ranked_crops = suitability.rank_crops(prof, crops, req.constraints)
@@ -503,22 +567,28 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         candidate_rotations = candidate_rotations[:75]
 
     # 4. Baseline rotation (current farm practice from satellite history, regional benchmark, or farmer 1-tap override)
-    baseline_rot = rotations.derive_baseline_rotation(prof, crops, baseline_override=req.baseline_override)
+    baseline_rot = rotations.derive_baseline_rotation(
+        prof, crops, years=rot_years, baseline_override=req.baseline_override
+    )
     base_seq = [s.crop_id for s in baseline_rot.steps]
     candidate_rotations = [r for r in candidate_rotations if [s.crop_id for s in r.steps] != base_seq]
     all_rotations = [baseline_rot] + candidate_rotations
 
-    # 5. Evaluate all candidates across historical weather ensemble
+    # 5. Evaluate all candidates across weather ensemble (with optional price & fertilizer shocks)
     sim_results = evaluate.evaluate_candidates(
         rotations=all_rotations,
         members=members,
         profile=prof,
         constraints=req.constraints,
         scenario_set_id=scenario_set.id,
+        price_shock_pct=req.price_shock_pct,
+        fertilizer_shock_pct=req.fertilizer_shock_pct,
     )
 
     baseline_result = sim_results[0]
-    baseline_pm = evaluate.compute_practical_farmer_metrics(baseline_rot, baseline_result, baseline_result, crops)
+    baseline_pm = evaluate.compute_practical_farmer_metrics(
+        baseline_rot, baseline_result, baseline_result, crops, constraints=req.constraints
+    )
 
     # 6. Map to objective scores for Pareto / Priority selection (incorporating procurement_type & market_risk)
     econ_crops = economics.load_economics("punjab").get("crops", {})
@@ -582,7 +652,9 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     labels: list[str] = [baseline_rot.label or baseline_rot.id]
 
     for r, res in zip(all_rotations[1:], sim_results[1:], strict=False):
-        pm = evaluate.compute_practical_farmer_metrics(r, res, baseline_result, crops)
+        pm = evaluate.compute_practical_farmer_metrics(
+            r, res, baseline_result, crops, constraints=req.constraints
+        )
         cand_pms.append(pm)
         obj_dict = _build_objective_dict(r, res, pm)
         cand_obj_dicts.append(obj_dict)
@@ -590,7 +662,7 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
 
     baseline_obj = cand_obj_dicts[0]
 
-    alt_candidates = cand_obj_dicts[1:]
+    alt_candidates = selection.annotate_pareto_metrics(cand_obj_dicts[1:])
     alt_labels = labels[1:]
     alt_rotations = all_rotations[1:]
     alt_results = sim_results[1:]
@@ -689,6 +761,8 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
             data_mode=rec_data_mode,
         )
         cards, provs = why_cards.why_cards(prof, rec, baseline_rec, language=req.language)
+        if scenario_set.kind == "cmip6":
+            provs = list(provs) + list(scenario_set.provenance)
         rec.why = cards
         rec.provenance = provs
         rec.narrative_summary = why_cards.grounded_llm_explain(

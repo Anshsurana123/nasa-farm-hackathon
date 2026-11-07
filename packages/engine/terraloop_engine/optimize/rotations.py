@@ -218,23 +218,88 @@ def generate_rotations(
     seasons: tuple[SeasonSlot, ...] = PUNJAB_SEASONS,
     max_candidates: int = 600,
 ) -> list[Rotation]:
-    """Generate agronomically valid, diverse candidate rotations."""
+    """Generate agronomically valid, diverse candidate rotations (1-year or multi-year alternating)."""
     per_slot = [crops_for_slot(s, crops, constraints) for s in seasons]
-    # Keep candidate cycles practical (1-year 3-slot cycles by default)
-    eff_years = 1
-    slot_choices = per_slot * eff_years
-
-    out: list[Rotation] = []
     slots_per_yr = len(seasons)
 
-    for combo in itertools.product(*slot_choices):
+    one_yr_seqs: list[list[str]] = []
+    for combo in itertools.product(*per_slot):
         seq = list(combo)
         if not is_valid(seq, crops, constraints, slots_per_year=slots_per_yr):
             continue
+        one_yr_seqs.append(seq)
+        if len(one_yr_seqs) >= max_candidates:
+            break
 
-        steps: list[RotationStep] = []
-        for i, cid in enumerate(seq):
-            prev_cid = seq[i - 1] if i > 0 else seq[-1]
+    eff_years = max(1, min(int(constraints.rotation_years or 1), 3))
+    out: list[Rotation] = []
+
+    if eff_years == 1:
+        for seq in one_yr_seqs:
+            steps: list[RotationStep] = []
+            for i, cid in enumerate(seq):
+                prev_cid = seq[i - 1] if i > 0 else seq[-1]
+                s_idx = i % slots_per_yr
+                practices = _assign_step_practices(cid, prev_cid, s_idx)
+                steps.append(
+                    RotationStep(
+                        year_index=0,
+                        season_index=s_idx,
+                        crop_id=cid,
+                        sowing_doy=None,
+                        practices=practices,
+                    )
+                )
+            label = _format_rotation_label(seq, crops, slots_per_yr)
+            out.append(Rotation(id=f"r{len(out):04d}", steps=steps, label=label))
+        return out
+
+    # Multi-year horizon (2 or 3 years): combine complementary 1-year sequences into alternating cycles
+    pool = one_yr_seqs[:14]
+    for y1_seq in pool:
+        for y2_seq in pool:
+            if y1_seq == y2_seq:
+                continue
+            # Prefer alternating Kharif or Rabi crop family across years to break pest/weed cycles
+            if y1_seq[0] == y2_seq[0] and y1_seq[1] == y2_seq[1]:
+                continue
+            full_seq: list[str] = []
+            for yr in range(eff_years):
+                full_seq.extend(y1_seq if yr % 2 == 0 else y2_seq)
+            if not is_valid(full_seq, crops, constraints, slots_per_year=slots_per_yr):
+                continue
+
+            steps = []
+            for i, cid in enumerate(full_seq):
+                prev_cid = full_seq[i - 1] if i > 0 else full_seq[-1]
+                s_idx = i % slots_per_yr
+                practices = _assign_step_practices(cid, prev_cid, s_idx)
+                steps.append(
+                    RotationStep(
+                        year_index=i // slots_per_yr,
+                        season_index=s_idx,
+                        crop_id=cid,
+                        sowing_doy=None,
+                        practices=practices,
+                    )
+                )
+            lbl1 = _format_rotation_label(y1_seq, crops, slots_per_yr)
+            lbl2 = _format_rotation_label(y2_seq, crops, slots_per_yr)
+            label = f"Yr1: {lbl1} ⇄ Yr2: {lbl2}" if eff_years == 2 else f"3-Yr Cycle: {lbl1} ⇄ {lbl2}"
+            out.append(Rotation(id=f"r{len(out):04d}", steps=steps, label=label))
+            if len(out) >= max_candidates:
+                break
+        if len(out) >= max_candidates:
+            break
+
+    # Also include steady multi-year repetitions if pool was small
+    for seq in one_yr_seqs[:10]:
+        if len(out) >= max_candidates:
+            break
+        full_seq = seq * eff_years
+        steps = []
+        for i, cid in enumerate(full_seq):
+            prev_cid = full_seq[i - 1] if i > 0 else full_seq[-1]
             s_idx = i % slots_per_yr
             practices = _assign_step_practices(cid, prev_cid, s_idx)
             steps.append(
@@ -248,8 +313,6 @@ def generate_rotations(
             )
         label = _format_rotation_label(seq, crops, slots_per_yr)
         out.append(Rotation(id=f"r{len(out):04d}", steps=steps, label=label))
-        if len(out) >= max_candidates:
-            break
 
     return out
 
@@ -333,27 +396,39 @@ def derive_baseline_rotation(
     # Vidarbha / Deccan Black Cotton Soil Belt
     if 17.5 <= lat <= 23.0 and 75.0 <= lon <= 81.0:
         steps = [
-            RotationStep(year_index=0, season_index=0, crop_id="cotton", practices=[]),
-            RotationStep(year_index=0, season_index=1, crop_id="chickpea", practices=[]),
-            RotationStep(year_index=0, season_index=2, crop_id=FALLOW, practices=[]),
+            step
+            for y in range(years)
+            for step in (
+                RotationStep(year_index=y, season_index=0, crop_id="cotton", practices=[]),
+                RotationStep(year_index=y, season_index=1, crop_id="chickpea", practices=[]),
+                RotationStep(year_index=y, season_index=2, crop_id=FALLOW, practices=[]),
+            )
         ]
         return Rotation(id="vidarbha_baseline", steps=steps, label="Cotton → Chickpea → Fallow", is_baseline=True)
 
     # Bundelkhand / Semi-Arid Central Plateau
     if 23.5 <= lat <= 26.8 and 77.5 <= lon <= 81.5:
         steps = [
-            RotationStep(year_index=0, season_index=0, crop_id="sorghum", practices=[]),
-            RotationStep(year_index=0, season_index=1, crop_id="wheat", practices=[]),
-            RotationStep(year_index=0, season_index=2, crop_id=FALLOW, practices=[]),
+            step
+            for y in range(years)
+            for step in (
+                RotationStep(year_index=y, season_index=0, crop_id="sorghum", practices=[]),
+                RotationStep(year_index=y, season_index=1, crop_id="wheat", practices=[]),
+                RotationStep(year_index=y, season_index=2, crop_id=FALLOW, practices=[]),
+            )
         ]
         return Rotation(id="bundelkhand_baseline", steps=steps, label="Sorghum → Wheat → Fallow", is_baseline=True)
 
     # Southern Coastal Delta (Thanjavur / Cauvery)
     if lat < 16.5:
         steps = [
-            RotationStep(year_index=0, season_index=0, crop_id="rice_puddled", practices=["puddling"]),
-            RotationStep(year_index=0, season_index=1, crop_id="rice_puddled", practices=["puddling"]),
-            RotationStep(year_index=0, season_index=2, crop_id=FALLOW, practices=[]),
+            step
+            for y in range(years)
+            for step in (
+                RotationStep(year_index=y, season_index=0, crop_id="rice_puddled", practices=["puddling"]),
+                RotationStep(year_index=y, season_index=1, crop_id="rice_puddled", practices=["puddling"]),
+                RotationStep(year_index=y, season_index=2, crop_id=FALLOW, practices=[]),
+            )
         ]
         return Rotation(id="delta_baseline", steps=steps, label="Puddled Rice → Puddled Rice → Fallow", is_baseline=True)
 

@@ -12,9 +12,9 @@ export default function RotationsPage() {
   return (
     <AppShell
       pageStep="03"
-      pageBadge="AquaCrop-OSPy · RothC-26.3 · RUSLE · NSGA-II Multi-Objective"
+      pageBadge="FAO-56 / FAO-33 · RothC-26.3 · RUSLE · NSGA-II Multi-Objective"
       pageTitle="Rotation Studio & 12-Month Agronomic Calendar"
-      pageDescription="Tune farmer priority weights, apply persona presets, inspect the 12-month Kharif–Rabi–Zaid phenology Gantt timeline, and evaluate 5-axis USDA-NRCS soil health trade-offs against the status-quo monoculture."
+      pageDescription="Tune farmer priority weights, apply persona presets, inspect the 12-month Kharif–Rabi–Zaid phenology Gantt timeline, Seasonal Field Operations & Budget Ledger, and evaluate 5-axis USDA-NRCS soil health trade-offs against the status-quo monoculture."
       headerActions={
         <div className="flex flex-wrap items-center gap-2.5">
           <Link
@@ -22,7 +22,7 @@ export default function RotationsPage() {
             className="px-3.5 py-2.5 rounded-xl bg-surface-2 hover:bg-surface border border-line text-foreground font-mono text-xs font-semibold flex items-center gap-1.5 transition-colors"
           >
             <Sprout className="w-3.5 h-3.5 text-emerald-400" />
-            <span>21-Crop Atlas</span>
+            <span>23-Crop Atlas</span>
           </Link>
           <Link
             href="/lab"

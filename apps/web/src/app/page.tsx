@@ -517,7 +517,7 @@ export default function MissionControlPage() {
                     </div>
                     <div className="min-w-0">
                       <span className="text-[10px] font-mono font-bold text-emerald-500 uppercase block">
-                        MODULE 05 // {crops.length || 21} CROPS
+                        MODULE 05 // {crops.length || 23} CROPS
                       </span>
                       <h3 className="font-display font-bold text-sm text-foreground truncate">
                         Botanical Encyclopedia &amp; Suitability

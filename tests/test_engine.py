@@ -804,11 +804,98 @@ def test_benchmarks_doc_matches_live_engine_reproducibility():
     assert generated == committed, "docs/BENCHMARKS.md is out of sync with scripts/run_validation_benchmarks.py"
 
 
+def test_fao56_practices_passthrough_and_seasonal_operations_ledger(punjab_profile):
+    """Verify fao56_runner preserves step practices into evaluate_rotation and builds seasonal_operations."""
+    from terraloop_engine.models import aquacrop_runner
+    from terraloop_engine.optimize import evaluate
+    from terraloop_schemas import FarmConstraints, Rotation, RotationStep
+
+    w_df = synthetic_punjab_weather((2019, 2021))
+    rot_conv = Rotation(
+        id="conv_rw",
+        steps=[
+            RotationStep(year_index=0, season_index=0, crop_id="rice_dsr", practices=["conventional"]),
+            RotationStep(year_index=0, season_index=1, crop_id="wheat", practices=["conventional"]),
+        ],
+    )
+    rot_zt = Rotation(
+        id="zt_rw",
+        steps=[
+            RotationStep(
+                year_index=0,
+                season_index=0,
+                crop_id="rice_dsr",
+                practices=["direct_seeded", "residue_retained"],
+            ),
+            RotationStep(
+                year_index=0,
+                season_index=1,
+                crop_id="wheat",
+                practices=["happy_seeder", "zero_till", "residue_retained"],
+            ),
+        ],
+    )
+
+    sim_steps = aquacrop_runner.simulate_rotation(
+        rot_zt, w_df, punjab_profile.soil, FarmConstraints(irrigation="full"), start_year=2020
+    )
+    assert sim_steps[0]["practices"] == ["direct_seeded", "residue_retained"]
+    assert sim_steps[1]["practices"] == ["happy_seeder", "zero_till", "residue_retained"]
+
+    res_conv = evaluate.evaluate_rotation(
+        rot_conv, {"m1": w_df}, punjab_profile, FarmConstraints(irrigation="full")
+    )
+    res_zt = evaluate.evaluate_rotation(
+        rot_zt, {"m1": w_df}, punjab_profile, FarmConstraints(irrigation="full")
+    )
+    # Direct-seeded + Happy Seeder zero-till saves tillage and transplanting labour costs -> higher net profit
+    assert res_zt.profit_p50 > res_conv.profit_p50
+
+    pm = evaluate.compute_practical_farmer_metrics(
+        rot_zt, res_zt, res_conv, constraints=FarmConstraints(irrigation="full")
+    )
+    assert len(pm.seasonal_operations) == 2
+    assert pm.seasonal_operations[0].crop_id == "rice_dsr"
+    assert pm.seasonal_operations[0].irrigation_mm > 0
+    assert "AWD" in pm.seasonal_operations[0].agronomic_guidance
+    assert pm.seasonal_operations[1].crop_id == "wheat"
+    assert "Happy Seeder" in pm.seasonal_operations[1].agronomic_guidance
 
 
+def test_multiyear_rotations_and_cmip6_shock_recommend():
+    """Verify multi-year alternating rotation generation (rotation_years=2) and /recommend CMIP6 + shock parameters."""
+    from fastapi.testclient import TestClient
+    from terraloop_api.main import app
+    from terraloop_engine import crop_kb
+    from terraloop_engine.optimize import rotations
+    from terraloop_schemas import FarmConstraints
 
+    crops = crop_kb.load_crops()
+    subset = {k: crops[k] for k in ("rice_dsr", "maize", "wheat", "mustard", "moong")}
+    rots_2yr = rotations.generate_rotations(subset, FarmConstraints(irrigation="full", rotation_years=2))
+    assert len(rots_2yr) > 0
+    assert any(max(s.year_index for s in r.steps) == 1 for r in rots_2yr)
+    assert any("⇄" in (r.label or "") for r in rots_2yr)
 
-
-
-
+    client = TestClient(app)
+    resp = client.post(
+        "/recommend",
+        json={
+            "field": {"lat": 30.19, "lon": 75.78, "name": "Sangrur, Punjab"},
+            "constraints": {"irrigation": "full", "rotation_years": 1},
+            "climate_scenario": "ssp245_2030s",
+            "drought_shock_pct": 15.0,
+            "price_shock_pct": -5.0,
+            "fertilizer_shock_pct": 20.0,
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 4
+    top = data[1]
+    assert "cmip6_ssp245_2030s" in top["results"][0]["scenario_set_id"]
+    assert "pareto_front" in top["objective_scores"]
+    assert "crowding_distance" in top["objective_scores"]
+    assert len(top["practical_metrics"]["seasonal_operations"]) == 3
+    assert any("CMIP6" in p["source"] for p in top["provenance"])
 
