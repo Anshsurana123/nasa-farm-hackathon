@@ -26,7 +26,7 @@ export default function RotationsPage() {
           </Link>
           <Link
             href="/lab"
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
+            className="px-4 py-2.5 rounded-xl bg-cyan-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
           >
             <Box className="w-4 h-4" />
             <span>Open 3D Pareto &amp; Shock Lab</span>

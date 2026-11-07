@@ -226,6 +226,7 @@ def n_balance(
     preceded_by_legume: bool = False,
     atmospheric_deposition_kg_ha: float = 10.0,
     residue_retained: bool = False,
+    soil_n_credit_kg_ha: float = 0.0,
 ) -> dict[str, float]:
     """Calculate seasonal nitrogen mass balance (kg N / ha)."""
     base_demand = crop.n_demand_kg_ha
@@ -233,7 +234,8 @@ def n_balance(
     # Legume biological N credit (25 kg N/ha) + retained residue mineralization credit (~12 kg N/ha)
     legume_credit = 25.0 if preceded_by_legume and crop.group not in ("legume", "cover") else 0.0
     residue_credit = 12.0 if residue_retained and crop.group not in ("legume", "cover") else 0.0
-    total_saved = legume_credit + residue_credit
+    shc_credit = soil_n_credit_kg_ha if crop.group not in ("legume", "cover") else 0.0
+    total_saved = max(0.0, legume_credit + residue_credit + max(0.0, shc_credit))
 
     if fertilizer_n_kg_ha is not None:
         fert_applied = max(0.0, fertilizer_n_kg_ha)
@@ -246,7 +248,7 @@ def n_balance(
     grain_n_ratio = _GRAIN_N_PCT.get(crop.id, 0.018)
     n_removal = yield_t_ha * 1000.0 * grain_n_ratio
 
-    total_inputs = fert_applied + n_fix + n_dep
+    total_inputs = fert_applied + n_fix + n_dep + shc_credit
     surplus = round(total_inputs - n_removal, 1)
 
     return {

@@ -21,7 +21,6 @@ import {
   Activity,
   ArrowRight,
   Compass,
-  Droplets,
   FileText,
   FlaskConical,
   Layers,
@@ -116,23 +115,29 @@ export default function MissionControlPage() {
       "NASA GRACE-FO mascons track ~3.85 cm/yr groundwater drawdown across NW India driven by flooded paddy monoculture, followed by October residue burning observed by NASA FIRMS. TerraLoop evaluates DSR, pulse, and residue-retention rotations.";
     sectorBadge = "CRITICAL AQUIFER CORRIDOR";
     badgeTone = "border-amber-500/50 bg-amber-500/15 text-amber-600 dark:text-amber-300";
-  } else if (regCtx.key === "california") {
-    sectorTitle = "San Joaquin & Tulare Basin: Mediterranean Overdraft & Drought Adaptation";
+  } else if (regCtx.key === "malwa") {
+    sectorTitle = "Semi-Arid Malwa Belt: Canal-Command Deficit & Pulse Diversification";
     sectorDesc =
-      "NASA GRACE mascons record chronic groundwater overdraft (~2.8 cm/yr) across the Central Valley. TerraLoop evaluates deep-rooting pulses, minimum tillage, and deficit-irrigated rotations to stabilize basin storage.";
-    sectorBadge = "AQUIFER OVERDRAFT ZONE";
+      "High evaporative demand (~1,535 mm/yr ET₀) and brackish deep aquifers challenge Cotton-Wheat systems in SW Punjab. TerraLoop evaluates low-water Kharif pulses (Mung bean, Urad), oilseeds, and Happy Seeder wheat rotations.";
+    sectorBadge = "SEMI-ARID CANAL COMMAND";
     badgeTone = "border-orange-500/50 bg-orange-500/15 text-orange-600 dark:text-orange-300";
-  } else if (regCtx.key === "cornbelt") {
-    sectorTitle = "Upper Midwest Corn Belt: Topsoil Carbon & Cover-Crop Integration";
+  } else if (regCtx.key === "vidarbha") {
+    sectorTitle = "Deccan Trap Vertisols: Rainfed Cotton-Pulse & Residual Moisture Relay";
     sectorDesc =
-      "Continuous corn-soybean sequences leave winter soils bare and vulnerable to RUSLE sheet erosion. TerraLoop tests overwintering cover crops (cereal rye, red clover) and strip-till practices to rebuild RothC organic carbon.";
-    sectorBadge = "SOIL CARBON RENEWAL";
+      "Deep black cracking clays (52% clay, 180 mm/m AWC) store monsoon rainfall noticed by NASA GPM IMERG and SMAP, enabling rainfed Rabi Chickpea on residual soil moisture while biological N-fixation rebuilds depleted organic carbon.";
+    sectorBadge = "RAINFED VERTISOL CORRIDOR";
     badgeTone = "border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300";
-  } else if (regCtx.key === "eastafrica") {
-    sectorTitle = "East African Highlands: Bimodal Monsoon & Biological N-Fixation";
+  } else if (regCtx.key === "bundelkhand") {
+    sectorTitle = "Bundelkhand Hard-Rock Plateau: Dryland Pulse-Oilseed Resilience";
     sectorDesc =
-      "Smallholder parcels navigate variable Long Rains and Short Rains monitored by NASA GPM IMERG and SMAP. TerraLoop pairs cereals with drought-hardy legumes (pigeon pea, cowpea, green gram) to fix atmospheric nitrogen.";
-    sectorBadge = "BIMODAL MONSOON ADAPTATION";
+      "Shallow hard-rock aquifers and erratic monsoon dry spells monitored by NASA IMERG and SMAP make flooded cereals unviable. TerraLoop prioritizes drought-hardy Blackgram, Pigeon pea, Chickpea, and Mustard sequences.";
+    sectorBadge = "DRYLAND PLATEAU ADAPTATION";
+    badgeTone = "border-amber-500/50 bg-amber-500/15 text-amber-600 dark:text-amber-300";
+  } else if (regCtx.key === "cauvery") {
+    sectorTitle = "Cauvery Delta Zone: Kuruvai–Samba–Navarai Rice-Pulse Optimization";
+    sectorDesc =
+      "Bimodal SW and NE monsoon rainfall supports intensive deltaic paddy, but coastal aquifer salinity and tail-end canal deficits require replacing double-puddled rice with DSR/Short-duration paddy and rice-fallow Blackgram (Urad) relay.";
+    sectorBadge = "DELTAIC RICE-PULSE SYSTEM";
     badgeTone = "border-cyan-500/50 bg-cyan-500/15 text-cyan-600 dark:text-cyan-300";
   }
 
@@ -170,7 +175,7 @@ export default function MissionControlPage() {
             <div className="pt-2 flex flex-wrap items-center gap-2.5">
               <Link
                 href="/rotations"
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
+                className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
               >
                 <Sparkles className="w-4 h-4" />
                 <span>Launch Rotation Studio</span>
@@ -189,14 +194,14 @@ export default function MissionControlPage() {
                 href="/lab"
                 className="px-4 py-2.5 rounded-xl bg-surface hover:bg-foreground/10 border border-line-strong text-foreground font-mono text-xs font-semibold flex items-center gap-2 transition-colors"
               >
-                <FlaskConical className="w-4 h-4 text-violet-400" />
+                <FlaskConical className="w-4 h-4 text-stone-400" />
                 <span>Open 3D Pareto &amp; Shock Lab</span>
               </Link>
             </div>
           </div>
 
           {/* Right: Live Prescriptive Transformation Preview Card */}
-          <div className="xl:col-span-5 rounded-2xl p-4 sm:p-5 bg-gradient-to-br from-emerald-500/12 via-cyan-500/8 to-violet-500/12 border border-emerald-500/35 space-y-3.5">
+          <div className="xl:col-span-5 rounded-2xl p-4 sm:p-5 bg-background/50 border border-line-strong space-y-3.5">
             <div className="flex items-center justify-between font-mono text-[10px]">
               <span className="font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-300 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -320,7 +325,7 @@ export default function MissionControlPage() {
                   <button
                     type="submit"
                     disabled={geocodingLoading || !addressQuery.trim()}
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 font-mono font-bold transition-opacity flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 text-xs"
+                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:opacity-95 text-slate-950 font-mono font-bold transition-opacity flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 text-xs"
                   >
                     <Search className="w-3.5 h-3.5" />
                     <span>{geocodingLoading ? "…" : "Sample"}</span>
@@ -484,22 +489,22 @@ export default function MissionControlPage() {
                 className="glass card-interactive rounded-2xl p-4.5 border border-line flex flex-col justify-between gap-3 group"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/40 flex items-center justify-center text-violet-400 shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-stone-500/15 border border-stone-500/40 flex items-center justify-center text-stone-400 shrink-0">
                     <TrendingUp className="w-5 h-5" />
                   </div>
-                  <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-violet-500/15 text-violet-600 dark:text-violet-300 border border-violet-500/30">
+                  <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-stone-500/15 text-stone-600 dark:text-stone-300 border border-stone-500/30">
                     MODULE 04
                   </span>
                 </div>
                 <div>
-                  <h3 className="font-display font-bold text-base text-foreground group-hover:text-violet-400 transition-colors">
+                  <h3 className="font-display font-bold text-base text-foreground group-hover:text-stone-400 transition-colors">
                     3D Pareto Frontier &amp; Climate Shock Lab
                   </h3>
                   <p className="text-xs text-muted mt-1 leading-relaxed">
                     Orbit the 3D multi-objective trade-off cube and stress-test rotations against ET₀ droughts, MSP price drops, and urea fertilizer spikes.
                   </p>
                 </div>
-                <div className="pt-2 border-t border-line flex items-center justify-between text-[11px] font-mono text-violet-600 dark:text-violet-300 font-semibold">
+                <div className="pt-2 border-t border-line flex items-center justify-between text-[11px] font-mono text-stone-600 dark:text-stone-300 font-semibold">
                   <span>3D Cube + What-If Perturbation Matrix</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>

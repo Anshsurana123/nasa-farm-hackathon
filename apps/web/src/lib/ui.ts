@@ -249,21 +249,23 @@ export const waterBalanceTone = (wb?: number | null): Tone =>
 // Region context banner (narrative copy keyed to golden-field regions)
 // ---------------------------------------------------------------------------
 export interface RegionContext {
-  key: "punjab" | "california" | "cornbelt" | "eastafrica" | "global";
+  key: "punjab" | "malwa" | "vidarbha" | "bundelkhand" | "cauvery" | "global";
   icon: string;
   code: string;
 }
 
 export function regionContext(lat: number, lon: number, goldenId: string | null): RegionContext {
   if (goldenId === "vidarbha" || (lat >= 17.5 && lat <= 23.0 && lon >= 75.0 && lon <= 81.0))
-    return { key: "punjab", icon: "IN-MH", code: "SECTOR // DECCAN-VERTISOL" };
+    return { key: "vidarbha", icon: "IN-MH", code: "SECTOR // DECCAN-VERTISOL" };
   if (goldenId === "bundelkhand" || (lat >= 23.5 && lat <= 26.8 && lon >= 77.5 && lon <= 81.5))
-    return { key: "punjab", icon: "IN-UP", code: "SECTOR // BUNDELKHAND" };
-  if (goldenId === "thanjavur" || lat < 16.5)
-    return { key: "punjab", icon: "IN-TN", code: "SECTOR // CAUVERY-DELTA" };
-  if (goldenId === "bathinda")
-    return { key: "punjab", icon: "IN-BT", code: "SECTOR // MALWA-COTTON" };
-  return { key: "punjab", icon: "IN-PB", code: "SECTOR // INDO-GANGETIC" };
+    return { key: "bundelkhand", icon: "IN-UP", code: "SECTOR // BUNDELKHAND" };
+  if (goldenId === "thanjavur" || (lat >= 8.0 && lat < 16.5 && lon >= 74.0 && lon <= 85.0))
+    return { key: "cauvery", icon: "IN-TN", code: "SECTOR // CAUVERY-DELTA" };
+  if (goldenId === "bathinda" || (lat >= 29.5 && lat <= 30.6 && lon >= 74.2 && lon <= 75.4))
+    return { key: "malwa", icon: "IN-BT", code: "SECTOR // MALWA-COTTON" };
+  if (lat >= 5 && lat <= 38.5 && lon >= 66 && lon <= 99)
+    return { key: "punjab", icon: "IN-PB", code: "SECTOR // INDO-GANGETIC" };
+  return { key: "global", icon: "GL-EO", code: "SECTOR // GLOBAL-SWATH" };
 }
 
 export const regionFlag = (id: string) =>
@@ -276,5 +278,8 @@ export const regionFlag = (id: string) =>
     thanjavur: "TN·TJ",
   })[id] ?? "IN·AG";
 
-export const currencyFor = (profile: FieldProfile | null, _lat: number, _lon: number) =>
-  profile?.currency_symbol ?? "₹";
+export const currencyFor = (profile: FieldProfile | null, _lat: number, _lon: number) => {
+  void _lat;
+  void _lon;
+  return profile?.currency_symbol ?? "₹";
+};

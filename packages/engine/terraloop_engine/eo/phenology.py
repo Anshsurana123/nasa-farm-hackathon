@@ -77,9 +77,18 @@ def detect_seasons(smoothed: pd.Series, prominence_threshold: float = 0.15) -> l
     y = smoothed.to_numpy()
     dates = smoothed.index
 
+    # Adaptive peak & prominence threshold for sparse-canopy dryland row crops (e.g. rainfed cotton on dark Vertisols)
+    p95 = float(np.percentile(y, 95))
+    if p95 < 0.40:
+        min_peak_ndvi = max(0.22, float(np.percentile(y, 70)))
+        eff_prominence = min(prominence_threshold, max(0.07, 0.38 * float(np.max(y) - np.min(y))))
+    else:
+        min_peak_ndvi = 0.30
+        eff_prominence = prominence_threshold
+
     peaks: list[int] = []
     for i in range(1, len(y) - 1):
-        if y[i] > y[i - 1] and y[i] >= y[i + 1] and y[i] >= 0.30:
+        if y[i] > y[i - 1] and y[i] >= y[i + 1] and y[i] >= min_peak_ndvi:
             peaks.append(i)
 
     seasons: list[dict[str, Any]] = []
@@ -96,7 +105,7 @@ def detect_seasons(smoothed: pd.Series, prominence_threshold: float = 0.15) -> l
         base_val = max(0.1, min(left_base, right_base))
         prominence = p_val - base_val
 
-        if prominence < prominence_threshold:
+        if prominence < eff_prominence:
             continue
 
         amplitude = prominence
@@ -159,7 +168,7 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
     is_bundelkhand = (23.5 <= lat < 27.0) and (77.5 <= lon <= 81.5)
     is_cauvery_delta = lat < 15.0
 
-    if p_month in (7, 8, 9, 10, 11):
+    if p_month in (7, 8, 9, 10, 11) or (p_month == 6 and (is_vidarbha or is_bundelkhand)):
         season_index = 0
         if is_cauvery_delta:
             crop_group = "rice"

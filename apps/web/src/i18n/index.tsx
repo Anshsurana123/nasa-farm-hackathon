@@ -21,13 +21,16 @@ type Ctx = { lang: string; setLang: (l: string) => void; t: (key: string, vars?:
 const I18nContext = createContext<Ctx | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState("en");
-
-  // Restore the last chosen language (client only).
-  useEffect(() => {
-    const saved = localStorage.getItem("lang");
-    if (saved && DICTS[saved]) setLangState(saved);
-  }, []);
+  const [lang, setLangState] = useState<string>(() => {
+    if (typeof window === "undefined") return "en";
+    try {
+      const saved = localStorage.getItem("lang");
+      if (saved && DICTS[saved]) return saved;
+    } catch {
+      // Ignore storage errors
+    }
+    return "en";
+  });
 
   useEffect(() => {
     document.documentElement.lang = lang;

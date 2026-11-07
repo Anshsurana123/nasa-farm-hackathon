@@ -31,26 +31,27 @@
   color-scheme: light;
 }
 
+/* Dark: warm graphite "field notebook" palette — neutral surfaces, earthy muted accents */
 .dark {
-  --background: #060b16;
-  --background-alt: #0b1326;
-  --foreground: #f1f5f9;
-  --surface: rgb(13 22 40 / 0.82);
-  --surface-strong: rgb(10 17 32 / 0.94);
-  --surface-elevated: #16233d;
+  --background: #141413;
+  --background-alt: #1a1a18;
+  --foreground: #ebe9e3;
+  --surface: #1c1c1a;
+  --surface-strong: #181817;
+  --surface-elevated: #262623;
   /* >= 3:1 non-text contrast boundary tokens on dark surfaces */
-  --border: rgb(148 163 184 / 0.22);
-  --border-strong: rgb(148 163 184 / 0.42);
-  --muted: #94a3b8;
-  --grid-line: rgb(56 189 248 / 0.045);
-  --accent-canopy: #10b981;
-  --accent-canopy-bright: #34d399;
-  --accent-soil: #f59e0b;
-  --accent-water: #06b6d4;
-  --accent-ochre: #fbbf24;
-  --accent-violet: #8b5cf6;
-  --accent-danger: #f43f5e;
-  --ring-track: rgb(148 163 184 / 0.20);
+  --border: rgb(235 233 227 / 0.10);
+  --border-strong: rgb(235 233 227 / 0.20);
+  --muted: #a19f97;
+  --grid-line: transparent;
+  --accent-canopy: #6fb488;
+  --accent-canopy-bright: #86c49a;
+  --accent-soil: #cf9a3e;
+  --accent-water: #6fa3c4;
+  --accent-ochre: #d6b25e;
+  --accent-violet: #a8a29e;
+  --accent-danger: #d06b5c;
+  --ring-track: rgb(235 233 227 / 0.12);
   color-scheme: dark;
 }
 
@@ -98,6 +99,28 @@
   --font-serif: var(--font-serif);
 }
 
+/* Muted, earthy overrides of the neon Tailwind defaults (fewer "glow" hues) */
+@theme {
+  --color-emerald-300: #a9d4b6;
+  --color-emerald-400: #86c49a;
+  --color-emerald-500: #62a97c;
+  --color-emerald-600: #4a8f63;
+  --color-emerald-700: #3a7350;
+  --color-cyan-300: #aecbdc;
+  --color-cyan-400: #8ab4cc;
+  --color-cyan-500: #6a9bb8;
+  --color-cyan-600: #4f809e;
+  --color-sky-300: #b3cbdb;
+  --color-sky-400: #8fb2c9;
+  --color-sky-500: #6f98b3;
+  --color-rose-300: #e7aa9f;
+  --color-rose-400: #dc8d7f;
+  --color-rose-500: #cc6f60;
+  --color-amber-300: #e3c17e;
+  --color-amber-400: #d9ac5d;
+  --color-amber-500: #cc9842;
+}
+
 /* Reduced motion custom property pattern (per modern-web-guidance `motion`) */
 @property --animation-reduced {
   syntax: "*";
@@ -117,6 +140,7 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 8rem;
+  overflow-x: clip;
 }
 
 body {
@@ -126,6 +150,7 @@ body {
   line-height: 1.5;
   text-align: start;
   overflow-wrap: break-word;
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
   accent-color: var(--accent-canopy);
 }
@@ -168,119 +193,46 @@ blockquote {
   isolation: isolate;
 }
 
-.app-backdrop::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(
-      ellipse 60% 48% at 15% 10%,
-      color-mix(in oklab, var(--accent-canopy) 16%, transparent),
-      transparent 70%
-    ),
-    radial-gradient(
-      ellipse 55% 45% at 85% 12%,
-      color-mix(in oklab, var(--accent-water) 15%, transparent),
-      transparent 72%
-    ),
-    radial-gradient(
-      ellipse 50% 45% at 50% 90%,
-      color-mix(in oklab, var(--accent-violet) 11%, transparent),
-      transparent 75%
-    ),
-    radial-gradient(
-      ellipse 40% 35% at 80% 75%,
-      color-mix(in oklab, var(--accent-soil) 10%, transparent),
-      transparent 70%
-    );
-}
-
+/* Backdrop intentionally plain: no mesh glows or graticule grid. */
+.app-backdrop::before,
 .app-backdrop::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 0),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 0);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 95% 80% at 50% 20%, black 35%, transparent 90%);
+  content: none;
 }
 
 /* ------------------------------------------------------------------ */
-/* Instrument Surfaces, Glows & Interactive Elevations                */
+/* Surfaces: flat, opaque cards with a hairline border and soft shadow */
 /* ------------------------------------------------------------------ */
 @utility glass {
   background: var(--surface);
   border: 1px solid var(--border);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow:
-    0 1px 0 0 rgb(255 255 255 / 0.07) inset,
-    0 4px 14px -2px rgb(2 6 23 / 0.18),
-    0 20px 40px -20px rgb(2 6 23 / 0.32);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
 }
 
 @utility glass-strong {
   background: var(--surface-strong);
-  border: 1px solid var(--border-strong);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow:
-    0 1px 0 0 rgb(255 255 255 / 0.1) inset,
-    0 10px 28px -6px rgb(2 6 23 / 0.35);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.18);
 }
 
 @utility instrument-header {
-  background: linear-gradient(
-    to right var(--in-oklab),
-    color-mix(in oklab, var(--accent-canopy) 8%, transparent),
-    color-mix(in oklab, var(--accent-water) 5%, transparent),
-    transparent
-  );
+  background: transparent;
   border-bottom: 1px solid var(--border);
 }
 
 .card-interactive {
   transition:
-    transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
-    border-color 0.22s ease,
-    box-shadow 0.22s ease;
+    border-color 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .card-interactive:hover {
-  transform: translateY(-2px);
-  border-color: color-mix(in oklab, var(--accent-canopy) 55%, var(--border-strong));
-  box-shadow:
-    0 1px 0 0 rgb(255 255 255 / 0.12) inset,
-    0 12px 30px -8px color-mix(in oklab, var(--accent-canopy) 18%, rgb(0 0 0 / 0.35));
+  border-color: var(--border-strong);
+  background-color: color-mix(in oklab, var(--foreground) 3%, var(--surface));
 }
 
-/* Technical corner crosshairs for survey/telemetry frames */
+/* Previously drew neon corner brackets; kept as a no-op hook for layout. */
 .reticle-frame {
   position: relative;
-}
-.reticle-frame::before,
-.reticle-frame::after {
-  content: "";
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  pointer-events: none;
-  z-index: 2;
-}
-.reticle-frame::before {
-  top: -1px;
-  left: -1px;
-  border-top: 2px solid var(--accent-canopy-bright);
-  border-left: 2px solid var(--accent-canopy-bright);
-  border-top-left-radius: 4px;
-}
-.reticle-frame::after {
-  bottom: -1px;
-  right: -1px;
-  border-bottom: 2px solid var(--accent-water);
-  border-right: 2px solid var(--accent-water);
-  border-bottom-right-radius: 4px;
 }
 
 /* Subtle diagonal hatching for baseline/reference zones */
@@ -418,8 +370,8 @@ input:user-invalid {
 }
 .maplibregl-ctrl-attrib {
   font-size: 0.625rem !important;
-  background: rgb(6 11 22 / 0.72) !important;
-  color: #cbd5e1 !important;
+  background: rgb(20 20 19 / 0.72) !important;
+  color: #d6d3cc !important;
 }
 .maplibregl-ctrl-attrib a {
   color: #e2e8f0 !important;

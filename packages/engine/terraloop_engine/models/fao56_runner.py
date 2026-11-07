@@ -232,6 +232,15 @@ def _simulate_step(
 ) -> tuple[dict, float]:
     """Execute daily FAO-56 / FAO-33 water-balance simulation for one crop season."""
     if crop_id == "fallow" or crop_id not in crops:
+        fallow_yr = year + (1 if season_index == 2 else 0)
+        s_md, h_md = {
+            0: ("06-15", "10-15"),
+            1: ("11-01", "03-15"),
+            2: ("04-15", "06-15"),
+        }.get(season_index, ("04-15", "06-15"))
+        h_yr = fallow_yr + (1 if season_index == 1 else 0)
+        # Monsoon Kharif fallow recharges topsoil moisture; dry Rabi/Zaid fallow carries over depletion
+        carry_dep = 10.0 if season_index == 0 else float(initial_depletion_mm)
         return {
             "crop_id": crop_id,
             "season_index": season_index,
@@ -244,9 +253,9 @@ def _simulate_step(
             "water_stress_coefficient": 1.0,
             "thermal_factor": 1.0,
             "duration_days": 60,
-            "sowing_date": f"{year}-04-15",
-            "harvest_date": f"{year}-06-15",
-        }, 0.0
+            "sowing_date": f"{fallow_yr}-{s_md}",
+            "harvest_date": f"{h_yr}-{h_md}",
+        }, carry_dep
 
     crop = crops[crop_id]
     slot_info = _SLOT_DEFAULTS.get(season_index, _SLOT_DEFAULTS[0])
@@ -261,7 +270,8 @@ def _simulate_step(
     elif crop_id in ("moong", "urad") and season_index == 2:
         s_month, s_day = 4, 10
 
-    sowing_date = pd.Timestamp(year=year, month=s_month, day=s_day)
+    eff_year = year + (1 if season_index == 2 else 0)
+    sowing_date = pd.Timestamp(year=eff_year, month=s_month, day=s_day)
     dur_days = round(0.5 * (crop.duration_days[0] + crop.duration_days[1]))
     if crop_id == "rice_puddled":
         dur_days = 126  # Transplanted field occupancy (June 20 - Oct 24)
@@ -486,7 +496,11 @@ def _simulate_step(
             "moong": 0.85,
             "urad": 0.85,
         }
-        ky = ky_lookup.get(crop_id, 1.0)
+        if crop_id in ky_lookup:
+            ky = ky_lookup[crop_id]
+        else:
+            aq_ovr = crop_kb.load_aquacrop_override(crop_id)
+            ky = float(aq_ovr["ky"]) if aq_ovr and "ky" in aq_ovr else 1.0
         rel_et = eta_mm / max(1.0, etc_mm)
         water_yield_ratio = max(0.18, 1.0 - ky * (1.0 - rel_et))
 

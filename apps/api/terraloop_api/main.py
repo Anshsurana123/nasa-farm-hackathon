@@ -529,6 +529,8 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
             top_ids.add(key_cid)
     if is_semi_arid_limited:
         top_ids -= {"rice_puddled", "rice_short", "rice_dsr", "basmati"}
+    if req.constraints.irrigation == "none":
+        top_ids -= {"wheat", "rice_puddled", "rice_short", "rice_dsr", "basmati"}
     top_ids |= set(req.constraints.must_grow)
     filtered_crops = {cid: crops[cid] for cid in top_ids if cid in crops}
 
@@ -536,35 +538,13 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     candidate_rotations = rotations.generate_rotations(filtered_crops, req.constraints, seasons=seasons)
 
     if len(candidate_rotations) > 75:
-        # Rank candidates by agronomic quality (mean suitability + staple cereal + legume inclusion + family diversity)
-        def _pre_score(rot: rotations.Rotation) -> float:
-            active_cids = [s.crop_id for s in rot.steps if s.crop_id != "fallow"]
-            if not active_cids:
-                return 0.0
-            mean_suit = float(np.mean([rank_scores.get(cid, 0.3) for cid in active_cids]))
-            has_leg = 0.25 if any(crops[cid].n_fixation_kg_ha > 0 for cid in active_cids if cid in crops) else 0.0
-            has_cereal = 0.20 if any(crops[cid].group == "cereal" for cid in active_cids if cid in crops) else 0.0
-            has_staple = (
-                0.22
-                if any(
-                    cid in ("wheat", "rice_short", "rice_dsr", "maize", "chickpea", "mustard", "soybean")
-                    for cid in active_cids
-                )
-                else 0.0
-            )
-            pau_flagship = (
-                0.25
-                if (
-                    any(cid in ("rice_short", "rice_dsr", "maize", "soybean") for cid in active_cids)
-                    and any(cid in ("wheat", "chickpea", "mustard", "urad") for cid in active_cids)
-                )
-                else 0.0
-            )
-            fams = len({crops[cid].family for cid in active_cids if cid in crops})
-            return mean_suit + has_leg + has_cereal + has_staple + pau_flagship + 0.04 * fams
-
-        candidate_rotations.sort(key=_pre_score, reverse=True)
-        candidate_rotations = candidate_rotations[:75]
+        candidate_rotations = evaluate.prescreen_rotations_with_surrogate(
+            candidate_rotations,
+            prof,
+            crops=crops,
+            max_candidates=75,
+            rank_scores=rank_scores,
+        )
 
     # 4. Baseline rotation (current farm practice from satellite history, regional benchmark, or farmer 1-tap override)
     baseline_rot = rotations.derive_baseline_rotation(

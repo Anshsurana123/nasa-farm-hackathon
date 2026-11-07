@@ -10,7 +10,6 @@ import {
   BookOpen,
   Coins,
   Droplets,
-  FileText,
   Layers,
   Leaf,
   Printer,
@@ -60,7 +59,9 @@ export default function BriefPage() {
   const totalCo2eTonnes10Yr = +(totalSocTonnes10Yr * 3.67).toFixed(1);
 
   const nBalancePerHa = activeRes?.n_balance_kg_ha_yr ?? 42;
-  const totalNFixedKgYr = Math.round(Math.max(0, nBalancePerHa) * areaHa);
+  const ureaBagsSavedPerHa = activeStrategy?.practical_metrics?.urea_bags_saved_per_ha ?? 0;
+  const totalUreaBagsSavedYr = +(ureaBagsSavedPerHa * areaHa).toFixed(1);
+  const totalNSavedKgYr = Math.round(ureaBagsSavedPerHa * 20.7 * areaHa);
 
   const acres = +(areaHa * 2.47105).toFixed(1);
 
@@ -83,13 +84,13 @@ export default function BriefPage() {
             href="/methodology"
             className="px-3.5 py-2.5 rounded-xl bg-surface-2 hover:bg-surface border border-line text-foreground font-mono text-xs font-semibold flex items-center gap-1.5 transition-colors"
           >
-            <BookOpen className="w-3.5 h-3.5 text-violet-400" />
+            <BookOpen className="w-3.5 h-3.5 text-stone-400" />
             <span>Equations &amp; DOIs</span>
           </Link>
           <button
             type="button"
             onClick={() => window.print()}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             <span>Print / Save Advisory PDF</span>
@@ -237,18 +238,19 @@ export default function BriefPage() {
               </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-surface-2/80 border border-violet-500/30 space-y-1">
-              <div className="flex items-center justify-between text-violet-400">
+            <div className="p-4 rounded-xl bg-surface-2/80 border border-stone-500/30 space-y-1">
+              <div className="flex items-center justify-between text-stone-400">
                 <span className="text-[10px] font-mono uppercase tracking-wider font-bold">
-                  Legume N-Fixation Credit
+                  Biological &amp; Residue N Credit
                 </span>
                 <Sprout className="w-4 h-4" />
               </div>
               <p className="text-2xl font-display font-extrabold text-foreground">
-                +{totalNFixedKgYr.toLocaleString()} kg N
+                +{totalNSavedKgYr.toLocaleString()} kg N
               </p>
-              <p className="text-[11px] font-mono text-violet-400">
-                ≈ {Math.round(totalNFixedKgYr / 21)} bags (45kg) Urea saved/yr
+              <p className="text-[11px] font-mono text-stone-400">
+                ≈ {totalUreaBagsSavedYr} bags (45kg) Urea saved/yr · Net N: {nBalancePerHa >= 0 ? "+" : ""}
+                {Math.round(nBalancePerHa * areaHa)} kg
               </p>
             </div>
           </div>

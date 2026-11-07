@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { ProgressRing } from "@/components/ProgressRing";
 import { useField } from "@/context/FieldContext";
-import type { CropSpec, FieldProfile } from "@/types/api";
+import { api } from "@/lib/api";
+import type { CropSpec, FieldProfile, SuitabilityItem } from "@/types/api";
 import { cropMeta, cropName } from "@/lib/ui";
-import { useI18n } from "@/i18n";
 import {
   ArrowRight,
   BookOpen,
@@ -43,9 +43,9 @@ const GROUP_COLORS: Record<string, { badge: string; border: string; text: string
     label: "Oilseed",
   },
   fibre: {
-    badge: "bg-violet-500/15 text-violet-400 border-violet-500/35",
-    border: "border-violet-500/40",
-    text: "text-violet-400",
+    badge: "bg-stone-500/15 text-stone-400 border-stone-500/35",
+    border: "border-stone-500/40",
+    text: "text-stone-400",
     label: "Fibre Crop",
   },
   fodder: {
@@ -134,8 +134,7 @@ function computeParcelSuitability(
 }
 
 export default function CropsPage() {
-  const { crops, profile, selectedField } = useField();
-  const { lang } = useI18n();
+  const { crops, profile, selectedField, constraints } = useField();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<string>("all");
@@ -144,16 +143,50 @@ export default function CropsPage() {
     "suitability"
   );
   const [activeCropId, setActiveCropId] = useState<string>("moong");
+  const [apiSuitability, setApiSuitability] = useState<Record<string, SuitabilityItem>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .suitability({
+        field: { lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name },
+        constraints,
+      })
+      .then((items) => {
+        if (cancelled || !items) return;
+        const map: Record<string, SuitabilityItem> = {};
+        for (const it of items) {
+          map[it.crop_id] = it;
+        }
+        setApiSuitability(map);
+      })
+      .catch(() => {
+        if (!cancelled) setApiSuitability({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedField.lat, selectedField.lon, selectedField.name, constraints]);
 
   const enrichedCrops = useMemo(() => {
-    return crops.map((crop) => ({
-      crop,
-      suitability: computeParcelSuitability(crop, profile),
-      midWaterMm: Math.round(
-        (crop.water_requirement_mm[0] + crop.water_requirement_mm[1]) / 2
-      ),
-    }));
-  }, [crops, profile]);
+    return crops.map((crop) => {
+      const localSuit = computeParcelSuitability(crop, profile);
+      const apiItem = apiSuitability[crop.id];
+      const mergedScore = apiItem
+        ? Math.max(35, Math.min(99, Math.round(apiItem.score * 100)))
+        : localSuit.score;
+      return {
+        crop,
+        suitability: {
+          ...localSuit,
+          score: mergedScore,
+        },
+        midWaterMm: Math.round(
+          (crop.water_requirement_mm[0] + crop.water_requirement_mm[1]) / 2
+        ),
+      };
+    });
+  }, [crops, profile, apiSuitability]);
 
   const filteredCrops = useMemo(() => {
     return enrichedCrops
@@ -182,7 +215,7 @@ export default function CropsPage() {
         if (sortBy === "residue") return b.crop.residue_t_ha - a.crop.residue_t_ha;
         return 0;
       });
-  }, [enrichedCrops, selectedGroup, selectedSeason, searchQuery, sortBy, lang]);
+  }, [enrichedCrops, selectedGroup, selectedSeason, searchQuery, sortBy]);
 
   const activeEntry =
     enrichedCrops.find((c) => c.crop.id === activeCropId) ??
@@ -206,7 +239,7 @@ export default function CropsPage() {
       headerActions={
         <Link
           href="/rotations"
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
+          className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
         >
           <Layers className="w-4 h-4" />
           <span>Build Rotation with These Crops</span>
@@ -364,9 +397,9 @@ export default function CropsPage() {
                         thickness="4px"
                         color={
                           suitability.score >= 80
-                            ? "#10b981"
+                            ? "#5fae7b"
                             : suitability.score >= 65
-                            ? "#06b6d4"
+                            ? "#5f9bbd"
                             : "#f59e0b"
                         }
                         label={`${crop.name} compatibility score`}
@@ -528,12 +561,12 @@ export default function CropsPage() {
                           <path
                             d={path}
                             fill="none"
-                            stroke="#06b6d4"
+                            stroke="#5f9bbd"
                             strokeWidth="2.5"
                             strokeLinecap="round"
                           />
-                          <circle cx="55" cy={yIni} r="3.5" fill="#06b6d4" />
-                          <circle cx="190" cy={yMid} r="4" fill="#10b981" />
+                          <circle cx="55" cy={yIni} r="3.5" fill="#5f9bbd" />
+                          <circle cx="190" cy={yMid} r="4" fill="#5fae7b" />
                           <circle cx="295" cy={yEnd} r="3.5" fill="#f59e0b" />
                           <text
                             x="55"
@@ -602,7 +635,7 @@ export default function CropsPage() {
                 <div className="p-3 rounded-xl bg-surface-2/60 border border-line space-y-2">
                   <div className="relative h-4 rounded-full bg-surface border border-line overflow-hidden">
                     <div
-                      className="absolute top-0 bottom-0 bg-gradient-to-r from-emerald-500/60 to-amber-500/60 border-x border-emerald-400"
+                      className="absolute top-0 bottom-0 bg-emerald-500/60 border-x border-emerald-400"
                       style={{
                         left: `${(activeEntry.crop.optimal_temp_c[0] / 50) * 100}%`,
                         width: `${

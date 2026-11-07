@@ -75,27 +75,27 @@ Evaluates 30-member ensemble outcomes on Sangrur Alluvial Loam across four manag
 
 | Rotation & Management System | 10-Yr SOC Change (t C/ha) | Soil Health Score (/100) | N Balance (kg N/ha/yr) | 45-kg Urea Bags Saved/ha | Turnaround Window (days) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| Baseline: Puddled Rice → Wheat (Residue Burned) | **-1.86** | **17.2** | +76.4 | **0.0 bags** | **11 d** |
-| PR-126 Short Rice → Happy Seeder Wheat → Summer Moong | **+2.39** | **78.6** | +63.2 | **3.5 bags** | **30 d** |
-| Direct-Seeded Rice (DSR) → Zero-Till Wheat → Summer Moong | **+2.79** | **80.9** | +82.0 | **3.5 bags** | **26 d** |
-| Kharif Maize → Happy Seeder Wheat → Summer Moong | **+3.08** | **79.2** | +123.0 | **3.5 bags** | **34 d** |
+| Baseline: Puddled Rice → Wheat (Residue Burned) | **-1.86** | **28.1** | +76.4 | **0.0 bags** | **11 d** |
+| PR-126 Short Rice → Happy Seeder Wheat → Summer Moong | **+2.39** | **87.7** | +63.2 | **3.5 bags** | **30 d** |
+| Direct-Seeded Rice (DSR) → Zero-Till Wheat → Summer Moong | **+2.79** | **89.9** | +82.0 | **3.5 bags** | **26 d** |
+| Kharif Maize → Happy Seeder Wheat → Summer Moong | **+3.08** | **88.3** | +123.0 | **3.5 bags** | **34 d** |
 
 ### Soil Health Index Component & Weight Breakdown (`models/soil_health.py`)
 
 | Rotation System | Armor (/15) | Min Disturbance (/15) | Diversity (/15) | Living Roots (/15) | Organic N (/15) | SOC Mod | Erosion Mod | Burn Penalty | Total (/100) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Baseline: Puddled Rice → Wheat (Residue Burned) | 6.4 | 6.5 | 4.0 | 12.8 | 4.5 | -8.5 | -3.6 | -5.0 | **17.2** |
-| PR-126 Short Rice → Happy Seeder Wheat → Summer Moong | 14.4 | 11.8 | 10.1 | 14.9 | 12.5 | +15.0 | -0.1 | +0.0 | **78.6** |
-| Direct-Seeded Rice (DSR) → Zero-Till Wheat → Summer Moong | 14.4 | 14.0 | 10.1 | 15.0 | 12.5 | +15.0 | -0.1 | +0.0 | **80.9** |
-| Kharif Maize → Happy Seeder Wheat → Summer Moong | 14.4 | 12.7 | 10.1 | 14.7 | 12.5 | +15.0 | -0.1 | +0.0 | **79.2** |
+| Baseline: Puddled Rice → Wheat (Residue Burned) | 6.4 | 6.5 | 4.0 | 12.8 | 4.5 | -8.5 | +7.2 | -5.0 | **28.1** |
+| PR-126 Short Rice → Happy Seeder Wheat → Summer Moong | 14.4 | 11.8 | 10.1 | 14.9 | 12.5 | +15.0 | +9.0 | +0.0 | **87.7** |
+| Direct-Seeded Rice (DSR) → Zero-Till Wheat → Summer Moong | 14.4 | 14.0 | 10.1 | 15.0 | 12.5 | +15.0 | +9.0 | +0.0 | **89.9** |
+| Kharif Maize → Happy Seeder Wheat → Summer Moong | 14.4 | 12.7 | 10.1 | 14.7 | 12.5 | +15.0 | +9.0 | +0.0 | **88.3** |
 
 ## 6. Six Indian Agro-Climatic Golden Benchmark Fields (Precomputed Engine Outputs)
 
 | Benchmark Field | Agro-Climatic Zone | Baseline Rotation | Rank #1 Recommended Strategy | Irrigation Change | Median Net Profit (₹/ha) | 10-Yr SOC Delta (t C/ha) | Soil Health Score |
 | :--- | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
-| **Sangrur, Punjab** (`sangrur`) | Trans-Gangetic Plains (Alluvial Rice–Wheat Belt) | Puddled Rice → Wheat → Fallow | **DSR Rice → Wheat → Mung bean** | **-14.1%** | **₹223,110** | **+2.79** | **78/100** |
-| **Ludhiana, Punjab** (`ludhiana`) | Trans-Gangetic Plains (Alluvial Rice–Wheat Belt) | Puddled Rice → Wheat → Fallow | **DSR Rice → Wheat → Mung bean** | **-15.2%** | **₹223,652** | **+2.81** | **85/100** |
-| **Bathinda, Punjab** (`bathinda`) | Trans-Gangetic Semi-Arid Belt (South-West Punjab / Haryana) | Cotton → Wheat → Fallow | **Blackgram → Wheat → Fallow** | **-52.2%** | **₹149,335** | **-0.20** | **63/100** |
-| **Yavatmal (Vidarbha), Maharashtra** (`vidarbha`) | Western / Central Deccan Plateau (Vidarbha Black Cotton Vertisol Belt) | Cotton → Chickpea → Fallow | **Blackgram → Wheat → Fallow** | **+0.0%** | **₹61,336** | **-0.15** | **54/100** |
-| **Jhansi (Bundelkhand), Uttar Pradesh** (`bundelkhand`) | Central Plateau & Hills (Bundelkhand Semi-Arid Zone) | Sorghum → Wheat → Fallow | **Maize → Chickpea → Fallow** | **+0.0%** | **₹118,434** | **+0.15** | **55/100** |
-| **Thanjavur (Cauvery Delta), Tamil Nadu** (`thanjavur`) | East Coast Plains & Deltas (Cauvery / Coastal Alluvial Zone) | Puddled Rice → Puddled Rice → Mung bean | **Short Rice (PR-126) → DSR Rice → Mung bean** | **-24.2%** | **₹260,344** | **+2.48** | **74/100** |
+| **Sangrur, Punjab** (`sangrur`) | Trans-Gangetic Plains (Alluvial Rice–Wheat Belt) | Puddled Rice → Wheat → Fallow | **DSR Rice → Wheat → Blackgram** | **-14.1%** | **₹226,262** | **+3.03** | **90/100** |
+| **Ludhiana, Punjab** (`ludhiana`) | Trans-Gangetic Plains (Alluvial Rice–Wheat Belt) | Puddled Rice → Wheat → Fallow | **DSR Rice → Wheat → Blackgram** | **-15.2%** | **₹229,966** | **+3.04** | **90/100** |
+| **Bathinda, Punjab** (`bathinda`) | Trans-Gangetic Semi-Arid Belt (South-West Punjab / Haryana) | Cotton → Wheat → Fallow | **Mung bean → Wheat → Blackgram** | **-35.7%** | **₹200,116** | **+0.98** | **79/100** |
+| **Yavatmal (Vidarbha), Maharashtra** (`vidarbha`) | Western / Central Deccan Plateau (Vidarbha Black Cotton Vertisol Belt) | Cotton → Chickpea → Fallow | **Maize → Chickpea → Fallow** | **+0.0%** | **₹112,070** | **+0.21** | **62/100** |
+| **Jhansi (Bundelkhand), Uttar Pradesh** (`bundelkhand`) | Central Plateau & Hills (Bundelkhand Semi-Arid Zone) | Sorghum → Wheat → Fallow | **Maize → Chickpea → Fallow** | **+0.0%** | **₹117,898** | **+0.15** | **62/100** |
+| **Thanjavur (Cauvery Delta), Tamil Nadu** (`thanjavur`) | East Coast Plains & Deltas (Cauvery / Coastal Alluvial Zone) | Puddled Rice → Puddled Rice → Mung bean | **Short Rice (PR-126) → DSR Rice → Blackgram** | **-24.0%** | **₹265,904** | **+2.69** | **84/100** |

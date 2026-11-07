@@ -317,8 +317,6 @@ def build_profile(
             imerg_prov = gee.IMERG_PROVENANCE.model_copy(update={"mode": "observed"})
         except Exception:
             log.warning("GEE IMERG lookup failed; using POWER post-2001 IMERG-fused series", exc_info=True)
-    if imerg_prov is None:
-        imerg_prov = gee.IMERG_PROVENANCE.model_copy(update={"mode": power_mode})  # type: ignore[arg-type]
 
     climate, hazards, water_balance = summarise_climate(
         weather, field.lat, prov_mode=power_mode, imerg_precip=imerg_s, imerg_prov=imerg_prov

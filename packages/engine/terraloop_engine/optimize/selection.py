@@ -80,19 +80,27 @@ def select_top(
         return []
     front = set(pareto_front(candidates))
     scores = weighted_scores(candidates, priorities)
+    nsga2_pool = set(nsga2_select(candidates, k=min(len(candidates), max(k * 3, 6))))
 
-    # Identify candidates that maintain economically viable farm income (>= 65% of max candidate profit)
-    # and respectable soil health (>= median soil health) when selecting from a full catalog (>=10 candidates)
+    # Identify candidates that maintain economically viable farm income (>= 80% of max candidate profit
+    # when profit priority is active) and respectable soil health (>= median soil health)
     if len(candidates) >= 10:
         profits = [c.get("profit", 0.0) for c in candidates]
         soils = [c.get("soil_health", 0.0) for c in candidates]
         max_profit = max(profits) if profits else 0.0
         med_soil = sorted(soils)[len(soils) // 2] if soils else 0.0
+        p_floor = 0.80 if priorities.profit >= 2.0 else 0.65
         viable = {
             i
             for i, c in enumerate(candidates)
-            if c.get("profit", 0.0) >= 0.65 * max_profit and c.get("soil_health", 0.0) >= med_soil
+            if c.get("profit", 0.0) >= p_floor * max_profit and c.get("soil_health", 0.0) >= med_soil
         }
+        if len(viable) < k:
+            viable = {
+                i
+                for i, c in enumerate(candidates)
+                if c.get("profit", 0.0) >= 0.68 * max_profit and c.get("soil_health", 0.0) >= med_soil
+            }
         if len(viable) < k:
             viable = set(range(len(candidates)))
     else:
@@ -100,7 +108,7 @@ def select_top(
 
     order = sorted(
         range(len(candidates)),
-        key=lambda i: (i in viable, i in front, scores[i]),
+        key=lambda i: (i in viable, i in front, round(scores[i], 6), i in nsga2_pool),
         reverse=True,
     )
 

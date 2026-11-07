@@ -75,7 +75,7 @@ def fetch_topsoil(lat: float, lon: float) -> tuple[dict[str, float] | None, tupl
         try:
             parsed = _parse(_query(plat, plon))
         except httpx.HTTPError:
-            return None, None
+            continue
         if parsed:
             return parsed, (plat, plon)
     return None, None

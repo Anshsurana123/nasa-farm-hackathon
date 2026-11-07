@@ -19,7 +19,7 @@ export default function DiagnosticsPage() {
       headerActions={
         <Link
           href="/rotations"
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
+          className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
         >
           <Layers className="w-4 h-4" />
           <span>Optimize Rotations for This Parcel</span>

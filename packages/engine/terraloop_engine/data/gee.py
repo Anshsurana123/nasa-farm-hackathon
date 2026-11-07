@@ -381,9 +381,9 @@ def _slope_pct_live(lat: float, lon: float, buffer_m: int = 100) -> float:
     import ee
 
     pt = ee.Geometry.Point([lon, lat])
-    dem = ee.Image("NASA/NASADEM_HGT/001").select("elevation")
+    dem = ee.Image("NASA/NASADEM_HGT/001").select("elevation").focalMean(150, "circle", "meters")
     slope = ee.Terrain.slope(dem)
-    val = slope.reduceRegion(ee.Reducer.mean(), pt.buffer(buffer_m), 30).get("slope").getInfo()
+    val = slope.reduceRegion(ee.Reducer.mean(), pt.buffer(max(buffer_m, 250)), 90).get("slope").getInfo()
     if val is None:
         raise RuntimeError("Empty NASADEM slope from GEE")
     deg = float(val)
@@ -391,14 +391,7 @@ def _slope_pct_live(lat: float, lon: float, buffer_m: int = 100) -> float:
     return float(round(pct, 2))
 
 
-def slope_pct(lat: float, lon: float, buffer_m: int = 100) -> float:
-    """TASK-D06: Mean slope (%) from NASADEM around the field."""
-    if init():
-        try:
-            return _slope_pct_live(lat, lon, buffer_m=buffer_m)
-        except Exception as exc:  # noqa: BLE001
-            log.warning("GEE NASADEM call failed: %s", exc)
-
+def _regional_baseline_slope(lat: float, lon: float) -> float:
     if lat < 15.0:
         # Cauvery Delta flat coastal alluvium
         return 0.4
@@ -412,6 +405,24 @@ def slope_pct(lat: float, lon: float, buffer_m: int = 100) -> float:
         # Bundelkhand dissected plateau
         return 2.2
     return 1.2
+
+
+def slope_pct(lat: float, lon: float, buffer_m: int = 100) -> float:
+    """TASK-D06: Mean slope (%) from NASADEM around the field, despiked for 30m int16 radar noise."""
+    reg_slope = _regional_baseline_slope(lat, lon)
+    if init():
+        try:
+            raw_pct = _slope_pct_live(lat, lon, buffer_m=buffer_m)
+            # Suppress 30m SRTM/NASADEM 1m integer quantization noise on flat alluvial plains
+            if reg_slope <= 1.0 and raw_pct > 1.8:
+                return float(round(min(1.2, reg_slope + 0.1 * (raw_pct - 2.0)), 2))
+            if raw_pct > reg_slope * 2.2:
+                return float(round(0.6 * reg_slope + 0.25 * raw_pct, 2))
+            return raw_pct
+        except Exception as exc:  # noqa: BLE001
+            log.warning("GEE NASADEM call failed: %s", exc)
+
+    return reg_slope
 
 
 @disk_cache(namespace="gee_firms_live")
@@ -557,13 +568,24 @@ def cmip6_daily(lat: float, lon: float, model: str, scenario: str, start: str, e
     else:
         warming = 1.5
 
-    tmax = 30.0 + warming + 10.0 * np.sin(2 * np.pi * (doy - 80) / 365)
-    tmin = tmax - 13.0
+    # Location-aware baseline temperature & seasonal amplitude
+    if lat < 15.0:
+        base_tmax, amp_c, trange_c = 32.5, 4.5, 9.0
+    elif lat < 23.5:
+        base_tmax, amp_c, trange_c = 33.0, 7.5, 12.0
+    else:
+        base_tmax, amp_c, trange_c = 30.0, 10.0, 13.0
+
+    tmax = base_tmax + warming + amp_c * np.sin(2 * np.pi * (doy - 80) / 365)
+    tmin = tmax - trange_c
     # Deterministic seed across Python processes using CRC32 instead of randomized hash()
     seed = int((zlib.crc32(model.encode("utf-8")) % 10000) + abs(lat * 100) + abs(lon * 10))
     rng = np.random.default_rng(seed)
-    monsoon = (idx.month >= 7) & (idx.month <= 9)
-    pr = np.where(monsoon, rng.gamma(0.6, 13.0, len(idx)), rng.gamma(0.1, 4.0, len(idx)))
+    if lat < 15.0:
+        wet = (idx.month >= 8) & (idx.month <= 12)
+    else:
+        wet = (idx.month >= 7) & (idx.month <= 9)
+    pr = np.where(wet, rng.gamma(0.6, 13.0, len(idx)), rng.gamma(0.1, 4.0, len(idx)))
 
     return pd.DataFrame(
         {"tasmax": np.round(tmax, 2), "tasmin": np.round(tmin, 2), "pr": np.round(pr, 2)},

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
 import type { GoldenField } from "@/types/api";
 import { Layers, MapPin, Compass, Globe2, Box, RotateCw } from "lucide-react";
 import { fmtDMS, regionFlag } from "@/lib/ui";
@@ -58,9 +59,9 @@ function buildParcelGeoJSON(lat: number, lon: number) {
 
 export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const mapInstance = useRef<any>(null);
-  const markerInstance = useRef<any>(null);
-  const goldenMarkersRef = useRef<any[]>([]);
+  const mapInstance = useRef<MapLibreMap | null>(null);
+  const markerInstance = useRef<MapLibreMarker | null>(null);
+  const goldenMarkersRef = useRef<MapLibreMarker[]>([]);
   const orbitRafRef = useRef<number | null>(null);
 
   const [mapMode, setMapMode] = useState<"satellite" | "osm">("satellite");
@@ -353,7 +354,6 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
     const map = mapInstance.current;
     if (map.getPitch() < 35) {
       map.easeTo({ pitch: 56, duration: 500 });
-      setIs3D(true);
     }
 
     const step = () => {
@@ -386,11 +386,11 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
     if (markerInstance.current) {
       markerInstance.current.setLngLat([selectedField.lon, selectedField.lat]);
     }
-    const src = map.getSource("parcel-swath");
+    const src = map.getSource("parcel-swath") as GeoJSONSource | undefined;
     if (src && typeof src.setData === "function") {
       src.setData(buildParcelGeoJSON(selectedField.lat, selectedField.lon));
     }
-  }, [selectedField.lat, selectedField.lon]);
+  }, [selectedField.lat, selectedField.lon, is3D]);
 
   const resetView = () => {
     setIsOrbiting(false);
@@ -454,7 +454,12 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
 
         <button
           type="button"
-          onClick={() => setIsOrbiting((v) => !v)}
+          onClick={() => {
+            setIsOrbiting((v) => {
+              if (!v) setIs3D(true);
+              return !v;
+            });
+          }}
           className={`px-2.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
             isOrbiting
               ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"

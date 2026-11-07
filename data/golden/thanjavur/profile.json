@@ -158,7 +158,7 @@
     "nitrogen_g_kg": 1.64,
     "field_capacity_vol": 0.377,
     "wilting_point_vol": 0.244,
-    "slope_pct": 4.23,
+    "slope_pct": 0.4,
     "source": "modelled",
     "provenance": [
       {
@@ -186,7 +186,7 @@
     "extreme_rain_days_per_year": 1.0,
     "heat_stress_probability": 1.0,
     "frost_risk": 0.0,
-    "erosion_risk_class": "high",
+    "erosion_risk_class": "moderate",
     "residue_burning_detected": false,
     "terminal_heat_days_per_year": 43.0,
     "provenance": [
@@ -220,7 +220,7 @@
       "end": "2020-08-18",
       "crop_group": "rice",
       "crop_id": "rice_puddled",
-      "confidence": 0.93,
+      "confidence": 0.95,
       "confirmed_by_farmer": false
     },
     {
@@ -231,7 +231,7 @@
       "end": "2020-05-20",
       "crop_group": "rice",
       "crop_id": "rice_puddled",
-      "confidence": 0.91,
+      "confidence": 0.93,
       "confirmed_by_farmer": false
     },
     {
@@ -242,7 +242,7 @@
       "end": "2021-08-18",
       "crop_group": "rice",
       "crop_id": "rice_puddled",
-      "confidence": 0.81,
+      "confidence": 0.83,
       "confirmed_by_farmer": false
     },
     {
@@ -253,7 +253,7 @@
       "end": "2022-01-25",
       "crop_group": "rice",
       "crop_id": "rice_puddled",
-      "confidence": 0.85,
+      "confidence": 0.87,
       "confirmed_by_farmer": false
     },
     {
@@ -275,7 +275,7 @@
       "end": "2023-02-14",
       "crop_group": "rice",
       "crop_id": "rice_puddled",
-      "confidence": 0.91,
+      "confidence": 0.93,
       "confirmed_by_farmer": false
     },
     {
@@ -286,7 +286,7 @@
       "end": "2023-12-11",
       "crop_group": "rice",
       "crop_id": "rice_puddled",
-      "confidence": 0.86,
+      "confidence": 0.92,
       "confirmed_by_farmer": false
     },
     {
@@ -297,7 +297,7 @@
       "end": "2023-06-04",
       "crop_group": "rice",
       "crop_id": "rice_puddled",
-      "confidence": 0.85,
+      "confidence": 0.87,
       "confirmed_by_farmer": false
     },
     {
@@ -308,7 +308,7 @@
       "end": "2023-06-09",
       "crop_group": "moong",
       "crop_id": "moong",
-      "confidence": 0.82,
+      "confidence": 0.88,
       "confirmed_by_farmer": false
     },
     {
@@ -319,7 +319,7 @@
       "end": "2024-10-01",
       "crop_group": "rice",
       "crop_id": "rice_puddled",
-      "confidence": 0.86,
+      "confidence": 0.88,
       "confirmed_by_farmer": false
     },
     {
@@ -330,7 +330,7 @@
       "end": "2024-06-08",
       "crop_group": "rice",
       "crop_id": "rice_puddled",
-      "confidence": 0.73,
+      "confidence": 0.75,
       "confirmed_by_farmer": false
     },
     {
@@ -341,7 +341,7 @@
       "end": "2024-06-08",
       "crop_group": "moong",
       "crop_id": "moong",
-      "confidence": 0.76,
+      "confidence": 0.82,
       "confirmed_by_farmer": false
     }
   ],

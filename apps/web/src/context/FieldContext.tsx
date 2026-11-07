@@ -5,7 +5,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -92,33 +91,10 @@ const FieldContext = createContext<FieldContextValue | null>(null);
 export function FieldProvider({ children }: { children: ReactNode }) {
   const { lang } = useI18n();
   const [goldenFields, setGoldenFields] = useState<GoldenField[]>([]);
-  const [selectedField, setSelectedField] = useState<SelectedParcel>(DEFAULT_PARCEL);
-  const [selectedGoldenId, setSelectedGoldenId] = useState<string | null>("sangrur");
-  const [profile, setProfile] = useState<FieldProfile | null>(null);
-  const [strategies, setStrategies] = useState<StrategyRecommendation[]>([]);
-  const [crops, setCrops] = useState<CropSpec[]>([]);
-  const [priorities, setPrioritiesState] = useState<Priorities>(DEFAULT_PRIORITIES);
-  const [constraints, setConstraintsState] = useState<FarmConstraints>(DEFAULT_CONSTRAINTS);
-  const [selectedRank, setSelectedRankState] = useState<number>(1);
-  const [unitSystem, setUnitSystemState] = useState<UnitSystem>("acre");
-  const [soilHealthCard, setSoilHealthCardState] = useState<SoilHealthCardInput | null>(null);
-  const [baselineOverride, setBaselineOverrideState] = useState<string[] | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [optimizing, setOptimizing] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const hydratedRef = useRef(false);
-
-  // Restore saved parcel & preferences on mount
-  useEffect(() => {
+  const [selectedField, setSelectedField] = useState<SelectedParcel>(() => {
+    if (typeof window === "undefined") return DEFAULT_PARCEL;
     try {
       const savedParcel = localStorage.getItem("tl_selected_field");
-      const savedGolden = localStorage.getItem("tl_selected_golden_id");
-      const savedPrio = localStorage.getItem("tl_priorities");
-      const savedConst = localStorage.getItem("tl_constraints");
-      const savedRank = localStorage.getItem("tl_selected_rank");
-      const savedUnit = localStorage.getItem("tl_unit_system");
-
       if (savedParcel) {
         const parsed = JSON.parse(savedParcel) as SelectedParcel;
         if (
@@ -129,29 +105,88 @@ export function FieldProvider({ children }: { children: ReactNode }) {
           parsed.lon >= 66 &&
           parsed.lon <= 99
         ) {
-          setSelectedField(parsed);
+          return parsed;
         }
-      }
-      if (savedGolden !== null) {
-        setSelectedGoldenId(savedGolden === "" ? null : savedGolden);
-      }
-      if (savedPrio) {
-        setPrioritiesState({ ...DEFAULT_PRIORITIES, ...JSON.parse(savedPrio) });
-      }
-      if (savedConst) {
-        setConstraintsState({ ...DEFAULT_CONSTRAINTS, ...JSON.parse(savedConst) });
-      }
-      if (savedRank !== null) {
-        setSelectedRankState(Number(savedRank));
-      }
-      if (savedUnit === "acre" || savedUnit === "hectare") {
-        setUnitSystemState(savedUnit);
       }
     } catch {
       // Ignore storage errors
     }
-    hydratedRef.current = true;
-  }, []);
+    return DEFAULT_PARCEL;
+  });
+  const [selectedGoldenId, setSelectedGoldenId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return "sangrur";
+    try {
+      const savedGolden = localStorage.getItem("tl_selected_golden_id");
+      if (savedGolden !== null) {
+        return savedGolden === "" ? null : savedGolden;
+      }
+    } catch {
+      // Ignore
+    }
+    return "sangrur";
+  });
+  const [profile, setProfile] = useState<FieldProfile | null>(null);
+  const [strategies, setStrategies] = useState<StrategyRecommendation[]>([]);
+  const [crops, setCrops] = useState<CropSpec[]>([]);
+  const [priorities, setPrioritiesState] = useState<Priorities>(() => {
+    if (typeof window === "undefined") return DEFAULT_PRIORITIES;
+    try {
+      const savedPrio = localStorage.getItem("tl_priorities");
+      if (savedPrio) {
+        return { ...DEFAULT_PRIORITIES, ...JSON.parse(savedPrio) };
+      }
+    } catch {
+      // Ignore
+    }
+    return DEFAULT_PRIORITIES;
+  });
+  const [constraints, setConstraintsState] = useState<FarmConstraints>(() => {
+    if (typeof window === "undefined") return DEFAULT_CONSTRAINTS;
+    try {
+      const savedConst = localStorage.getItem("tl_constraints");
+      if (savedConst) {
+        return { ...DEFAULT_CONSTRAINTS, ...JSON.parse(savedConst) };
+      }
+    } catch {
+      // Ignore
+    }
+    return DEFAULT_CONSTRAINTS;
+  });
+  const [selectedRank, setSelectedRankState] = useState<number>(() => {
+    if (typeof window === "undefined") return 1;
+    try {
+      const savedRank = localStorage.getItem("tl_selected_rank");
+      if (savedRank !== null) return Number(savedRank);
+    } catch {
+      // Ignore
+    }
+    return 1;
+  });
+  const [unitSystem, setUnitSystemState] = useState<UnitSystem>(() => {
+    if (typeof window === "undefined") return "acre";
+    try {
+      const savedUnit = localStorage.getItem("tl_unit_system");
+      if (savedUnit === "acre" || savedUnit === "hectare") return savedUnit;
+    } catch {
+      // Ignore
+    }
+    return "acre";
+  });
+  const [soilHealthCard, setSoilHealthCardState] = useState<SoilHealthCardInput | null>(null);
+  const [baselineOverride, setBaselineOverrideState] = useState<string[] | null>(null);
+
+  const requestKey = `${selectedGoldenId ?? ""}:${selectedField.lat}:${selectedField.lon}:${lang}:${JSON.stringify(soilHealthCard)}:${JSON.stringify(baselineOverride)}`;
+  const [settledProfileKey, setSettledProfileKey] = useState<string>("");
+  const [settledRecsKey, setSettledRecsKey] = useState<string>("");
+  const [manualOptimizing, setManualOptimizing] = useState<boolean>(false);
+  const [errorState, setErrorState] = useState<{ key: string; msg: string | null }>({
+    key: "",
+    msg: null,
+  });
+
+  const loading = settledProfileKey !== requestKey;
+  const optimizing = manualOptimizing || settledRecsKey !== requestKey;
+  const error = errorState.key === requestKey ? errorState.msg : null;
 
   // Load golden fields & crop catalog once
   useEffect(() => {
@@ -180,8 +215,6 @@ export function FieldProvider({ children }: { children: ReactNode }) {
   // Fetch profile + recommendations whenever selectedField, lang, soilHealthCard, or baselineOverride changes
   useEffect(() => {
     let isCancelled = false;
-    setLoading(true);
-    setError(null);
 
     const fetchPromise = selectedGoldenId
       ? api.goldenProfile(selectedGoldenId)
@@ -198,22 +231,30 @@ export function FieldProvider({ children }: { children: ReactNode }) {
             if (soilHealthCard.soc_pct !== undefined && soilHealthCard.soc_pct !== null) {
               nextSoil.soc_g_per_kg = Number((soilHealthCard.soc_pct * 10).toFixed(2));
             }
+            if (
+              soilHealthCard.available_n_kg_ha !== undefined &&
+              soilHealthCard.available_n_kg_ha !== null
+            ) {
+              nextSoil.nitrogen_g_kg = Number(
+                (soilHealthCard.available_n_kg_ha / 2240).toFixed(2)
+              );
+            }
             nextSoil.source = "farmer_test";
             setProfile({ ...data, soil: nextSoil });
           } else {
             setProfile(data);
           }
-          setLoading(false);
+          setErrorState({ key: requestKey, msg: null });
+          setSettledProfileKey(requestKey);
         }
       })
       .catch((err) => {
         if (!isCancelled) {
-          setError(err.message ?? "Failed to load field profile");
-          setLoading(false);
+          setErrorState({ key: requestKey, msg: err.message ?? "Failed to load field profile" });
+          setSettledProfileKey(requestKey);
         }
       });
 
-    setOptimizing(true);
     api
       .recommend({
         field: { lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name },
@@ -239,13 +280,14 @@ export function FieldProvider({ children }: { children: ReactNode }) {
         }
       })
       .finally(() => {
-        if (!isCancelled) setOptimizing(false);
+        if (!isCancelled) setSettledRecsKey(requestKey);
       });
 
     return () => {
       isCancelled = true;
     };
-  }, [selectedField.lat, selectedField.lon, selectedGoldenId, lang, soilHealthCard, baselineOverride]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestKey]);
 
   const selectGolden = useCallback((field: GoldenField) => {
     const next = { lat: field.lat, lon: field.lon, name: field.name };
@@ -258,7 +300,15 @@ export function FieldProvider({ children }: { children: ReactNode }) {
     setSelectedGoldenId(field.id);
     setSelectedField(next);
     setBaselineOverrideState(null);
-    setConstraintsState((prev) => ({ ...prev, irrigation: defaultIrr }));
+    setConstraintsState((prev) => {
+      const updated = { ...prev, irrigation: defaultIrr };
+      try {
+        localStorage.setItem("tl_constraints", JSON.stringify(updated));
+      } catch {
+        // Ignore
+      }
+      return updated;
+    });
     try {
       localStorage.setItem("tl_selected_golden_id", field.id);
       localStorage.setItem("tl_selected_field", JSON.stringify(next));
@@ -334,7 +384,7 @@ export function FieldProvider({ children }: { children: ReactNode }) {
       const cToUse = overrideC ?? constraints;
       const shcToUse = overrideShc !== undefined ? overrideShc : soilHealthCard;
       const baseToUse = overrideBase !== undefined ? overrideBase : baselineOverride;
-      setOptimizing(true);
+      setManualOptimizing(true);
       try {
         const recs = await api.recommend({
           field: { lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name },
@@ -355,7 +405,7 @@ export function FieldProvider({ children }: { children: ReactNode }) {
           )
         );
       } finally {
-        setOptimizing(false);
+        setManualOptimizing(false);
       }
     },
     [selectedField, priorities, constraints, lang, soilHealthCard, baselineOverride]

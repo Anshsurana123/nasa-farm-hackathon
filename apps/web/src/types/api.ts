@@ -53,6 +53,7 @@ export interface SoilSummary {
   silt_pct?: number | null;
   clay_pct?: number | null;
   soc_g_per_kg?: number | null;
+  nitrogen_g_kg?: number | null;
   ph?: number | null;
   bulk_density_g_cm3?: number | null;
   field_capacity_vol?: number | null;

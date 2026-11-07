@@ -32,3 +32,17 @@ jobs:
         run: |
           uv run python scripts/run_validation_benchmarks.py --write-docs
           git diff --exit-code docs/BENCHMARKS.md
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install frontend dependencies & verify TypeScript + ESLint
+        working-directory: apps/web
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npm run lint

@@ -6,7 +6,7 @@
       "lat": 25.38,
       "lon": 78.62
     },
-    "timestamp_utc": "2026-11-07T09:52:40.294765+00:00",
+    "timestamp_utc": "2026-11-07T12:08:15.663773+00:00",
     "gee_live": false,
     "data_mode": "observed",
     "is_fallback": false,
@@ -27,7 +27,7 @@
       "lat": 10.72,
       "lon": 79.25
     },
-    "timestamp_utc": "2026-11-07T09:52:56.268217+00:00",
+    "timestamp_utc": "2026-11-07T12:06:52.720726+00:00",
     "gee_live": false,
     "data_mode": "observed",
     "is_fallback": false,
@@ -48,7 +48,7 @@
       "lat": 30.19,
       "lon": 75.78
     },
-    "timestamp_utc": "2026-11-07T09:52:03.694714+00:00",
+    "timestamp_utc": "2026-11-07T12:05:37.516341+00:00",
     "gee_live": false,
     "data_mode": "observed",
     "is_fallback": false,
@@ -69,7 +69,7 @@
       "lat": 30.82,
       "lon": 75.68
     },
-    "timestamp_utc": "2026-11-07T09:52:19.669263+00:00",
+    "timestamp_utc": "2026-11-07T12:05:59.330787+00:00",
     "gee_live": false,
     "data_mode": "observed",
     "is_fallback": false,
@@ -90,7 +90,7 @@
       "lat": 30.12,
       "lon": 74.86
     },
-    "timestamp_utc": "2026-11-07T09:52:33.693969+00:00",
+    "timestamp_utc": "2026-11-07T12:06:21.471676+00:00",
     "gee_live": false,
     "data_mode": "observed",
     "is_fallback": false,
@@ -111,7 +111,7 @@
       "lat": 20.39,
       "lon": 78.13
     },
-    "timestamp_utc": "2026-11-07T09:52:37.834209+00:00",
+    "timestamp_utc": "2026-11-07T12:08:11.079099+00:00",
     "gee_live": false,
     "data_mode": "observed",
     "is_fallback": false,
@@ -120,7 +120,7 @@
       "observed",
       "observed"
     ],
-    "crop_history_seasons_detected": 1,
+    "crop_history_seasons_detected": 6,
     "firms_residue_burning_detected": false,
     "grace_tws_trend_cm_yr": 1.11,
     "smap_root_zone_months": 12

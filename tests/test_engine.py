@@ -899,3 +899,101 @@ def test_multiyear_rotations_and_cmip6_shock_recommend():
     assert len(top["practical_metrics"]["seasonal_operations"]) == 3
     assert any("CMIP6" in p["source"] for p in top["provenance"])
 
+
+def test_zaid_calendar_year_and_fallow_depletion_carryover(punjab_profile):
+    """Verify Zaid (season_index=2) runs in year+1 and fallow steps preserve root-zone depletion."""
+    from terraloop_engine.models import aquacrop_runner
+    from terraloop_schemas import FarmConstraints, Rotation, RotationStep
+
+    w_df = synthetic_punjab_weather((2019, 2021)).copy()
+    # Make 2020 summer mild/wet and 2021 summer hot/dry so Zaid moong in year=2020 must sample 2021
+    mask_2020 = (w_df.index.year == 2020) & (w_df.index.month.isin([4, 5, 6]))
+    mask_2021 = (w_df.index.year == 2021) & (w_df.index.month.isin([4, 5, 6]))
+    w_df.loc[mask_2020, "PRECTOTCORR"] = 12.0
+    w_df.loc[mask_2021, "PRECTOTCORR"] = 0.0
+
+    rot = Rotation(
+        id="zaid_yr_test",
+        steps=[
+            RotationStep(year_index=0, season_index=0, crop_id="maize"),
+            RotationStep(year_index=0, season_index=1, crop_id="wheat"),
+            RotationStep(year_index=0, season_index=2, crop_id="moong"),
+        ],
+    )
+    res = aquacrop_runner.simulate_rotation(
+        rot, w_df, punjab_profile.soil, FarmConstraints(irrigation="full"), start_year=2020
+    )
+    # Because Zaid for agricultural year 2020-21 runs in Apr-Jun 2021 (0 mm rain), irrigation must be >= 100 mm
+    assert res[2]["irrigation_mm"] >= 100.0
+
+    # Verify fallow does not reset root-zone depletion to 0.0
+    from terraloop_engine.models import fao56_runner
+
+    _, carry_dep = fao56_runner._simulate_step(
+        "fallow",
+        [],
+        1,
+        2020,
+        w_df,
+        punjab_profile.soil,
+        FarmConstraints(irrigation="none"),
+        {},
+        initial_depletion_mm=45.0,
+    )
+    assert carry_dep == 45.0
+
+
+def test_cmip6_tail_quantile_mapping_and_multiyear_eval(punjab_profile):
+    """Verify quantile_map preserves tail warming above historical max and evaluate_rotation samples CMIP6 years."""
+    from terraloop_engine.climate import ensembles
+    from terraloop_engine.optimize import evaluate
+    from terraloop_schemas import FarmConstraints, Rotation, RotationStep
+
+    obs = synthetic_punjab_weather((2015, 2019))
+    mod_hist = obs.copy()
+    mod_fut = obs.copy()
+    mod_fut.index = pd.date_range("2031-01-01", periods=len(obs), freq="D")
+    mod_fut["T2M_MAX"] = mod_fut["T2M_MAX"] + 4.0
+    mod_fut["T2M_MIN"] = mod_fut["T2M_MIN"] + 4.0
+
+    mapped_tmax = ensembles.quantile_map(obs["T2M_MAX"], mod_hist["T2M_MAX"], mod_fut["T2M_MAX"])
+    assert float(mapped_tmax.max()) > float(obs["T2M_MAX"].max()) + 3.0
+
+    rot = Rotation(
+        id="cmip_eval",
+        steps=[
+            RotationStep(year_index=0, season_index=0, crop_id="maize"),
+            RotationStep(year_index=0, season_index=1, crop_id="wheat"),
+        ],
+    )
+    ev = evaluate.evaluate_rotation(rot, {"m_fut": mod_fut}, punjab_profile, FarmConstraints(irrigation="full"))
+    assert len(ev.yield_t_ha["wheat"]) >= 1
+    assert ev.yield_t_ha["wheat"][0] > 0.0
+
+
+def test_rainfed_vidarbha_chickpea_suitability_and_shc_n_credit():
+    """Verify rainfed Vidarbha ranks chickpea as top Rabi legume and Soil Health Card N credit updates urea savings."""
+    from pathlib import Path
+
+    from terraloop_engine import crop_kb, profiler, suitability
+    from terraloop_engine.models import soil_health
+    from terraloop_schemas import FarmConstraints, FieldProfile, SoilHealthCardInput
+
+    vid_prof = FieldProfile.model_validate_json(
+        Path("data/golden/vidarbha/profile.json").read_text(encoding="utf-8")
+    )
+    crops = crop_kb.load_crops()
+    ranked = suitability.rank_crops(vid_prof, crops, FarmConstraints(irrigation="none"))
+    top_ids = [r.crop_id for r in ranked[:12]]
+    assert "chickpea" in top_ids, f"Expected chickpea in rainfed Vidarbha top crops, got {top_ids}"
+
+    # Verify Soil Health Card available_n_kg_ha credits soil_health.n_balance
+    shc_high_n = SoilHealthCardInput(ph=7.1, soc_pct=0.80, available_n_kg_ha=420.0)
+    prof_n = profiler.apply_soil_health_card_override(vid_prof.model_copy(deep=True), shc_high_n)
+    assert prof_n.soil.nitrogen_g_kg is not None and prof_n.soil.nitrogen_g_kg > 0.15
+
+    nb_base = soil_health.n_balance(crops["wheat"], 4.5, soil_n_credit_kg_ha=0.0)["fertilizer_saved_kg_ha"]
+    nb_credit = soil_health.n_balance(crops["wheat"], 4.5, soil_n_credit_kg_ha=35.0)["fertilizer_saved_kg_ha"]
+    assert nb_credit == round(nb_base + 35.0, 1)
+
+

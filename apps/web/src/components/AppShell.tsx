@@ -226,7 +226,7 @@ export function AppShell({
                     title={`${r.step} · ${r.shortLabel}`}
                     className={`h-2 rounded-full transition-all ${
                       idx === currentIdx
-                        ? "w-8 bg-gradient-to-r from-emerald-400 to-cyan-400"
+                        ? "w-8 bg-emerald-400"
                         : idx < currentIdx
                         ? "w-3 bg-emerald-500/45"
                         : "w-3 bg-foreground/15 hover:bg-foreground/30"
@@ -239,7 +239,7 @@ export function AppShell({
                 <Link
                   href={nextRoute.href}
                   onClick={(e) => navigateWithTransition(e, nextRoute.href)}
-                  className="group flex items-center justify-between sm:justify-end gap-3 p-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500/20 via-cyan-500/15 to-violet-500/15 hover:from-emerald-500/30 hover:to-cyan-500/25 border border-emerald-500/45 transition-all"
+                  className="group flex items-center justify-between sm:justify-end gap-3 p-3 px-4 rounded-xl bg-emerald-500/20 border border-emerald-500/45 transition-all"
                 >
                   <div className="text-left sm:text-right">
                     <span className="block text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">

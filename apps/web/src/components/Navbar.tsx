@@ -30,6 +30,7 @@ export const WORKFLOW_ROUTES = [
     href: "/",
     step: "01",
     key: "nav.home",
+    navLabel: "Mission",
     shortLabel: "Mission Control",
     desc: "3D Earth & Subsurface Hub",
     icon: Compass,
@@ -40,6 +41,7 @@ export const WORKFLOW_ROUTES = [
     href: "/diagnostics",
     step: "02",
     key: "nav.diagnostics",
+    navLabel: "Diagnostics",
     shortLabel: "Diagnostics",
     desc: "Climate, Soil & Aquifer Atlas",
     icon: Activity,
@@ -50,6 +52,7 @@ export const WORKFLOW_ROUTES = [
     href: "/rotations",
     step: "03",
     key: "nav.rotations",
+    navLabel: "Rotations",
     shortLabel: "Rotation Studio",
     desc: "NSGA-II Optimizer & Calendar",
     icon: Layers,
@@ -60,16 +63,18 @@ export const WORKFLOW_ROUTES = [
     href: "/lab",
     step: "04",
     key: "nav.lab",
+    navLabel: "Pareto Lab",
     shortLabel: "3D Pareto & Lab",
     desc: "Frontier Cube & Shock Simulator",
     icon: FlaskConical,
-    accent: "text-violet-400",
-    activeBg: "bg-violet-500/15 border-violet-500/50 text-violet-600 dark:text-violet-300",
+    accent: "text-stone-400",
+    activeBg: "bg-stone-500/15 border-stone-500/50 text-stone-600 dark:text-stone-300",
   },
   {
     href: "/crops",
     step: "05",
     key: "nav.crops",
+    navLabel: "Crop KB",
     shortLabel: "Crop KB (23)",
     desc: "Botanical Specs & Suitability",
     icon: Sprout,
@@ -80,6 +85,7 @@ export const WORKFLOW_ROUTES = [
     href: "/brief",
     step: "06",
     key: "nav.brief",
+    navLabel: "Brief",
     shortLabel: "Advisory Brief",
     desc: "Executive Dossier & Print PDF",
     icon: FileText,
@@ -102,19 +108,20 @@ export function Navbar() {
     selectLocation,
   } = useField();
 
-  const [isDark, setIsDark] = useState<boolean>(true);
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const saved = localStorage.getItem("theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return saved ? saved === "dark" : prefersDark;
+  });
   const [showLocator, setShowLocator] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [searchLoading, setSearchLoading] = useState<boolean>(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const shouldBeDark = saved ? saved === "dark" : prefersDark;
-    setIsDark(shouldBeDark);
-    document.documentElement.classList.toggle("dark", shouldBeDark);
-  }, []);
+    document.documentElement.classList.toggle("dark", isDark);
+  }, [isDark]);
 
   const toggleTheme = () => {
     const nextDark = !isDark;
@@ -168,27 +175,19 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 glass-strong border-b border-line transition-colors no-print">
-      {/* Bioluminescent Orbital Accent Hairline */}
-      <div
-        className="h-[3px] w-full"
-        style={{
-          background:
-            "linear-gradient(to right var(--in-oklab), #10b981, #06b6d4, #8b5cf6, #f59e0b)",
-        }}
-      />
 
       {/* Row 1: Brand + Primary Multi-Page Navigation + Utilities */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-3">
         {/* Brand Emblem */}
         <Link
           href="/"
           onClick={(e) => handleNavigate(e, "/")}
-          className="flex items-center gap-3 group shrink-0"
+          className="flex items-center gap-2.5 group shrink-0"
         >
-          <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 via-cyan-500/15 to-violet-500/20 border border-emerald-500/40 flex items-center justify-center group-hover:border-emerald-400 transition-all shadow-sm">
+          <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-foreground/[0.04] border border-line-strong flex items-center justify-center group-hover:border-emerald-500/60 transition-all shadow-sm shrink-0">
             <svg
-              width="24"
-              height="24"
+              width="22"
+              height="22"
               viewBox="0 0 24 24"
               fill="none"
               className="text-foreground"
@@ -220,26 +219,21 @@ export function Navbar() {
             </svg>
           </div>
 
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-serif font-bold text-xl tracking-tight text-foreground">
-                TerraLoop
-              </span>
-              <span className="hidden xl:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/35">
-                <Satellite className="w-3 h-3 text-emerald-400" />
-                <span>NASA EO · v2.6</span>
-              </span>
-            </div>
-            <p className="text-[11px] text-muted hidden sm:block font-mono tracking-tight">
-              {t("app.tagline")}
-            </p>
+          <div className="flex flex-col justify-center">
+            <span className="font-serif font-bold text-lg sm:text-xl leading-none tracking-tight text-foreground">
+              TerraLoop
+            </span>
+            <span className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/35 w-fit">
+              <Satellite className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
+              <span>NASA EO · v2.6</span>
+            </span>
           </div>
         </Link>
 
         {/* Center: Multi-Page Route Links (Desktop) */}
         <nav
           aria-label="Primary Multi-Page Navigation"
-          className="hidden lg:flex items-center gap-1 p-1 rounded-xl bg-background/60 border border-line"
+          className="hidden lg:flex items-center gap-1 p-1 rounded-xl bg-background/60 border border-line overflow-x-auto max-w-full min-w-0"
         >
           {WORKFLOW_ROUTES.map((item) => {
             const Icon = item.icon;
@@ -251,40 +245,42 @@ export function Navbar() {
                 key={item.href}
                 href={item.href}
                 onClick={(e) => handleNavigate(e, item.href)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-1.5 border ${
+                title={`${item.step} · ${t(item.key)} — ${item.desc}`}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-1.5 border whitespace-nowrap shrink-0 ${
                   isActive
                     ? `${item.activeBg} shadow-xs`
                     : "border-transparent text-muted hover:text-foreground hover:bg-foreground/5"
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? "" : item.accent}`} />
-                <span className="text-[10px] opacity-70">{item.step}</span>
-                <span>{t(item.key)}</span>
+                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "" : item.accent}`} />
+                <span className="hidden xl:inline text-[10px] opacity-70">{item.step}</span>
+                <span>{item.navLabel}</span>
               </Link>
             );
           })}
         </nav>
 
         {/* Right Controls: Methodology, Theme, Language */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <Link
             href="/methodology"
             onClick={(e) => handleNavigate(e, "/methodology")}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold border transition-colors hidden sm:inline-flex items-center gap-1.5 ${
+            title={t("nav.methodology")}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold border transition-colors hidden sm:inline-flex items-center gap-1.5 whitespace-nowrap ${
               pathname === "/methodology"
-                ? "bg-violet-500/15 border-violet-500/50 text-violet-600 dark:text-violet-300"
+                ? "bg-stone-500/15 border-stone-500/50 text-stone-600 dark:text-stone-300"
                 : "text-foreground/85 hover:text-foreground bg-foreground/[0.04] hover:bg-foreground/[0.08] border-line"
             }`}
           >
-            <BookOpen className="w-3.5 h-3.5 text-violet-400" />
-            <span className="hidden md:inline">{t("nav.methodology")}</span>
+            <BookOpen className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+            <span className="hidden xl:inline">{t("nav.methodology")}</span>
           </Link>
 
           <button
             type="button"
             onClick={toggleTheme}
             aria-label="Toggle dark/light theme"
-            className="p-2 rounded-lg text-xs font-medium border border-line bg-surface hover:bg-foreground/10 text-foreground transition-colors cursor-pointer flex items-center justify-center"
+            className="p-2 rounded-lg text-xs font-medium border border-line bg-surface hover:bg-foreground/10 text-foreground transition-colors cursor-pointer flex items-center justify-center shrink-0"
             title={isDark ? "Switch to Botanical Alabaster Mode" : "Switch to Orbital Dark Mode"}
           >
             {isDark ? (
@@ -296,7 +292,7 @@ export function Navbar() {
 
           {/* Area Unit Switcher: Per Acre (Killa) vs Per Hectare */}
           <div
-            className="flex items-center rounded-lg border border-line p-0.5 bg-surface text-xs font-mono"
+            className="flex items-center rounded-lg border border-line p-0.5 bg-surface text-xs font-mono shrink-0"
             title="Switch between Indian farm unit (Per Acre / Killa) and metric (Per Hectare)"
           >
             <button
@@ -324,7 +320,7 @@ export function Navbar() {
           </div>
 
           {/* Language Switcher */}
-          <div className="flex items-center rounded-lg border border-line p-0.5 bg-surface text-xs">
+          <div className="flex items-center rounded-lg border border-line p-0.5 bg-surface text-xs shrink-0">
             <span className="px-1.5 text-muted hidden xl:inline-flex">
               <Globe className="w-3.5 h-3.5" />
             </span>
@@ -378,20 +374,20 @@ export function Navbar() {
           onClick={(e) => handleNavigate(e, "/methodology")}
           className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold whitespace-nowrap flex items-center gap-1.5 border ${
             pathname === "/methodology"
-              ? "bg-violet-500/15 border-violet-500/50 text-violet-300"
+              ? "bg-stone-500/15 border-stone-500/50 text-stone-300"
               : "border-line bg-surface/60 text-muted hover:text-foreground"
           }`}
         >
-          <BookOpen className="w-3.5 h-3.5 text-violet-400" />
+          <BookOpen className="w-3.5 h-3.5 text-stone-400" />
           <span>{t("nav.methodology")}</span>
         </Link>
       </nav>
 
       {/* Row 2: Global Active Parcel Command Bar & Benchmark Switcher */}
       <div className="bg-surface-strong/80 border-t border-line px-4 sm:px-6 lg:px-8 py-2">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs">
           {/* Active Parcel Indicator + Benchmark Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto py-0.5 max-w-full">
+          <div className="flex items-center gap-2 overflow-x-auto py-0.5 flex-1 min-w-0">
             <span className="text-muted font-mono font-bold shrink-0 flex items-center gap-1.5 uppercase text-[10px] tracking-widest pr-2 border-r border-line">
               <Compass className="w-3.5 h-3.5 text-emerald-400" />
               <span>{t("nav.demoFields")}</span>
@@ -436,14 +432,14 @@ export function Navbar() {
           </div>
 
           {/* Right: Active Coordinates Readout + Global Quick-Locate Toggle */}
-          <div className="flex items-center gap-2 ml-auto shrink-0">
+          <div className="flex items-center gap-2 shrink-0 ml-2">
             <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-background/70 border border-line font-mono text-[11px]">
               <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="font-semibold text-foreground truncate max-w-[180px]">
+              <span className="font-semibold text-foreground truncate max-w-[140px] xl:max-w-[180px]">
                 {selectedField.name}
               </span>
               <span className="text-muted">·</span>
-              <span className="text-cyan-600 dark:text-cyan-300">
+              <span className="text-cyan-600 dark:text-cyan-300 whitespace-nowrap">
                 {fmtDMS(selectedField.lat, true)} {fmtDMS(selectedField.lon, false)}
               </span>
             </div>
@@ -451,7 +447,7 @@ export function Navbar() {
             <button
               type="button"
               onClick={() => setShowLocator((v) => !v)}
-              className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                 showLocator
                   ? "bg-cyan-500 text-slate-950 border-cyan-400"
                   : "bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-600 dark:text-cyan-300 border-cyan-500/40"
@@ -484,7 +480,7 @@ export function Navbar() {
               <button
                 type="submit"
                 disabled={searchLoading || !searchQuery.trim()}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
+                className="px-4 py-2 rounded-xl bg-emerald-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
               >
                 {searchLoading ? "Locating Satellite Swath…" : "Lock Parcel Coordinates"}
               </button>

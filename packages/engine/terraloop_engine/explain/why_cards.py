@@ -239,10 +239,15 @@ def why_cards(
 
     seen_sources = set()
     unique_provs = []
+    eff_mode = (
+        "observed"
+        if profile.data_mode == "observed"
+        else ("regional_climatology" if profile.is_fallback else gee.provenance_with_mode(_GRACE_PROV).mode)
+    )
     for p in provenances:
         if p.source not in seen_sources:
             seen_sources.add(p.source)
-            unique_provs.append(p)
+            unique_provs.append(p.model_copy(update={"mode": eff_mode}))  # type: ignore[arg-type]
 
     return cards, unique_provs
 

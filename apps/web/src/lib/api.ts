@@ -108,7 +108,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
           const profRes = await fetch(`/golden/${closest.id}/profile.json`);
           if (profRes.ok) {
             const prof = (await profRes.json()) as FieldProfile;
-            const isSouthAsia = field.lat >= 20 && field.lat <= 35 && field.lon >= 68 && field.lon <= 90;
+            const isSouthAsia = field.lat >= 5 && field.lat <= 38.5 && field.lon >= 66 && field.lon <= 99;
             return {
               ...prof,
               field: {

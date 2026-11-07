@@ -167,7 +167,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
           <div className="p-5 rounded-xl border-2 border-emerald-500/70 bg-emerald-500/[0.04] space-y-3">
             <div className="flex items-center justify-between font-mono">
               <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40">
-                OPT 0{topStrategy?.rank || 1} // Recommended Strategy
+                {`OPT 0${topStrategy?.rank || 1} // Recommended Strategy`}
               </span>
               <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">
                 {topIrr} mm/yr (−{waterSavedPct}% H₂O)

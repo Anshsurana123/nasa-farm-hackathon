@@ -168,7 +168,7 @@ export default function MethodologyPage() {
             </div>
 
             <div className="p-4 rounded-xl bg-surface-2/60 border border-line space-y-2">
-              <h3 className="font-mono font-bold text-xs uppercase text-violet-400">
+              <h3 className="font-mono font-bold text-xs uppercase text-stone-400">
                 04 // 5 USDA-NRCS Soil Health Principles
               </h3>
               <p className="text-muted leading-relaxed">

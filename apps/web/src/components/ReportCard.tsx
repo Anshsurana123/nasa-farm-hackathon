@@ -114,7 +114,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
 
           {/* Agro-climatic Field Observations */}
           {agro_climatic_notes && agro_climatic_notes.length > 0 && (
-            <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/12 via-emerald-500/8 to-cyan-500/10 border border-amber-500/35 text-xs space-y-2.5">
+            <div className="p-4 rounded-xl bg-amber-500/12 border border-amber-500/35 text-xs space-y-2.5">
               <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-300 flex items-center gap-2">
                 <Activity className="w-3.5 h-3.5 text-amber-400" />
                 <span>{t("section.insights")} — Automated Satellite Anomaly Screen</span>
@@ -218,9 +218,9 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                     style={{ height: `${Math.max(heightPct, 8)}%` }}
                     className={`w-full rounded-t-md transition-all ${
                       isSelected
-                        ? "bg-gradient-to-t from-emerald-500 to-cyan-400 shadow-md"
+                        ? "bg-emerald-500 shadow-md"
                         : isMonsoon
-                        ? "bg-gradient-to-t from-cyan-600/80 to-cyan-400/90 border-t border-cyan-300"
+                        ? "bg-cyan-600/80 border-t border-cyan-300"
                         : "bg-foreground/20 border-t border-line-strong"
                     }`}
                   />

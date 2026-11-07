@@ -85,86 +85,97 @@ def evaluate_rotation(
     rotation_years = max(1, max(s.year_index for s in rotation.steps) + 1)
 
     for member_idx, (member_id, weather_df) in enumerate(members.items()):
-        start_year = 2015
         if "hist_" in member_id:
             try:
-                start_year = int(member_id.split("_")[1])
+                start_years = [int(member_id.split("_")[1])]
             except (IndexError, ValueError):
-                start_year = 2015
+                start_years = [2015]
+        elif hasattr(weather_df.index, "year") and len(weather_df) > 0:
+            avail_yrs = sorted({int(y) for y in weather_df.index.year})
+            if len(avail_yrs) >= rotation_years + 6:
+                # Multi-decade CMIP6 member (e.g. 2026-2045 or 2041-2060): sample early, mid, and late blocks
+                mid_idx = max(1, (len(avail_yrs) - rotation_years) // 2)
+                last_idx = max(1, len(avail_yrs) - rotation_years - 1)
+                start_years = sorted({avail_yrs[0], avail_yrs[mid_idx], avail_yrs[last_idx]})
+            else:
+                start_years = [avail_yrs[0]]
+        else:
+            start_years = [2015]
 
-        step_sims = aquacrop_runner.simulate_rotation(
-            rotation=rotation,
-            weather=weather_df,
-            soil=soil,
-            constraints=constraints,
-            start_year=start_year,
-            lat=profile.field.lat,
-        )
+        for sub_idx, start_year in enumerate(start_years):
+            step_sims = aquacrop_runner.simulate_rotation(
+                rotation=rotation,
+                weather=weather_df,
+                soil=soil,
+                constraints=constraints,
+                start_year=start_year,
+                lat=profile.field.lat,
+            )
 
-        tot_irr = 0.0
-        tot_profit = 0.0
+            tot_irr = 0.0
+            tot_profit = 0.0
 
-        for step_i, sim_step in enumerate(step_sims):
-            cid = sim_step["crop_id"]
-            y_val = sim_step["yield_t_ha"]
-            tot_irr += sim_step["irrigation_mm"]
+            for step_i, sim_step in enumerate(step_sims):
+                cid = sim_step["crop_id"]
+                y_val = sim_step["yield_t_ha"]
+                tot_irr += sim_step["irrigation_mm"]
 
-            if cid != "fallow":
-                crop_yields[cid].append(y_val)
-                prev_cid = step_sims[step_i - 1]["crop_id"] if step_i > 0 else step_sims[-1]["crop_id"]
-                prec_leg = prev_cid in crops and crops[prev_cid].group in ("legume", "cover")
-                practices = sim_step.get("practices", [])
+                if cid != "fallow":
+                    crop_yields[cid].append(y_val)
+                    prev_cid = step_sims[step_i - 1]["crop_id"] if step_i > 0 else step_sims[-1]["crop_id"]
+                    prec_leg = prev_cid in crops and crops[prev_cid].group in ("legume", "cover")
+                    practices = sim_step.get("practices", [])
 
-                # Deterministic mandi price realization draw per weather year, procurement_type & market_risk
-                c_econ = econ_table.get(cid, {})
-                m_risk = float(c_econ.get("market_risk", 0.12))
-                proc_type = str(c_econ.get("procurement_type", "nafed_pss"))
-                seed = zlib.crc32(f"{member_id}_{cid}_{member_idx}".encode())
-                # Map seed to shock in [-0.5, +0.5]
-                u_val = ((seed % 1000) / 1000.0) - 0.5
-                if proc_type == "msp_assured":
-                    # Assured FCI / state procurement at MSP floor
-                    price_mult = float(np.clip(1.0 + 0.80 * m_risk * u_val, 0.95, 1.05))
-                elif proc_type == "nafed_pss":
-                    # NAFED / PSS 25% procurement ceiling -> moderate mandi discount in surplus years
-                    base_realization = 0.94
-                    shock = (2.1 * m_risk * u_val) if u_val < 0 else (1.4 * m_risk * u_val)
-                    price_mult = float(np.clip(base_realization + shock, 0.68, 1.18))
-                else:
-                    # Open mandi-linked crop without assured procurement -> higher price discount & volatility
-                    base_realization = 0.86
-                    shock = (2.6 * m_risk * u_val) if u_val < 0 else (1.8 * m_risk * u_val)
-                    price_mult = float(np.clip(base_realization + shock, 0.52, 1.25))
+                    # Deterministic mandi price realization draw per weather year, procurement_type & market_risk
+                    c_econ = econ_table.get(cid, {})
+                    m_risk = float(c_econ.get("market_risk", 0.12))
+                    proc_type = str(c_econ.get("procurement_type", "nafed_pss"))
+                    seed = zlib.crc32(f"{member_id}_{cid}_{member_idx}_{sub_idx}".encode())
+                    # Map seed to shock in [-0.5, +0.5]
+                    u_val = ((seed % 1000) / 1000.0) - 0.5
+                    if proc_type == "msp_assured":
+                        # Assured FCI / state procurement at MSP floor
+                        price_mult = float(np.clip(1.0 + 0.80 * m_risk * u_val, 0.95, 1.05))
+                    elif proc_type == "nafed_pss":
+                        # NAFED / PSS 25% procurement ceiling -> moderate mandi discount in surplus years
+                        base_realization = 0.94
+                        shock = (2.1 * m_risk * u_val) if u_val < 0 else (1.4 * m_risk * u_val)
+                        price_mult = float(np.clip(base_realization + shock, 0.68, 1.18))
+                    else:
+                        # Open mandi-linked crop without assured procurement -> higher price discount & volatility
+                        base_realization = 0.86
+                        shock = (2.6 * m_risk * u_val) if u_val < 0 else (1.8 * m_risk * u_val)
+                        price_mult = float(np.clip(base_realization + shock, 0.52, 1.25))
 
-                if price_shock_pct != 0.0:
-                    price_mult = max(0.25, price_mult * (1.0 + price_shock_pct / 100.0))
+                    if price_shock_pct != 0.0:
+                        price_mult = max(0.25, price_mult * (1.0 + price_shock_pct / 100.0))
 
-                econ_res = economics.profit_per_ha(
-                    cid,
-                    y_val,
-                    practices=practices,
-                    region="punjab",
-                    currency=profile.currency or "INR",
-                    price_multiplier=price_mult,
-                    preceded_by_legume=prec_leg,
-                    irrigation=constraints.irrigation,
-                )
-                step_profit = float(econ_res["profit_per_ha"])
-                if fertilizer_shock_pct != 0.0 and cid in crops:
-                    c_spec = crops[cid]
-                    synth_n_kg = max(
-                        0.0,
-                        c_spec.n_demand_kg_ha - c_spec.n_fixation_kg_ha - (25.0 if prec_leg else 0.0),
+                    econ_res = economics.profit_per_ha(
+                        cid,
+                        y_val,
+                        practices=practices,
+                        region="punjab",
+                        currency=profile.currency or "INR",
+                        price_multiplier=price_mult,
+                        preceded_by_legume=prec_leg,
+                        irrigation=constraints.irrigation,
                     )
-                    unit_n_cost = 14.0 if (profile.currency or "INR") == "INR" else 0.18
-                    step_profit -= synth_n_kg * unit_n_cost * (fertilizer_shock_pct / 100.0)
-                tot_profit += step_profit
+                    step_profit = float(econ_res["profit_per_ha"])
+                    if fertilizer_shock_pct != 0.0 and cid in crops:
+                        c_spec = crops[cid]
+                        synth_n_kg = max(
+                            0.0,
+                            c_spec.n_demand_kg_ha - c_spec.n_fixation_kg_ha - (25.0 if prec_leg else 0.0),
+                        )
+                        unit_n_cost = 14.0 if (profile.currency or "INR") == "INR" else 0.18
+                        step_profit -= synth_n_kg * unit_n_cost * (fertilizer_shock_pct / 100.0)
+                    tot_profit += step_profit
 
-        ann_irr = tot_irr / rotation_years
-        ann_profit = tot_profit / rotation_years
+            ann_irr = tot_irr / rotation_years
+            ann_profit = tot_profit / rotation_years
 
-        member_irrigations.append(round(ann_irr, 1))
-        member_profits.append(round(ann_profit, 1))
+            member_irrigations.append(round(ann_irr, 1))
+            member_profits.append(round(ann_profit, 1))
 
     p_arr = np.array(member_profits) if member_profits else np.array([50000.0])
     p10 = float(np.percentile(p_arr, 10))
@@ -180,7 +191,11 @@ def evaluate_rotation(
     for s in rotation.steps:
         if s.crop_id in crops and s.crop_id != "fallow":
             c_spec = crops[s.crop_id]
-            res_t = c_spec.residue_t_ha
+            mean_y_step = float(np.mean(crop_yields.get(s.crop_id, [c_spec.typical_yield_t_ha[0]])))
+            typ_min = max(0.4, float(c_spec.typical_yield_t_ha[0]))
+            # Scale crop straw/root biomass proportionally when severe water/heat stress depresses yield below typical_min
+            yield_scale = float(np.clip(mean_y_step / typ_min, 0.25, 1.0)) if mean_y_step < typ_min else 1.0
+            res_t = c_spec.residue_t_ha * yield_scale
             c_frac = 0.45
 
             if soil_health.is_burning_practice(s.practices) or (rot_has_burning and s.crop_id in ("rice_puddled", "wheat")):
@@ -230,7 +245,12 @@ def evaluate_rotation(
     p_fact = 1.0
     ann_erosion = float(round(rusle.soil_loss(r_fact, k_fact, ls_fact, rot_c_factor, p_fact), 2))
 
-    # Nitrogen Balance
+    # Nitrogen Balance (incorporating Soil Health Card available N mineralization credit when present)
+    shc_n_credit = (
+        float(np.clip((soil.nitrogen_g_kg * 2240.0 - 280.0) * 0.15, -25.0, 30.0))
+        if (soil.source == "farmer_test" and soil.nitrogen_g_kg is not None)
+        else 0.0
+    )
     n_surpluses = []
     for idx, s in enumerate(rotation.steps):
         if s.crop_id in crops and s.crop_id != "fallow":
@@ -240,7 +260,11 @@ def evaluate_rotation(
             ret_res = any(p in ("residue_retained", "happy_seeder") for p in s.practices)
             mean_y = float(np.mean(crop_yields.get(s.crop_id, [2.0])))
             n_res = soil_health.n_balance(
-                c_spec, yield_t_ha=mean_y, preceded_by_legume=prec_leg, residue_retained=ret_res
+                c_spec,
+                yield_t_ha=mean_y,
+                preceded_by_legume=prec_leg,
+                residue_retained=ret_res,
+                soil_n_credit_kg_ha=shc_n_credit,
             )
             n_surpluses.append(n_res["n_surplus_deficit_kg_ha"])
     ann_n_balance = float(round(sum(n_surpluses) / rotation_years, 1)) if n_surpluses else 0.0
@@ -550,6 +574,7 @@ def prescreen_rotations_with_surrogate(
     profile: FieldProfile,
     crops: dict[str, CropSpec] | None = None,
     max_candidates: int = 32,
+    rank_scores: dict[str, float] | None = None,
 ) -> list[Rotation]:
     """TASK-O05: Fast polynomial Ridge surrogate pre-screener for large rotation pools."""
     if len(rotations) <= max_candidates:
@@ -562,20 +587,44 @@ def prescreen_rotations_with_surrogate(
         water_req = 0.0
         n_fix = 0.0
         dur_tot = 0.0
-        for s in rot.steps:
-            if s.crop_id in crops and s.crop_id != "fallow":
-                c = crops[s.crop_id]
-                water_req += 0.5 * (c.water_requirement_mm[0] + c.water_requirement_mm[1])
-                n_fix += c.n_fixation_kg_ha
-                dur_tot += 0.5 * (c.duration_days[0] + c.duration_days[1])
-        x_vec = [water_req / yrs, n_fix / yrs, dur_tot / yrs, float(profile.soil.clay_pct or 22.0)]
-        score_proxy = (n_fix / yrs) * 1.5 - (water_req / yrs) * 0.08 + (dur_tot / yrs) * 0.2
+        active_cids = [s.crop_id for s in rot.steps if s.crop_id in crops and s.crop_id != "fallow"]
+        for cid in active_cids:
+            c = crops[cid]
+            water_req += 0.5 * (c.water_requirement_mm[0] + c.water_requirement_mm[1])
+            n_fix += c.n_fixation_kg_ha
+            dur_tot += 0.5 * (c.duration_days[0] + c.duration_days[1])
+        mean_suit = (
+            float(np.mean([rank_scores.get(cid, 0.3) for cid in active_cids]))
+            if (rank_scores and active_cids)
+            else 0.6
+        )
+        has_leg = 0.25 if any(crops[cid].n_fixation_kg_ha > 0 for cid in active_cids) else 0.0
+        has_cereal = 0.20 if any(crops[cid].group == "cereal" for cid in active_cids) else 0.0
+        has_staple = (
+            0.22
+            if any(
+                cid in ("wheat", "rice_short", "rice_dsr", "maize", "chickpea", "mustard", "soybean")
+                for cid in active_cids
+            )
+            else 0.0
+        )
+        pau_flagship = (
+            0.25
+            if (
+                any(cid in ("rice_short", "rice_dsr", "maize", "soybean") for cid in active_cids)
+                and any(cid in ("wheat", "chickpea", "mustard", "urad") for cid in active_cids)
+            )
+            else 0.0
+        )
+        fams = len({crops[cid].family for cid in active_cids})
+        x_vec = [water_req / yrs, n_fix / yrs, dur_tot / yrs, mean_suit * 100.0, float(fams)]
+        score_proxy = mean_suit + has_leg + has_cereal + has_staple + pau_flagship + 0.04 * fams
         features.append(x_vec)
         targets.append(score_proxy)
     X_arr = np.asarray(features, dtype=float)
     y_arr = np.asarray(targets, dtype=float)
     model = surrogate.train_crop_surrogate(X_arr, y_arr, degree=2, alpha=0.5)
-    preds = np.asarray(model.predict(X_arr), dtype=float).ravel()
+    preds = 0.5 * np.asarray(model.predict(X_arr), dtype=float).ravel() + 0.5 * y_arr
     ranked_idx = np.argsort(-preds)
     selected: list[Rotation] = []
     for idx in ranked_idx:
@@ -599,10 +648,14 @@ def compute_resilience_and_regret(
         irrigation_spike = max(0.0, irr_stress - irr_hist)
     else:
         profit_regret = max(0.0, p_hist - hist_result.cvar_profit_10)
-        irrigation_spike = 0.15 * irr_hist
+        if hist_result.irrigation_mm and len(hist_result.irrigation_mm) > 1:
+            irr_p90 = float(np.percentile(hist_result.irrigation_mm, 90))
+            irrigation_spike = max(0.0, irr_p90 - irr_hist)
+        else:
+            irrigation_spike = 0.15 * irr_hist
 
     profit_penalty = 40.0 * min(1.0, profit_regret / max(100.0, abs(p_hist)))
-    irrigation_penalty = 30.0 * min(1.0, irrigation_spike / max(100.0, irr_hist))
+    irrigation_penalty = 30.0 * min(1.0, irrigation_spike / max(150.0, irr_hist))
     soil_bonus = 30.0 * (hist_result.soil_health_score / 100.0)
 
     score = 100.0 - profit_penalty - irrigation_penalty + (soil_bonus - 15.0)

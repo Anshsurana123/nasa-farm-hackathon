@@ -81,10 +81,25 @@ export function RotationExplorer({
 
   const isSA = isSouthAsia(field.lat, field.lon);
   const currencySymbol = profile?.currency_symbol ?? "₹";
+  const fieldKey = `${field.lat},${field.lon}`;
 
-  const [internalStrategies, setInternalStrategies] = useState<StrategyRecommendation[]>([]);
+  const [internalData, setInternalData] = useState<{ key: string; list: StrategyRecommendation[] }>({
+    key: fieldKey,
+    list: [],
+  });
+  const internalStrategies = internalData.key === fieldKey ? internalData.list : [];
+  const setInternalStrategies = (list: StrategyRecommendation[]) =>
+    setInternalData({ key: fieldKey, list });
+
   const [internalLoading, setInternalLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cards" | "pareto" | "whatif">(initialTab ?? "cards");
+  const [tabState, setTabState] = useState<{
+    propTab?: "cards" | "pareto" | "whatif";
+    tab: "cards" | "pareto" | "whatif";
+  }>({ propTab: initialTab, tab: initialTab ?? "cards" });
+  const activeTab = tabState.propTab === initialTab ? tabState.tab : (initialTab ?? "cards");
+  const setActiveTab = (tab: "cards" | "pareto" | "whatif") =>
+    setTabState({ propTab: initialTab, tab });
+
   const [paretoViewMode, setParetoViewMode] = useState<"3d" | "2d">("3d");
 
   // What-If Shock & CMIP6 Climate Horizon parameters (TASK-F06, TASK-C02)
@@ -92,17 +107,17 @@ export function RotationExplorer({
   const [droughtShockPct, setDroughtShockPct] = useState<number>(15);
   const [priceShockPct, setPriceShockPct] = useState<number>(-5);
   const [fertilizerShockPct, setFertilizerShockPct] = useState<number>(25);
-  const [stressedStrategies, setStressedStrategies] = useState<StrategyRecommendation[] | null>(null);
+  const [stressedData, setStressedData] = useState<{
+    key: string;
+    list: StrategyRecommendation[] | null;
+  }>({ key: fieldKey, list: null });
+  const stressedStrategies = stressedData.key === fieldKey ? stressedData.list : null;
+  const setStressedStrategies = (list: StrategyRecommendation[] | null) =>
+    setStressedData({ key: fieldKey, list });
   const [stressLoading, setStressLoading] = useState<boolean>(false);
 
   const strategies = internalStrategies.length > 0 ? internalStrategies : (externalStrategies ?? []);
   const loading = externalLoading ?? internalLoading;
-
-  useEffect(() => {
-    if (initialTab) {
-      setActiveTab(initialTab);
-    }
-  }, [initialTab]);
 
   const fetchRecommendations = async (overrideP?: Priorities, overrideC?: FarmConstraints) => {
     const pToUse = overrideP ?? priorities;
@@ -159,12 +174,37 @@ export function RotationExplorer({
   };
 
   useEffect(() => {
-    setInternalStrategies([]);
-    setStressedStrategies(null);
-    if (!externalStrategies && field) {
-      fetchRecommendations();
-    }
-  }, [field.lat, field.lon]);
+    if (externalStrategies || !field) return;
+    let isCancelled = false;
+    api
+      .recommend({
+        field,
+        priorities,
+        constraints,
+        language: (lang as "en" | "pa" | "hi") || "en",
+        soil_health_card: soilHealthCard,
+        baseline_override: baselineOverride,
+        climate_scenario: climateScenario,
+      })
+      .then((recs) => {
+        if (!isCancelled && recs && recs.length > 0) {
+          setInternalData({ key: fieldKey, list: recs });
+          onStrategiesLoaded?.(recs);
+        }
+      })
+      .catch((err) => {
+        if (!isCancelled) {
+          console.warn("Backend /recommend failed, falling back to simulated strategies", err);
+          const fallback = getFallbackStrategies(field, currencySymbol);
+          setInternalData({ key: fieldKey, list: fallback });
+          onStrategiesLoaded?.(fallback);
+        }
+      });
+    return () => {
+      isCancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fieldKey, Boolean(externalStrategies)]);
 
   const baseline = strategies.find((s) => s.rank === 0) ?? strategies[0];
   const candidates = strategies.filter((s) => s.rank > 0);
@@ -262,7 +302,7 @@ export function RotationExplorer({
                 onClick={() => setActiveTab("pareto")}
                 className={`px-3 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer flex items-center gap-1.5 ${
                   activeTab === "pareto"
-                    ? "bg-violet-500 text-white font-bold"
+                    ? "bg-stone-500 text-white font-bold"
                     : "text-muted hover:text-foreground"
                 }`}
               >
@@ -324,7 +364,7 @@ export function RotationExplorer({
               <button
                 type="button"
                 onClick={() => applyPreset("resilient")}
-                className="px-2.5 py-1 rounded-lg bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/40 text-violet-600 dark:text-violet-300 font-semibold transition-colors cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-stone-500/15 hover:bg-stone-500/25 border border-stone-500/40 text-stone-600 dark:text-stone-300 font-semibold transition-colors cursor-pointer"
               >
                 Drought Shield
               </button>
@@ -364,7 +404,7 @@ export function RotationExplorer({
               />
               <div
                 style={{ width: `${wRisk}%` }}
-                className="bg-violet-400 transition-all duration-300"
+                className="bg-stone-400 transition-all duration-300"
                 title={`Climate Resilience: ${wRisk}%`}
               />
               <div
@@ -453,10 +493,10 @@ export function RotationExplorer({
             <div className="space-y-2 p-3.5 rounded-xl bg-surface border border-line">
               <div className="flex justify-between items-center text-xs">
                 <span className="font-semibold text-foreground flex items-center gap-1.5">
-                  <ShieldAlert className="w-3.5 h-3.5 text-violet-400" />
+                  <ShieldAlert className="w-3.5 h-3.5 text-stone-400" />
                   <span>{t("priorities.risk")}</span>
                 </span>
-                <span className="font-mono text-[11px] font-bold text-violet-400">
+                <span className="font-mono text-[11px] font-bold text-stone-400">
                   {priorities.low_risk.toFixed(1)}×
                 </span>
               </div>
@@ -469,7 +509,7 @@ export function RotationExplorer({
                 onChange={(e) =>
                   setPriorities({ ...priorities, low_risk: parseFloat(e.target.value) })
                 }
-                className="w-full accent-violet-400 cursor-pointer"
+                className="w-full accent-stone-400 cursor-pointer"
               />
             </div>
 
@@ -554,7 +594,7 @@ export function RotationExplorer({
               type="button"
               onClick={() => fetchRecommendations()}
               disabled={loading}
-              className="px-5 py-2 rounded-xl text-xs font-mono font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 transition-opacity disabled:opacity-50 cursor-pointer flex items-center gap-2 shadow-sm"
+              className="px-5 py-2 rounded-xl text-xs font-mono font-bold bg-emerald-500 hover:opacity-95 text-slate-950 transition-opacity disabled:opacity-50 cursor-pointer flex items-center gap-2 shadow-sm"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>{loading ? t("priorities.optimizing") : t("priorities.optimize")}</span>
@@ -724,13 +764,19 @@ export function RotationExplorer({
                     {focusedStrategy.rotation.steps.map((step, sIdx) => {
                       const meta = cropMeta(step.crop_id);
                       const sLabel = seasonName(field.lat, field.lon, step.season_index);
-                      // Map season_index to typical month span for visual Gantt bar
-                      const spanCols =
-                        step.season_index === 0
-                          ? { start: 6, len: 5, window: "Jun – Oct" }
+                      const isDelta = field.lat < 16.5;
+                      // Map season_index to regional month span for visual Gantt bar
+                      const spanCols = isDelta
+                        ? step.season_index === 0
+                          ? { start: 6, len: 4, window: "Jun – Sep" }
                           : step.season_index === 1
-                          ? { start: 11, len: 5, window: "Nov – Mar" }
-                          : { start: 4, len: 2, window: "Apr – May" };
+                          ? { start: 10, len: 4, window: "Oct – Jan" }
+                          : { start: 2, len: 3, window: "Feb – Apr" }
+                        : step.season_index === 0
+                        ? { start: 6, len: 5, window: "Jun – Oct" }
+                        : step.season_index === 1
+                        ? { start: 11, len: 5, window: "Nov – Mar" }
+                        : { start: 4, len: 2, window: "Apr – May" };
 
                       return (
                         <div
@@ -768,12 +814,17 @@ export function RotationExplorer({
                           <div className="grid grid-cols-12 gap-1 h-3">
                             {MONTHS.map((m, mIdx) => {
                               const mNum = mIdx + 1;
-                              const isActive =
-                                step.season_index === 0
-                                  ? mNum >= 6 && mNum <= 10
+                              const isActive = isDelta
+                                ? step.season_index === 0
+                                  ? mNum >= 6 && mNum <= 9
                                   : step.season_index === 1
-                                  ? mNum >= 11 || mNum <= 3
-                                  : mNum >= 4 && mNum <= 5;
+                                  ? mNum >= 10 || mNum <= 1
+                                  : mNum >= 2 && mNum <= 4
+                                : step.season_index === 0
+                                ? mNum >= 6 && mNum <= 10
+                                : step.season_index === 1
+                                ? mNum >= 11 || mNum <= 3
+                                : mNum >= 4 && mNum <= 5;
                               return (
                                 <div
                                   key={m}
@@ -991,7 +1042,7 @@ export function RotationExplorer({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h4 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
-                  <Box className="w-4 h-4 text-violet-400" />
+                  <Box className="w-4 h-4 text-stone-400" />
                   <span>Multi-Objective Pareto Trade-Off Frontier</span>
                 </h4>
                 <p className="text-[11px] font-mono text-muted mt-0.5">
@@ -1006,7 +1057,7 @@ export function RotationExplorer({
                   onClick={() => setParetoViewMode("3d")}
                   className={`px-3 py-1 rounded-md font-semibold cursor-pointer transition-colors ${
                     paretoViewMode === "3d"
-                      ? "bg-violet-500 text-white"
+                      ? "bg-stone-500 text-white"
                       : "text-muted hover:text-foreground"
                   }`}
                 >
@@ -1017,7 +1068,7 @@ export function RotationExplorer({
                   onClick={() => setParetoViewMode("2d")}
                   className={`px-3 py-1 rounded-md font-semibold cursor-pointer transition-colors ${
                     paretoViewMode === "2d"
-                      ? "bg-violet-500 text-white"
+                      ? "bg-stone-500 text-white"
                       : "text-muted hover:text-foreground"
                   }`}
                 >
@@ -1033,6 +1084,7 @@ export function RotationExplorer({
                   selectedRank={selectedRank}
                   onSelectRank={(r) => setSelectedRank(r)}
                   currencySymbol={currencySymbol}
+                  unitSystem={unitSystem}
                 />
               ) : (
                 <div className="p-6">
@@ -1041,6 +1093,7 @@ export function RotationExplorer({
                     selectedRank={selectedRank}
                     onSelectRank={(r) => setSelectedRank(r)}
                     currencySymbol={currencySymbol}
+                    unitSystem={unitSystem}
                   />
                 </div>
               )}
@@ -1278,15 +1331,21 @@ export function RotationExplorer({
                           </span>
                           <span>{strat.rotation.label ?? strat.rotation.id}</span>
                         </th>
-                        <td className="py-3.5 px-3">{fmtMoney(normP, currencySymbol)}</td>
+                        <td className="py-3.5 px-3">
+                          {fmtMoney(scaleByUnit(normP, unitSystem), currencySymbol)}
+                          {fmtAreaUnit(unitSystem)}
+                        </td>
                         <td className="py-3.5 px-3 font-bold text-emerald-500">
-                          {fmtMoney(stressedP, currencySymbol)}
+                          {fmtMoney(scaleByUnit(stressedP, unitSystem), currencySymbol)}
+                          {fmtAreaUnit(unitSystem)}
                         </td>
                         <td className="py-3.5 px-3 text-amber-400">
-                          {fmtMoney(stressedCvar, currencySymbol)}
+                          {fmtMoney(scaleByUnit(stressedCvar, unitSystem), currencySymbol)}
+                          {fmtAreaUnit(unitSystem)}
                         </td>
                         <td className="py-3.5 px-3 text-rose-500">
-                          −{fmtMoney(drop, currencySymbol)}
+                          −{fmtMoney(scaleByUnit(drop, unitSystem), currencySymbol)}
+                          {fmtAreaUnit(unitSystem)}
                         </td>
                         <td className="py-3.5 px-3">{stressedIrr} mm/yr</td>
                         <td className="py-3.5 px-3">
@@ -1430,7 +1489,7 @@ function SoilHealthRadar({
         <polygon
           points={polyPoints(bVals)}
           fill="rgba(244, 63, 94, 0.16)"
-          stroke="#f43f5e"
+          stroke="#d06b5c"
           strokeWidth="1.5"
           strokeDasharray="3 2"
         />
@@ -1439,7 +1498,7 @@ function SoilHealthRadar({
         <polygon
           points={polyPoints(fVals)}
           fill="rgba(16, 185, 129, 0.25)"
-          stroke="#10b981"
+          stroke="#5fae7b"
           strokeWidth="2"
         />
 
@@ -1537,7 +1596,7 @@ function StrategyCard({
   const cardTone = isBaseline
     ? "border-line bg-surface/50 hatch-pattern"
     : strategy.rank === 1
-    ? "border-emerald-500/60 bg-gradient-to-b from-emerald-500/[0.09] to-transparent"
+    ? "border-emerald-500/60 bg-emerald-500/[0.09]"
     : "border-line-strong bg-surface/85";
 
   const selectedRing = isSelected
@@ -1574,7 +1633,7 @@ function StrategyCard({
             )}
             {resilienceScore !== undefined && (
               <span
-                className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-600 dark:text-violet-300 border border-violet-500/35"
+                className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-stone-500/15 text-stone-600 dark:text-stone-300 border border-stone-500/35"
                 title="Climate Resilience Index"
               >
                 RES {Math.round(resilienceScore)}
@@ -1679,7 +1738,7 @@ function StrategyCard({
                 </span>
               )}
               {!isBaseline && pm.irrigations_saved_per_yr > 0 && (
-                <span className="px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-300 border border-violet-500/30">
+                <span className="px-1.5 py-0.5 rounded bg-stone-500/10 text-stone-300 border border-stone-500/30">
                   −{pm.irrigations_saved_per_yr.toFixed(0)} Irrigations
                 </span>
               )}
@@ -1720,11 +1779,13 @@ function ParetoCube3D({
   selectedRank,
   onSelectRank,
   currencySymbol = "$",
+  unitSystem = "hectare",
 }: {
   strategies: StrategyRecommendation[];
   selectedRank: number | null;
   onSelectRank: (rank: number) => void;
   currencySymbol?: string;
+  unitSystem?: UnitSystem;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [yaw, setYaw] = useState<number>(-0.62);
@@ -1809,14 +1870,14 @@ function ParetoCube3D({
     const yEnd = project(-1, 0.95, -1);
     const zEnd = project(-1, -0.85, 1.08);
 
-    ctx.strokeStyle = "#06b6d4";
+    ctx.strokeStyle = "#5f9bbd";
     ctx.lineWidth = 2 * dpr;
     ctx.beginPath();
     ctx.moveTo(origin.x, origin.y);
     ctx.lineTo(xEnd.x, xEnd.y);
     ctx.stroke();
 
-    ctx.strokeStyle = "#10b981";
+    ctx.strokeStyle = "#5fae7b";
     ctx.beginPath();
     ctx.moveTo(origin.x, origin.y);
     ctx.lineTo(yEnd.x, yEnd.y);
@@ -1829,10 +1890,10 @@ function ParetoCube3D({
     ctx.stroke();
 
     ctx.font = `700 ${Math.round(10 * dpr)}px var(--font-geist-mono), monospace`;
-    ctx.fillStyle = "#06b6d4";
+    ctx.fillStyle = "#5f9bbd";
     ctx.fillText("X // WATER SAVED (mm/yr)", xEnd.x - 40 * dpr, xEnd.y + 14 * dpr);
-    ctx.fillStyle = "#10b981";
-    ctx.fillText("Y // NET MARGIN (" + currSym + "/ha)", yEnd.x - 10 * dpr, yEnd.y - 8 * dpr);
+    ctx.fillStyle = "#5fae7b";
+    ctx.fillText("Y // NET MARGIN (" + currSym + fmtAreaUnit(unitSystem) + ")", yEnd.x - 10 * dpr, yEnd.y - 8 * dpr);
     ctx.fillStyle = "#f59e0b";
     ctx.fillText("Z // SOIL HEALTH [0-100]", zEnd.x - 30 * dpr, zEnd.y + 14 * dpr);
     ctx.restore();
@@ -1841,7 +1902,7 @@ function ParetoCube3D({
       const arr = s.results[0]?.irrigation_mm;
       return arr?.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 1000;
     });
-    const profits = strategies.map((s) => s.results[0]?.profit_p50 ?? 1000);
+    const profits = strategies.map((s) => scaleByUnit(s.results[0]?.profit_p50 ?? 1000, unitSystem));
     const soils = strategies.map((s) => s.results[0]?.soil_health_score ?? 50);
 
     const minIrr = Math.min(...irrs);
@@ -1891,7 +1952,7 @@ function ParetoCube3D({
     for (const item of mapped) {
       const isBase = item.strat.rank === 0;
       const isSelected = selectedRank === item.strat.rank;
-      const color = isBase ? "#f43f5e" : item.strat.rank === 1 ? "#10b981" : "#06b6d4";
+      const color = isBase ? "#d06b5c" : item.strat.rank === 1 ? "#5fae7b" : "#5f9bbd";
 
       ctx.save();
       ctx.strokeStyle = isSelected
@@ -1934,7 +1995,7 @@ function ParetoCube3D({
       );
       grad.addColorStop(0, "#ffffff");
       grad.addColorStop(0.35, color);
-      grad.addColorStop(1, "#060b16");
+      grad.addColorStop(1, "#141413");
 
       ctx.fillStyle = grad;
       ctx.beginPath();
@@ -1963,7 +2024,7 @@ function ParetoCube3D({
         r: 22,
       });
     }
-  }, [strategies, yaw, pitch, selectedRank, currSym]);
+  }, [strategies, yaw, pitch, selectedRank, currSym, unitSystem]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     isDraggingRef.current = true;
@@ -2033,11 +2094,13 @@ function ParetoScatterPlot({
   selectedRank,
   onSelectRank,
   currencySymbol = "$",
+  unitSystem = "hectare",
 }: {
   strategies: StrategyRecommendation[];
   selectedRank: number | null;
   onSelectRank: (rank: number) => void;
   currencySymbol?: string;
+  unitSystem?: UnitSystem;
 }) {
   if (!strategies || strategies.length === 0) return null;
 
@@ -2050,7 +2113,7 @@ function ParetoScatterPlot({
   const padT = 30;
   const padB = 40;
 
-  const allProfits = strategies.map((s) => s.results[0]?.profit_p50 ?? 1000);
+  const allProfits = strategies.map((s) => scaleByUnit(s.results[0]?.profit_p50 ?? 1000, unitSystem));
   const allIrrs = strategies.map((s) => {
     const irrs = s.results[0]?.irrigation_mm;
     return irrs?.length ? irrs.reduce((a, b) => a + b, 0) / irrs.length : 800;
@@ -2083,7 +2146,7 @@ function ParetoScatterPlot({
     const irr = res?.irrigation_mm?.length
       ? res.irrigation_mm.reduce((a, b) => a + b, 0) / res.irrigation_mm.length
       : 800;
-    const p = res?.profit_p50 ?? 1000;
+    const p = scaleByUnit(res?.profit_p50 ?? 1000, unitSystem);
     const score = res?.soil_health_score ?? 50;
     return {
       rank: s.rank,
@@ -2174,7 +2237,7 @@ function ParetoScatterPlot({
               .sort((a, b) => a.x - b.x)
               .reduce((acc, curr, idx) => `${acc} ${idx === 0 ? "M" : "L"} ${curr.x} ${curr.y}`, "")}
             fill="none"
-            stroke="#10b981"
+            stroke="#5fae7b"
             strokeWidth="2"
             strokeDasharray="4 3"
           />
@@ -2182,7 +2245,7 @@ function ParetoScatterPlot({
 
         {points.map((pt) => {
           const isSelected = selectedRank === pt.rank;
-          const color = pt.isBase ? "#f43f5e" : pt.score > 70 ? "#10b981" : "#06b6d4";
+          const color = pt.isBase ? "#d06b5c" : pt.score > 70 ? "#5fae7b" : "#5f9bbd";
           return (
             <g
               key={pt.rank}
@@ -2206,7 +2269,7 @@ function ParetoScatterPlot({
                 textAnchor="middle"
                 fontSize="10"
                 fontWeight="bold"
-                fill={pt.isBase ? "#f43f5e" : "#10b981"}
+                fill={pt.isBase ? "#d06b5c" : "#5fae7b"}
               >
                 {pt.isBase ? "REF" : `OPT 0${pt.rank}`}
               </text>

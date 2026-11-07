@@ -75,11 +75,29 @@ def historical_members(power_df: pd.DataFrame, rotation_years: int = 1) -> dict[
 CMIP6_MODELS = ["ACCESS-CM2", "MIROC6", "MPI-ESM1-2-HR", "NorESM2-MM", "EC-Earth3"]
 
 
+def _interp_with_tail_extrapolation(
+    mf_vals: np.ndarray, q_mh: np.ndarray, q_obs: np.ndarray, is_non_negative: bool = False
+) -> np.ndarray:
+    """Empirical quantile mapping with constant-anomaly extrapolation beyond historical [0, 100] percentiles."""
+    corr_vals = np.interp(mf_vals, q_mh, q_obs)
+    above = mf_vals > q_mh[-1]
+    below = mf_vals < q_mh[0]
+    if np.any(above):
+        corr_vals[above] = q_obs[-1] + (mf_vals[above] - q_mh[-1])
+    if np.any(below):
+        corr_vals[below] = q_obs[0] + (mf_vals[below] - q_mh[0])
+    if is_non_negative:
+        corr_vals = np.maximum(0.0, corr_vals)
+    return corr_vals
+
+
 def quantile_map(obs: pd.Series, model_hist: pd.Series, model_future: pd.Series) -> pd.Series:
     """TASK-C02: Monthly empirical quantile mapping bias correction.
 
     Maps quantiles of model_future through CDF of model_hist to quantiles of obs:
         x_corr = Q_obs( F_model_hist( x_future ) )
+    Preserves projected climate warming anomalies above the historical 100th percentile
+    via constant-anomaly tail extrapolation (Cannon et al., 2015).
     """
     clean_obs = obs.dropna()
     clean_mh = model_hist.dropna()
@@ -87,6 +105,8 @@ def quantile_map(obs: pd.Series, model_hist: pd.Series, model_future: pd.Series)
 
     if len(clean_obs) == 0 or len(clean_mh) == 0 or len(clean_mf) == 0:
         return model_future.copy()
+
+    is_non_neg = bool((clean_obs >= 0.0).all() and (clean_obs == 0.0).any())
 
     # Apply monthly empirical quantile mapping across the 12 calendar months if DatetimeIndex
     if hasattr(clean_obs.index, "month") and hasattr(clean_mh.index, "month") and hasattr(clean_mf.index, "month"):
@@ -104,7 +124,7 @@ def quantile_map(obs: pd.Series, model_hist: pd.Series, model_future: pd.Series)
             q_obs = np.percentile(sub_obs.to_numpy(), percentiles)
             q_mh = np.percentile(sub_mh.to_numpy(), percentiles)
             mf_vals = sub_mf.to_numpy(dtype=float)
-            corr_vals = np.interp(mf_vals, q_mh, q_obs)
+            corr_vals = _interp_with_tail_extrapolation(mf_vals, q_mh, q_obs, is_non_negative=is_non_neg)
             corr_chunks.append(pd.Series(corr_vals, index=sub_mf.index))
 
         if corr_chunks:
@@ -117,7 +137,7 @@ def quantile_map(obs: pd.Series, model_hist: pd.Series, model_future: pd.Series)
     q_obs = np.percentile(clean_obs.to_numpy(), percentiles)
     q_mh = np.percentile(clean_mh.to_numpy(), percentiles)
     mf_vals = clean_mf.to_numpy(dtype=float)
-    corr_vals = np.interp(mf_vals, q_mh, q_obs)
+    corr_vals = _interp_with_tail_extrapolation(mf_vals, q_mh, q_obs, is_non_negative=is_non_neg)
     return pd.Series(corr_vals, index=clean_mf.index, name=model_future.name)
 
 

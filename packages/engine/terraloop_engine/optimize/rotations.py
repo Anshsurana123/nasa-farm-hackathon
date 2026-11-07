@@ -86,21 +86,21 @@ def crops_for_slot(slot: SeasonSlot, crops: dict[str, CropSpec], constraints: Fa
 
 
 def _step_duration_days(crop_id: str, crops: dict[str, CropSpec]) -> int:
-    """Effective field occupancy duration (days) for calendar feasibility checking."""
+    """Effective field occupancy duration (days) for calendar feasibility checking (aligned with fao56_runner)."""
     if crop_id == FALLOW or crop_id not in crops:
         return 0
     if crop_id == "rice_puddled":
-        return 132  # Transplanted field occupancy (June 20 - Oct 30)
+        return 126  # Transplanted field occupancy (June 20 - Oct 24)
     if crop_id == "rice_short":
-        return 96   # PR-126 transplanted field occupancy (June 25 - Sept 29)
+        return 104  # PR-126 transplanted field occupancy (June 22 - Oct 4)
     if crop_id == "rice_dsr":
-        return 115  # Direct-seeded rice occupancy (June 10 - Oct 3)
+        return 127  # Direct-seeded rice occupancy (June 10 - Oct 15)
     if crop_id == "basmati":
         return 118  # Transplanted July 8 - Nov 3
     if crop_id == "wheat":
-        return 135  # Timely sown Rabi wheat (Nov 8 - Mar 23)
-    if crop_id == "moong":
-        return 60   # Summer Sathi Moong (Apr 10 - Jun 9)
+        return 135  # Timely sown Rabi wheat (Nov 5 - Mar 20)
+    if crop_id in ("moong", "urad"):
+        return 60   # Summer Sathi Moong / Urad catch crop (Apr 10 - Jun 9)
     c = crops[crop_id]
     return round(0.5 * (c.duration_days[0] + c.duration_days[1]))
 
@@ -160,6 +160,8 @@ def _assign_step_practices(crop_id: str, prev_crop_id: str, season_index: int) -
             return ["happy_seeder", "zero_till", "residue_retained"]
         return ["zero_till", "residue_retained"]
     if crop_id in ("mustard", "chickpea", "lentil", "barley"):
+        return ["zero_till", "residue_retained"]
+    if crop_id in ("moong", "urad") and season_index == 2:
         return ["zero_till", "residue_retained"]
     return ["residue_retained"]
 
@@ -382,6 +384,8 @@ def derive_baseline_rotation(
             c0 = slot_map[0]
             c1 = slot_map[1]
             c2 = slot_map.get(2, FALLOW)
+            if c0 in ("rice_puddled", "cotton", "pigeon_pea") and lat >= 16.5:
+                c2 = FALLOW
             steps = []
             for y in range(years):
                 p0 = ["puddling", "burning", "residue_burnt"] if (burning and c0 == "rice_puddled") else (["puddling"] if c0 == "rice_puddled" else ["conventional"])

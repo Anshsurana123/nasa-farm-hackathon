@@ -5,7 +5,6 @@ import type { FieldProfile, StrategyRecommendation } from "@/types/api";
 import { MONTHS, waterSavedPct } from "@/lib/ui";
 import { ProvenanceChip } from "./ProvenanceChip";
 import {
-  Layers,
   RotateCcw,
   Play,
   Pause,
@@ -111,7 +110,7 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
   // Main 3D Canvas Render Loop
   useEffect(() => {
     let rafId = 0;
-    let startTime = performance.now();
+    const startTime = performance.now();
 
     const project = (
       p: Vec3,
@@ -596,7 +595,7 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
           ctx.fillStyle = isFireView
             ? "#ef4444"
             : isLegumeRow
-            ? "#10b981"
+            ? "#5fae7b"
             : "#eab308";
           ctx.beginPath();
           ctx.arc(tipPt.x, tipPt.y, 2.8 * dpr * tipPt.scale, 0, Math.PI * 2);
