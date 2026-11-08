@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
 import type { GoldenField } from "@/types/api";
 import { Layers, MapPin, Compass, Globe2, Box, RotateCw } from "lucide-react";
-import { fmtDMS, regionFlag } from "@/lib/ui";
+import { fmtDMS, regionContext, regionFlag } from "@/lib/ui";
 
 interface FieldMapProps {
   selectedField: { lat: number; lon: number; name?: string };
@@ -193,10 +193,11 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
           const lon = Number(e.lngLat.lng.toFixed(4));
           const latStr = `${Math.abs(lat).toFixed(3)}°${lat >= 0 ? "N" : "S"}`;
           const lonStr = `${Math.abs(lon).toFixed(3)}°${lon >= 0 ? "E" : "W"}`;
+          const reg = regionContext(lat, lon, null);
           onSelect({
             lat,
             lon,
-            name: `Field (${latStr}, ${lonStr})`,
+            name: `${reg.shortName} (${latStr}, ${lonStr})`,
           });
         });
 
@@ -227,10 +228,11 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
           const lon = Number(lngLat.lng.toFixed(4));
           const latStr = `${Math.abs(lat).toFixed(3)}°${lat >= 0 ? "N" : "S"}`;
           const lonStr = `${Math.abs(lon).toFixed(3)}°${lon >= 0 ? "E" : "W"}`;
+          const reg = regionContext(lat, lon, null);
           onSelect({
             lat,
             lon,
-            name: `Field (${latStr}, ${lonStr})`,
+            name: `${reg.shortName} (${latStr}, ${lonStr})`,
           });
         });
 

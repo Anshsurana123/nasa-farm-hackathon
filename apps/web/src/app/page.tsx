@@ -10,6 +10,7 @@ import { useField } from "@/context/FieldContext";
 import { api } from "@/lib/api";
 import {
   avgIrrigation,
+  buildSectorBriefing,
   fmtDMS,
   fmtMoney,
   isSouthAsia,
@@ -94,52 +95,22 @@ export default function MissionControlPage() {
     const lat = parseFloat(customLat);
     const lon = parseFloat(customLon);
     if (!Number.isNaN(lat) && !Number.isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+      const reg = regionContext(lat, lon, null);
       selectLocation({
         lat,
         lon,
-        name: `Coordinate (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)`,
+        name: `${reg.shortName} (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)`,
       });
     }
   };
 
-  // Regional narrative metadata
-  let sectorTitle = "Global Agro-Climatic Intelligence & Subsurface Modeling";
-  let sectorDesc =
-    "Dynamic parcel diagnostics coupling NASA POWER daily agroclimatology, ISRIC SoilGrids 250m soil physics, NASA SMAP root-zone moisture, and FAO-56 / FAO-33 Soil-Water Balance simulation.";
-  let sectorBadge = "GLOBAL EO SWATH";
-  let badgeTone = "border-cyan-500/45 bg-cyan-500/15 text-cyan-600 dark:text-cyan-300";
-
-  if (regCtx.key === "punjab") {
-    sectorTitle = "Indo-Gangetic Basin: Aquifer Depletion & Stubble Fire Mitigation";
-    sectorDesc =
-      "NASA GRACE-FO mascons track ~3.85 cm/yr groundwater drawdown across NW India driven by flooded paddy monoculture, followed by October residue burning observed by NASA FIRMS. TerraLoop evaluates DSR, pulse, and residue-retention rotations.";
-    sectorBadge = "CRITICAL AQUIFER CORRIDOR";
-    badgeTone = "border-amber-500/50 bg-amber-500/15 text-amber-600 dark:text-amber-300";
-  } else if (regCtx.key === "malwa") {
-    sectorTitle = "Semi-Arid Malwa Belt: Canal-Command Deficit & Pulse Diversification";
-    sectorDesc =
-      "High evaporative demand (~1,535 mm/yr ET₀) and brackish deep aquifers challenge Cotton-Wheat systems in SW Punjab. TerraLoop evaluates low-water Kharif pulses (Mung bean, Urad), oilseeds, and Happy Seeder wheat rotations.";
-    sectorBadge = "SEMI-ARID CANAL COMMAND";
-    badgeTone = "border-orange-500/50 bg-orange-500/15 text-orange-600 dark:text-orange-300";
-  } else if (regCtx.key === "vidarbha") {
-    sectorTitle = "Deccan Trap Vertisols: Rainfed Cotton-Pulse & Residual Moisture Relay";
-    sectorDesc =
-      "Deep black cracking clays (52% clay, 180 mm/m AWC) store monsoon rainfall noticed by NASA GPM IMERG and SMAP, enabling rainfed Rabi Chickpea on residual soil moisture while biological N-fixation rebuilds depleted organic carbon.";
-    sectorBadge = "RAINFED VERTISOL CORRIDOR";
-    badgeTone = "border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300";
-  } else if (regCtx.key === "bundelkhand") {
-    sectorTitle = "Bundelkhand Hard-Rock Plateau: Dryland Pulse-Oilseed Resilience";
-    sectorDesc =
-      "Shallow hard-rock aquifers and erratic monsoon dry spells monitored by NASA IMERG and SMAP make flooded cereals unviable. TerraLoop prioritizes drought-hardy Blackgram, Pigeon pea, Chickpea, and Mustard sequences.";
-    sectorBadge = "DRYLAND PLATEAU ADAPTATION";
-    badgeTone = "border-amber-500/50 bg-amber-500/15 text-amber-600 dark:text-amber-300";
-  } else if (regCtx.key === "cauvery") {
-    sectorTitle = "Cauvery Delta Zone: Kuruvai–Samba–Navarai Rice-Pulse Optimization";
-    sectorDesc =
-      "Bimodal SW and NE monsoon rainfall supports intensive deltaic paddy, but coastal aquifer salinity and tail-end canal deficits require replacing double-puddled rice with DSR/Short-duration paddy and rice-fallow Blackgram (Urad) relay.";
-    sectorBadge = "DELTAIC RICE-PULSE SYSTEM";
-    badgeTone = "border-cyan-500/50 bg-cyan-500/15 text-cyan-600 dark:text-cyan-300";
-  }
+  // Dynamic regional + live NASA/SoilGrids profile briefing
+  const {
+    badge: sectorBadge,
+    badgeTone,
+    title: sectorTitle,
+    description: sectorDesc,
+  } = buildSectorBriefing(selectedField.lat, selectedField.lon, selectedGoldenId, profile, topRec);
 
   return (
     <AppShell showTelemetry={true}>

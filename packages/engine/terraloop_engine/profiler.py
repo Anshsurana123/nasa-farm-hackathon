@@ -165,19 +165,28 @@ def summarise_climate(
 # ---------------------------------------------------------------------------
 def regional_indian_soil_fallback(lat: float, lon: float) -> dict[str, float]:
     """Return representative NBSS&LUP / ICAR topsoil properties for Indian agro-zones when SoilGrids is offline."""
+    if (24.0 <= lat < 28.5) and (69.0 <= lon < 76.0):
+        # Western Dry / Thar Arid Torripsamment (Desert Loamy Sand / Sandy Loam - NBSS&LUP)
+        return {"sand": 76.0, "silt": 14.0, "clay": 10.0, "soc": 2.8, "phh2o": 8.3, "bdod": 158.0, "nitrogen": 0.32}
     if (18.0 <= lat < 23.0) and (75.0 <= lon <= 80.5):
         # Vidarbha Deccan Vertisol (Black Cotton Soil - high clay, high water holding)
         return {"sand": 22.0, "silt": 26.0, "clay": 52.0, "soc": 6.2, "phh2o": 7.8, "bdod": 136.0, "nitrogen": 0.65}
+    if (21.0 <= lat < 25.0) and (74.5 <= lon < 79.5):
+        # Central Malwa Medium-Deep Vertisol (Clay / Clay Loam - NBSS&LUP)
+        return {"sand": 26.0, "silt": 30.0, "clay": 44.0, "soc": 6.5, "phh2o": 7.6, "bdod": 138.0, "nitrogen": 0.68}
     if (23.5 <= lat < 27.0) and (77.5 <= lon <= 81.5):
         # Bundelkhand Red/Parwa Sandy Loam (low SOC, low water holding)
         return {"sand": 62.0, "silt": 22.0, "clay": 16.0, "soc": 4.2, "phh2o": 7.3, "bdod": 152.0, "nitrogen": 0.48}
     if (28.5 <= lat <= 31.2) and (73.5 <= lon < 75.2):
         # Bathinda SW Punjab Arid Sandy Loam (coarse texture, alkaline pH)
         return {"sand": 64.0, "silt": 22.0, "clay": 14.0, "soc": 4.0, "phh2o": 8.2, "bdod": 154.0, "nitrogen": 0.45}
+    if lat < 17.0 and lon < 78.0:
+        # Southern Peninsular Alfisol / Red Sandy Clay Loam (Karnataka / Rayalaseema)
+        return {"sand": 56.0, "silt": 20.0, "clay": 24.0, "soc": 5.4, "phh2o": 6.7, "bdod": 146.0, "nitrogen": 0.55}
     if lat < 15.0:
         # Thanjavur Cauvery Delta Alluvial Clay Loam
         return {"sand": 32.0, "silt": 32.0, "clay": 36.0, "soc": 7.4, "phh2o": 6.9, "bdod": 140.0, "nitrogen": 0.78}
-    # Central Punjab Indo-Gangetic Alluvial Loam (Sangrur / Ludhiana)
+    # Central Punjab / Indo-Gangetic Alluvial Loam (Sangrur / Ludhiana / IGP)
     return {"sand": 44.0, "silt": 36.0, "clay": 20.0, "soc": 5.2, "phh2o": 7.9, "bdod": 148.0, "nitrogen": 0.58}
 
 

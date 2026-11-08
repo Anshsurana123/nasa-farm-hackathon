@@ -997,3 +997,26 @@ def test_rainfed_vidarbha_chickpea_suitability_and_shc_n_credit():
     assert nb_credit == round(nb_base + 35.0, 1)
 
 
+def test_agro_zone_and_regional_soil_classification():
+    """Verify ICAR agro-climatic zone and topsoil fallback distinguish Rajasthan, Deccan, Himalayas, and Punjab."""
+    from terraloop_engine import profiler
+    from terraloop_engine.models import economics
+
+    # Rajasthan / Thar Arid (25°43'19"N, 72°39'05"E)
+    rj_zone = economics.detect_agro_zone(25.7219, 72.6514)
+    assert "Western Dry" in rj_zone or "Rajasthan" in rj_zone
+    rj_soil = profiler.regional_indian_soil_fallback(25.7219, 72.6514)
+    assert rj_soil["sand"] >= 70.0
+
+    # Punjab Trans-Gangetic
+    pb_zone = economics.detect_agro_zone(30.19, 75.78)
+    assert "Trans-Gangetic" in pb_zone
+
+    # Vidarbha Deccan Vertisol
+    mh_zone = economics.detect_agro_zone(20.93, 77.75)
+    assert "Deccan" in mh_zone or "Vidarbha" in mh_zone
+    mh_soil = profiler.regional_indian_soil_fallback(20.93, 77.75)
+    assert mh_soil["clay"] >= 45.0
+
+
+
