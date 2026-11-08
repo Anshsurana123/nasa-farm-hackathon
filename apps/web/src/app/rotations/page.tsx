@@ -47,7 +47,7 @@ export default function RotationsPage() {
         profile={profile ?? undefined}
         initialTab="cards"
         strategies={strategies}
-        loading={optimizing && strategies.length === 0}
+        loading={optimizing}
         onStrategiesLoaded={setStrategies}
       />
     </AppShell>

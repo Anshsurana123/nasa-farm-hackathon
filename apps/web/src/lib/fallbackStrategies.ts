@@ -4,10 +4,106 @@
 
 import type { FieldGeometry, StrategyRecommendation } from "@/types/api";
 
-export function getFallbackStrategies(_field?: FieldGeometry, _currencySymbol: string = "₹"): StrategyRecommendation[] {
+export function adaptStrategiesForHorizon(
+  strategies: StrategyRecommendation[],
+  rotationYears: number
+): StrategyRecommendation[] {
+  const effYears = Math.max(1, Math.min(rotationYears || 1, 3));
+  if (effYears === 1 || !strategies || strategies.length === 0) {
+    return strategies;
+  }
+
+  const baseline = strategies.find((s) => s.rank === 0) ?? strategies[0];
+  const candidates = strategies.filter((s) => s.rank > 0);
+
+  // Adapt baseline across effYears
+  const baseSteps1Yr = baseline.rotation.steps;
+  const adaptedBaseSteps = [];
+  for (let yr = 0; yr < effYears; yr++) {
+    for (const step of baseSteps1Yr) {
+      adaptedBaseSteps.push({ ...step, year_index: yr });
+    }
+  }
+  const adaptedBaseOps = baseline.practical_metrics?.seasonal_operations
+    ? Array.from({ length: effYears }, (_, yr) =>
+        (baseline.practical_metrics?.seasonal_operations ?? []).map((op) => ({
+          ...op,
+          year_index: yr,
+        }))
+      ).flat()
+    : undefined;
+
+  const adaptedBaseline: StrategyRecommendation = {
+    ...baseline,
+    rotation: {
+      ...baseline.rotation,
+      steps: adaptedBaseSteps,
+      label: baseline.rotation.label,
+    },
+    practical_metrics: baseline.practical_metrics
+      ? {
+          ...baseline.practical_metrics,
+          seasonal_operations: adaptedBaseOps,
+        }
+      : undefined,
+  };
+
+  // Adapt candidates into complementary multi-year sequences
+  const adaptedCandidates = candidates.map((cand, idx) => {
+    const otherCand = candidates[(idx + 1) % candidates.length] ?? cand;
+    const c1Steps = cand.rotation.steps;
+    const c2Steps = otherCand.rotation.steps;
+
+    const adaptedSteps = [];
+    for (let yr = 0; yr < effYears; yr++) {
+      const sourceSteps = yr % 2 === 0 ? c1Steps : c2Steps;
+      for (const step of sourceSteps) {
+        adaptedSteps.push({ ...step, year_index: yr });
+      }
+    }
+
+    const c1Ops = cand.practical_metrics?.seasonal_operations ?? [];
+    const c2Ops = otherCand.practical_metrics?.seasonal_operations ?? [];
+    const adaptedOps = [];
+    for (let yr = 0; yr < effYears; yr++) {
+      const sourceOps = yr % 2 === 0 ? c1Ops : c2Ops;
+      for (const op of sourceOps) {
+        adaptedOps.push({ ...op, year_index: yr });
+      }
+    }
+
+    const label =
+      effYears === 2
+        ? `Yr 1: ${cand.rotation.label} ⇄ Yr 2: ${otherCand.rotation.label}`
+        : `3-Yr Cycle: ${cand.rotation.label} ⇄ ${otherCand.rotation.label}`;
+
+    return {
+      ...cand,
+      rotation: {
+        ...cand.rotation,
+        label,
+        steps: adaptedSteps,
+      },
+      practical_metrics: cand.practical_metrics
+        ? {
+            ...cand.practical_metrics,
+            seasonal_operations: adaptedOps.length > 0 ? adaptedOps : undefined,
+          }
+        : undefined,
+    };
+  });
+
+  return [adaptedBaseline, ...adaptedCandidates];
+}
+
+export function getFallbackStrategies(
+  _field?: FieldGeometry,
+  _currencySymbol: string = "₹",
+  rotationYears: number = 1
+): StrategyRecommendation[] {
   void _field;
   void _currencySymbol;
-  return [
+  const baseStrategies: StrategyRecommendation[] = [
     {
       rank: 0,
       rotation: {
@@ -342,4 +438,6 @@ export function getFallbackStrategies(_field?: FieldGeometry, _currencySymbol: s
       data_mode: "fallback_synthetic",
     },
   ];
+
+  return adaptStrategiesForHorizon(baseStrategies, rotationYears);
 }

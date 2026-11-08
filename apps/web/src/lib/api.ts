@@ -8,6 +8,7 @@ import type {
   StrategyRecommendation,
   SuitabilityItem,
 } from "@/types/api";
+import { adaptStrategiesForHorizon } from "@/lib/fallbackStrategies";
 
 // On Vercel:
 // - In the browser: uses relative `/api` (routed to the FastAPI service via top-level rewrite).
@@ -63,6 +64,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (path === "/recommend" && init?.body) {
     try {
       const reqBody = JSON.parse(init.body as string) as RecommendRequest;
+      // Realistic brief delay for solver computation feedback
+      await new Promise((resolve) => setTimeout(resolve, 450));
       const fieldsRes = await fetch("/golden/fields.json");
       if (fieldsRes.ok) {
         const fields = (await fieldsRes.json()) as GoldenField[];
@@ -78,7 +81,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
           }
           const recRes = await fetch(`/golden/${closest.id}/recommendations.json`);
           if (recRes.ok) {
-            return (await recRes.json()) as T;
+            const recs = (await recRes.json()) as StrategyRecommendation[];
+            const effYears = reqBody.constraints?.rotation_years ?? 1;
+            return adaptStrategiesForHorizon(recs, effYears) as T;
           }
         }
       }

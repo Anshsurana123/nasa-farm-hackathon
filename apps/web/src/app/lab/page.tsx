@@ -130,7 +130,7 @@ export default function LabPage() {
           profile={profile ?? undefined}
           initialTab={labMode}
           strategies={strategies}
-          loading={optimizing && strategies.length === 0}
+          loading={optimizing}
           onStrategiesLoaded={setStrategies}
         />
       </div>

@@ -117,12 +117,14 @@ export function RotationExplorer({
   const [stressLoading, setStressLoading] = useState<boolean>(false);
 
   const strategies = internalStrategies.length > 0 ? internalStrategies : (externalStrategies ?? []);
-  const loading = externalLoading ?? internalLoading;
+  const loading = Boolean(externalLoading || internalLoading);
+  const [successBanner, setSuccessBanner] = useState<string | null>(null);
 
   const fetchRecommendations = async (overrideP?: Priorities, overrideC?: FarmConstraints) => {
     const pToUse = overrideP ?? priorities;
     const cToUse = overrideC ?? constraints;
     setInternalLoading(true);
+    setSuccessBanner(null);
     try {
       const recs = await api.recommend({
         field,
@@ -136,12 +138,24 @@ export function RotationExplorer({
       if (recs && recs.length > 0) {
         setInternalStrategies(recs);
         onStrategiesLoaded?.(recs);
+        const yrLabel =
+          cToUse.rotation_years > 1
+            ? `${cToUse.rotation_years}-Year Multi-Year Sequence`
+            : "1-Year Annual Cycle";
+        setSuccessBanner(`✓ Generated ${recs.length - 1} Pareto Strategies for ${yrLabel}`);
+        setTimeout(() => setSuccessBanner(null), 4000);
       }
     } catch (err) {
       console.warn("Backend /recommend failed, falling back to simulated strategies", err);
-      const fallback = getFallbackStrategies(field, currencySymbol);
+      const fallback = getFallbackStrategies(field, currencySymbol, cToUse.rotation_years);
       setInternalStrategies(fallback);
       onStrategiesLoaded?.(fallback);
+      const yrLabel =
+        cToUse.rotation_years > 1
+          ? `${cToUse.rotation_years}-Year Multi-Year Sequence`
+          : "1-Year Annual Cycle";
+      setSuccessBanner(`✓ Generated ${fallback.length - 1} Pareto Strategies for ${yrLabel}`);
+      setTimeout(() => setSuccessBanner(null), 4000);
     } finally {
       setInternalLoading(false);
     }
@@ -592,9 +606,13 @@ export function RotationExplorer({
 
             <button
               type="button"
-              onClick={() => fetchRecommendations()}
+              onClick={() => fetchRecommendations(priorities, constraints)}
               disabled={loading}
-              className="px-5 py-2 rounded-xl text-xs font-mono font-bold bg-emerald-500 hover:opacity-95 text-slate-950 transition-opacity disabled:opacity-50 cursor-pointer flex items-center gap-2 shadow-sm"
+              className={`px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all flex items-center gap-2 shadow-sm ${
+                loading
+                  ? "bg-emerald-500/60 text-slate-900 cursor-not-allowed opacity-80"
+                  : "bg-emerald-500 hover:bg-emerald-400 text-slate-950 cursor-pointer hover:shadow-md active:scale-95"
+              }`}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>{loading ? t("priorities.optimizing") : t("priorities.optimize")}</span>
@@ -605,6 +623,37 @@ export function RotationExplorer({
         {/* VIEW MODE 1: Comparative Strategy Cards + Interactive Calendar & Radar */}
         {activeTab === "cards" && (
           <div className="space-y-6">
+            {/* Prominent Multi-Objective Simulation Loading Banner */}
+            {loading && (
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono animate-pulse">
+                <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-300">
+                  <RefreshCw className="w-4 h-4 animate-spin text-emerald-500 shrink-0" />
+                  <div>
+                    <div className="font-bold text-sm">
+                      Simulating {constraints.rotation_years}-Year Rotations across 30-Year Climate Ensemble…
+                    </div>
+                    <div className="text-[11px] text-muted">
+                      Solving FAO-56 daily water balance · RothC-26.3 soil organic carbon · USDA-NRCS multi-objective Pareto trade-offs
+                    </div>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 text-[10px] font-bold uppercase tracking-wider shrink-0 self-start sm:self-auto">
+                  {constraints.rotation_years}-Year Horizon Active
+                </span>
+              </div>
+            )}
+
+            {/* Generated Success Toast/Banner */}
+            {successBanner && !loading && (
+              <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-between gap-2 text-xs font-mono text-emerald-600 dark:text-emerald-300 transition-opacity">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span className="font-bold">{successBanner}</span>
+                </div>
+                <span className="text-[10px] text-muted hidden sm:inline">NSGA-II Pareto Frontier Updated</span>
+              </div>
+            )}
+
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h4 className="font-display font-bold text-xs uppercase tracking-wider text-foreground">
                 Comparative Performance vs Current Farm Baseline
@@ -614,7 +663,11 @@ export function RotationExplorer({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div
+              className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-300 ${
+                loading ? "opacity-40 pointer-events-none filter blur-[0.5px]" : "opacity-100"
+              }`}
+            >
               {baseline && (
                 <StrategyCard
                   strategy={baseline}
@@ -623,6 +676,7 @@ export function RotationExplorer({
                   onSelect={() => setSelectedRank(0)}
                   currencySymbol={currencySymbol}
                   unitSystem={unitSystem}
+                  rotationYears={constraints.rotation_years}
                 />
               )}
 
@@ -635,6 +689,7 @@ export function RotationExplorer({
                   onSelect={() => setSelectedRank(strat.rank)}
                   currencySymbol={currencySymbol}
                   unitSystem={unitSystem}
+                  rotationYears={constraints.rotation_years}
                 />
               ))}
             </div>
@@ -1109,6 +1164,7 @@ export function RotationExplorer({
                   onSelect={() => setSelectedRank(0)}
                   currencySymbol={currencySymbol}
                   unitSystem={unitSystem}
+                  rotationYears={constraints.rotation_years}
                 />
               )}
               {candidates.map((strat) => (
@@ -1120,6 +1176,7 @@ export function RotationExplorer({
                   onSelect={() => setSelectedRank(strat.rank)}
                   currencySymbol={currencySymbol}
                   unitSystem={unitSystem}
+                  rotationYears={constraints.rotation_years}
                 />
               ))}
             </div>
@@ -1571,6 +1628,7 @@ function StrategyCard({
   onSelect,
   currencySymbol = "₹",
   unitSystem = "acre",
+  rotationYears = 1,
 }: {
   strategy: StrategyRecommendation;
   isBaseline: boolean;
@@ -1578,6 +1636,7 @@ function StrategyCard({
   onSelect: () => void;
   currencySymbol?: string;
   unitSystem?: UnitSystem;
+  rotationYears?: number;
 }) {
   const { t } = useI18n();
   const currSym = strategy.currency_symbol || currencySymbol;
@@ -1603,6 +1662,15 @@ function StrategyCard({
     ? "ring-2 ring-emerald-400 shadow-xl -translate-y-0.5"
     : "";
 
+  const isMultiYear =
+    (rotationYears && rotationYears > 1) ||
+    strategy.rotation.steps.some((s) => (s.year_index ?? 0) > 0);
+
+  const numYears = Math.max(
+    rotationYears || 1,
+    ...strategy.rotation.steps.map((s) => (s.year_index ?? 0) + 1)
+  );
+
   return (
     <div
       onClick={onSelect}
@@ -1626,6 +1694,11 @@ function StrategyCard({
           </span>
 
           <div className="flex items-center gap-1.5">
+            {isMultiYear && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border border-cyan-500/35">
+                {numYears}Y
+              </span>
+            )}
             {!isBaseline && waterSaved > 0 && (
               <span className="text-[10px] font-bold text-cyan-600 dark:text-cyan-300 bg-cyan-500/15 px-1.5 py-0.5 rounded border border-cyan-500/35">
                 −{waterSaved}% H₂O
@@ -1644,30 +1717,65 @@ function StrategyCard({
 
         {/* Rotation Name & Botanical Sequence */}
         <div className="flex items-start justify-between gap-2">
-          <div>
+          <div className="min-w-0 flex-1">
             <h4 className="font-display font-bold text-sm text-foreground leading-snug">
               {strategy.rotation.label ?? strategy.rotation.id}
             </h4>
 
-            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-              {strategy.rotation.steps.map((step, idx) => {
-                const meta = cropMeta(step.crop_id);
-                return (
-                  <span
-                    key={idx}
-                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border ${meta.tone}`}
-                  >
-                    <span className="font-mono text-[9px] font-bold opacity-80">{meta.emoji}</span>
-                    <span className="capitalize">{cropName(step.crop_id)}</span>
-                    {step.practices.includes("residue_retained") && (
-                      <span className="text-[9px] font-mono uppercase px-1 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">
-                        Mulch
+            {isMultiYear ? (
+              <div className="mt-2.5 space-y-1.5">
+                {Array.from({ length: numYears }, (_, yr) => {
+                  const yrSteps = strategy.rotation.steps.filter(
+                    (s) => (s.year_index ?? 0) === yr
+                  );
+                  if (yrSteps.length === 0) return null;
+                  return (
+                    <div key={yr} className="flex flex-wrap items-center gap-1">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 border border-cyan-500/40 shrink-0">
+                        Yr {yr + 1}
                       </span>
-                    )}
-                  </span>
-                );
-              })}
-            </div>
+                      {yrSteps.map((step, idx) => {
+                        const meta = cropMeta(step.crop_id);
+                        return (
+                          <span
+                            key={idx}
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${meta.tone}`}
+                          >
+                            <span className="font-mono text-[8px] opacity-80">{meta.emoji}</span>
+                            <span className="capitalize">{cropName(step.crop_id)}</span>
+                            {step.practices.includes("residue_retained") && (
+                              <span className="text-[8px] font-mono uppercase px-1 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">
+                                Mulch
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                {strategy.rotation.steps.map((step, idx) => {
+                  const meta = cropMeta(step.crop_id);
+                  return (
+                    <span
+                      key={idx}
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border ${meta.tone}`}
+                    >
+                      <span className="font-mono text-[9px] font-bold opacity-80">{meta.emoji}</span>
+                      <span className="capitalize">{cropName(step.crop_id)}</span>
+                      {step.practices.includes("residue_retained") && (
+                        <span className="text-[9px] font-mono uppercase px-1 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">
+                          Mulch
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <ProgressRing
