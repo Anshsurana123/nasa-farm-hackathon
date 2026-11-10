@@ -373,11 +373,15 @@ def soil_health_breakdown(
     else:
         soc_mod = max(-10.0, (soc_delta_10yr / 2.2) * 10.0)
 
-    # Erosion Hazard modifier (-8 to +10 pts)
+    # Erosion Hazard modifier (-10 to +3 pts)
+    # ICAR / USDA-NRCS tolerable soil loss T = 5.0 t/ha/yr.
+    # Flat topography alone must not grant an unearned +10 pts bonus (F-07).
+    # Controlled soil loss (<= 5 t/ha/yr) receives a modest stewardship modifier (up to +3 pts),
+    # while accelerated erosion (> 5 t/ha/yr) incurs an escalating penalty down to -10 pts.
     if erosion_t_ha_yr <= 5.0:
-        erosion_mod = 10.0 * (1.0 - (erosion_t_ha_yr / 5.0))
+        erosion_mod = 3.0 * (1.0 - (erosion_t_ha_yr / 5.0))
     else:
-        erosion_mod = max(-8.0, -((erosion_t_ha_yr - 5.0) / 20.0) * 8.0)
+        erosion_mod = max(-10.0, -((erosion_t_ha_yr - 5.0) / 15.0) * 10.0)
 
     burning_penalty = -5.0 if any_burning else 0.0
 

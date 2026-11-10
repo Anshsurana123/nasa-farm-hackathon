@@ -10,7 +10,7 @@ RULES:
 from __future__ import annotations
 
 import numpy as np
-from terraloop_schemas import DataProvenance, FieldProfile, StrategyRecommendation
+from terraloop_schemas import DataProvenance, FieldProfile, Rotation, StrategyRecommendation
 
 from ..data import gee
 
@@ -315,3 +315,51 @@ def grounded_llm_explain(
         )
 
     return text
+
+
+def baseline_why_cards(
+    profile: FieldProfile,
+    baseline_rot: Rotation,
+    language: str = "en",
+) -> list[str]:
+    """Generate localized explanation cards for the farmer's current baseline rotation."""
+    base_label = baseline_rot.label or baseline_rot.id
+    field_label = profile.field.name or "this field"
+    has_puddled_rice = any(s.crop_id == "rice_puddled" for s in baseline_rot.steps)
+    has_burning = any("burning" in s.practices for s in baseline_rot.steps)
+
+    if language == "hi":
+        cards = [f"{field_label} के लिए वर्तमान आधार फसल चक्र: {base_label}।"]
+        if has_puddled_rice:
+            cards.append(
+                "पारंपरिक कद्दू (रोपाई) धान-गेहूं प्रणाली में अत्यधिक भूजल दोहन और मौसमी जलभराव का जोखिम रहता है।"
+            )
+        if has_burning:
+            cards.append(
+                "कटाई के बाद अवशेष जलाने (stubble burning) से मिट्टी के कार्बन और सूक्ष्मजीवों का गंभीर ह्रास होता है।"
+            )
+        return cards
+
+    if language == "pa":
+        cards = [f"{field_label} ਲਈ ਮੌਜੂਦਾ ਬੇਸਲਾਈਨ ਫ਼ਸਲੀ ਚੱਕਰ: {base_label}।"]
+        if has_puddled_rice:
+            cards.append(
+                "ਰਵਾਇਤੀ ਕੱਦੂ ਵਾਲੇ ਝੋਨੇ-ਕਣਕ ਚੱਕਰ ਵਿੱਚ ਧਰਤੀ ਹੇਠਲੇ ਪਾਣੀ ਦੀ ਭਾਰੀ ਖਪਤ ਅਤੇ ਵਾਤਾਵਰਣ ਤਣਾਅ ਹੁੰਦਾ ਹੈ।"
+            )
+        if has_burning:
+            cards.append(
+                "ਵਾਢੀ ਤੋਂ ਬਾਅਦ ਪਰਾਲੀ ਸਾੜਨ ਨਾਲ ਮਿੱਟੀ ਵਿੱਚਲੇ ਜੈਵਿਕ ਕਾਰਬਨ ਅਤੇ ਲਾਭਦਾਇਕ ਕੀਟਾਣੂਆਂ ਦਾ ਭਾਰੀ ਨੁਕਸਾਨ ਹੁੰਦਾ ਹੈ।"
+            )
+        return cards
+
+    cards = [f"Current baseline practice for {field_label}: {base_label}."]
+    if has_puddled_rice:
+        cards.append(
+            "Conventional puddled transplanted rice (PTR) creates continuous water table depletion and narrow turnaround windows."
+        )
+    if has_burning:
+        cards.append(
+            "Post-harvest residue burning depletes topsoil organic matter, microbial biomass, and volatile nitrogen."
+        )
+    return cards
+

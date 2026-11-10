@@ -1,5 +1,6 @@
 {
   "field": {
+    "id": null,
     "lat": 25.38,
     "lon": 78.62,
     "polygon": null,
@@ -342,5 +343,7 @@
   "currency_symbol": "₹",
   "agro_zone": "Central Plateau & Hills (Bundelkhand Semi-Arid Zone)",
   "is_fallback": false,
-  "data_mode": "observed"
+  "data_mode": "observed",
+  "validation_status": "validated_india",
+  "validation_message": null
 }

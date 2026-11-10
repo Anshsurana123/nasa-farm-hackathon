@@ -19,6 +19,7 @@ export interface SoilHealthCardInput {
 }
 
 export interface FieldGeometry {
+  id?: string | null;
   lat: number;
   lon: number;
   polygon?: Record<string, unknown> | null;
@@ -109,6 +110,8 @@ export interface FieldProfile {
   agro_zone?: string | null;
   is_fallback?: boolean;
   data_mode?: "observed" | "hybrid_regional" | "fallback_synthetic";
+  validation_status?: "validated_india" | "unvalidated_global";
+  validation_message?: string | null;
 }
 
 export interface GoldenField {
@@ -252,6 +255,8 @@ export interface StrategyRecommendation {
   narrative_summary?: string | null;
   is_fallback?: boolean;
   data_mode?: "observed" | "hybrid_regional" | "fallback_synthetic";
+  validation_status?: "validated_india" | "unvalidated_global";
+  validation_message?: string | null;
 }
 
 export type ClimateScenarioId =

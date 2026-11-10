@@ -936,6 +936,9 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
                 <SlidersHorizontal className="w-3 h-3" />
                 <span>SMAP Seasonal Wetting Front:</span>
                 <strong className="text-foreground">{MONTHS[monthIdx]}</strong>
+                <span className="text-[8px] px-1 rounded bg-foreground/10 text-muted font-mono uppercase tracking-wider">
+                  Context Only
+                </span>
               </span>
               <span className="text-sky-600 dark:text-sky-400 font-bold">
                 Root-Zone: {Math.round(currentSmap)}th %ile · Rain: {Math.round(monthlyRain)} mm

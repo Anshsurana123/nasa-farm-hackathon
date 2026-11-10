@@ -38,6 +38,7 @@ class SoilHealthCardInput(BaseModel):
 class FieldGeometry(BaseModel):
     """A field as a point (lat/lon) and optional GeoJSON polygon."""
 
+    id: str | None = None
     lat: float = Field(..., ge=-90, le=90)
     lon: float = Field(..., ge=-180, le=180)
     polygon: dict | None = Field(None, description="GeoJSON Polygon geometry")
@@ -134,6 +135,8 @@ class FieldProfile(BaseModel):
     agro_zone: str | None = None
     is_fallback: bool = False
     data_mode: Literal["observed", "hybrid_regional", "fallback_synthetic"] = "observed"
+    validation_status: Literal["validated_india", "unvalidated_global"] = "validated_india"
+    validation_message: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -331,3 +334,5 @@ class StrategyRecommendation(BaseModel):
     narrative_summary: str | None = None
     is_fallback: bool = False
     data_mode: Literal["observed", "hybrid_regional", "fallback_synthetic"] = "observed"
+    validation_status: Literal["validated_india", "unvalidated_global"] = "validated_india"
+    validation_message: str | None = None

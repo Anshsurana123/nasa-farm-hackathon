@@ -14,3 +14,9 @@
 [2026-11-07T12:06:52.720726+00:00] field=thanjavur lat=10.72 lon=79.25 data_mode=observed is_fallback=False seasons=12 gee_live=False
 [2026-11-07T12:08:11.079099+00:00] field=vidarbha lat=20.39 lon=78.13 data_mode=observed is_fallback=False seasons=6 gee_live=False
 [2026-11-07T12:08:15.663773+00:00] field=bundelkhand lat=25.38 lon=78.62 data_mode=observed is_fallback=False seasons=10 gee_live=False
+[2026-11-10T08:49:12.774234+00:00] field=sangrur lat=30.19 lon=75.78 data_mode=observed is_fallback=False seasons=10 gee_live=False
+[2026-11-10T08:49:26.457770+00:00] field=ludhiana lat=30.82 lon=75.68 data_mode=observed is_fallback=False seasons=10 gee_live=False
+[2026-11-10T08:49:43.218540+00:00] field=bathinda lat=30.12 lon=74.86 data_mode=observed is_fallback=False seasons=10 gee_live=False
+[2026-11-10T08:49:46.870602+00:00] field=vidarbha lat=20.39 lon=78.13 data_mode=observed is_fallback=False seasons=6 gee_live=False
+[2026-11-10T08:49:50.536755+00:00] field=bundelkhand lat=25.38 lon=78.62 data_mode=observed is_fallback=False seasons=10 gee_live=False
+[2026-11-10T08:50:05.411364+00:00] field=thanjavur lat=10.72 lon=79.25 data_mode=observed is_fallback=False seasons=12 gee_live=False

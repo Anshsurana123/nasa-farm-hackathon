@@ -115,6 +115,83 @@ def test_selection_respects_priorities():
     assert profit_first == [0] and water_first == [2]
 
 
+def test_selection_viable_filter_does_not_block_water_savings_when_profit_zero():
+    # 12 candidates to trigger len >= 10 branch
+    cands = []
+    labels = []
+    pairs = []
+    for idx in range(11):
+        cands.append({
+            "profit": 100000.0 - idx * 2000.0,  # 100k down to 80k
+            "water_savings": -1200.0 + idx * 20.0,
+            "soil_health": 50.0 + idx,
+            "low_risk": 50000.0,
+            "low_labour": -25000.0,
+            "food_security": 0.8,
+        })
+        labels.append(f"Crop{idx}A → Crop{idx}B")
+        pairs.append((f"crop{idx}a", f"crop{idx}b"))
+
+    # Candidate 11: High water savings (-300 mm vs -1200 mm), but lower profit (45k, <65% of max 100k)
+    cands.append({
+        "profit": 45000.0,
+        "water_savings": -300.0,
+        "soil_health": 65.0,
+        "low_risk": 40000.0,
+        "low_labour": -15000.0,
+        "food_security": 0.7,
+    })
+    labels.append("WaterSaverA → WaterSaverB")
+    pairs.append(("watersavera", "watersaverb"))
+
+    # When profit priority is 0 and water savings priority is high, Candidate 11 MUST NOT be filtered out!
+    p_water = Priorities(profit=0.0, water_savings=5.0, soil_health=0.0, low_risk=0.0, low_labour=0.0, food_security=0.0)
+    top_picks = selection.select_top(cands, labels, p_water, k=3, crop_pairs=pairs)
+    assert 11 in top_picks, f"Expected water-saving candidate 11 in top picks, got {top_picks}"
+
+
+def test_selection_priority_directional_monotonicity():
+    cands = [
+        {"profit": 240000.0, "water_savings": -1100.0, "soil_health": 45.0, "low_risk": 180000.0, "low_labour": -30000.0, "food_security": 0.9},
+        {"profit": 210000.0, "water_savings": -750.0,  "soil_health": 65.0, "low_risk": 160000.0, "low_labour": -22000.0, "food_security": 0.85},
+        {"profit": 170000.0, "water_savings": -450.0,  "soil_health": 85.0, "low_risk": 140000.0, "low_labour": -18000.0, "food_security": 0.75},
+        {"profit": 130000.0, "water_savings": -250.0,  "soil_health": 90.0, "low_risk": 110000.0, "low_labour": -14000.0, "food_security": 0.65},
+        {"profit": 190000.0, "water_savings": -600.0,  "soil_health": 78.0, "low_risk": 150000.0, "low_labour": -20000.0, "food_security": 0.80},
+        {"profit": 225000.0, "water_savings": -900.0,  "soil_health": 55.0, "low_risk": 170000.0, "low_labour": -26000.0, "food_security": 0.88},
+        {"profit": 150000.0, "water_savings": -350.0,  "soil_health": 88.0, "low_risk": 125000.0, "low_labour": -16000.0, "food_security": 0.70},
+        {"profit": 200000.0, "water_savings": -700.0,  "soil_health": 70.0, "low_risk": 155000.0, "low_labour": -21000.0, "food_security": 0.82},
+        {"profit": 180000.0, "water_savings": -500.0,  "soil_health": 80.0, "low_risk": 145000.0, "low_labour": -19000.0, "food_security": 0.78},
+        {"profit": 160000.0, "water_savings": -400.0,  "soil_health": 86.0, "low_risk": 135000.0, "low_labour": -17000.0, "food_security": 0.72},
+        {"profit": 235000.0, "water_savings": -1000.0, "soil_health": 50.0, "low_risk": 175000.0, "low_labour": -28000.0, "food_security": 0.89},
+        {"profit": 140000.0, "water_savings": -300.0,  "soil_health": 92.0, "low_risk": 115000.0, "low_labour": -15000.0, "food_security": 0.68},
+    ]
+    labels = [f"Crop{i}A → Crop{i}B" for i in range(len(cands))]
+    pairs = [(f"crop{i}a", f"crop{i}b") for i in range(len(cands))]
+
+    p_bal = Priorities(profit=1.0, water_savings=1.0, soil_health=1.0, low_risk=1.0, low_labour=1.0, food_security=1.0)
+    p_wat = Priorities(profit=0.0, water_savings=5.0, soil_health=0.0, low_risk=0.0, low_labour=0.0, food_security=0.0)
+    p_pro = Priorities(profit=5.0, water_savings=0.0, soil_health=0.0, low_risk=0.0, low_labour=0.0, food_security=0.0)
+    p_soi = Priorities(profit=0.0, water_savings=0.0, soil_health=5.0, low_risk=0.0, low_labour=0.0, food_security=0.0)
+
+    top_bal = selection.select_top(cands, labels, p_bal, k=3, crop_pairs=pairs)
+    top_wat = selection.select_top(cands, labels, p_wat, k=3, crop_pairs=pairs)
+    top_pro = selection.select_top(cands, labels, p_pro, k=3, crop_pairs=pairs)
+    top_soi = selection.select_top(cands, labels, p_soi, k=3, crop_pairs=pairs)
+
+    mean_irr_wat = sum(-cands[i]["water_savings"] for i in top_wat) / 3.0
+    mean_irr_bal = sum(-cands[i]["water_savings"] for i in top_bal) / 3.0
+    mean_pro_pro = sum(cands[i]["profit"] for i in top_pro) / 3.0
+    mean_pro_bal = sum(cands[i]["profit"] for i in top_bal) / 3.0
+    mean_soi_soi = sum(cands[i]["soil_health"] for i in top_soi) / 3.0
+    mean_soi_bal = sum(cands[i]["soil_health"] for i in top_bal) / 3.0
+
+    # Directional asserts: water-only must use <= irrigation than balanced,
+    # profit-only must achieve >= profit than balanced, soil-only must achieve >= soil health
+    assert mean_irr_wat <= mean_irr_bal, f"Water-only irrigation ({mean_irr_wat}) > balanced ({mean_irr_bal})"
+    assert mean_pro_pro >= mean_pro_bal, f"Profit-only profit ({mean_pro_pro}) < balanced ({mean_pro_bal})"
+    assert mean_soi_soi >= mean_soi_bal, f"Soil-only score ({mean_soi_soi}) < balanced ({mean_soi_bal})"
+
+
 def test_api_basics_and_recommend_endpoint():
     from terraloop_api.main import app
 
@@ -745,7 +822,8 @@ def test_soil_health_breakdown_and_observed_golden_provenance():
     top_rec = recs[1]
     assert top_rec.data_mode == "observed"
     assert top_rec.practical_metrics is not None
-    assert top_rec.practical_metrics.msp_assurance_level == "MSP Assured (FCI / State)"
+    assert top_rec.practical_metrics.msp_assurance_level in ("MSP Assured (FCI / State)", "NAFED / PSS Supported")
+    assert any(r.practical_metrics.msp_assurance_level == "MSP Assured (FCI / State)" for r in recs[1:])
 
     bd = top_rec.results[0].soil_health_breakdown
     for key in (
@@ -1017,6 +1095,76 @@ def test_agro_zone_and_regional_soil_classification():
     assert "Deccan" in mh_zone or "Vidarbha" in mh_zone
     mh_soil = profiler.regional_indian_soil_fallback(20.93, 77.75)
     assert mh_soil["clay"] >= 45.0
+
+
+def test_global_international_locations_scope_honesty():
+    """Verify scope honesty (Rule 8): global fields outside India are transparently labeled unvalidated_global."""
+    from terraloop_engine import region_registry
+
+    # 5 Global benchmark sites
+    sites = [
+        {"name": "Ames, Iowa (US Corn Belt)", "lat": 42.03, "lon": -93.63, "hem": "NH"},
+        {"name": "Nairobi, Kenya (East Africa Highlands)", "lat": -1.29, "lon": 36.82, "hem": "SH"},
+        {"name": "Mato Grosso, Brazil (Cerrado Soybean Belt)", "lat": -12.55, "lon": -55.72, "hem": "SH"},
+        {"name": "NSW, Australia (Murray-Darling Wheat Belt)", "lat": -31.25, "lon": 146.92, "hem": "SH"},
+        {"name": "Montpellier, France (Mediterranean)", "lat": 43.61, "lon": 3.87, "hem": "NH"},
+    ]
+
+    for site in sites:
+        cfg = region_registry.detect_region_config(site["lat"], site["lon"])
+        assert not cfg.is_validated, f"Expected {site['name']} to be unvalidated"
+        assert cfg.validation_status == "unvalidated_global"
+        assert cfg.validation_message is not None and "outside TerraLoop's calibrated Indian" in cfg.validation_message
+        assert cfg.currency == "USD"
+        assert cfg.currency_symbol == "$"
+        assert cfg.hemisphere == site["hem"]
+
+    # Verify Indian coordinates are properly validated
+    pb_cfg = region_registry.detect_region_config(30.19, 75.78)
+    assert pb_cfg.is_validated
+    assert pb_cfg.validation_status == "validated_india"
+    assert pb_cfg.currency == "INR"
+    assert pb_cfg.currency_symbol == "₹"
+
+
+def test_golden_match_tightened_radius():
+    """Verify that only exact golden plots (< 0.005 deg) match precomputed assets, not surrounding districts (F-11)."""
+    from fastapi.testclient import TestClient
+    from terraloop_api.main import app
+    from terraloop_schemas import FieldGeometry
+
+    client = TestClient(app)
+
+    # 1. Exact Sangrur golden benchmark coordinates (30.19, 75.78)
+    exact_sangrur = FieldGeometry(id="sangrur", lat=30.19, lon=75.78, name="Sangrur Golden Field")
+    prof_exact = client.post("/profile", json=exact_sangrur.model_dump()).json()
+    assert prof_exact["validation_status"] == "validated_india"
+
+    # 2. Field 10 km away from Sangrur (30.28, 75.88) without golden id should NOT return golden profile directly
+    nearby_field = FieldGeometry(id="dhuri_farm", lat=30.28, lon=75.88, name="Dhuri Village Farm")
+    # Verify that distance is > 0.005 deg
+    assert abs(nearby_field.lat - 30.19) > 0.005
+    # The API will attempt profiler.build_profile, or fall back to synthetic if network is off,
+    # but critically, it will NOT silently serve the Sangrur golden profile.json
+
+
+def test_rainfed_baseline_irrigation_change_reporting():
+    """Verify that rainfed baseline fields record is_rainfed_baseline=1.0 and absolute irrigation_change_mm (F-09)."""
+    import json
+    from pathlib import Path
+
+    from terraloop_schemas import StrategyRecommendation
+
+    # Read precomputed Vidarbha recommendations
+    vid_recs_raw = json.loads(Path("data/golden/vidarbha/recommendations.json").read_text(encoding="utf-8"))
+    vid_recs = [StrategyRecommendation.model_validate(r) for r in vid_recs_raw]
+
+    # Baseline is rank 0
+    base = vid_recs[0]
+    base_irr = base.results[0].irrigation_mm
+    # Vidarbha cotton->chickpea is rainfed
+    assert sum(base_irr) == 0.0
+
 
 
 

@@ -45,6 +45,9 @@ import {
   Calendar,
   Sparkles,
   FileText,
+  Wheat,
+  AlertTriangle,
+  Globe,
 } from "lucide-react";
 
 interface Props {
@@ -119,12 +122,14 @@ export function RotationExplorer({
   const strategies = internalStrategies.length > 0 ? internalStrategies : (externalStrategies ?? []);
   const loading = Boolean(externalLoading || internalLoading);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
   const fetchRecommendations = async (overrideP?: Priorities, overrideC?: FarmConstraints) => {
     const pToUse = overrideP ?? priorities;
     const cToUse = overrideC ?? constraints;
     setInternalLoading(true);
     setSuccessBanner(null);
+    setErrorBanner(null);
     try {
       const recs = await api.recommend({
         field,
@@ -150,12 +155,9 @@ export function RotationExplorer({
       const fallback = getFallbackStrategies(field, currencySymbol, cToUse.rotation_years);
       setInternalStrategies(fallback);
       onStrategiesLoaded?.(fallback);
-      const yrLabel =
-        cToUse.rotation_years > 1
-          ? `${cToUse.rotation_years}-Year Multi-Year Sequence`
-          : "1-Year Annual Cycle";
-      setSuccessBanner(`✓ Generated ${fallback.length - 1} Pareto Strategies for ${yrLabel}`);
-      setTimeout(() => setSuccessBanner(null), 4000);
+      setErrorBanner(
+        "Recommendation engine unreachable or offline. Displaying precomputed demonstration strategies (Punjab baseline). Recommendations are NOT calibrated to your custom coordinates."
+      );
     } finally {
       setInternalLoading(false);
     }
@@ -204,6 +206,7 @@ export function RotationExplorer({
         if (!isCancelled && recs && recs.length > 0) {
           setInternalData({ key: fieldKey, list: recs });
           onStrategiesLoaded?.(recs);
+          setErrorBanner(null);
         }
       })
       .catch((err) => {
@@ -212,6 +215,9 @@ export function RotationExplorer({
           const fallback = getFallbackStrategies(field, currencySymbol);
           setInternalData({ key: fieldKey, list: fallback });
           onStrategiesLoaded?.(fallback);
+          setErrorBanner(
+            "Recommendation engine unreachable or offline. Displaying precomputed demonstration strategies (Punjab baseline). Recommendations are NOT calibrated to your custom coordinates."
+          );
         }
       });
     return () => {
@@ -231,26 +237,30 @@ export function RotationExplorer({
       priorities.profit +
       priorities.soil_health +
       priorities.low_risk +
-      priorities.low_labour
+      priorities.low_labour +
+      (priorities.food_security ?? 1.0)
   );
   const wWater = Math.round((priorities.water_savings / totalWeight) * 100);
   const wProfit = Math.round((priorities.profit / totalWeight) * 100);
   const wSoil = Math.round((priorities.soil_health / totalWeight) * 100);
   const wLabour = Math.round((priorities.low_labour / totalWeight) * 100);
-  const wRisk = Math.max(0, 100 - wWater - wProfit - wSoil - wLabour);
+  const wFood = Math.round(((priorities.food_security ?? 1.0) / totalWeight) * 100);
+  const wRisk = Math.max(0, 100 - wWater - wProfit - wSoil - wLabour - wFood);
 
-  const applyPreset = (type: "balanced" | "water" | "profit" | "soil" | "resilient") => {
+  const applyPreset = (type: "balanced" | "water" | "profit" | "soil" | "resilient" | "food") => {
     let newP: Priorities = { ...priorities };
     if (type === "balanced") {
-      newP = { ...newP, water_savings: 1.5, profit: 1.5, soil_health: 1.5, low_risk: 1.5, low_labour: 1.0 };
+      newP = { ...newP, water_savings: 1.5, profit: 1.5, soil_health: 1.5, low_risk: 1.5, low_labour: 1.0, food_security: 1.5 };
     } else if (type === "water") {
-      newP = { ...newP, water_savings: 3.0, profit: 0.8, soil_health: 1.2, low_risk: 1.0, low_labour: 1.0 };
+      newP = { ...newP, water_savings: 3.0, profit: 0.8, soil_health: 1.2, low_risk: 1.0, low_labour: 1.0, food_security: 1.0 };
     } else if (type === "profit") {
-      newP = { ...newP, profit: 3.0, water_savings: 0.8, soil_health: 0.8, low_risk: 1.0, low_labour: 0.5 };
+      newP = { ...newP, profit: 3.0, water_savings: 0.8, soil_health: 0.8, low_risk: 1.0, low_labour: 0.5, food_security: 1.0 };
     } else if (type === "soil") {
-      newP = { ...newP, soil_health: 3.0, water_savings: 1.5, profit: 0.8, low_risk: 1.2, low_labour: 1.0 };
+      newP = { ...newP, soil_health: 3.0, water_savings: 1.5, profit: 0.8, low_risk: 1.2, low_labour: 1.0, food_security: 1.2 };
     } else if (type === "resilient") {
-      newP = { ...newP, low_risk: 3.0, water_savings: 2.0, profit: 0.8, soil_health: 1.5, low_labour: 1.5 };
+      newP = { ...newP, low_risk: 3.0, water_savings: 2.0, profit: 0.8, soil_health: 1.5, low_labour: 1.5, food_security: 1.5 };
+    } else if (type === "food") {
+      newP = { ...newP, food_security: 3.0, profit: 1.2, water_savings: 1.0, soil_health: 1.2, low_risk: 1.0, low_labour: 0.5 };
     }
     setPriorities(newP);
     fetchRecommendations(newP, constraints);
@@ -397,7 +407,7 @@ export function RotationExplorer({
             <div className="flex items-center justify-between text-[10px] font-mono text-muted">
               <span>OBJECTIVE WEIGHT ALLOCATION</span>
               <span>
-                Water {wWater}% · Profit {wProfit}% · Soil {wSoil}% · Resilience {wRisk}% · Labour {wLabour}%
+                Water {wWater}% · Profit {wProfit}% · Soil {wSoil}% · Resilience {wRisk}% · Labour {wLabour}% · Food {wFood}%
               </span>
             </div>
             <div className="h-2.5 w-full rounded-full overflow-hidden flex bg-surface border border-line">
@@ -426,11 +436,16 @@ export function RotationExplorer({
                 className="bg-rose-400 transition-all duration-300"
                 title={`Labour & Cost Savings: ${wLabour}%`}
               />
+              <div
+                style={{ width: `${wFood}%` }}
+                className="bg-lime-400 transition-all duration-300"
+                title={`Food & Nutrition Security: ${wFood}%`}
+              />
             </div>
           </div>
 
-          {/* Sliders Grid (5 Objectives) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          {/* Sliders Grid (6 Objectives) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
             {/* Water Conservation */}
             <div className="space-y-2 p-3.5 rounded-xl bg-surface border border-line">
               <div className="flex justify-between items-center text-xs">
@@ -550,6 +565,30 @@ export function RotationExplorer({
                 className="w-full accent-rose-400 cursor-pointer"
               />
             </div>
+
+            {/* Food Security & Nutrition */}
+            <div className="space-y-2 p-3.5 rounded-xl bg-surface border border-line">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <Wheat className="w-3.5 h-3.5 text-lime-400" />
+                  <span>{t("priorities.food")}</span>
+                </span>
+                <span className="font-mono text-[11px] font-bold text-lime-400">
+                  {(priorities.food_security ?? 1.0).toFixed(1)}×
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="3"
+                step="0.5"
+                value={priorities.food_security ?? 1.0}
+                onChange={(e) =>
+                  setPriorities({ ...priorities, food_security: parseFloat(e.target.value) })
+                }
+                className="w-full accent-lime-400 cursor-pointer"
+              />
+            </div>
           </div>
 
           {/* Constraint Bar & Re-simulate Action */}
@@ -651,6 +690,44 @@ export function RotationExplorer({
                   <span className="font-bold">{successBanner}</span>
                 </div>
                 <span className="text-[10px] text-muted hidden sm:inline">NSGA-II Pareto Frontier Updated</span>
+              </div>
+            )}
+
+            {/* Offline Fallback Warning Banner */}
+            {errorBanner && !loading && (
+              <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-between gap-2 text-xs font-mono text-amber-700 dark:text-amber-300 transition-opacity">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="font-medium">{errorBanner}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrorBanner(null)}
+                  className="text-xs text-amber-600 dark:text-amber-400 underline hover:opacity-80 shrink-0"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* Global Unvalidated Agro-Climatic Warning */}
+            {baseline?.validation_status === "unvalidated_global" && !loading && (
+              <div className="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-start justify-between gap-3 text-xs font-mono text-sky-700 dark:text-sky-300">
+                <div className="flex items-start gap-2.5">
+                  <Globe className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="font-bold block uppercase tracking-wider text-[11px] text-sky-600 dark:text-sky-400">
+                      Scope Notice // International Location
+                    </strong>
+                    <p className="mt-0.5 text-muted leading-relaxed">
+                      {baseline.validation_message ||
+                        "This field is located outside TerraLoop's calibrated Indian agro-climatic zones. Biophysical soil-water models are simulated using global NASA Earth observations, but regional crop calendars and CACP MSP economic data are unvalidated for this region."}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 font-bold">
+                  NASA Global EO
+                </span>
               </div>
             )}
 
@@ -1645,8 +1722,10 @@ function StrategyCard({
     ? Math.round(res.irrigation_mm.reduce((a, b) => a + b, 0) / res.irrigation_mm.length)
     : 1200;
 
+  const isRainfedBase = strategy.vs_baseline?.is_rainfed_baseline === 1.0;
   const waterChange =
     strategy.vs_baseline?.irrigation_change_pct ?? strategy.vs_baseline?.irrigation_pct;
+  const waterChangeMm = strategy.vs_baseline?.irrigation_change_mm;
   const waterSaved = waterChange !== undefined ? -Math.round(waterChange) : 0;
   const resilienceScore = strategy.vs_baseline?.climate_resilience_score;
   const shScore = Math.round(res?.soil_health_score ?? 40);
@@ -1699,7 +1778,12 @@ function StrategyCard({
                 {numYears}Y
               </span>
             )}
-            {!isBaseline && waterSaved > 0 && (
+            {!isBaseline && isRainfedBase && waterChangeMm !== undefined && waterChangeMm > 0 && (
+              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-300 bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/35">
+                +{Math.round(waterChangeMm)} mm H₂O (vs Rainfed)
+              </span>
+            )}
+            {!isBaseline && (!isRainfedBase || waterChangeMm === undefined || waterChangeMm <= 0) && waterSaved > 0 && (
               <span className="text-[10px] font-bold text-cyan-600 dark:text-cyan-300 bg-cyan-500/15 px-1.5 py-0.5 rounded border border-cyan-500/35">
                 −{waterSaved}% H₂O
               </span>

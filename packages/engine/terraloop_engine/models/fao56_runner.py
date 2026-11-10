@@ -297,9 +297,8 @@ def _simulate_step(
 
     # Total Available Water (TAW, mm) in root zone
     taw_mm = max(35.0, (fc_vol - wp_vol) * root_depth_m * 1000.0)
-    # Readily Available Water (RAW, mm): p fraction from FAO-56 Table 22
+    # Readily Available Water fraction (p): baseline from FAO-56 Table 22
     p_frac = 0.50 if crop.drought_tolerance <= 3 else (0.60 if crop.drought_tolerance == 4 else 0.68)
-    raw_mm = p_frac * taw_mm
 
     # Deep percolation rate scaling by soil texture
     sand_seepage_factor = float(np.clip(0.60 + 0.90 * (sand_pct / 60.0), 0.5, 2.0))
@@ -421,7 +420,6 @@ def _simulate_step(
             # Deep-rooted rainfed Rabi pulses/oilseeds (chickpea, lentil, mustard) grown on
             # post-monsoon residual profile moisture access subsoil capillary storage
             taw_mm = taw_mm * (1.42 if clay_pct >= 30.0 else 1.25)
-            raw_mm = p_frac * taw_mm
             dr = 4.0
         else:
             dr = float(np.clip(initial_depletion_mm, 0.0, taw_mm * 0.75))
@@ -433,10 +431,6 @@ def _simulate_step(
         daily_irr = np.zeros(n_days, dtype=float)
         daily_ks = np.zeros(n_days, dtype=float)
 
-        # Standard irrigation threshold: apply water when depletion reaches 75% of RAW
-        trigger_dr = raw_mm * 0.75
-        app_depth = min(raw_mm, 65.0)
-
         for d in range(n_days):
             etc_d = float(etc_daily[d])
             p_d = float(precip_arr[d])
@@ -444,17 +438,23 @@ def _simulate_step(
             # Effective rainfall (FAO-56: surface runoff above 75 mm/day)
             peff_d = min(p_d, 75.0)
 
+            # Daily adjusted depletion fraction p and RAW (FAO-56 Eq. 89)
+            p_adj = float(np.clip(p_frac + 0.04 * (5.0 - etc_d), 0.10, 0.80))
+            raw_d = p_adj * taw_mm
+
             # Daily water stress coefficient Ks (FAO-56 Eq. 84)
-            if dr <= raw_mm:
+            if dr <= raw_d:
                 ks = 1.0
             else:
-                ks = max(0.0, (taw_mm - dr) / max(1.0, (taw_mm - raw_mm)))
+                ks = max(0.0, (taw_mm - dr) / max(1.0, (taw_mm - raw_d)))
             daily_ks[d] = ks
 
             eta_d = ks * etc_d
             daily_eta[d] = eta_d
 
-            # Irrigation decision
+            # Irrigation decision: trigger when depletion exceeds 75% of adjusted RAW
+            trigger_dr = raw_d * 0.75
+            app_depth = min(raw_d, 65.0)
             irr_d = 0.0
             if irr_mode != "none" and dr >= trigger_dr:
                 if irr_mode == "limited":

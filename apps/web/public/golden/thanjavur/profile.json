@@ -1,5 +1,6 @@
 {
   "field": {
+    "id": null,
     "lat": 10.72,
     "lon": 79.25,
     "polygon": null,
@@ -364,5 +365,7 @@
   "currency_symbol": "₹",
   "agro_zone": "East Coast Plains & Deltas (Cauvery / Coastal Alluvial Zone)",
   "is_fallback": false,
-  "data_mode": "observed"
+  "data_mode": "observed",
+  "validation_status": "validated_india",
+  "validation_message": null
 }

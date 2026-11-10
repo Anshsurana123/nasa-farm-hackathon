@@ -22,11 +22,11 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from terraloop_engine import crop_kb, profiler, suitability
+from terraloop_engine import crop_kb, profiler, region_registry, suitability
 from terraloop_engine.climate import ensembles
 from terraloop_engine.data import nasa_power
 from terraloop_engine.explain import why_cards
-from terraloop_engine.models import economics
+from terraloop_engine.models import economics, nutrition
 from terraloop_engine.optimize import evaluate, rotations, selection
 from terraloop_schemas import (
     CropSpec,
@@ -343,17 +343,29 @@ def geocode_location(q: str) -> GeocodeResult:
 
 @app.post("/profile", response_model=FieldProfile)
 def build_profile(field: FieldGeometry) -> FieldProfile:
+    reg_cfg = region_registry.detect_region_config(field.lat, field.lon)
+    f_name = (field.name or "").lower()
     golden_matches = [
         f for f in _golden_index()
-        if abs(f["lat"] - field.lat) < 0.15 and abs(f["lon"] - field.lon) < 0.15
+        if (field.id and f["id"] == field.id)
+        or (f_name and f["id"] in f_name)
+        or (abs(f["lat"] - field.lat) < 0.005 and abs(f["lon"] - field.lon) < 0.005)
     ]
     if golden_matches:
-        return golden_profile(golden_matches[0]["id"])
-    try:
-        return profiler.build_profile(field)
-    except Exception as exc:
-        log.exception("profile failed")
-        raise HTTPException(502, f"Upstream data error: {exc}") from exc
+        prof = golden_profile(golden_matches[0]["id"])
+    else:
+        try:
+            prof = profiler.build_profile(field)
+        except Exception as exc:
+            log.exception("profile failed")
+            raise HTTPException(502, f"Upstream data error: {exc}") from exc
+
+    prof.agro_zone = reg_cfg.agro_zone
+    prof.currency = reg_cfg.currency
+    prof.currency_symbol = reg_cfg.currency_symbol
+    prof.validation_status = reg_cfg.validation_status
+    prof.validation_message = reg_cfg.validation_message
+    return prof
 
 
 class SuitabilityRequest(BaseModel):
@@ -409,10 +421,14 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     """TASK-A03: profile -> candidates (optimize.rotations) -> simulate (models.*) across
     scenarios (climate.ensembles) -> objectives -> optimize.selection.select_top -> why-cards.
     Returns list[StrategyRecommendation] containing baseline (rank 0) plus top 3 recommendations."""
-    # 1. Field Profile
+    # 1. Field Profile & Regional Validation Status
+    reg_cfg = region_registry.detect_region_config(req.field.lat, req.field.lon)
+    req_f_name = (req.field.name or "").lower()
     golden_matches = [
         f for f in _golden_index()
-        if abs(f["lat"] - req.field.lat) < 0.15 and abs(f["lon"] - req.field.lon) < 0.15
+        if (req.field.id and f["id"] == req.field.id)
+        or (req_f_name and f["id"] in req_f_name)
+        or (abs(f["lat"] - req.field.lat) < 0.005 and abs(f["lon"] - req.field.lon) < 0.005)
     ]
     matched_golden_id: str | None = golden_matches[0]["id"] if golden_matches else None
 
@@ -435,15 +451,21 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
                 water=WaterSummary(climatic_water_balance_mm=wb),
                 soil=s,
                 hazards=h,
-                currency="INR",
-                currency_symbol="₹",
-                agro_zone=economics.detect_agro_zone(req.field.lat, req.field.lon),
+                currency=reg_cfg.currency,
+                currency_symbol=reg_cfg.currency_symbol,
+                agro_zone=reg_cfg.agro_zone,
                 is_fallback=True,
                 data_mode="fallback_synthetic",
                 agro_climatic_notes=profiler.build_notes(
                     c, s, WaterSummary(climatic_water_balance_mm=wb), h, lat=req.field.lat
                 ),
             )
+
+    prof.agro_zone = reg_cfg.agro_zone
+    prof.currency = reg_cfg.currency
+    prof.currency_symbol = reg_cfg.currency_symbol
+    prof.validation_status = reg_cfg.validation_status
+    prof.validation_message = reg_cfg.validation_message
 
     if req.soil_health_card is not None:
         prof = profiler.apply_soil_health_card_override(prof, req.soil_health_card)
@@ -504,7 +526,8 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     rank_scores = {r.crop_id: r.score for r in ranked_crops}
     top_ids = {r.crop_id for r in ranked_crops[:10] if r.score >= 0.22}
     # Always include key regional diversification & staple crops if suitable
-    is_punjab_belt = prof.field.lat >= 28.5
+    # Geographically bounded Trans-Gangetic Punjab/Haryana plains (not arbitrary lat >= 28.5)
+    is_punjab_belt = (29.2 <= prof.field.lat <= 32.5) and (73.5 <= prof.field.lon <= 77.2)
     is_semi_arid_limited = req.constraints.irrigation == "limited" and prof.climate.annual_precip_mm < 520.0
     for key_cid in (
         "wheat",
@@ -530,7 +553,9 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     if is_semi_arid_limited:
         top_ids -= {"rice_puddled", "rice_short", "rice_dsr", "basmati"}
     if req.constraints.irrigation == "none":
-        top_ids -= {"wheat", "rice_puddled", "rice_short", "rice_dsr", "basmati"}
+        # Strictly rainfed dryland cannot support water-intensive lowland paddy;
+        # rainfed wheat is preserved per Central India benchmarks (ICAR / DES).
+        top_ids -= {"rice_puddled", "rice_short", "rice_dsr", "basmati"}
     top_ids |= set(req.constraints.must_grow)
     filtered_crops = {cid: crops[cid] for cid in top_ids if cid in crops}
 
@@ -572,7 +597,6 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
 
     # 6. Map to objective scores for Pareto / Priority selection (incorporating procurement_type & market_risk)
     econ_crops = economics.load_economics("punjab").get("crops", {})
-    is_bundelkhand = (23.5 <= prof.field.lat < 27.0) and (77.5 <= prof.field.lon <= 81.5)
 
     def _build_objective_dict(
         rot: rotations.Rotation,
@@ -582,6 +606,9 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         mean_irr = float(np.mean(res.irrigation_mm)) if res.irrigation_mm else 0.0
         active_cids = [s.crop_id for s in rot.steps if s.crop_id != "fallow"]
         main_cids = [s.crop_id for s in rot.steps if s.crop_id != "fallow" and s.season_index in (0, 1)]
+
+        # Procurement assurance factor: reflects CACP open-ended MSP procurement (Wheat, Paddy)
+        # vs NAFED PSS price support (25% cap) vs open mandi market realization
         proc_factors: list[float] = []
         msp_count = 0
         for cid in active_cids:
@@ -593,36 +620,55 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
                 if cid in main_cids:
                     msp_count += 1
             elif p_type == "nafed_pss":
-                p_base = 0.78
+                p_base = 0.85
             else:
-                p_base = 0.52
-            proc_factors.append(p_base * (1.0 - 0.60 * m_risk))
-        proc_assurance = float(np.mean(proc_factors)) if proc_factors else 0.75
+                p_base = 0.75
+            proc_factors.append(p_base * (1.0 - 0.50 * m_risk))
+        proc_assurance = float(np.mean(proc_factors)) if proc_factors else 0.85
         if msp_count >= 2:
-            proc_assurance = min(1.0, proc_assurance + 0.12)
+            proc_assurance = min(1.0, proc_assurance + 0.10)
         elif msp_count == 1:
-            proc_assurance = min(0.96, proc_assurance + 0.05)
+            proc_assurance = min(0.96, proc_assurance + 0.04)
 
-        if msp_count >= 2:
-            food_sec = 1.0
-        elif any(cid in ("wheat", "rice_puddled", "rice_short", "rice_dsr") for cid in active_cids):
-            food_sec = 0.88
-        elif is_bundelkhand and any(cid in ("sorghum", "pearl_millet") for cid in active_cids):
-            food_sec = 0.92
-        elif any(cid in ("maize", "chickpea", "pigeon_pea", "urad", "moong", "lentil") for cid in active_cids):
-            food_sec = 0.68
-        elif any(cid in ("sorghum", "pearl_millet") for cid in active_cids):
-            food_sec = 0.60
+        # Median Operating Profit (P50) with price realization floor
+        p50 = res.profit_p50
+        if p50 >= 0.0:
+            effective_profit = p50 * (0.85 + 0.15 * proc_assurance)
         else:
-            food_sec = 0.45
+            effective_profit = p50 * (2.0 - proc_assurance)
+
+        # Downside Risk (CVaR-10): worst-10% ensemble climate profit.
+        # When CVaR is negative (operating loss), lower procurement assurance deepens the loss
+        # rather than artificially reducing it.
+        cvar = res.cvar_profit_10
+        if cvar >= 0.0:
+            effective_cvar = cvar * (0.85 + 0.15 * proc_assurance)
+        else:
+            effective_cvar = cvar * (2.0 - proc_assurance)
+
+        # Food Security: calculated metabolizable food energy (Mcal/ha) and dietary protein (kg/ha)
+        # benchmarked against ICMR-NIN (2020) rural household Recommended Dietary Allowances.
+        step_yields = [
+            (s.crop_id, float(np.mean(res.yield_t_ha.get(s.crop_id, [0.0]))))
+            for s in rot.steps
+        ]
+        nutr = nutrition.compute_nutrition_yield(step_yields, rotation_years=rot_years)
+
+        # Groundwater trend from NASA GRACE-FO modulates water savings urgency (F-05)
+        gw_trend = prof.water.groundwater_trend_cm_per_year
+        if gw_trend is not None and gw_trend < -1.0:
+            gw_mult = min(1.50, 1.0 + 0.10 * (abs(gw_trend) - 1.0))
+        else:
+            gw_mult = 1.0
+        effective_water_obj = -mean_irr * gw_mult
 
         return {
-            "profit": round(res.profit_p50 * (0.82 + 0.18 * proc_assurance), 1),
-            "water_savings": -mean_irr,
+            "profit": round(effective_profit, 1),
+            "water_savings": round(effective_water_obj, 1),
             "soil_health": res.soil_health_score,
-            "low_risk": round(res.cvar_profit_10 * proc_assurance, 1),
+            "low_risk": round(effective_cvar, 1),
             "low_labour": -pm.labor_cost_inr_per_ha,
-            "food_security": round(food_sec * proc_assurance, 3),
+            "food_security": nutr["food_security_score"],
         }
 
     cand_obj_dicts: list[dict[str, float]] = [
@@ -647,33 +693,25 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     alt_rotations = all_rotations[1:]
     alt_results = sim_results[1:]
     alt_pms = cand_pms[1:]
+    alt_crop_pairs = [
+        (r.steps[0].crop_id, r.steps[1].crop_id if len(r.steps) > 1 else "")
+        for r in alt_rotations
+    ]
 
     chosen_indices = selection.select_top(
         alt_candidates,
         alt_labels,
         req.priorities,
         k=3,
+        crop_pairs=alt_crop_pairs,
     )
 
     # 7. Assemble recommendations with localized why-cards, practical metrics, narrative, and provenance
     baseline_res_metrics = evaluate.compute_resilience_and_regret(baseline_result)
-    base_label = baseline_rot.label or baseline_rot.id
-    field_label = prof.field.name or "this field"
     rec_is_fallback = prof.is_fallback or used_fallback_weather
     rec_data_mode = "fallback_synthetic" if rec_is_fallback else prof.data_mode
 
-    if req.language == "hi":
-        base_why = [f"{field_label} के लिए वर्तमान आधार फसल चक्र: {base_label}।"]
-        if any(s.crop_id == "rice_puddled" for s in baseline_rot.steps):
-            base_why.append("पारंपरिक कद्दू (रोपाई) धान-गेहूं प्रणाली में अत्यधिक भूजल दोहन और पराली जलाने का जोखिम रहता है।")
-    elif req.language == "pa":
-        base_why = [f"{field_label} ਲਈ ਮੌਜੂਦਾ ਬੇਸਲਾਈਨ ਫ਼ਸਲੀ ਚੱਕਰ: {base_label}।"]
-        if any(s.crop_id == "rice_puddled" for s in baseline_rot.steps):
-            base_why.append("ਰਵਾਇਤੀ ਕੱਦੂ ਵਾਲੇ ਝੋਨੇ-ਕਣਕ ਚੱਕਰ ਵਿੱਚ ਧਰਤੀ ਹੇਠਲੇ ਪਾਣੀ ਦੀ ਭਾਰੀ ਖਪਤ ਅਤੇ ਪਰਾਲੀ ਸਾੜਨ ਦੀ ਸਮੱਸਿਆ ਹੁੰਦੀ ਹੈ।")
-    else:
-        base_why = [f"Current baseline practice for {field_label}: {base_label}."]
-        if any(s.crop_id == "rice_puddled" for s in baseline_rot.steps) and any(s.crop_id == "wheat" for s in baseline_rot.steps):
-            base_why.append("Conventional puddled rice-wheat system with high groundwater extraction and short 11-day harvest-to-sowing turnaround.")
+    base_why = why_cards.baseline_why_cards(prof, baseline_rot, language=req.language)
 
     baseline_rec = StrategyRecommendation(
         rank=0,
@@ -687,11 +725,13 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         },
         why=base_why,
         provenance=scenario_set.provenance,
-        currency="INR",
-        currency_symbol="₹",
+        currency=reg_cfg.currency,
+        currency_symbol=reg_cfg.currency_symbol,
         practical_metrics=baseline_pm,
         is_fallback=rec_is_fallback,
         data_mode=rec_data_mode,
+        validation_status=reg_cfg.validation_status,
+        validation_message=reg_cfg.validation_message,
     )
     baseline_rec.narrative_summary = why_cards.grounded_llm_explain(
         prof, baseline_rec, baseline_rec, language=req.language
@@ -707,19 +747,25 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
 
         base_irr = float(np.mean(baseline_result.irrigation_mm))
         cand_irr = float(np.mean(chosen_res.irrigation_mm))
+        irr_change_mm = round(cand_irr - base_irr, 1)
+        is_rainfed = 1.0 if base_irr == 0.0 else 0.0
         irr_diff_pct = round((cand_irr - base_irr) / base_irr * 100.0, 1) if base_irr > 0 else 0.0
         profit_diff_pct = (
             round((chosen_res.profit_p50 - baseline_result.profit_p50) / baseline_result.profit_p50 * 100.0, 1)
             if baseline_result.profit_p50 > 0
             else 0.0
         )
+        profit_change_abs = round(chosen_res.profit_p50 - baseline_result.profit_p50, 0)
         soil_diff = round(chosen_res.soil_health_score - baseline_result.soil_health_score, 1)
 
         cand_res_metrics = evaluate.compute_resilience_and_regret(chosen_res)
 
         vs_base = {
             "irrigation_change_pct": irr_diff_pct,
+            "irrigation_change_mm": irr_change_mm,
+            "is_rainfed_baseline": is_rainfed,
             "profit_change_pct": profit_diff_pct,
+            "profit_change_abs": profit_change_abs,
             "soil_health_change_pts": soil_diff,
             "climate_resilience_score": cand_res_metrics["climate_resilience_score"],
             "profit_regret": cand_res_metrics["profit_regret"],
@@ -734,11 +780,13 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
             vs_baseline=vs_base,
             why=[],
             provenance=[],
-            currency="INR",
-            currency_symbol="₹",
+            currency=reg_cfg.currency,
+            currency_symbol=reg_cfg.currency_symbol,
             practical_metrics=chosen_pm,
             is_fallback=rec_is_fallback,
             data_mode=rec_data_mode,
+            validation_status=reg_cfg.validation_status,
+            validation_message=reg_cfg.validation_message,
         )
         cards, provs = why_cards.why_cards(prof, rec, baseline_rec, language=req.language)
         if scenario_set.kind == "cmip6":

@@ -14,9 +14,22 @@ farmer's Priorities, then keep the top-k that are also mutually different
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from terraloop_schemas import Priorities
 
 OBJECTIVES = ("profit", "water_savings", "soil_health", "low_risk", "low_labour", "food_security")
+
+# Minimum physical spread thresholds to prevent numerical noise from dominating min-max scaling
+# when candidate metrics are closely clustered across an objective.
+MIN_SPREADS: dict[str, float] = {
+    "profit": 5000.0,         # ₹5,000 / ha
+    "water_savings": 25.0,    # 25 mm irrigation
+    "soil_health": 5.0,       # 5.0 points on 0-100 index
+    "low_risk": 5000.0,       # ₹5,000 / ha CVaR
+    "low_labour": 2000.0,     # ₹2,000 / ha labour cost
+    "food_security": 0.10,    # 0.10 on 0-1 nutrition index
+}
 
 
 def pareto_front(candidates: list[dict[str, float]]) -> list[int]:
@@ -46,7 +59,8 @@ def weighted_scores(candidates: list[dict[str, float]], priorities: Priorities) 
     for k in keys:
         vals = [c[k] for c in candidates]
         lo, hi = min(vals), max(vals)
-        span = (hi - lo) or 1.0
+        min_sp = MIN_SPREADS.get(k, 1.0)
+        span = max(hi - lo, min_sp)
         for i, v in enumerate(vals):
             scores[i] += (weights[k] / total_w) * (v - lo) / span
     return scores
@@ -68,6 +82,7 @@ def select_top(
     labels: list[str],
     priorities: Priorities,
     k: int = 3,
+    crop_pairs: Sequence[tuple[str, str]] | None = None,
 ) -> list[int]:
     """Return indices of the top-k Pareto-optimal, structurally distinct candidates.
 
@@ -82,24 +97,44 @@ def select_top(
     scores = weighted_scores(candidates, priorities)
     nsga2_pool = set(nsga2_select(candidates, k=min(len(candidates), max(k * 3, 6))))
 
-    # Identify candidates that maintain economically viable farm income (>= 80% of max candidate profit
-    # when profit priority is active) and respectable soil health (>= median soil health)
+    # Priority-driven viability filter:
+    # Solvency requirement (P50 >= 0) is maintained, while relative floors on profit and soil health
+    # scale strictly with the farmer's normalized priority weights, preventing water-saving or
+    # climate-resilient rotations from being blocked when the farmer does not prioritize profit.
+    weights = priorities.model_dump()
+    total_w = sum(weights.get(obj, 0.0) for obj in OBJECTIVES) or 1.0
+    norm_profit = weights.get("profit", 0.0) / total_w
+    norm_soil = weights.get("soil_health", 0.0) / total_w
+
     if len(candidates) >= 10:
         profits = [c.get("profit", 0.0) for c in candidates]
         soils = [c.get("soil_health", 0.0) for c in candidates]
         max_profit = max(profits) if profits else 0.0
         med_soil = sorted(soils)[len(soils) // 2] if soils else 0.0
-        p_floor = 0.80 if priorities.profit >= 2.0 else 0.65
+        has_positive_profit = max_profit > 0.0
+
+        if norm_profit > 0.10 and has_positive_profit:
+            p_floor = min(0.75, 0.35 + 0.40 * norm_profit) * max_profit
+        elif has_positive_profit:
+            p_floor = 0.0  # Basic solvency floor (no financial loss)
+        else:
+            p_floor = -float("inf")
+
+        if norm_soil > 0.10:
+            s_floor = med_soil * min(1.0, 0.50 + 0.50 * norm_soil)
+        else:
+            s_floor = 0.0
+
         viable = {
             i
             for i, c in enumerate(candidates)
-            if c.get("profit", 0.0) >= p_floor * max_profit and c.get("soil_health", 0.0) >= med_soil
+            if c.get("profit", 0.0) >= p_floor and c.get("soil_health", 0.0) >= s_floor
         }
         if len(viable) < k:
             viable = {
                 i
                 for i, c in enumerate(candidates)
-                if c.get("profit", 0.0) >= 0.68 * max_profit and c.get("soil_health", 0.0) >= med_soil
+                if c.get("profit", 0.0) >= (0.0 if has_positive_profit else -float("inf"))
             }
         if len(viable) < k:
             viable = set(range(len(candidates)))
@@ -116,11 +151,16 @@ def select_top(
     seen_pairs: set[tuple[str, str]] = set()
     seen_kharif: list[str] = []
 
+    def _get_pair(idx: int) -> tuple[str, str]:
+        if crop_pairs and idx < len(crop_pairs):
+            return crop_pairs[idx]
+        return _extract_primary_pair(labels[idx])
+
     # Pass 1: Require distinct Kharif crop AND distinct (Kharif, Rabi) pair among viable Pareto candidates
     for i in order:
         if i not in viable:
             continue
-        pair = _extract_primary_pair(labels[i])
+        pair = _get_pair(i)
         if pair not in seen_pairs and pair[0] not in seen_kharif:
             chosen.append(i)
             seen_pairs.add(pair)
@@ -132,7 +172,7 @@ def select_top(
     for i in order:
         if i in chosen:
             continue
-        pair = _extract_primary_pair(labels[i])
+        pair = _get_pair(i)
         if pair not in seen_pairs and all(labels[i] != labels[j] for j in chosen):
             chosen.append(i)
             seen_pairs.add(pair)
