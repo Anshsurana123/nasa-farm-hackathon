@@ -69,7 +69,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
         <div className="instrument-header px-5 py-3 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
           <div className="flex items-center gap-2">
             <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-wider">
-              EO DOSSIER // PARCEL TELEMETRY
+              FIELD PROFILE & SATELLITE SURVEY
             </span>
             <span className="text-muted">
               {fmtDMS(field.lat, true)} · {fmtDMS(field.lon, false)}
@@ -89,7 +89,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground tracking-tight">
-                  {field.name ?? "Selected Field Parcel"}
+                  {field.name ?? "Selected Field"}
                 </h2>
                 {profile.agro_zone && (
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/35">
@@ -104,7 +104,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
 
             <div className="flex items-center gap-3">
               <div className="text-right font-mono">
-                <span className="text-[10px] text-muted uppercase block">Annual GDD (Base 10°C)</span>
+                <span className="text-[10px] text-muted uppercase block">Crop Heat Units (GDD Base 10°C)</span>
                 <span className="text-base font-bold text-amber-500">
                   {Math.round(climate.gdd_base10_per_year).toLocaleString()} °C·d
                 </span>
@@ -174,9 +174,14 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-muted uppercase block">SMAP Root Moisture</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted uppercase block">Root Soil Moisture</span>
+                <span className="text-[8px] px-1 py-0.2 rounded bg-foreground/10 text-muted font-mono uppercase tracking-wider">
+                  Context Only
+                </span>
+              </div>
               <span className="text-base font-bold text-foreground">
-                {activeSmap.toFixed(0)}th %ile
+                {activeSmap.toFixed(0)}th %ile (SMAP L4)
               </span>
             </div>
           </div>
@@ -590,6 +595,9 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                     <span className="font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
                       <Gauge className="w-3.5 h-3.5 text-cyan-400" />
                       <span>{t("water.smap")}</span>
+                      <span className="text-[8px] px-1.5 py-0.5 rounded bg-foreground/10 text-muted font-mono uppercase tracking-wider font-normal">
+                        Context Only
+                      </span>
                     </span>
                     <span className="text-muted">Climatological %ile</span>
                   </div>

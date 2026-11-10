@@ -1,5 +1,6 @@
 {
   "field": {
+    "id": null,
     "lat": 30.12,
     "lon": 74.86,
     "polygon": null,
@@ -345,5 +346,7 @@
   "currency_symbol": "₹",
   "agro_zone": "Trans-Gangetic Semi-Arid Belt (South-West Punjab / Haryana)",
   "is_fallback": false,
-  "data_mode": "observed"
+  "data_mode": "observed",
+  "validation_status": "validated_india",
+  "validation_message": null
 }

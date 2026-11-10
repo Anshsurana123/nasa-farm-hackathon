@@ -9,10 +9,17 @@ RULES:
 
 from __future__ import annotations
 
+import logging
+import os
+import re
+
+import httpx
 import numpy as np
 from terraloop_schemas import DataProvenance, FieldProfile, Rotation, StrategyRecommendation
 
 from ..data import gee
+
+log = logging.getLogger("terraloop.explain")
 
 _FAO56_PROV = DataProvenance(
     source="FAO-56 / FAO-33 Soil-Water Balance",
@@ -252,6 +259,89 @@ def why_cards(
     return cards, unique_provs
 
 
+def extract_numeric_tokens(text: str) -> list[float]:
+    """Extract numeric values from text, stripping commas, signs, and units.
+
+    Avoid matching hyphenated cultivar/model names like 'PR-126' or 'HD-2967' as negative numbers.
+    """
+    raw_tokens = re.findall(r"(?<![a-zA-Z0-9])[-+]?\b\d+(?:,\d{3})*(?:\.\d+)?\b", text)
+    nums: list[float] = []
+    for tok in raw_tokens:
+        clean = tok.replace(",", "")
+        try:
+            nums.append(float(clean))
+        except ValueError:
+            pass
+    return nums
+
+
+def verify_llm_numeric_grounding(
+    text: str,
+    allowed_numbers: set[float],
+    tolerance_pct: float = 5.0,
+) -> bool:
+    """Validate that every number mentioned in the LLM text is close to one of the allowed numbers.
+
+    Returns True if all numbers in text are grounded within tolerance_pct, False otherwise.
+    """
+    extracted = extract_numeric_tokens(text)
+    if not extracted:
+        return True
+
+    # Common structural / agricultural numbers that legitimately appear in explanations:
+    structural_allowed = {0.0, 1.0, 2.0, 3.0, 5.0, 10.0, 12.0, 24.0, 30.0, 32.0, 35.0, 45.0, 75.0, 100.0}
+    full_allowed = set(allowed_numbers) | structural_allowed
+
+    for val in extracted:
+        matched = False
+        for allowed in full_allowed:
+            if abs(allowed) < 1e-6:
+                if abs(val) < 1e-3:
+                    matched = True
+                    break
+            else:
+                rel_diff = abs(val - allowed) / abs(allowed) * 100.0
+                if rel_diff <= tolerance_pct:
+                    matched = True
+                    break
+        if not matched:
+            log.warning("LLM numeric grounding failed: rejected ungrounded value %s", val)
+            return False
+    return True
+
+
+def _call_gemini_api(
+    prompt: str,
+    api_key: str,
+    model: str = "gemini-2.0-flash",
+    timeout_sec: float = 4.0,
+) -> str | None:
+    """Execute REST call to Google Gemini generateContent endpoint."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.2,
+            "maxOutputTokens": 300,
+        },
+    }
+    try:
+        with httpx.Client(timeout=timeout_sec) as client:
+            resp = client.post(url, json=payload)
+            if resp.status_code == 200:
+                data = resp.json()
+                candidates = data.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    if parts and "text" in parts[0]:
+                        return str(parts[0]["text"]).strip()
+            else:
+                log.warning("Gemini API call returned status %s", resp.status_code)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Gemini API call failed (%s): %s", type(exc).__name__, exc)
+    return None
+
+
 def grounded_llm_explain(
     profile: FieldProfile,
     rec: StrategyRecommendation,
@@ -261,8 +351,10 @@ def grounded_llm_explain(
     """TASK-X02: Grounded agronomic explainer.
 
     Strictly restricted to verified numbers produced by FAO-56, RothC, GRACE,
-    POWER, and CACP. Never invents or speculates on numeric parameters.
-    Supports 'en', 'pa' (Punjabi), and 'hi' (Hindi).
+    POWER, and CACP. If GEMINI_API_KEY is present, queries Gemini 2.0/Flash with a 4s
+    timeout and validates numeric grounding via verify_llm_numeric_grounding.
+    Falls back deterministically to verified multilingual templates if ungrounded,
+    errored, or offline.
     """
     if not rec.results:
         if language == "hi":
@@ -291,8 +383,9 @@ def grounded_llm_explain(
 
     rot_name = rec.rotation.label or rec.rotation.id
 
+    # Deterministic ground truth template
     if language == "hi":
-        text = (
+        fallback_text = (
             f"रणनीति '{rot_name}': नासा GRACE उपग्रह द्वारा दर्ज {gw_trend:.1f} सेमी/वर्ष क्षेत्रीय जल भंडारण (TWS) गिरावट के "
             f"विरुद्ध, यह चक्र आधार की तुलना में प्रति वर्ष {int(irr_saved)} मिमी ({int(irr_saved_pct)}%) सिंचाई जल की बचत करता है "
             f"[FAO-56]। RothC मॉडल के अनुसार, यह 10 वर्षों में मिट्टी में {soc_c:+.1f} टन कार्बन/हेक्टेयर का परिवर्तन करता है "
@@ -300,21 +393,67 @@ def grounded_llm_explain(
             f"₹{p50:,}/हेक्टेयर है, जबकि गंभीर जलवायु प्रतिकूलता में न्यूनतम डाउनसाइड सुरक्षा (CVaR-10) ₹{cvar:,}/हेक्टेयर सुनिश्चित रहती है।"
         )
     elif language == "pa":
-        text = (
+        fallback_text = (
             f"ਰਣਨੀਤੀ '{rot_name}': ਨਾਸਾ GRACE ਵੱਲੋਂ ਦਰਜ {gw_trend:.1f} ਸੈਂਟੀਮੀਟਰ/ਸਾਲ ਖੇਤਰੀ ਪਾਣੀ ਭੰਡਾਰ (TWS) ਦੇ ਨਿਘਾਰ ਦੇ ਮੁਕਾਬਲੇ, "
             f"ਇਹ ਚੱਕਰ ਬੇਸਲਾਈਨ ਨਾਲੋਂ {int(irr_saved)} ਮਿਲੀਮੀਟਰ ({int(irr_saved_pct)}%) ਸਿੰਚਾਈ ਪਾਣੀ ਦੀ ਬਚਤ ਕਰਦਾ ਹੈ [FAO-56]। "
             f"RothC ਮਾਡਲ ਅਨੁਸਾਰ ਇਹ 10 ਸਾਲਾਂ ਵਿੱਚ ਮਿੱਟੀ ਵਿੱਚ {soc_c:+.1f} ਟਨ ਕਾਰਬਨ/ਹੈਕਟੇਅਰ ਦਾ ਵਾਧਾ ਕਰਕੇ ਮਿੱਟੀ ਸਿਹਤ ਸਕੋਰ {score}/100 "
             f"ਤੱਕ ਪਹੁੰਚਾਉਂਦਾ ਹੈ। CACP ਮੁੱਲਾਂ ਮੁਤਾਬਕ ਔਸਤ ਸਾਲਾਨਾ ਮੁਨਾਫ਼ਾ ₹{p50:,}/ਹੈਕਟੇਅਰ ਅਤੇ ਸੋਕੇ ਦੇ ਸਾਲਾਂ ਵਿੱਚ ਸੁਰੱਖਿਅਤ ਸੀਮਾ (CVaR-10) ₹{cvar:,}/ਹੈਕਟੇਅਰ ਹੈ।"
         )
     else:
-        text = (
+        fallback_text = (
             f"Strategy '{rot_name}': Against NASA GRACE-FO recorded regional water storage (TWS) decline of {gw_trend:.1f} cm/yr, "
             f"this rotation reduces net irrigation by {int(irr_saved)} mm/yr ({int(irr_saved_pct)}% savings) [FAO-56]. "
             f"RothC model forecasts a 10-year soil organic carbon change of {soc_c:+.1f} t C/ha, elevating soil health "
             f"to {score}/100. Under CACP/PAU price policies, median expected return is ₹{p50:,}/ha with a downside buffer (CVaR-10) of ₹{cvar:,}/ha during extreme climate drought years."
         )
 
-    return text
+    # Allowed numeric values for grounding validation
+    pm = rec.practical_metrics
+    allowed_numbers = {
+        float(int(irr_saved)),
+        float(int(irr_saved_pct)),
+        round(gw_trend, 1),
+        float(score),
+        round(soc_c, 1),
+        float(p50),
+        float(cvar),
+        round(p50 / 2.47105),
+        round(cvar / 2.47105),
+    }
+    allowed_numbers.update(extract_numeric_tokens(rot_name))
+    if pm:
+        allowed_numbers.update({
+            float(pm.irrigations_saved_per_yr),
+            float(pm.pumping_hours_saved_per_ha),
+            float(pm.urea_bags_saved_per_ha),
+            float(pm.turnaround_days_kharif_rabi),
+        })
+
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return fallback_text
+
+    model_name = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    prompt = (
+        f"You are an agronomic expert summarizing a crop rotation strategy for a farmer.\n"
+        f"Requested language: {language} (en=English, hi=Hindi, pa=Punjabi).\n"
+        f"Strategy: {rot_name}\n"
+        f"Verified biophysical metrics:\n"
+        f"- Water savings: {int(irr_saved)} mm/yr ({int(irr_saved_pct)}% savings)\n"
+        f"- Regional groundwater decline counter: {gw_trend:.1f} cm/yr\n"
+        f"- Soil carbon change: {soc_c:+.1f} t C/ha over 10 years\n"
+        f"- Soil health score: {score}/100\n"
+        f"- Median net profit: Rs. {p50:,}/ha\n"
+        f"- Downside drought buffer (CVaR-10): Rs. {cvar:,}/ha\n\n"
+        f"Write 2-3 clear sentences in {language}. "
+        f"CRITICAL: You MUST ONLY use the verified metrics above. NEVER invent or speculate on any numeric values."
+    )
+
+    llm_resp = _call_gemini_api(prompt, api_key=api_key, model=model_name, timeout_sec=4.0)
+    if llm_resp and verify_llm_numeric_grounding(llm_resp, allowed_numbers):
+        return llm_resp
+
+    return fallback_text
 
 
 def baseline_why_cards(

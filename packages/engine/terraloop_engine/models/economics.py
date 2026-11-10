@@ -32,37 +32,15 @@ _DEFAULT_ECONOMICS_DIR = _resolve_economics_dir()
 
 
 def detect_region(lat: float, lon: float) -> str:
-    """Identify Indian agro-economic zone (defaults to Indian CACP/MSP table)."""
-    return "punjab"
+    """Identify Indian agro-economic zone via unified RegionRegistry."""
+    from .. import region_registry
+    return region_registry.detect_region_config(lat, lon).region_id
 
 
 def detect_agro_zone(lat: float, lon: float) -> str:
     """Classify coordinates into one of India's major agro-climatic zones (ICAR / Planning Commission)."""
-    if (lat > 32.5 and 72.0 <= lon <= 81.5) or (29.5 <= lat <= 32.5 and 77.5 < lon <= 81.5):
-        return "Western Himalayan Region (Hill & Sub-Montane Zone)"
-    if lat >= 28.5 and lon <= 77.5:
-        if lon < 75.1 and lat < 30.4:
-            return "Trans-Gangetic Semi-Arid Belt (South-West Punjab / Haryana)"
-        return "Trans-Gangetic Plains (Alluvial Rice–Wheat Belt)"
-    if 24.0 <= lat < 29.2 and 69.0 <= lon < 76.5:
-        return "Western Dry Region (Thar Arid & Marwar Belt, Rajasthan)"
-    if 20.0 <= lat < 24.5 and 68.0 <= lon < 74.5:
-        return "Gujarat Plains & Hills (Semi-Arid Cotton–Groundnut Zone)"
-    if 23.5 <= lat < 28.5 and 76.5 <= lon <= 84.0:
-        if lat < 26.2 and lon < 80.5:
-            return "Central Plateau & Hills (Bundelkhand Semi-Arid Zone)"
-        return "Middle / Upper Gangetic Plains"
-    if 21.0 <= lat < 26.5 and 74.5 <= lon <= 83.0:
-        return "Central Plateau & Hills (Malwa / Vindhyan Soybean–Wheat Zone)"
-    if 17.0 <= lat < 23.5 and 73.5 <= lon <= 81.5:
-        return "Western / Central Deccan Plateau (Vidarbha Black Cotton Vertisol Belt)"
-    if 18.0 <= lat <= 28.5 and lon > 83.0:
-        return "Eastern Plateau, Lower Gangetic & Brahmaputra Monsoon Zone"
-    if lat < 17.0 and lon >= 77.5:
-        return "East Coast Plains & Deltas (Cauvery / Coastal Alluvial Zone)"
-    if lat < 17.0 and lon < 77.5:
-        return "Southern Plateau & Hills (Peninsular Semi-Arid Zone)"
-    return "Indian Subtropical Agro-Climatic Zone"
+    from .. import region_registry
+    return region_registry.detect_region_config(lat, lon).agro_zone
 
 
 def get_currency_info(region: str = "punjab") -> dict[str, str]:

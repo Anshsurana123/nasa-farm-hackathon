@@ -57,6 +57,7 @@ export interface SoilSummary {
   nitrogen_g_kg?: number | null;
   ph?: number | null;
   bulk_density_g_cm3?: number | null;
+  cec_cmol_kg?: number | null;
   field_capacity_vol?: number | null;
   wilting_point_vol?: number | null;
   slope_pct?: number | null;
@@ -277,6 +278,11 @@ export interface RecommendRequest {
   drought_shock_pct?: number;
   price_shock_pct?: number;
   fertilizer_shock_pct?: number;
+}
+
+export interface SuitabilityRequest {
+  field: FieldGeometry;
+  constraints?: FarmConstraints;
 }
 
 export interface SuitabilityItem {

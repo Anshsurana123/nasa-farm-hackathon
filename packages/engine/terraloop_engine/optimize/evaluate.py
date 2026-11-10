@@ -388,12 +388,31 @@ def compute_practical_farmer_metrics(
     baseline_result: SimulationResult | None = None,
     crops: dict[str, CropSpec] | None = None,
     constraints: FarmConstraints | None = None,
+    profile: FieldProfile | None = None,
+    region_id: str | None = None,
+    shc_n_credit: float | None = None,
 ) -> PracticalFarmerMetrics:
     """Translate biophysical simulation outputs into practical Indian farmer decision metrics."""
     if crops is None:
         crops = crop_kb.load_crops()
     econ_crops = economics.load_economics("punjab").get("crops", {})
     irr_mode = constraints.irrigation if constraints is not None else "full"
+
+    if profile is not None and region_id is None:
+        from .. import region_registry
+        reg_cfg = region_registry.detect_region_config(profile.field.lat, profile.field.lon)
+        region_id = reg_cfg.region_id
+
+    # Soil Health Card available nitrogen mineralization credit (if laboratory tested)
+    if shc_n_credit is None:
+        shc_n_credit = 0.0
+        if (
+            profile is not None
+            and profile.soil is not None
+            and profile.soil.source == "farmer_test"
+            and profile.soil.nitrogen_g_kg is not None
+        ):
+            shc_n_credit = float(np.clip((profile.soil.nitrogen_g_kg * 2240.0 - 280.0) * 0.15, -25.0, 30.0))
 
     rotation_years = max(1, max(s.year_index for s in rotation.steps) + 1)
     turnaround_days = rot_mod.compute_turnaround_days(rotation, crops)
@@ -446,7 +465,11 @@ def compute_practical_farmer_metrics(
             mean_y = float(np.mean(sim_result.yield_t_ha.get(s.crop_id, [c_spec.typical_yield_t_ha[0]])))
 
             n_res = soil_health.n_balance(
-                c_spec, yield_t_ha=mean_y, preceded_by_legume=prec_leg, residue_retained=ret_res
+                c_spec,
+                yield_t_ha=mean_y,
+                preceded_by_legume=prec_leg,
+                residue_retained=ret_res,
+                soil_n_credit_kg_ha=shc_n_credit,
             )
             step_n_saved = float(n_res["fertilizer_saved_kg_ha"] + 0.45 * c_spec.n_fixation_kg_ha)
             tot_n_saved_kg += step_n_saved
@@ -461,6 +484,12 @@ def compute_practical_farmer_metrics(
             step_labor = float(econ_res["labor_cost_per_ha"])
             step_cost = float(econ_res["cost_per_ha"])
             step_profit = float(econ_res["profit_per_ha"])
+            # Apply SHC mineralized N savings to reduce fertilizer expense (subsidized Urea @ ~₹14/kg N)
+            if shc_n_credit > 0.0:
+                fert_reduction_inr = shc_n_credit * 14.0
+                step_cost = max(2000.0, step_cost - fert_reduction_inr)
+                step_profit += fert_reduction_inr
+
             tot_labor_inr += step_labor
             tot_cost_inr += step_cost
             c_proc = str(econ_crops.get(s.crop_id, {}).get("procurement_type", "nafed_pss"))
@@ -536,25 +565,65 @@ def compute_practical_farmer_metrics(
     else:
         msp_level = "NAFED / PSS Supported"
 
-    # 4. Matching Indian Government Schemes
+    # 4. Matching Regional & National Government Support Schemes
     schemes: list[str] = []
     planted_ids = {s.crop_id for s in rotation.steps if s.crop_id != "fallow"}
     all_practices = {p for s in rotation.steps for p in s.practices}
 
-    if "rice_puddled" not in planted_ids and any(
-        c in planted_ids for c in ("maize", "moong", "urad", "pigeon_pea", "soybean", "groundnut", "pearl_millet", "cotton")
-    ):
-        schemes.append("Crop Diversification / Mera Pani Meri Virasat (₹17,500/ha state incentive)")
-    if "rice_dsr" in planted_ids or "direct_seeded" in all_practices:
-        schemes.append("Direct-Seeded Rice (DSR) Promotion Scheme (₹3,750/ha support)")
-    if any(p in all_practices for p in ("happy_seeder", "zero_till", "residue_retained")) and not any(
-        soil_health.is_burning_practice(s.practices) for s in rotation.steps
-    ):
-        schemes.append("CRM Sub-Mission on Crop Residue Management (50–80% Happy Seeder / CHC subsidy)")
+    # Region-specific state schemes
+    if region_id == "haryana":
+        if "rice_puddled" not in planted_ids and any(
+            c in planted_ids for c in ("maize", "moong", "urad", "blackgram", "pigeon_pea", "soybean", "groundnut", "pearl_millet", "cotton")
+        ):
+            schemes.append("Haryana Mera Pani Meri Virasat (₹17,500/ha crop diversification incentive)")
+    elif region_id in ("punjab", "punjab_central", "punjab_southwest"):
+        if "rice_dsr" in planted_ids or "direct_seeded" in all_practices:
+            schemes.append("Punjab DSR Promotion Scheme (₹3,750/ha direct-seeding incentive)")
+        if "rice_puddled" not in planted_ids and any(
+            c in planted_ids for c in ("maize", "moong", "cotton", "soybean", "groundnut")
+        ):
+            schemes.append("Punjab Crop Diversification Mission (support for non-paddy Kharif alternatives)")
+        if any(p in all_practices for p in ("happy_seeder", "zero_till", "residue_retained")) and not any(
+            soil_health.is_burning_practice(s.practices) for s in rotation.steps
+        ):
+            schemes.append("CRM Sub-Mission on Crop Residue Management (50–80% Happy Seeder / CHC subsidy)")
+    elif region_id in ("vidarbha", "maharashtra"):
+        schemes.append("Maharashtra PoCRA (Nanaji Deshmukh Krishi Sanjivani Climate-Resilient Agriculture Subsidy)")
+        if any(p in all_practices for p in ("broad_bed_furrow", "zero_till", "residue_retained")):
+            schemes.append("Maharashtra Soil Health & In-Situ Moisture Conservation Incentive")
+    elif region_id in ("cauvery", "thanjavur", "tamil_nadu"):
+        if any(c in planted_ids for c in ("urad", "blackgram", "moong")):
+            schemes.append("Tamil Nadu Kalaignarin Rice Fallow Pulses Mission (100% certified seed subsidy)")
+        if "rice_dsr" in planted_ids or "direct_seeded" in all_practices:
+            schemes.append("Tamil Nadu Sustainable Dryland & Water Conservation Mission")
+    elif region_id == "bundelkhand":
+        schemes.append("Bundelkhand Drought Mitigation & Pulses Promotion Mission (Special Package)")
+    elif region_id in ("rajasthan_arid", "gujarat"):
+        schemes.append("National Micro-Irrigation Mission & Drought-Prone Area Programme (DPAP)")
+
+    # Universal National / Central schemes
     if any(c in planted_ids for c in ("moong", "urad", "chickpea", "lentil", "pigeon_pea")):
         schemes.append("NFSM-Pulses & NAFED e-Samridhi Assured MSP Procurement")
     if any(c in planted_ids for c in ("mustard", "groundnut", "sunflower", "soybean")):
         schemes.append("National Mission on Edible Oils (NMEO-Oilseeds) Seed & Procurement Support")
+    if any(p in all_practices for p in ("happy_seeder", "zero_till", "residue_retained")) and not any(
+        s in schemes for s in ("CRM Sub-Mission on Crop Residue Management (50–80% Happy Seeder / CHC subsidy)",)
+    ):
+        schemes.append("Sub-Mission on Agricultural Mechanization (SMAM / Conservation Tillage Subsidy)")
+    if urea_bags_saved >= 1.5:
+        schemes.append("PM-PRANAM Alternative Fertiliser & Bio-N Incentive")
+
+    return PracticalFarmerMetrics(
+        turnaround_days_kharif_rabi=turnaround_days,
+        urea_bags_saved_per_ha=urea_bags_saved,
+        irrigations_saved_per_yr=irrigations_saved,
+        pumping_hours_saved_per_ha=pumping_hours_saved,
+        msp_assurance_level=msp_level,
+        eligible_schemes=schemes,
+        labor_cost_inr_per_ha=round(tot_labor_inr / rotation_years, 0),
+        input_cost_inr_per_ha=round(tot_cost_inr / rotation_years, 0),
+        seasonal_operations=seasonal_ops,
+    )
 
     return PracticalFarmerMetrics(
         turnaround_days_kharif_rabi=turnaround_days,
@@ -599,26 +668,11 @@ def prescreen_rotations_with_surrogate(
             else 0.6
         )
         has_leg = 0.25 if any(crops[cid].n_fixation_kg_ha > 0 for cid in active_cids) else 0.0
-        has_cereal = 0.20 if any(crops[cid].group == "cereal" for cid in active_cids) else 0.0
-        has_staple = (
-            0.22
-            if any(
-                cid in ("wheat", "rice_short", "rice_dsr", "maize", "chickpea", "mustard", "soybean")
-                for cid in active_cids
-            )
-            else 0.0
-        )
-        pau_flagship = (
-            0.25
-            if (
-                any(cid in ("rice_short", "rice_dsr", "maize", "soybean") for cid in active_cids)
-                and any(cid in ("wheat", "chickpea", "mustard", "urad") for cid in active_cids)
-            )
-            else 0.0
-        )
+        has_cereal_or_fiber = 0.20 if any(crops[cid].group in ("cereal", "fiber") for cid in active_cids) else 0.0
         fams = len({crops[cid].family for cid in active_cids})
         x_vec = [water_req / yrs, n_fix / yrs, dur_tot / yrs, mean_suit * 100.0, float(fams)]
-        score_proxy = mean_suit + has_leg + has_cereal + has_staple + pau_flagship + 0.04 * fams
+        # Objective agronomic proxy: suitability fit + legume biological N + cereal/fiber anchor + botanical family diversity
+        score_proxy = mean_suit + has_leg + has_cereal_or_fiber + 0.10 * fams
         features.append(x_vec)
         targets.append(score_proxy)
     X_arr = np.asarray(features, dtype=float)

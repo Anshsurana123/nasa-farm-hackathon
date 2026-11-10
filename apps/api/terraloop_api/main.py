@@ -14,14 +14,12 @@ import re
 import urllib.parse
 from datetime import date
 from pathlib import Path
-from typing import Literal
 
 import httpx
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from terraloop_engine import crop_kb, profiler, region_registry, suitability
 from terraloop_engine.climate import ensembles
 from terraloop_engine.data import nasa_power
@@ -30,12 +28,13 @@ from terraloop_engine.models import economics, nutrition
 from terraloop_engine.optimize import evaluate, rotations, selection
 from terraloop_schemas import (
     CropSpec,
-    FarmConstraints,
     FieldGeometry,
     FieldProfile,
-    Priorities,
-    SoilHealthCardInput,
+    GeocodeResult,
+    RecommendRequest,
     StrategyRecommendation,
+    SuitabilityItem,
+    SuitabilityRequest,
     WaterSummary,
 )
 
@@ -101,6 +100,18 @@ def _golden_index() -> list[dict]:
     return json.loads((GOLDEN_DIR / "fields.json").read_text(encoding="utf-8"))
 
 
+def _match_golden_field(field: FieldGeometry, radius: float = 0.15) -> str | None:
+    """Match a field geometry to a precomputed golden benchmark field by ID, name, or spatial proximity (<0.15°)."""
+    f_name = (field.name or "").lower()
+    matches = [
+        f for f in _golden_index()
+        if (field.id and f["id"] == field.id)
+        or (f_name and f["id"] in f_name)
+        or (abs(f["lat"] - field.lat) < radius and abs(f["lon"] - field.lon) < radius)
+    ]
+    return matches[0]["id"] if matches else None
+
+
 def _load_golden_weather(field_id: str) -> pd.DataFrame | None:
     path = GOLDEN_DIR / field_id / "weather.json"
     if not path.exists():
@@ -154,12 +165,6 @@ def golden_recommendations(field_id: str) -> list[StrategyRecommendation]:
 # ---------------------------------------------------------------------------
 # Geocoding & Location Resolution (India-focused)
 # ---------------------------------------------------------------------------
-class GeocodeResult(BaseModel):
-    lat: float
-    lon: float
-    name: str
-
-
 def _clean_place_name(name: str) -> str:
     parts = [p.strip() for p in name.split(",") if p.strip()]
     if not parts:
@@ -344,15 +349,9 @@ def geocode_location(q: str) -> GeocodeResult:
 @app.post("/profile", response_model=FieldProfile)
 def build_profile(field: FieldGeometry) -> FieldProfile:
     reg_cfg = region_registry.detect_region_config(field.lat, field.lon)
-    f_name = (field.name or "").lower()
-    golden_matches = [
-        f for f in _golden_index()
-        if (field.id and f["id"] == field.id)
-        or (f_name and f["id"] in f_name)
-        or (abs(f["lat"] - field.lat) < 0.005 and abs(f["lon"] - field.lon) < 0.005)
-    ]
-    if golden_matches:
-        prof = golden_profile(golden_matches[0]["id"])
+    matched_id = _match_golden_field(field, radius=0.15)
+    if matched_id:
+        prof = golden_profile(matched_id)
     else:
         try:
             prof = profiler.build_profile(field)
@@ -368,52 +367,15 @@ def build_profile(field: FieldGeometry) -> FieldProfile:
     return prof
 
 
-class SuitabilityRequest(BaseModel):
-    field: FieldGeometry
-    constraints: FarmConstraints = FarmConstraints()
-
-
-class SuitabilityItem(BaseModel):
-    crop_id: str
-    name: str
-    score: float
-    thermal_fit: float
-    water_fit: float
-    sowing_months: list[int]
-    reasons: list[str]
-
-
 @app.post("/suitability", response_model=list[SuitabilityItem])
 def crop_suitability(req: SuitabilityRequest) -> list[SuitabilityItem]:
-    golden_matches = [
-        f for f in _golden_index()
-        if abs(f["lat"] - req.field.lat) < 0.15 and abs(f["lon"] - req.field.lon) < 0.15
-    ]
-    prof = golden_profile(golden_matches[0]["id"]) if golden_matches else profiler.build_profile(req.field)
+    matched_id = _match_golden_field(req.field, radius=0.15)
+    prof = golden_profile(matched_id) if matched_id else profiler.build_profile(req.field)
     crops = crop_kb.load_crops()
     return [
         SuitabilityItem(name=crops[r.crop_id].name, **r.__dict__)
         for r in suitability.rank_crops(prof, crops, req.constraints)
     ]
-
-
-class RecommendRequest(BaseModel):
-    field: FieldGeometry
-    priorities: Priorities = Priorities()
-    constraints: FarmConstraints = FarmConstraints()
-    language: Literal["en", "pa", "hi"] = "en"
-    soil_health_card: SoilHealthCardInput | None = None
-    baseline_override: list[str] | None = None
-    climate_scenario: Literal[
-        "historical",
-        "ssp245_2030s",
-        "ssp245_2050s",
-        "ssp585_2030s",
-        "ssp585_2050s",
-    ] = "historical"
-    drought_shock_pct: float = 0.0
-    price_shock_pct: float = 0.0
-    fertilizer_shock_pct: float = 0.0
 
 
 @app.post("/recommend", response_model=list[StrategyRecommendation])
@@ -423,14 +385,7 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     Returns list[StrategyRecommendation] containing baseline (rank 0) plus top 3 recommendations."""
     # 1. Field Profile & Regional Validation Status
     reg_cfg = region_registry.detect_region_config(req.field.lat, req.field.lon)
-    req_f_name = (req.field.name or "").lower()
-    golden_matches = [
-        f for f in _golden_index()
-        if (req.field.id and f["id"] == req.field.id)
-        or (req_f_name and f["id"] in req_f_name)
-        or (abs(f["lat"] - req.field.lat) < 0.005 and abs(f["lon"] - req.field.lon) < 0.005)
-    ]
-    matched_golden_id: str | None = golden_matches[0]["id"] if golden_matches else None
+    matched_golden_id: str | None = _match_golden_field(req.field, radius=0.15)
 
     if matched_golden_id:
         prof = golden_profile(matched_golden_id)
@@ -526,8 +481,7 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     rank_scores = {r.crop_id: r.score for r in ranked_crops}
     top_ids = {r.crop_id for r in ranked_crops[:10] if r.score >= 0.22}
     # Always include key regional diversification & staple crops if suitable
-    # Geographically bounded Trans-Gangetic Punjab/Haryana plains (not arbitrary lat >= 28.5)
-    is_punjab_belt = (29.2 <= prof.field.lat <= 32.5) and (73.5 <= prof.field.lon <= 77.2)
+    is_punjab_belt = reg_cfg.region_id in ("punjab_central", "punjab_southwest", "haryana")
     is_semi_arid_limited = req.constraints.irrigation == "limited" and prof.climate.annual_precip_mm < 520.0
     for key_cid in (
         "wheat",
@@ -592,7 +546,13 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
 
     baseline_result = sim_results[0]
     baseline_pm = evaluate.compute_practical_farmer_metrics(
-        baseline_rot, baseline_result, baseline_result, crops, constraints=req.constraints
+        baseline_rot,
+        baseline_result,
+        baseline_result,
+        crops,
+        constraints=req.constraints,
+        profile=prof,
+        region_id=reg_cfg.region_id,
     )
 
     # 6. Map to objective scores for Pareto / Priority selection (incorporating procurement_type & market_risk)
@@ -679,7 +639,13 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
 
     for r, res in zip(all_rotations[1:], sim_results[1:], strict=False):
         pm = evaluate.compute_practical_farmer_metrics(
-            r, res, baseline_result, crops, constraints=req.constraints
+            r,
+            res,
+            baseline_result,
+            crops,
+            constraints=req.constraints,
+            profile=prof,
+            region_id=reg_cfg.region_id,
         )
         cand_pms.append(pm)
         obj_dict = _build_objective_dict(r, res, pm)

@@ -139,7 +139,7 @@ export function TelemetryBar({ profile }: { profile: FieldProfile }) {
           <ProgressRing
             value={meanSmap}
             max={100}
-            label="SMAP Root-Zone Soil Moisture Percentile"
+            label="SMAP Root-Zone Soil Moisture Percentile (Context Only)"
             size="2.9rem"
             thickness="4px"
             color="var(--accent-water)"

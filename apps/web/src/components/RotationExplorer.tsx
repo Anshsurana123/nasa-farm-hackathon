@@ -147,7 +147,7 @@ export function RotationExplorer({
           cToUse.rotation_years > 1
             ? `${cToUse.rotation_years}-Year Multi-Year Sequence`
             : "1-Year Annual Cycle";
-        setSuccessBanner(`✓ Generated ${recs.length - 1} Pareto Strategies for ${yrLabel}`);
+        setSuccessBanner(`✓ Generated ${recs.length - 1} Resilient Strategies for ${yrLabel}`);
         setTimeout(() => setSuccessBanner(null), 4000);
       }
     } catch (err) {
@@ -1388,7 +1388,7 @@ export function RotationExplorer({
                     <th scope="col" className="py-3.5 px-4">Rotation Strategy</th>
                     <th scope="col" className="py-3.5 px-3">Baseline Margin</th>
                     <th scope="col" className="py-3.5 px-3">Stressed Margin</th>
-                    <th scope="col" className="py-3.5 px-3">CVaR-10 Worst-Decile</th>
+                    <th scope="col" className="py-3.5 px-3">Drought Income (Worst 10%)</th>
                     <th scope="col" className="py-3.5 px-3">Regret / Drawdown</th>
                     <th scope="col" className="py-3.5 px-3">Stressed Irrigation</th>
                     <th scope="col" className="py-3.5 px-3">Resilience Class</th>

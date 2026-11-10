@@ -336,3 +336,46 @@ class StrategyRecommendation(BaseModel):
     data_mode: Literal["observed", "hybrid_regional", "fallback_synthetic"] = "observed"
     validation_status: Literal["validated_india", "unvalidated_global"] = "validated_india"
     validation_message: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# API Request & Response Contracts (TASK-A01, A03)
+# ---------------------------------------------------------------------------
+class GeocodeResult(BaseModel):
+    lat: float
+    lon: float
+    name: str
+
+
+class SuitabilityRequest(BaseModel):
+    field: FieldGeometry
+    constraints: FarmConstraints = Field(default_factory=FarmConstraints)
+
+
+class SuitabilityItem(BaseModel):
+    crop_id: str
+    name: str = ""
+    score: float
+    thermal_fit: float
+    water_fit: float
+    sowing_months: list[int]
+    reasons: list[str] = Field(default_factory=list)
+
+
+class RecommendRequest(BaseModel):
+    field: FieldGeometry
+    priorities: Priorities = Field(default_factory=Priorities)
+    constraints: FarmConstraints = Field(default_factory=FarmConstraints)
+    language: Literal["en", "pa", "hi"] = "en"
+    soil_health_card: SoilHealthCardInput | None = None
+    baseline_override: list[str] | None = None
+    climate_scenario: Literal[
+        "historical",
+        "ssp245_2030s",
+        "ssp245_2050s",
+        "ssp585_2030s",
+        "ssp585_2050s",
+    ] = "historical"
+    drought_shock_pct: float = 0.0
+    price_shock_pct: float = 0.0
+    fertilizer_shock_pct: float = 0.0

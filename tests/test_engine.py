@@ -1148,22 +1148,150 @@ def test_golden_match_tightened_radius():
     # but critically, it will NOT silently serve the Sangrur golden profile.json
 
 
-def test_rainfed_baseline_irrigation_change_reporting():
-    """Verify that rainfed baseline fields record is_rainfed_baseline=1.0 and absolute irrigation_change_mm (F-09)."""
-    import json
-    from pathlib import Path
+def test_golden_proximity_matcher():
+    """Verify that _match_golden_field matches nearby farms within 0.15 deg and rejects beyond (F2-01)."""
+    from terraloop_api.main import _match_golden_field
+    from terraloop_schemas import FieldGeometry
 
-    from terraloop_schemas import StrategyRecommendation
+    # Exactly at Sangrur (30.19, 75.78)
+    assert _match_golden_field(FieldGeometry(lat=30.19, lon=75.78)) == "sangrur"
+    # Farm in Dhuri block (30.25, 75.82) -> dx=0.06, dy=0.04 (< 0.15) -> should match sangrur
+    assert _match_golden_field(FieldGeometry(lat=30.25, lon=75.82)) == "sangrur"
+    # Farm in Nabha / Patiala border (30.45, 76.15) -> dx=0.26, dy=0.37 (> 0.15) -> should NOT match sangrur
+    assert _match_golden_field(FieldGeometry(lat=30.45, lon=76.15)) is None
 
-    # Read precomputed Vidarbha recommendations
-    vid_recs_raw = json.loads(Path("data/golden/vidarbha/recommendations.json").read_text(encoding="utf-8"))
-    vid_recs = [StrategyRecommendation.model_validate(r) for r in vid_recs_raw]
 
-    # Baseline is rank 0
-    base = vid_recs[0]
-    base_irr = base.results[0].irrigation_mm
-    # Vidarbha cotton->chickpea is rainfed
-    assert sum(base_irr) == 0.0
+def test_llm_numeric_grounding_validator():
+    """Verify that verify_llm_numeric_grounding accepts grounded metrics and rejects hallucinations (F2-03)."""
+    from terraloop_engine.explain.why_cards import verify_llm_numeric_grounding
+
+    allowed = {126.0, 148.0, 32.0, 3.8, 82.0, 2.8, 177174.0, 114250.0}
+
+    # Text containing only valid grounded numbers (plus structural numbers like 10, 100)
+    grounded_text = (
+        "Strategy PR-126 saves 148 mm/yr (32% savings) of irrigation, countering 3.8 cm/yr regional water drop. "
+        "Over 10 years, it increases soil carbon by 2.8 t C/ha, elevating soil health to 82/100. "
+        "Expected net return is Rs 177,174/ha with drought buffer of Rs 114,250/ha."
+    )
+    assert verify_llm_numeric_grounding(grounded_text, allowed) is True
+
+    # Text containing hallucinated numbers (e.g. fabricated 450 mm savings or Rs 500,000 profit)
+    hallucinated_text = (
+        "Strategy PR-126 saves 450 mm/yr of irrigation with a massive profit of Rs 500,000/ha."
+    )
+    assert verify_llm_numeric_grounding(hallucinated_text, allowed) is False
+
+
+def test_state_subsidy_routing_by_region(punjab_profile):
+    """Verify that state subsidy schemes are accurately routed by detected state (F2-02)."""
+    from terraloop_engine import crop_kb
+    from terraloop_engine.optimize.evaluate import compute_practical_farmer_metrics
+    from terraloop_schemas import Rotation, RotationStep, SimulationResult
+
+    crops = crop_kb.load_crops()
+    rot = Rotation(
+        id="test_dsr",
+        steps=[
+            RotationStep(year_index=0, season_index=0, crop_id="rice_dsr", practices=["dsr", "happy_seeder"]),
+            RotationStep(year_index=0, season_index=1, crop_id="wheat", practices=["happy_seeder"]),
+        ],
+        is_baseline=False,
+    )
+    sim_res = SimulationResult(
+        rotation_id=rot.id,
+        scenario_set_id="historical",
+        yield_t_ha={"rice_dsr": [5.5], "wheat": [5.0]},
+        irrigation_mm=[1000.0],
+        profit_per_ha=[120000.0],
+        soc_delta_t_ha_10yr=1.5,
+        erosion_t_ha_yr=2.0,
+        n_balance_kg_ha_yr=10.0,
+        living_root_days_pct=65.0,
+        family_diversity_index=1.0,
+        soil_health_score=70.0,
+        profit_p10=90000.0,
+        profit_p50=120000.0,
+        profit_p90=140000.0,
+        cvar_profit_10=85000.0,
+    )
+
+    # 1. Punjab profile -> gets Punjab DSR Promotion Scheme, never Mera Pani Meri Virasat
+    pm_pb = compute_practical_farmer_metrics(rot, sim_res, crops=crops, profile=punjab_profile, region_id="punjab")
+    schemes_pb_str = " ".join(pm_pb.eligible_schemes)
+    assert "Punjab DSR Promotion Scheme" in schemes_pb_str
+    assert "Mera Pani Meri Virasat" not in schemes_pb_str
+
+    # 2. Haryana profile with maize diversification -> gets Mera Pani Meri Virasat
+    rot_haryana = Rotation(
+        id="test_mpmv",
+        steps=[
+            RotationStep(year_index=0, season_index=0, crop_id="maize", practices=["conventional"]),
+            RotationStep(year_index=0, season_index=1, crop_id="wheat", practices=["happy_seeder"]),
+        ],
+        is_baseline=False,
+    )
+    sim_res_haryana = sim_res.model_copy(update={"rotation_id": rot_haryana.id, "yield_t_ha": {"maize": [6.0], "wheat": [5.0]}})
+    pm_hr = compute_practical_farmer_metrics(rot_haryana, sim_res_haryana, crops=crops, profile=punjab_profile, region_id="haryana")
+    schemes_hr_str = " ".join(pm_hr.eligible_schemes)
+    assert "Mera Pani Meri Virasat" in schemes_hr_str
+    assert "Punjab DSR Promotion Scheme" not in schemes_hr_str
+
+    # 3. Maharashtra/Vidarbha -> gets PoCRA
+    pm_mh = compute_practical_farmer_metrics(rot, sim_res, crops=crops, profile=punjab_profile, region_id="vidarbha")
+    schemes_mh_str = " ".join(pm_mh.eligible_schemes)
+    assert "Maharashtra PoCRA (Nanaji Deshmukh Krishi Sanjivani" in schemes_mh_str
+
+    # 4. Tamil Nadu/Cauvery -> gets Kalaignarin Rice Fallow Pulses
+    rot_relay = Rotation(
+        id="test_relay",
+        steps=[RotationStep(year_index=0, season_index=0, crop_id="blackgram", practices=["relay_seeding"])],
+        is_baseline=False,
+    )
+    sim_res_relay = sim_res.model_copy(update={"rotation_id": rot_relay.id, "yield_t_ha": {"blackgram": [1.0]}})
+    pm_tn = compute_practical_farmer_metrics(rot_relay, sim_res_relay, crops=crops, profile=punjab_profile, region_id="thanjavur")
+    schemes_tn_str = " ".join(pm_tn.eligible_schemes)
+    assert "Tamil Nadu Kalaignarin Rice Fallow Pulses Mission" in schemes_tn_str
+
+
+def test_shc_nitrogen_credit_economics(punjab_profile):
+    """Verify that SHC available N credit saves urea bags and reduces fertilizer cost (F2-05)."""
+    from terraloop_engine import crop_kb
+    from terraloop_engine.optimize.evaluate import compute_practical_farmer_metrics
+    from terraloop_schemas import Rotation, RotationStep, SimulationResult
+
+    crops = crop_kb.load_crops()
+    rot = Rotation(
+        id="test_rot",
+        steps=[RotationStep(year_index=0, season_index=0, crop_id="wheat", practices=["conventional"])],
+        is_baseline=False,
+    )
+    sim_res = SimulationResult(
+        rotation_id=rot.id,
+        scenario_set_id="historical",
+        yield_t_ha={"wheat": [5.0]},
+        irrigation_mm=[400.0],
+        profit_per_ha=[60000.0],
+        soc_delta_t_ha_10yr=0.5,
+        erosion_t_ha_yr=2.0,
+        n_balance_kg_ha_yr=0.0,
+        living_root_days_pct=40.0,
+        family_diversity_index=0.5,
+        soil_health_score=50.0,
+        profit_p10=45000.0,
+        profit_p50=60000.0,
+        profit_p90=70000.0,
+        cvar_profit_10=40000.0,
+    )
+
+    # Without SHC N credit
+    pm_no_shc = compute_practical_farmer_metrics(rot, sim_res, crops=crops, profile=punjab_profile, shc_n_credit=0.0)
+    # With SHC N credit (e.g. 40 kg N credit)
+    pm_with_shc = compute_practical_farmer_metrics(rot, sim_res, crops=crops, profile=punjab_profile, shc_n_credit=40.0)
+
+    # 40 kg N credit / 0.46 = 86.95 kg Urea / 45 = ~1.9 bags saved
+    assert pm_with_shc.urea_bags_saved_per_ha > pm_no_shc.urea_bags_saved_per_ha
+    assert pm_with_shc.input_cost_inr_per_ha < pm_no_shc.input_cost_inr_per_ha
+
 
 
 

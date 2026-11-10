@@ -1,5 +1,6 @@
 {
   "field": {
+    "id": null,
     "lat": 20.39,
     "lon": 78.13,
     "polygon": null,
@@ -298,5 +299,7 @@
   "currency_symbol": "₹",
   "agro_zone": "Western / Central Deccan Plateau (Vidarbha Black Cotton Vertisol Belt)",
   "is_fallback": false,
-  "data_mode": "observed"
+  "data_mode": "observed",
+  "validation_status": "validated_india",
+  "validation_message": null
 }

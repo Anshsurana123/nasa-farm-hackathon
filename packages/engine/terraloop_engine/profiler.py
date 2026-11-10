@@ -232,7 +232,7 @@ def apply_soil_health_card_override(profile: FieldProfile, shc: SoilHealthCardIn
             s.field_capacity_vol = fc
             s.wilting_point_vol = wp
     if shc.available_n_kg_ha is not None:
-        s.nitrogen_g_kg = round(float(shc.available_n_kg_ha) / 2240.0, 2)
+        s.nitrogen_g_kg = round(float(shc.available_n_kg_ha) / 2240.0, 4)
 
     s.source = "farmer_test"
     shc_prov = DataProvenance(

@@ -73,7 +73,16 @@ def fetch_topsoil(lat: float, lon: float) -> tuple[dict[str, float] | None, tupl
     for dlat, dlon in _OFFSETS:
         plat, plon = lat + dlat, lon + dlon
         try:
-            parsed = _parse(_query(plat, plon))
+            raw = _query(plat, plon)
+            parsed = _parse(raw)
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError):
+            # Abort offset search immediately on network-level outage or timeout
+            break
+        except httpx.HTTPStatusError as exc:
+            # 5xx server errors indicate SoilGrids service outage; do not retry 12 times
+            if exc.response.status_code >= 500:
+                break
+            continue
         except httpx.HTTPError:
             continue
         if parsed:

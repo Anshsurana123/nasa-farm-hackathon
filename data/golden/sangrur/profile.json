@@ -1,5 +1,6 @@
 {
   "field": {
+    "id": null,
     "lat": 30.19,
     "lon": 75.78,
     "polygon": null,
@@ -344,5 +345,7 @@
   "currency_symbol": "₹",
   "agro_zone": "Trans-Gangetic Plains (Alluvial Rice–Wheat Belt)",
   "is_fallback": false,
-  "data_mode": "observed"
+  "data_mode": "observed",
+  "validation_status": "validated_india",
+  "validation_message": null
 }

@@ -43,7 +43,7 @@ Everything we build is judged against those core dimensions. Before starting wor
 
 ## 2. Current Phase: Hardening, Not Building
 
-All 44 original backlog items and all 15 audit findings from `docs/AUDIT.md` are implemented, integrated, and verified with **61/61 passing offline tests**. There is no "next unchecked task".
+All 44 original backlog items and all 15 audit findings from `docs/AUDIT.md` are implemented, integrated, and verified with **66/66 passing offline tests**. There is no "next unchecked task".
 
 Work comes from, in this strict order of priority:
 1. **The user's explicit request.**
@@ -78,7 +78,7 @@ packages/engine/terraloop_engine/    All biophysical science and logic. NO web c
   optimize/                          rotations (seasonal candidates + constraints),
                                      evaluate (multi-member simulation, practical metrics),
                                      selection (NSGA-II Pareto + priority-weighted top-3)
-  explain/why_cards.py               Deterministic multilingual why-cards + grounded Gemini 3.8 Flash LLM summary
+  explain/why_cards.py               Deterministic multilingual why-cards + grounded Gemini Flash LLM summary (verified by numeric grounding validator; deterministic fallback)
 packages/crop-kb/                    crops/*.yaml (23 crops + _template.yaml), aquacrop_params/, economics/punjab.yaml
 apps/api/terraloop_api/main.py       FastAPI backend: /health /crops /golden/* /geocode /profile /suitability /recommend
 apps/web/                            Next.js 16 + React 19 + Tailwind CSS v4; i18n in src/i18n/{en,hi,pa}.json
@@ -117,7 +117,7 @@ FieldGeometry (lat, lon, polygon)
   ├─► selection.select_top ──► NSGA-II non-dominated Pareto sorting & priority-weighted ranking ──► Top 3
   │
   └─► explain.why_cards ──► Deterministic multilingual why-cards + practical farmer metrics (Urea bags,
-                            pumping hours, turnaround days) + grounded Gemini 3.8 Flash agronomic summary
+                            pumping hours, turnaround days) + grounded Gemini Flash agronomic summary (with deterministic fallback)
                             ──► list[StrategyRecommendation] (Index 0 = Baseline, Indices 1..3 = Top picks)
 ```
 
@@ -147,7 +147,7 @@ Follow these non-negotiable rules at all times:
 
 1. **NASA Data First, and It Must Matter:** Prioritize NASA Earth observations. Any NASA dataset that is merely displayed without influencing suitability, simulation, or ranking must be labeled `"context only"` in the UI. Register every new dataset in `docs/DATASETS.md` with product ID, GEE collection name, resolution, and DOI.
 2. **Provenance on Every Number:** Every number displayed to a user must carry a `DataProvenance` model (source name, product ID, temporal range, DOI/URL, and observation mode). If a function outputs user-facing metrics without provenance, it is incomplete.
-3. **Never Invent Numbers:** LLM-generated text (Gemini 3.8 Flash via `why_cards.py`) must strictly explain values computed by biophysical modules. Never fabricate yields, water savings, costs, or constants. If an agronomic parameter cannot be cited, record it in `docs/AUDIT.md` as `"needs domain expert"` and do not guess.
+3. **Never Invent Numbers:** LLM-generated text (Gemini Flash via `why_cards.py`, gated by `verify_llm_numeric_grounding`) must strictly explain values computed by biophysical modules. Never fabricate yields, water savings, costs, or constants. If an agronomic parameter cannot be cited, record it in `docs/AUDIT.md` as `"needs domain expert"` and do not guess.
 4. **The Demo Must Never Crash, and Must Never Mislead:** 
    - Live external failures must fall back gracefully to regional climatology or precomputed golden assets.
    - Fallback or synthetic data must always carry a visible label (`is_fallback=True`, `data_mode="regional_climatology"` or `"fallback_synthetic"`).

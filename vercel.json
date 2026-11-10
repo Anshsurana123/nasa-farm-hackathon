@@ -4,7 +4,8 @@
     "api": {
       "root": ".",
       "framework": "fastapi",
-      "entrypoint": "apps/api/terraloop_api/main.py"
+      "entrypoint": "apps/api/terraloop_api/main.py",
+      "maxDuration": 60
     },
     "web": {
       "root": "apps/web",

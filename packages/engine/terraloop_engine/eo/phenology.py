@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 from terraloop_schemas import InferredSeason
 
+from terraloop_engine import region_registry
 from terraloop_engine.eo import classifier as clf_mod
 
 
@@ -163,10 +164,11 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
 
     p_month = p_date.month
 
-    is_sw_punjab = (28.5 <= lat <= 31.2) and (73.5 <= lon < 75.2)
-    is_vidarbha = (18.0 <= lat < 23.0) and (75.0 <= lon <= 80.5)
-    is_bundelkhand = (23.5 <= lat < 27.0) and (77.5 <= lon <= 81.5)
-    is_cauvery_delta = lat < 15.0
+    reg = region_registry.detect_region_config(lat, lon)
+    is_sw_punjab = reg.region_id == "punjab_southwest"
+    is_vidarbha = reg.region_id == "vidarbha"
+    is_bundelkhand = reg.region_id == "bundelkhand"
+    is_cauvery_delta = reg.region_id == "cauvery"
 
     if p_month in (7, 8, 9, 10, 11) or (p_month == 6 and (is_vidarbha or is_bundelkhand)):
         season_index = 0

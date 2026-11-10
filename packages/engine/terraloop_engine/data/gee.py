@@ -301,12 +301,15 @@ def imerg_daily(lat: float, lon: float, start: str, end: str) -> pd.Series:
     rng = np.random.default_rng(int(abs(lat * 100 + lon * 10)))
 
     # Regional Indian monsoon distribution
-    if lat < 15.0:
+    from .. import region_registry
+    reg = region_registry.detect_region_config(lat, lon)
+
+    if reg.region_id in ("cauvery", "southern_hills"):
         # Southern Peninsula / Cauvery Delta (NE + SW monsoon, Oct-Dec peak + Jul-Sep)
         wet_season = (idx.month >= 8) & (idx.month <= 12)
         rain_prob = np.where(wet_season, 0.38, 0.07)
         rain_amounts = np.where(wet_season, rng.gamma(1.3, 14.0, len(idx)), rng.gamma(0.8, 5.0, len(idx)))
-    elif (29.0 <= lat <= 31.2) and (lon < 75.2):
+    elif reg.region_id in ("punjab_southwest", "rajasthan_arid"):
         # Bathinda Semi-Arid SW Punjab (~420 mm/yr)
         monsoon = (idx.month >= 7) & (idx.month <= 9)
         rain_prob = np.where(monsoon, 0.24, 0.04)
@@ -373,16 +376,19 @@ def smap_rootzone(lat: float, lon: float, start: str, end: str) -> pd.Series:
     years = (idx.year - idx.year.min()).to_numpy()
 
     # Regionally differentiated root-zone soil moisture climatology + dry/wet anomaly trend
-    if (23.5 <= lat < 27.0) and (77.5 <= lon <= 81.5):
+    from .. import region_registry
+    reg = region_registry.detect_region_config(lat, lon)
+
+    if reg.region_id == "bundelkhand":
         # Bundelkhand rainfed drought-prone (lower recent soil moisture percentile ~28th)
         sm_base = 0.18 + 0.09 * np.sin(2 * np.pi * (doy - 205) / 365) - 0.004 * years
-    elif (18.0 <= lat < 23.0) and (75.0 <= lon <= 80.5):
+    elif reg.region_id == "vidarbha":
         # Vidarbha rainfed Vertisol (~34th percentile)
         sm_base = 0.24 + 0.10 * np.sin(2 * np.pi * (doy - 210) / 365) - 0.003 * years
-    elif (29.0 <= lat <= 31.2) and (lon < 75.2):
+    elif reg.region_id in ("punjab_southwest", "rajasthan_arid"):
         # Bathinda semi-arid cotton belt (~38th percentile)
         sm_base = 0.17 + 0.07 * np.sin(2 * np.pi * (doy - 200) / 365) - 0.002 * years
-    elif lat < 15.0:
+    elif reg.region_id in ("cauvery", "southern_hills"):
         # Thanjavur Cauvery Delta (~62nd percentile)
         sm_base = 0.28 + 0.08 * np.sin(2 * np.pi * (doy - 270) / 365) + 0.002 * years
     else:
