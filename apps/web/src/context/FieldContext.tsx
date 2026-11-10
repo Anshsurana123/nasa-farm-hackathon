@@ -91,8 +91,20 @@ const FieldContext = createContext<FieldContextValue | null>(null);
 export function FieldProvider({ children }: { children: ReactNode }) {
   const { lang } = useI18n();
   const [goldenFields, setGoldenFields] = useState<GoldenField[]>([]);
-  const [selectedField, setSelectedField] = useState<SelectedParcel>(() => {
-    if (typeof window === "undefined") return DEFAULT_PARCEL;
+  const [selectedField, setSelectedField] = useState<SelectedParcel>(DEFAULT_PARCEL);
+  const [selectedGoldenId, setSelectedGoldenId] = useState<string | null>("sangrur");
+  const [profile, setProfile] = useState<FieldProfile | null>(null);
+  const [strategies, setStrategies] = useState<StrategyRecommendation[]>([]);
+  const [crops, setCrops] = useState<CropSpec[]>([]);
+  const [priorities, setPrioritiesState] = useState<Priorities>(DEFAULT_PRIORITIES);
+  const [constraints, setConstraintsState] = useState<FarmConstraints>(DEFAULT_CONSTRAINTS);
+  const [selectedRank, setSelectedRankState] = useState<number>(1);
+  const [unitSystem, setUnitSystemState] = useState<UnitSystem>("acre");
+  const [soilHealthCard, setSoilHealthCardState] = useState<SoilHealthCardInput | null>(null);
+  const [baselineOverride, setBaselineOverrideState] = useState<string[] | null>(null);
+
+  // Sync client-saved state from localStorage after mount to ensure matching SSR hydration
+  useEffect(() => {
     try {
       const savedParcel = localStorage.getItem("tl_selected_field");
       if (savedParcel) {
@@ -105,75 +117,33 @@ export function FieldProvider({ children }: { children: ReactNode }) {
           parsed.lon >= 66 &&
           parsed.lon <= 99
         ) {
-          return parsed;
+          setSelectedField(parsed);
         }
       }
-    } catch {
-      // Ignore storage errors
-    }
-    return DEFAULT_PARCEL;
-  });
-  const [selectedGoldenId, setSelectedGoldenId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return "sangrur";
-    try {
       const savedGolden = localStorage.getItem("tl_selected_golden_id");
       if (savedGolden !== null) {
-        return savedGolden === "" ? null : savedGolden;
+        setSelectedGoldenId(savedGolden === "" ? null : savedGolden);
       }
-    } catch {
-      // Ignore
-    }
-    return "sangrur";
-  });
-  const [profile, setProfile] = useState<FieldProfile | null>(null);
-  const [strategies, setStrategies] = useState<StrategyRecommendation[]>([]);
-  const [crops, setCrops] = useState<CropSpec[]>([]);
-  const [priorities, setPrioritiesState] = useState<Priorities>(() => {
-    if (typeof window === "undefined") return DEFAULT_PRIORITIES;
-    try {
       const savedPrio = localStorage.getItem("tl_priorities");
       if (savedPrio) {
-        return { ...DEFAULT_PRIORITIES, ...JSON.parse(savedPrio) };
+        setPrioritiesState((prev) => ({ ...prev, ...JSON.parse(savedPrio) }));
       }
-    } catch {
-      // Ignore
-    }
-    return DEFAULT_PRIORITIES;
-  });
-  const [constraints, setConstraintsState] = useState<FarmConstraints>(() => {
-    if (typeof window === "undefined") return DEFAULT_CONSTRAINTS;
-    try {
       const savedConst = localStorage.getItem("tl_constraints");
       if (savedConst) {
-        return { ...DEFAULT_CONSTRAINTS, ...JSON.parse(savedConst) };
+        setConstraintsState((prev) => ({ ...prev, ...JSON.parse(savedConst) }));
+      }
+      const savedRank = localStorage.getItem("tl_selected_rank");
+      if (savedRank !== null) {
+        setSelectedRankState(Number(savedRank));
+      }
+      const savedUnit = localStorage.getItem("tl_unit_system");
+      if (savedUnit === "acre" || savedUnit === "hectare") {
+        setUnitSystemState(savedUnit);
       }
     } catch {
-      // Ignore
+      // Ignore localStorage errors
     }
-    return DEFAULT_CONSTRAINTS;
-  });
-  const [selectedRank, setSelectedRankState] = useState<number>(() => {
-    if (typeof window === "undefined") return 1;
-    try {
-      const savedRank = localStorage.getItem("tl_selected_rank");
-      if (savedRank !== null) return Number(savedRank);
-    } catch {
-      // Ignore
-    }
-    return 1;
-  });
-  const [unitSystem, setUnitSystemState] = useState<UnitSystem>(() => {
-    if (typeof window === "undefined") return "acre";
-    try {
-      const savedUnit = localStorage.getItem("tl_unit_system");
-      if (savedUnit === "acre" || savedUnit === "hectare") return savedUnit;
-    } catch {
-      // Ignore
-    }
-    return "acre";
-  });
-  const [soilHealthCard, setSoilHealthCardState] = useState<SoilHealthCardInput | null>(null);
-  const [baselineOverride, setBaselineOverrideState] = useState<string[] | null>(null);
+  }, []);
 
   const requestKey = `${selectedGoldenId ?? ""}:${selectedField.lat}:${selectedField.lon}:${lang}:${JSON.stringify(soilHealthCard)}:${JSON.stringify(baselineOverride)}`;
   const [settledProfileKey, setSettledProfileKey] = useState<string>("");

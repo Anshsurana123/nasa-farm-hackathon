@@ -81,6 +81,9 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
 
       try {
         const maplibre = await import("maplibre-gl");
+        if (typeof window !== "undefined" && maplibre.config) {
+          maplibre.config.WORKER_URL = "/maplibre/maplibre-gl-worker.mjs";
+        }
         if (!isMounted || !mapContainer.current) return;
 
         const map = new maplibre.Map({

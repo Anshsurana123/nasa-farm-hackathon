@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { FieldMap } from "@/components/FieldMap";
 import { SoilColumn3D } from "@/components/SoilColumn3D";
 import { ProgressRing } from "@/components/ProgressRing";
+import { TelemetryBar } from "@/components/TelemetryBar";
 import { useField } from "@/context/FieldContext";
 import { api } from "@/lib/api";
 import {
@@ -50,6 +51,11 @@ export default function MissionControlPage() {
   const [customLon, setCustomLon] = useState<string>(selectedField.lon.toFixed(4));
   const [geocodingLoading, setGeocodingLoading] = useState<boolean>(false);
   const [geocodingError, setGeocodingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCustomLat(selectedField.lat.toFixed(4));
+    setCustomLon(selectedField.lon.toFixed(4));
+  }, [selectedField.lat, selectedField.lon]);
 
   const regCtx = regionContext(selectedField.lat, selectedField.lon, selectedGoldenId);
   const isSA = isSouthAsia(selectedField.lat, selectedField.lon);
@@ -113,282 +119,347 @@ export default function MissionControlPage() {
   } = buildSectorBriefing(selectedField.lat, selectedField.lon, selectedGoldenId, profile, topRec);
 
   return (
-    <AppShell showTelemetry={true}>
-      {/* Hero Mission Command Deck */}
-      <section className="glass rounded-2xl p-5 sm:p-6 border border-line reticle-frame relative overflow-hidden">
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-center">
-          {/* Left: Regional Briefing & Mission Actions */}
-          <div className="xl:col-span-7 space-y-3">
-            <div className="flex items-center gap-2 flex-wrap font-mono text-[11px]">
-              <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-wider">
-                MODULE 01 // MISSION CONTROL
-              </span>
-              <span className={`px-2.5 py-0.5 rounded-md font-bold uppercase tracking-wider border ${badgeTone}`}>
-                {sectorBadge}
-              </span>
-              <span className="text-muted">
-                {regCtx.icon} · {fmtDMS(selectedField.lat, true)} {fmtDMS(selectedField.lon, false)}
-              </span>
-            </div>
-
-            <h1
-              id="page-main-heading"
-              tabIndex={-1}
-              className="font-serif text-2xl sm:text-3xl font-bold text-foreground tracking-tight outline-none"
-            >
-              {sectorTitle}
-            </h1>
-
-            <p className="text-xs sm:text-sm text-muted leading-relaxed prose-measure">
-              {sectorDesc}
-            </p>
-
-            <div className="pt-2 flex flex-wrap items-center gap-2.5">
-              <Link
-                href="/rotations"
-                className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Launch Rotation Studio</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-
-              <Link
-                href="/diagnostics"
-                className="px-4 py-2.5 rounded-xl bg-surface hover:bg-foreground/10 border border-line-strong text-foreground font-mono text-xs font-semibold flex items-center gap-2 transition-colors"
-              >
-                <Activity className="w-4 h-4 text-cyan-400" />
-                <span>Inspect Field Diagnostics</span>
-              </Link>
-
-              <Link
-                href="/lab"
-                className="px-4 py-2.5 rounded-xl bg-surface hover:bg-foreground/10 border border-line-strong text-foreground font-mono text-xs font-semibold flex items-center gap-2 transition-colors"
-              >
-                <FlaskConical className="w-4 h-4 text-stone-400" />
-                <span>Open 3D Pareto &amp; Shock Lab</span>
-              </Link>
-            </div>
+    <AppShell showTelemetry={false} alwaysRenderChildren={true}>
+      {/* ------------------------------------------------------------------- */}
+      {/* SECTION 01: LOCATION SELECTION (Map Pin Drop + Address / Geocode)   */}
+      {/* ------------------------------------------------------------------- */}
+      <section aria-labelledby="location-selection-heading" className="space-y-3.5">
+        {/* Step Header & Live Parcel Status */}
+        <div className="glass rounded-2xl px-4 sm:px-6 py-3.5 border border-line reticle-frame flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 font-mono text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-emerald-500" />
+              <span>STEP 01 // SELECT LOCATION</span>
+            </span>
+            <h2 id="location-selection-heading" className="font-display text-sm sm:text-base font-bold text-foreground">
+              Drop Map Pin or Select Farm Parcel
+            </h2>
+            <span className="text-xs text-muted hidden lg:inline">
+              Select your farm location first to load tailored NASA Earth Observations &amp; rotations below.
+            </span>
           </div>
 
-          {/* Right: Live Prescriptive Transformation Preview Card */}
-          <div className="xl:col-span-5 rounded-2xl p-4 sm:p-5 bg-background/50 border border-line-strong space-y-3.5">
-            <div className="flex items-center justify-between font-mono text-[10px]">
-              <span className="font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-300 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>TOP PRESCRIPTION FOR {selectedField.name.toUpperCase()}</span>
-              </span>
-              <span className="px-2 py-0.5 rounded bg-background/70 border border-line text-muted">
-                NSGA-II RANK #1
-              </span>
-            </div>
+          <div className="flex items-center gap-2 font-mono text-xs shrink-0">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-background/80 border border-line-strong text-foreground font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span suppressHydrationWarning className="truncate max-w-[180px] sm:max-w-[240px]">{selectedField.name}</span>
+            </span>
+            <span suppressHydrationWarning className="px-2.5 py-1 rounded-xl bg-background/50 border border-line text-cyan-500 dark:text-cyan-300 font-bold whitespace-nowrap">
+              {fmtDMS(selectedField.lat, true)} {fmtDMS(selectedField.lon, false)}
+            </span>
+          </div>
+        </div>
 
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-mono text-muted">
-                  Replaces: <span className="line-through opacity-75">{baseline?.rotation.label ?? "Intensive Baseline"}</span>
-                </p>
-                <h2 className="font-display font-bold text-base sm:text-lg text-foreground mt-0.5">
-                  {topRec?.rotation.label ?? "DSR Rice ➔ Wheat + Mulch ➔ Summer Moong"}
-                </h2>
+        {/* 2-Column Location Command Deck: Map on Left (Pin Drop) + Address Sampler & Presets on Right */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+          {/* Map Pin Drop Container */}
+          <div className="lg:col-span-7 xl:col-span-7 flex flex-col">
+            <FieldMap
+              selectedField={selectedField}
+              goldenFields={goldenFields}
+              onSelect={(pt) => {
+                selectLocation(pt);
+                setCustomLat(pt.lat.toFixed(4));
+                setCustomLon(pt.lon.toFixed(4));
+              }}
+            />
+          </div>
+
+          {/* Address, URL, Coordinates & Benchmark Presets Card */}
+          <div className="lg:col-span-5 xl:col-span-5 flex flex-col">
+            <div className="glass rounded-2xl p-4 sm:p-5 border border-line text-xs space-y-3.5 h-full flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider font-bold text-foreground">
+                    <Search className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Address Search &amp; Coordinates</span>
+                  </div>
+                  <div className="inline-flex rounded-lg bg-background/80 p-0.5 border border-line text-[10px] font-mono">
+                    <button
+                      type="button"
+                      onClick={() => setLocationInputMode("address")}
+                      className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                        locationInputMode === "address"
+                          ? "bg-emerald-500 text-slate-950 font-bold"
+                          : "text-muted hover:text-foreground"
+                      }`}
+                    >
+                      Address / URL
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLocationInputMode("coords")}
+                      className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                        locationInputMode === "coords"
+                          ? "bg-emerald-500 text-slate-950 font-bold"
+                          : "text-muted hover:text-foreground"
+                      }`}
+                    >
+                      Lat / Lon
+                    </button>
+                  </div>
+                </div>
+
+                {locationInputMode === "address" ? (
+                  <form onSubmit={handleAddressSearch} className="space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        required
+                        value={addressQuery}
+                        onChange={(e) => setAddressQuery(e.target.value)}
+                        placeholder="Enter village, district, or paste Google Maps URL…"
+                        className="flex-1 px-3 py-2 rounded-xl border border-line-strong bg-background text-foreground placeholder:text-muted text-xs font-mono focus:border-cyan-400 outline-none transition-colors"
+                      />
+                      <button
+                        type="submit"
+                        disabled={geocodingLoading || !addressQuery.trim()}
+                        className="px-4 py-2 rounded-xl bg-emerald-500 hover:opacity-95 text-slate-950 font-mono font-bold transition-opacity flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 text-xs shadow-xs"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        <span>{geocodingLoading ? "…" : "Locate"}</span>
+                      </button>
+                    </div>
+                    {geocodingError && (
+                      <p className="text-[11px] font-mono text-rose-500 font-semibold">{geocodingError}</p>
+                    )}
+                  </form>
+                ) : (
+                  <form onSubmit={handleManualSubmit} className="space-y-2">
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="text-[10px] font-mono text-muted block mb-1">LATITUDE [°N]</label>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          min="-90"
+                          max="90"
+                          required
+                          value={customLat}
+                          onChange={(e) => setCustomLat(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-line-strong bg-background font-mono text-foreground text-xs outline-none focus:border-cyan-400"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-[10px] font-mono text-muted block mb-1">LONGITUDE [°E]</label>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          min="-180"
+                          max="180"
+                          required
+                          value={customLon}
+                          onChange={(e) => setCustomLon(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-line-strong bg-background font-mono text-foreground text-xs outline-none focus:border-cyan-400"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <button
+                          type="submit"
+                          className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-bold transition-colors cursor-pointer text-xs"
+                        >
+                          Go
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                )}
               </div>
 
-              <ProgressRing
-                value={soilScore}
-                max={100}
-                label="Recommended Strategy Soil Health Score"
-                size="3.4rem"
-                thickness="5px"
-                color="var(--accent-canopy)"
-              >
-                <span className="text-xs font-mono font-bold text-emerald-500">{soilScore}</span>
-                <span className="text-[8px] font-mono text-muted">SOIL</span>
-              </ProgressRing>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-line font-mono text-xs">
-              <div className="p-2.5 rounded-xl bg-background/60 border border-line">
-                <span className="text-[9px] text-muted uppercase block">Water Saved</span>
-                <span className="text-sm font-bold text-cyan-500 dark:text-cyan-300">
-                  −{ Math.max(0, savedWater) }% H₂O
-                </span>
-                <span className="text-[9px] text-muted block">{baseIrr - topIrr} mm/yr cut</span>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-background/60 border border-line">
-                <span className="text-[9px] text-muted uppercase block">Net Margin</span>
-                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                  {fmtMoney(profitMedian, currencySymbol)}
-                </span>
-                <span className="text-[9px] text-muted block">Median P50/ha</span>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-background/60 border border-line">
-                <span className="text-[9px] text-muted uppercase block">10-Yr Carbon</span>
-                <span className="text-sm font-bold text-amber-500 dark:text-amber-300">
-                  +{(topRes?.soc_delta_t_ha_10yr ?? 2.1).toFixed(1)} t/ha
-                </span>
-                <span className="text-[9px] text-muted block">RothC-26.3</span>
+              {/* Golden Benchmark Quick-Select Grid */}
+              <div className="pt-3 border-t border-line space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted font-bold block">
+                    Precomputed Benchmark Stations (Instant Load)
+                  </span>
+                  <span className="text-[9px] font-mono text-emerald-500">6 Hero Regions</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {goldenFields.map((gf) => {
+                    const active = selectedGoldenId === gf.id;
+                    return (
+                      <button
+                        key={gf.id}
+                        type="button"
+                        onClick={() => selectGolden(gf)}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1 ${
+                          active
+                            ? "bg-emerald-500/15 border-emerald-500/60 shadow-xs"
+                            : "bg-background/50 hover:bg-foreground/5 border-line"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-display font-bold text-xs text-foreground truncate">
+                            {gf.name}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-foreground/10 text-emerald-500 shrink-0">
+                            {regionFlag(gf.id)}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-muted line-clamp-1">{gf.story}</p>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Main Split Interactive Workspace: 3D Terrain Map + 3D Subsurface Monolith */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: 3D Satellite Swath Map + Parcel Locator + Benchmark Cards */}
-        <div className="lg:col-span-5 space-y-5">
-          <FieldMap
-            selectedField={selectedField}
-            goldenFields={goldenFields}
-            onSelect={(pt) => {
-              selectLocation(pt);
-              setCustomLat(pt.lat.toFixed(4));
-              setCustomLon(pt.lon.toFixed(4));
-            }}
-          />
+      {/* ------------------------------------------------------------------- */}
+      {/* SECTION 02: INFORMATION PROVIDED FOR SELECTED LOCATION              */}
+      {/* ------------------------------------------------------------------- */}
+      <section aria-labelledby="information-provided-heading" className="space-y-6 pt-2">
+        {/* Section Context Header */}
+        <div className="flex items-center justify-between border-b border-line pb-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="px-2.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 border border-cyan-500/40 font-mono text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+              <span>STEP 02 // FIELD TELEMETRY &amp; ADVISORY INTELLIGENCE</span>
+            </span>
+            <span className="text-muted font-mono text-xs">
+              Live observational data for <strong suppressHydrationWarning className="text-foreground">{selectedField.name}</strong>
+            </span>
+          </div>
+          <span className="text-[11px] font-mono text-muted hidden sm:inline">
+            NASA POWER · ISRIC SoilGrids · SMAP · GRACE-FO · HLS
+          </span>
+        </div>
 
-          {/* Interactive Coordinate / Geocode Panel */}
-          <div className="glass rounded-2xl p-4 sm:p-5 border border-line text-xs space-y-3.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider font-bold text-foreground">
-                <MapPin className="w-4 h-4 text-cyan-400" />
-                <span>Parcel Geocode &amp; Coordinate Sampler</span>
+        {/* 1. NASA Observational Telemetry Strip */}
+        {profile && <TelemetryBar profile={profile} />}
+
+        {/* 2. Hero Mission Command Deck: Regional Agro-Climatic Briefing & Top Prescription */}
+        <section className="glass rounded-2xl p-5 sm:p-6 border border-line reticle-frame relative overflow-hidden">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-center">
+            {/* Left: Regional Briefing & Mission Actions */}
+            <div className="xl:col-span-7 space-y-3">
+              <div className="flex items-center gap-2 flex-wrap font-mono text-[11px]">
+                <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-wider">
+                  AGRO-CLIMATIC ZONE
+                </span>
+                <span className={`px-2.5 py-0.5 rounded-md font-bold uppercase tracking-wider border ${badgeTone}`}>
+                  {sectorBadge}
+                </span>
+                <span className="text-muted">
+                  {regCtx.icon} · {fmtDMS(selectedField.lat, true)} {fmtDMS(selectedField.lon, false)}
+                </span>
               </div>
-              <div className="inline-flex rounded-lg bg-background/80 p-0.5 border border-line text-[10px] font-mono">
-                <button
-                  type="button"
-                  onClick={() => setLocationInputMode("address")}
-                  className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
-                    locationInputMode === "address"
-                      ? "bg-emerald-500 text-slate-950 font-bold"
-                      : "text-muted hover:text-foreground"
-                  }`}
+
+              <h1
+                id="information-provided-heading"
+                tabIndex={-1}
+                className="font-serif text-2xl sm:text-3xl font-bold text-foreground tracking-tight outline-none"
+              >
+                {sectorTitle}
+              </h1>
+
+              <p className="text-xs sm:text-sm text-muted leading-relaxed prose-measure">
+                {sectorDesc}
+              </p>
+
+              <div className="pt-2 flex flex-wrap items-center gap-2.5">
+                <Link
+                  href="/rotations"
+                  className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
                 >
-                  Address / URL
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLocationInputMode("coords")}
-                  className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
-                    locationInputMode === "coords"
-                      ? "bg-emerald-500 text-slate-950 font-bold"
-                      : "text-muted hover:text-foreground"
-                  }`}
+                  <Sparkles className="w-4 h-4" />
+                  <span>Launch Rotation Studio</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+
+                <Link
+                  href="/diagnostics"
+                  className="px-4 py-2.5 rounded-xl bg-surface hover:bg-foreground/10 border border-line-strong text-foreground font-mono text-xs font-semibold flex items-center gap-2 transition-colors"
                 >
-                  Lat / Lon
-                </button>
+                  <Activity className="w-4 h-4 text-cyan-400" />
+                  <span>Inspect Field Diagnostics</span>
+                </Link>
+
+                <Link
+                  href="/lab"
+                  className="px-4 py-2.5 rounded-xl bg-surface hover:bg-foreground/10 border border-line-strong text-foreground font-mono text-xs font-semibold flex items-center gap-2 transition-colors"
+                >
+                  <FlaskConical className="w-4 h-4 text-stone-400" />
+                  <span>Open 3D Pareto &amp; Shock Lab</span>
+                </Link>
               </div>
             </div>
 
-            {locationInputMode === "address" ? (
-              <form onSubmit={handleAddressSearch} className="space-y-2">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    required
-                    value={addressQuery}
-                    onChange={(e) => setAddressQuery(e.target.value)}
-                    placeholder="Enter village, district, or paste Google Maps URL…"
-                    className="flex-1 px-3 py-2 rounded-xl border border-line-strong bg-background text-foreground placeholder:text-muted text-xs font-mono focus:border-cyan-400 outline-none transition-colors"
-                  />
-                  <button
-                    type="submit"
-                    disabled={geocodingLoading || !addressQuery.trim()}
-                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:opacity-95 text-slate-950 font-mono font-bold transition-opacity flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 text-xs"
-                  >
-                    <Search className="w-3.5 h-3.5" />
-                    <span>{geocodingLoading ? "…" : "Sample"}</span>
-                  </button>
-                </div>
-                {geocodingError && (
-                  <p className="text-[11px] font-mono text-rose-500 font-semibold">{geocodingError}</p>
-                )}
-              </form>
-            ) : (
-              <form onSubmit={handleManualSubmit} className="space-y-2">
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label className="text-[10px] font-mono text-muted block mb-1">LATITUDE [°N]</label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      min="-90"
-                      max="90"
-                      required
-                      value={customLat}
-                      onChange={(e) => setCustomLat(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-xl border border-line-strong bg-background font-mono text-foreground text-xs outline-none"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="text-[10px] font-mono text-muted block mb-1">LONGITUDE [°E]</label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      min="-180"
-                      max="180"
-                      required
-                      value={customLon}
-                      onChange={(e) => setCustomLon(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-xl border border-line-strong bg-background font-mono text-foreground text-xs outline-none"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <button
-                      type="submit"
-                      className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-bold transition-colors cursor-pointer text-xs"
-                    >
-                      Go
-                    </button>
-                  </div>
-                </div>
-              </form>
-            )}
+            {/* Right: Live Prescriptive Transformation Preview Card */}
+            <div className="xl:col-span-5 rounded-2xl p-4 sm:p-5 bg-background/50 border border-line-strong space-y-3.5">
+              <div className="flex items-center justify-between font-mono text-[10px]">
+                <span className="font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-300 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span suppressHydrationWarning>TOP PRESCRIPTION FOR {selectedField.name.toUpperCase()}</span>
+                </span>
+                <span className="px-2 py-0.5 rounded bg-background/70 border border-line text-muted">
+                  NSGA-II RANK #1
+                </span>
+              </div>
 
-            {/* Golden Benchmark Quick-Select Grid */}
-            <div className="pt-2 border-t border-line space-y-2">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-muted block">
-                Precomputed NASA Benchmark Stations (Instant Zero-Latency)
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {goldenFields.map((gf) => {
-                  const active = selectedGoldenId === gf.id;
-                  return (
-                    <button
-                      key={gf.id}
-                      type="button"
-                      onClick={() => selectGolden(gf)}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1 ${
-                        active
-                          ? "bg-emerald-500/15 border-emerald-500/60 shadow-xs"
-                          : "bg-background/50 hover:bg-foreground/5 border-line"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="font-display font-bold text-xs text-foreground truncate">
-                          {gf.name}
-                        </span>
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-foreground/10 text-emerald-500 shrink-0">
-                          {regionFlag(gf.id)}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-muted line-clamp-1">{gf.story}</p>
-                    </button>
-                  );
-                })}
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-mono text-muted">
+                    Replaces: <span className="line-through opacity-75">{baseline?.rotation.label ?? "Intensive Baseline"}</span>
+                  </p>
+                  <h2 className="font-display font-bold text-base sm:text-lg text-foreground mt-0.5">
+                    {topRec?.rotation.label ?? "DSR Rice ➔ Wheat + Mulch ➔ Summer Moong"}
+                  </h2>
+                </div>
+
+                <ProgressRing
+                  value={soilScore}
+                  max={100}
+                  label="Recommended Strategy Soil Health Score"
+                  size="3.4rem"
+                  thickness="5px"
+                  color="var(--accent-canopy)"
+                >
+                  <span className="text-xs font-mono font-bold text-emerald-500">{soilScore}</span>
+                  <span className="text-[8px] font-mono text-muted">SOIL</span>
+                </ProgressRing>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-line font-mono text-xs">
+                <div className="p-2.5 rounded-xl bg-background/60 border border-line">
+                  <span className="text-[9px] text-muted uppercase block">Water Saved</span>
+                  <span className="text-sm font-bold text-cyan-500 dark:text-cyan-300">
+                    −{ Math.max(0, savedWater) }% H₂O
+                  </span>
+                  <span className="text-[9px] text-muted block">{baseIrr - topIrr} mm/yr cut</span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-background/60 border border-line">
+                  <span className="text-[9px] text-muted uppercase block">Net Margin</span>
+                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                    {fmtMoney(profitMedian, currencySymbol)}
+                  </span>
+                  <span className="text-[9px] text-muted block">Median P50/ha</span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-background/60 border border-line">
+                  <span className="text-[9px] text-muted uppercase block">10-Yr Carbon</span>
+                  <span className="text-sm font-bold text-amber-500 dark:text-amber-300">
+                    +{(topRes?.soc_delta_t_ha_10yr ?? 2.1).toFixed(1)} t/ha
+                  </span>
+                  <span className="text-[9px] text-muted block">RothC-26.3</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Right Column: Interactive 3D Stratigraphic Pedon + Multi-Page Mission Launchpad */}
-        <div className="lg:col-span-7 space-y-5">
-          {profile && <SoilColumn3D profile={profile} strategies={strategies} />}
+        {/* 3. Deep Exploration Workspace: 3D Subsurface Monolith + Multi-Page Mission Launchpad */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Column: Interactive 3D Stratigraphic Pedon */}
+          <div className="lg:col-span-5 space-y-4">
+            {profile && <SoilColumn3D profile={profile} strategies={strategies} />}
+          </div>
 
-          {/* Multi-Page Mission Modules Grid */}
-          <div className="space-y-3">
+          {/* Right Column: Multi-Page Dedicated Mission Modules */}
+          <div className="lg:col-span-7 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-display font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-2">
                 <Compass className="w-4 h-4 text-emerald-400" />
@@ -526,7 +597,7 @@ export default function MissionControlPage() {
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </AppShell>
   );
 }

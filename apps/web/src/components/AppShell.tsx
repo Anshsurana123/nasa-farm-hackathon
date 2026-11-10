@@ -19,6 +19,7 @@ import {
 interface AppShellProps {
   children: ReactNode;
   showTelemetry?: boolean;
+  alwaysRenderChildren?: boolean;
   pageStep?: string;
   pageBadge?: string;
   pageTitle?: string;
@@ -29,6 +30,7 @@ interface AppShellProps {
 export function AppShell({
   children,
   showTelemetry = true,
+  alwaysRenderChildren = false,
   pageStep,
   pageBadge,
   pageTitle,
@@ -161,7 +163,7 @@ export function AppShell({
         )}
 
         {/* Loading / Error States */}
-        {loading && (
+        {loading && !alwaysRenderChildren && (
           <div className="glass rounded-2xl p-16 border border-line text-center space-y-4 reticle-frame">
             <div className="relative w-12 h-12 mx-auto">
               <div className="absolute inset-0 rounded-full border-2 border-line-strong" />
@@ -178,6 +180,19 @@ export function AppShell({
           </div>
         )}
 
+        {/* Global Loading Banner when children stay mounted (e.g., Mission Control with live map) */}
+        {loading && alwaysRenderChildren && (
+          <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 text-xs font-mono flex items-center justify-between no-print animate-pulse shadow-sm">
+            <span className="flex items-center gap-2 font-bold uppercase tracking-wider text-[11px]">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>SYNCHRONIZING NASA TELEMETRY FOR NEW PARCEL COORDINATES…</span>
+            </span>
+            <span className="text-[10px] text-muted hidden sm:inline font-mono">
+              POWER AG · SoilGrids 250m · SMAP L4 · GRACE-FO
+            </span>
+          </div>
+        )}
+
         {error && (
           <div className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/35 text-rose-600 dark:text-rose-300 text-xs space-y-1.5">
             <p className="font-bold font-mono flex items-center gap-2 uppercase">
@@ -189,7 +204,9 @@ export function AppShell({
         )}
 
         {/* Page Body */}
-        {!loading && profile && <div className="animate-fade-up space-y-6">{children}</div>}
+        {(alwaysRenderChildren || (!loading && profile)) && (
+          <div className="animate-fade-up space-y-6">{children}</div>
+        )}
 
         {/* Multi-Page Mission Progression Stepper */}
         {(prevRoute || nextRoute) && (

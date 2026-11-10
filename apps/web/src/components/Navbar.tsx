@@ -108,20 +108,19 @@ export function Navbar() {
     selectLocation,
   } = useField();
 
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    const saved = localStorage.getItem("theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    return saved ? saved === "dark" : prefersDark;
-  });
+  const [isDark, setIsDark] = useState<boolean>(true);
   const [showLocator, setShowLocator] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [searchLoading, setSearchLoading] = useState<boolean>(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-  }, [isDark]);
+    const saved = localStorage.getItem("theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const dark = saved ? saved === "dark" : prefersDark;
+    setIsDark(dark);
+    document.documentElement.classList.toggle("dark", dark);
+  }, []);
 
   const toggleTheme = () => {
     const nextDark = !isDark;
@@ -435,11 +434,11 @@ export function Navbar() {
           <div className="flex items-center gap-2 shrink-0 ml-2">
             <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-background/70 border border-line font-mono text-[11px]">
               <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="font-semibold text-foreground truncate max-w-[140px] xl:max-w-[180px]">
+              <span suppressHydrationWarning className="font-semibold text-foreground truncate max-w-[140px] xl:max-w-[180px]">
                 {selectedField.name}
               </span>
               <span className="text-muted">·</span>
-              <span className="text-cyan-600 dark:text-cyan-300 whitespace-nowrap">
+              <span suppressHydrationWarning className="text-cyan-600 dark:text-cyan-300 whitespace-nowrap">
                 {fmtDMS(selectedField.lat, true)} {fmtDMS(selectedField.lon, false)}
               </span>
             </div>
