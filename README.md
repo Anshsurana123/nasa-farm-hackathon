@@ -156,7 +156,7 @@ Every metric, chart, and recommendation in TerraLoop links back to peer-reviewed
 | **NASA GPM IMERG** | `NASA/GPM_L3/IMERG_V07` | $0.1^\circ$, Daily (2000–2024) | High-accuracy precipitation totals, extreme rain days ($>50\text{ mm}$), monsoon dry-spell frequency, and RUSLE rainfall erosivity $R$-factor. Safeguards against reanalysis trends. | [10.5067/GPM/IMERG/3B-HH/07](https://doi.org/10.5067/GPM/IMERG/3B-HH/07) |
 | **NASA SMAP** | `NASA/SMAP/SPL4SMGP/007` | 9 km, 3-hourly (2015–2024) | Root-zone soil moisture percentiles ($0\text{--}100\text{ cm}$) compared against a 10-year climatological baseline across all 12 calendar months to detect agricultural drought. | [10.5067/K2VT90DE20GV](https://doi.org/10.5067/K2VT90DE20GV) |
 | **NASA GRACE / GRACE-FO** | `NASA/GRACE/MASS_GRIDS_V04/MASCON_CRI` | $\sim 0.5^\circ$ grid (native $\sim 3^\circ$), Monthly (2002–2024) | Regional Terrestrial Water Storage (TWS) mascon trend rate ($\text{cm/year}$) used to diagnose regional aquifer depletion. | [10.5067/TEMSC-3MJ62](https://doi.org/10.5067/TEMSC-3MJ62) |
-| **NASA NASADEM** | `NASA/NASADEM_HGT/001` | 30 m Digital Elevation Model | Topographic elevation and field slope gradient ($\%$) $\rightarrow$ Wischmeier-Smith $LS$ topographic factor for RUSLE soil erosion screening. | [10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001](https://doi.org/10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001) |
+| **NASA NASADEM** | `NASA/NASADEM_HGT/001` | 30 m Digital Elevation Model | Topographic elevation and field slope gradient (%) $\rightarrow$ Wischmeier-Smith $LS$ topographic factor for RUSLE soil erosion screening. | [10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001](https://doi.org/10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001) |
 | **NASA FIRMS** | `FIRMS` (MODIS / VIIRS) | 375 m / 1 km Active Fire Hotspots | Field-level detection of October–November crop residue burning events to penalize soil health and compute turnaround risk. | [10.5067/FIRMS/MODIS](https://doi.org/10.5067/FIRMS/MODIS) |
 | **NASA HLS** | `NASA/HLS/HLSL30/v002` & `HLSS30/v002` | 30 m, 2–3 Day Revisit | Harmonized Landsat-Sentinel cloud-masked surface reflectance $\rightarrow$ 5-day Savitzky-Golay smoothed NDVI time series $\rightarrow$ automated 5-year crop history and season peak detection. | [10.5067/HLS/HLSL30.002](https://doi.org/10.5067/HLS/HLSL30.002) |
 | **NASA NEX-GDDP-CMIP6** | `NASA/GDDP-CMIP6` | $0.25^\circ$, Daily (to 2060) | Bias-corrected downscaled climate projections across 5 Global Climate Models (ACCESS-CM2, MIROC6, MPI-ESM1-2-HR, NorESM2-MM, EC-Earth3) for SSP2-4.5 and SSP5-8.5. | [10.7917/OASIS/NEX-GDDP-CMIP6](https://doi.org/10.7917/OASIS/NEX-GDDP-CMIP6) |
@@ -261,7 +261,7 @@ $$\text{RAW} = p \times \text{TAW}$$
 
 When root-zone moisture depletion $D_{r,t} > \text{RAW}$, actual evapotranspiration is throttled by the water stress coefficient $K_s$:
 
-$$K_s(t) = \frac{\text{TAW} - D_{r,t}}{\text{TAW} - \text{RAW}} = \frac{\text{TAW} - D_{r,t}}{(1 - p)\,\text{TAW}}$$
+$$K_s(t) = \frac{\text{TAW} - D_{r,t}}{\text{TAW} - \text{RAW}} = \frac{\text{TAW} - D_{r,t}}{(1 - p)\cdot\text{TAW}}$$
 
 Yield response to seasonal water deficit follows FAO Paper No. 33 (Doorenbos & Kassam, 1979):
 
@@ -270,17 +270,17 @@ $$\left(1 - \frac{Y}{Y_{\max}}\right) = K_y \left(1 - \frac{\sum \text{ET}_a}{\s
 #### Rice Establishment Hydrology: Puddled Transplanted Rice vs. DSR + AWD
 Parameterised to match experimental field trials from Punjab Agricultural University (Bouman & Tuong 2001; Sudhir-Yadav et al. 2011):
 - **Puddled Transplanted Rice (PTR, `rice_puddled`):** Mechanical wet tillage destroys soil macro-pores and forms a dense plough pan. However, PTR maintains a continuous standing water head ($5\text{--}10\text{ cm}$). This continuous positive hydrostatic pressure drives a steady-state downward percolation rate of **$\sim 3.5\text{ mm/day}$ on alluvial loam**, in addition to an initial **$175\text{ mm}$ land-soaking puddling requirement**.
-- **Direct-Seeded Rice with Alternate Wetting & Drying (DSR + AWD, `rice_dsr`):** Replaces puddling with an aerobic pre-sowing *rauni* irrigation ($75\text{ mm}$). Soil remains unsaturated between irrigations; matric suction develops, dropping unsaturated hydraulic conductivity by several orders of magnitude. Downward percolation occurs only during transient drainage pulses, averaging **$2.55\text{ mm/day}$**. This saves **$24\text{--}28\%$ irrigation water** while eliminating puddling tractor diesel costs ($\sim \text{₹}10,000/\text{ha}$).
+- **Direct-Seeded Rice with Alternate Wetting & Drying (DSR + AWD, `rice_dsr`):** Replaces puddling with an aerobic pre-sowing *rauni* irrigation ($75\text{ mm}$). Soil remains unsaturated between irrigations; matric suction develops, dropping unsaturated hydraulic conductivity by several orders of magnitude. Downward percolation occurs only during transient drainage pulses, averaging **$2.55\text{ mm/day}$**. This saves **24–28% irrigation water** while eliminating puddling tractor diesel costs ($\sim \text{₹}10,000/\text{ha}$).
 
 ---
 
 ### 2. March Wheat Reproductive Terminal Heat Stress (`models/fao56_runner.py`)
 
-In the Indo-Gangetic Plains, Rabi wheat is vulnerable to sudden temperature spikes during the grain-filling phase (March 1 to April 15). Daily heat stress is evaluated during the final $35\%$ of the crop cycle:
+In the Indo-Gangetic Plains, Rabi wheat is vulnerable to sudden temperature spikes during the grain-filling phase (March 1 to April 15). Daily heat stress is evaluated during the final 35% of the crop cycle:
 
-$$\Delta Y_{\text{heat}} = \sum_{t \in \text{grain-fill}} \max\left(0,\, T_{\max,t} - 32.0^\circ\text{C}\right) \times 0.018$$
+$$\Delta Y_{\text{heat}} = \sum_{t \in \text{grain-fill}} \max\left(0, T_{\max,t} - 32.0^\circ\text{C}\right) \times 0.018$$
 
-- **Happy Seeder Surface Residue Mulch Effect:** Retaining standing rice residue on the soil surface reduces soil evaporation by **$10\%$** ($K_c \times 0.90$) and provides a microclimatic cooling buffer of **$-1.0^\circ\text{C}$** to topsoil and crop canopy (Sidhu et al., 2007). Under a simulated $+4.5^\circ\text{C}$ heatwave (replicating the devastating March 2022 North India event), residue mulch reduces wheat yield loss from **$-19.7\%$ down to $-12.6\%$**.
+- **Happy Seeder Surface Residue Mulch Effect:** Retaining standing rice residue on the soil surface reduces soil evaporation by **10%** ($K_c \times 0.90$) and provides a microclimatic cooling buffer of **$-1.0^\circ\text{C}$** to topsoil and crop canopy (Sidhu et al., 2007). Under a simulated $+4.5^\circ\text{C}$ heatwave (replicating the devastating March 2022 North India event), residue mulch reduces wheat yield loss from **-19.7% down to -12.6%**.
 
 ---
 
@@ -289,11 +289,11 @@ $$\Delta Y_{\text{heat}} = \sum_{t \in \text{grain-fill}} \max\left(0,\, T_{\max
 Based on the Rothamsted Carbon Model (Coleman & Jenkinson, 1996), running on a monthly time step over 10 years:
 
 - **Five Carbon Pools:**
-  1. Decomposable Plant Material (DPM, $k = 10.0\,\text{yr}^{-1}$)
-  2. Resistant Plant Material (RPM, $k = 0.30\,\text{yr}^{-1}$)
-  3. Microbial Biomass (BIO, $k = 0.66\,\text{yr}^{-1}$)
-  4. Humified Organic Matter (HUM, $k = 0.02\,\text{yr}^{-1}$)
-  5. Inert Organic Matter (IOM, $k = 0.0\,\text{yr}^{-1}$)
+  1. Decomposable Plant Material (DPM, $k = 10.0\text{ yr}^{-1}$)
+  2. Resistant Plant Material (RPM, $k = 0.30\text{ yr}^{-1}$)
+  3. Microbial Biomass (BIO, $k = 0.66\text{ yr}^{-1}$)
+  4. Humified Organic Matter (HUM, $k = 0.02\text{ yr}^{-1}$)
+  5. Inert Organic Matter (IOM, $k = 0.0\text{ yr}^{-1}$)
 
 Initial IOM is computed from total topsoil SOC stock $C_{\text{tot}}$ via Falloon et al. (1998):
 
@@ -305,15 +305,15 @@ $$\xi = a(T) \times b(M) \times c_{\text{cov}}$$
 
 $$a(T) = \frac{47.91}{1 + \exp\left(\frac{106.06}{T + 18.27}\right)}$$
 
-$$b(M) = \max\left(0.2,\, \min\left(1.0,\, 1.0 - 0.8 \times \frac{\max(0,\, 0.75\,\text{ET}_0 - P)}{100}\right)\right)$$
+$$b(M) = \max\left(0.2, \min\left(1.0, 1.0 - 0.8 \times \frac{\max(0, 0.75 \times \text{ET}_0 - P)}{100}\right)\right)$$
 
 Where $c_{\text{cov}} = 0.6$ when living canopy or residue mulch covers the soil, and $1.0$ under bare fallow. Carbon partitioning into BIO and HUM is governed by topsoil clay content:
 
-$$x = 1.67 \times \left(1.85 + 1.60 \times \exp(-0.0786 \times \text{clay}\%)\right)$$
+$$x = 1.67 \times \left(1.85 + 1.60 \times \exp(-0.0786 \times \text{clay})\right)$$
 
 $$\text{Fraction released as }\text{CO}_2 = \frac{x}{x + 1}, \quad \text{Synthesized into BIO+HUM} = \frac{1}{x + 1}$$
 
-- **Residue Management Penalty:** In-situ retention of crop residue contributes $45\%$ carbon with a DPM/RPM ratio of 1.44. Open-field residue burning leaves only $\sim 10\%$ ash carbon, driving long-term SOC depletion ($-1.86\text{ t C/ha/10yr}$ under rice–wheat burning vs $+2.79\text{ t C/ha}$ under DSR–wheat–moong mulch retention).
+- **Residue Management Penalty:** In-situ retention of crop residue contributes 45% carbon with a DPM/RPM ratio of 1.44. Open-field residue burning leaves only ~10% ash carbon, driving long-term SOC depletion ($-1.86\text{ t C/ha/10yr}$ under rice–wheat burning vs $+2.79\text{ t C/ha}$ under DSR–wheat–moong mulch retention).
 
 ---
 
@@ -328,8 +328,8 @@ $$\text{Balance}_N = (N_{\text{fert}} + N_{\text{fix}} + N_{\text{dep}}) - N_{\t
   - Chickpea / Gram: $+60\text{ kg N/ha}$
   - Urad / Blackgram: $+45\text{ kg N/ha}$
   - Dhaincha (Sesbania Green Manure): $+80\text{ kg N/ha}$
-- **Legume Fertilizer Credit:** A succeeding cereal (e.g. wheat after moong) receives a **$25\text{ kg N/ha}$ reduction in synthetic nitrogen requirement**, equivalent to saving **$3.5$ standard 45-kg bags of Urea per hectare (1.4 bags/acre)**.
-- **Crop Removal ($N_{\text{removal}}$):** Calculated from crop grain yield and grain nitrogen concentration ($1.8\%$ for wheat, $1.3\%$ for rough rice, $3.8\%$ for pulses).
+- **Legume Fertilizer Credit:** A succeeding cereal (e.g. wheat after moong) receives a **$25\text{ kg N/ha}$ reduction in synthetic nitrogen requirement**, equivalent to saving **3.5 standard 45-kg bags of Urea per hectare (1.4 bags/acre)**.
+- **Crop Removal ($N_{\text{removal}}$):** Calculated from crop grain yield and grain nitrogen concentration (1.8% for wheat, 1.3% for rough rice, 3.8% for pulses).
 
 ---
 
@@ -360,7 +360,7 @@ $$A = R \times K \times LS \times C \times P \quad (\text{t/ha/year})$$
 
 - **$R$ (Rainfall Erosivity):** Computed from annual precipitation (GPM IMERG) via Renard & Freimund (1994).
 - **$K$ (Soil Erodibility):** Computed from topsoil sand, silt, clay, and organic matter via the Williams (1995) EPIC formulation.
-- **$LS$ (Topographic Factor):** Computed from 30 m NASADEM elevation and field slope gradient ($\%$) via Wischmeier & Smith (1978).
+- **$LS$ (Topographic Factor):** Computed from 30 m NASADEM elevation and field slope gradient (%) via Wischmeier & Smith (1978).
 - **$C$ (Cover Management):** Dynamic cover factor derived from the rotation's seasonal canopy and residue cover.
 
 ---
@@ -371,7 +371,7 @@ Financial returns are modeled from official Government of India Commission for A
 
 $$\text{Net Profit} = \sum_{\text{season}} \left(\text{Yield} \times \text{MSP} - \text{Cost}_{A_2+FL}\right)$$
 
-- **Downside Risk (Conditional Value at Risk, $CVaR_{10}$):** The expected net profit in the worst $10\%$ climate years across the 30-year historical weather ensemble.
+- **Downside Risk (Conditional Value at Risk, $CVaR_{10}$):** The expected net profit in the worst 10% climate years across the 30-year historical weather ensemble.
 - **Procurement Certainty Factor:** Weights profitability by market procurement infrastructure:
   - `msp_assured`: Assured government open-ended procurement (FCI wheat & paddy in Punjab: $1.0\times$).
   - `nafed_pss`: NAFED Price Support Scheme for pulses and oilseeds ($0.78\times$).
