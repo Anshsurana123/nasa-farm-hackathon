@@ -624,21 +624,30 @@ def cmip6_daily(lat: float, lon: float, model: str, scenario: str, start: str, e
 
     from .. import region_registry
     w_params = region_registry.get_regional_weather_params(lat, lon)
-    base_tmax = w_params.base_tmax
-    amp_c = w_params.amp_c
-    trange_c = w_params.trange_c
+    base_tmax = getattr(w_params, "base_tmax", float(w_params.get("t_base", 25.0)) + 0.5 * float(w_params.get("trange_c", 11.0)))
+    amp_c = getattr(w_params, "amp_c", float(w_params.get("amplitude", 9.0)))
+    trange_c = getattr(w_params, "trange_c", float(w_params.get("trange_c", 11.0)))
 
     tmax = base_tmax + warming + amp_c * np.sin(2 * np.pi * (doy - 80) / 365)
     tmin = tmax - trange_c
     seed = int((zlib.crc32(model.encode("utf-8")) % 10000) + abs(lat * 100) + abs(lon * 10))
     rng = np.random.default_rng(seed)
-    wet = idx.month.isin(w_params.wet_months)
+
+    wet_start = int(getattr(w_params, "wet_start_month", w_params.get("wet_start_month", 7)))
+    wet_end = int(getattr(w_params, "wet_end_month", w_params.get("wet_end_month", 9)))
+    gamma_wet = getattr(w_params, "gamma_wet", w_params.get("gamma_wet", [0.6, 13.0]))
+    gamma_dry = getattr(w_params, "gamma_dry", w_params.get("gamma_dry", [0.1, 4.0]))
+
+    if wet_start <= wet_end:
+        wet = (idx.month >= wet_start) & (idx.month <= wet_end)
+    else:
+        wet = (idx.month >= wet_start) | (idx.month <= wet_end)
+
     pr = np.where(
         wet,
-        rng.gamma(w_params.wet_shape, w_params.wet_scale, len(idx)),
-        rng.gamma(w_params.dry_shape, w_params.dry_scale, len(idx)),
+        rng.gamma(gamma_wet[0], gamma_wet[1], len(idx)),
+        rng.gamma(gamma_dry[0], gamma_dry[1], len(idx)),
     )
-    pr = np.where(wet, rng.gamma(0.6, 13.0, len(idx)), rng.gamma(0.1, 4.0, len(idx)))
 
     return pd.DataFrame(
         {"tasmax": np.round(tmax, 2), "tasmin": np.round(tmin, 2), "pr": np.round(pr, 2)},

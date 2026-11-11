@@ -315,13 +315,49 @@ def get_regional_soil(lat: float, lon: float) -> dict[str, float]:
     }))
 
 
-def get_regional_weather_params(lat: float, lon: float) -> dict:
+class RegionalWeatherParams(dict):
+    """Regional weather parameters supporting dictionary access, attribute access, and computed aliases."""
+
+    def __getattr__(self, name: str):
+        try:
+            return self[name]
+        except KeyError:
+            if name == "base_tmax":
+                return float(self.get("t_base", 25.0)) + 0.5 * float(self.get("trange_c", 11.0))
+            if name == "amp_c":
+                return float(self.get("amplitude", 9.0))
+            if name == "wet_months":
+                ws = int(self.get("wet_start_month", 7))
+                we = int(self.get("wet_end_month", 9))
+                if ws <= we:
+                    return list(range(ws, we + 1))
+                return list(range(ws, 13)) + list(range(1, we + 1))
+            if name == "wet_shape":
+                gw = self.get("gamma_wet", [0.6, 13.0])
+                return float(gw[0])
+            if name == "wet_scale":
+                gw = self.get("gamma_wet", [0.6, 13.0])
+                return float(gw[1])
+            if name == "dry_shape":
+                gd = self.get("gamma_dry", [0.1, 4.0])
+                return float(gd[0])
+            if name == "dry_scale":
+                gd = self.get("gamma_dry", [0.1, 4.0])
+                return float(gd[1])
+            raise AttributeError(f"'RegionalWeatherParams' object has no attribute '{name}'") from None
+
+    def __setattr__(self, name: str, value):
+        self[name] = value
+
+
+def get_regional_weather_params(lat: float, lon: float) -> RegionalWeatherParams:
     cfg = detect_region_config(lat, lon)
     w_data = load_weather_data()
-    return w_data.get(cfg.region_id, w_data.get("default_weather", {
+    raw = w_data.get(cfg.region_id, w_data.get("default_weather", {
         "t_base": 25.0, "amplitude": 9.0, "peak_doy": 150, "trange_c": 11.0,
         "wet_start_month": 7, "wet_end_month": 9, "gamma_wet": [0.5, 10.0], "gamma_dry": [0.08, 3.0]
     }))
+    return RegionalWeatherParams(raw)
 
 
 def get_baseline_rotation(lat: float, lon: float) -> list[str]:
