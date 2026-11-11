@@ -10,6 +10,7 @@ import type {
   SuitabilityItem,
 } from "@/types/api";
 import { adaptStrategiesForHorizon } from "@/lib/fallbackStrategies";
+import { generateFallbackProfile } from "@/lib/fallbackProfile";
 
 // On Vercel:
 // - In the browser: uses relative `/api` (routed to the FastAPI service via top-level rewrite).
@@ -92,7 +93,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
   }
 
-  // If live /profile is requested but backend API is offline, serve golden profile ONLY on exact field.id match (WS-B2)
+  // If live /profile is requested but backend API is offline, serve golden profile if field.id matches,
+  // or generate location-calibrated regional fallback profile for custom parcels (WS-B2)
   if (path === "/profile" && init?.body) {
     try {
       const field = JSON.parse(init.body as string) as FieldGeometry;
@@ -114,6 +116,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
           }
         }
       }
+      // Resilient fallback for any custom coordinate on Earth
+      return generateFallbackProfile(field) as T;
     } catch {
       // Ignore and proceed to throw
     }

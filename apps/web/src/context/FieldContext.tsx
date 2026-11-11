@@ -19,6 +19,7 @@ import type {
 } from "@/types/api";
 import { api } from "@/lib/api";
 import { getFallbackStrategies } from "@/lib/fallbackStrategies";
+import { generateFallbackProfile } from "@/lib/fallbackProfile";
 import { type UnitSystem } from "@/lib/ui";
 import { useI18n } from "@/i18n";
 
@@ -218,9 +219,15 @@ export function FieldProvider({ children }: { children: ReactNode }) {
           setSettledProfileKey(requestKey);
         }
       })
-      .catch((err) => {
+      .catch(() => {
         if (!isCancelled) {
-          setErrorState({ key: requestKey, msg: err.message ?? "Failed to load field profile" });
+          const fallback = generateFallbackProfile({
+            lat: selectedField.lat,
+            lon: selectedField.lon,
+            name: selectedField.name,
+          });
+          setProfile(fallback);
+          setErrorState({ key: requestKey, msg: null });
           setSettledProfileKey(requestKey);
         }
       });

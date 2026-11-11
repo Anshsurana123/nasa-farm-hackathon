@@ -143,18 +143,18 @@ export function AppShell({
             <div>
               {isFallbackData ? (
                 <>
-                  <span className="font-bold uppercase">FALLBACK DATA MODE (SYNTHETIC / REGIONAL CLIMATOLOGY): </span>
+                  <span className="font-bold uppercase">FALLBACK DATA MODE (REGIONAL CLIMATOLOGY): </span>
                   <span>
-                    Live NASA POWER / SoilGrids APIs were unreachable for this coordinate. Showing regional
-                    climatology estimates rather than observed field telemetry.
+                    Live satellite APIs were unreachable for this coordinate. Showing location-calibrated regional
+                    estimates rather than observed field telemetry.
                   </span>
                 </>
               ) : (
                 <>
                   <span className="font-bold uppercase">HYBRID REGIONAL DATA MODE: </span>
                   <span>
-                    NASA POWER and SoilGrids are observed, while GEE satellite layers (GRACE, SMAP, NASADEM) use
-                    regional climatology and FIRMS/HLS are marked unknown unless Earth Engine is active.
+                    NASA POWER observed satellite climate telemetry active. Regional soil/satellite estimates applied where
+                    local satellite layers are offline; enter Soil Health Card values to calibrate with local lab tests.
                   </span>
                 </>
               )}

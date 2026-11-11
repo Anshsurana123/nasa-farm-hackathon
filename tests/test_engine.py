@@ -2377,6 +2377,39 @@ def test_baseline_confirmation_and_no_satellite_history_path(punjab_profile, mon
     assert dsr_cand_over["vs_baseline"]["irrigation_change_pct"] > dsr_cand_def["vs_baseline"]["irrigation_change_pct"]
 
 
+def test_profiler_hybrid_regional_and_fallback_modes(monkeypatch):
+    """Verify profiler correctly distinguishes observed climate with regional soil (hybrid_regional)
+    from full synthetic fallback (fallback_synthetic).
+    """
+    from terraloop_engine import profiler
+    from terraloop_engine.data import nasa_power
+    from terraloop_schemas import FieldGeometry
+
+    monkeypatch.setenv("GEE_DISABLE", "1")
+
+    # Case 1: When live network is off, power_mode is regional_climatology -> fallback_synthetic
+    prof_offline = profiler.build_profile(
+        FieldGeometry(lat=24.353, lon=83.170, name="Eastern Monsoon Belt"),
+        use_live_network=False,
+    )
+    assert prof_offline.data_mode == "fallback_synthetic"
+    assert prof_offline.is_fallback is True
+
+    # Case 2: When climate is observed, but soil is regional fallback -> hybrid_regional, is_fallback=False
+    synth_df = nasa_power.synthetic_daily_weather(24.353, 83.170, (2020, 2024))
+    monkeypatch.setattr(nasa_power, "fetch_daily", lambda req: synth_df)
+    monkeypatch.setattr("terraloop_engine.data.soilgrids.fetch_topsoil", lambda lat, lon: (None, None))
+
+    prof_hybrid = profiler.build_profile(
+        FieldGeometry(lat=24.353, lon=83.170, name="Eastern Monsoon Belt"),
+        use_live_network=True,
+    )
+    assert prof_hybrid.data_mode == "hybrid_regional"
+    assert prof_hybrid.is_fallback is False
+    assert any(p.source == "NASA POWER" and p.mode == "observed" for p in prof_hybrid.climate.provenance)
+
+
+
 
 
 

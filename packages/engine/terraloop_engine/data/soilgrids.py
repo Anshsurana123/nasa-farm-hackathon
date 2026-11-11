@@ -34,14 +34,19 @@ PROVENANCE = DataProvenance(
 
 @disk_cache(namespace="soilgrids")
 def _query(lat: float, lon: float) -> dict:
+    import os
+
     params: list[tuple[str, str | float]] = [("lon", round(lon, 5)), ("lat", round(lat, 5))]
     params += [("property", p) for p in PROPERTIES]
     params += [("depth", d) for d in TOPSOIL_DEPTHS]
     params.append(("value", "mean"))
-    import os
 
-    timeout = float(os.environ.get("SOILGRIDS_TIMEOUT", "8.0"))
-    with httpx.Client(timeout=timeout) as client:
+    headers = {
+        "User-Agent": "TerraLoop-NASA-SpaceApps/2.6 (https://github.com/Anshsurana123/nasa-farm-hack)",
+        "Accept": "application/json",
+    }
+    timeout = float(os.environ.get("SOILGRIDS_TIMEOUT", "6.0"))
+    with httpx.Client(timeout=timeout, headers=headers) as client:
         resp = client.get(BASE_URL, params=params)
         resp.raise_for_status()
         return resp.json()
@@ -70,7 +75,7 @@ def fetch_topsoil(lat: float, lon: float) -> tuple[dict[str, float] | None, tupl
     Units: clay/sand/silt %, soc g/kg, phh2o pH, bdod g/cm3 (cg/cm3 / 100),
     cec cmol(c)/kg, nitrogen g/kg.
     """
-    for dlat, dlon in _OFFSETS:
+    for dlat, dlon in _OFFSETS[:3]:
         plat, plon = lat + dlat, lon + dlon
         try:
             raw = _query(plat, plon)

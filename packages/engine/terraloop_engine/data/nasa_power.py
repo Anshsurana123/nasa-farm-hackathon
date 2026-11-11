@@ -69,11 +69,30 @@ def _fetch_json(lat: float, lon: float, start: str, end: str, parameters: str) -
         "end": end,
         "format": "JSON",
     }
-    timeout = float(os.environ.get("NASA_POWER_TIMEOUT", "10.0"))
-    with httpx.Client(timeout=timeout) as client:
-        resp = client.get(BASE_URL, params=params)
-        resp.raise_for_status()
-        return resp.json()
+    headers = {
+        "User-Agent": "TerraLoop-NASA-SpaceApps/2.6 (https://github.com/Anshsurana123/nasa-farm-hack)",
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip, deflate",
+    }
+    timeout = float(os.environ.get("NASA_POWER_TIMEOUT", "20.0"))
+    last_exc = None
+    for attempt in range(2):
+        try:
+            with httpx.Client(timeout=timeout, headers=headers) as client:
+                resp = client.get(BASE_URL, params=params)
+                resp.raise_for_status()
+                return resp.json()
+        except (httpx.TimeoutException, httpx.HTTPStatusError) as exc:
+            last_exc = exc
+            if attempt == 0:
+                continue
+            raise
+        except Exception as exc:
+            last_exc = exc
+            raise
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("Failed to fetch NASA POWER payload")
 
 
 # Monthly Tmax warm-bias offsets (deg C) for MERRA-2 across the irrigated Indo-Gangetic Plain.

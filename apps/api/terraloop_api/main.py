@@ -11,12 +11,23 @@ import json
 import logging
 import os
 import re
+import sys
 import threading
 import time
 import urllib.parse
 import uuid
 from datetime import date
 from pathlib import Path
+
+# Ensure workspace packages (schemas, engine, api) are importable across all runtimes & serverless platforms
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+for _pkg in [
+    _REPO_ROOT / "packages" / "schemas",
+    _REPO_ROOT / "packages" / "engine",
+    _REPO_ROOT / "apps" / "api",
+]:
+    if _pkg.is_dir() and str(_pkg) not in sys.path:
+        sys.path.insert(0, str(_pkg))
 
 import httpx
 import numpy as np
@@ -445,9 +456,15 @@ def build_profile(field: FieldGeometry) -> FieldProfile:
             prof = profiler.build_profile(field)
             prof.served_from = "live_computation"
             prof.snapshot_date = None
-        except Exception as exc:
-            log.exception("profile failed")
-            raise HTTPException(502, f"Upstream data error: {exc}") from exc
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Live profile build encountered error (%s); falling back to regional profile", exc)
+            try:
+                prof = profiler.build_profile(field, use_live_network=False)
+                prof.served_from = "demo_snapshot"
+                prof.is_fallback = True
+                prof.data_mode = "fallback_synthetic"
+            except Exception:  # noqa: BLE001
+                raise HTTPException(502, f"Upstream data error: {exc}") from exc
 
     prof.agro_zone = reg_cfg.agro_zone
     prof.currency = reg_cfg.currency

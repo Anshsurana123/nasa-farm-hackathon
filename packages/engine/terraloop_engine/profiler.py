@@ -9,6 +9,7 @@ Failures in optional sources must NOT break the profile (log + leave None or reg
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 
 import numpy as np
@@ -297,26 +298,95 @@ def build_profile(
     start: date | None = None,
     end: date | None = None,
     soil_health_card: SoilHealthCardInput | None = None,
+    use_live_network: bool = True,
 ) -> FieldProfile:
     start = start or date(BASELINE[0], 1, 1)
     end = end or date(RECENT[1], 12, 31)
 
     power_mode = "observed"
-    try:
-        weather = nasa_power.fetch_daily(nasa_power.PowerRequest(field.lat, field.lon, start, end))
-    except Exception as exc:  # noqa: BLE001
-        log.warning("NASA POWER live fetch failed: %s; using location-calibrated regional weather", exc)
+    soil_mode = "observed"
+    weather = None
+    props = None
+    slope_val = None
+    gw_trend = None
+    fire_df = None
+    ndvi_df = None
+
+    if use_live_network:
+        gee_active = bool(gee.init())
+        try:
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                fut_power = pool.submit(
+                    nasa_power.fetch_daily,
+                    nasa_power.PowerRequest(field.lat, field.lon, start, end),
+                )
+                fut_soil = pool.submit(soilgrids.fetch_topsoil, field.lat, field.lon)
+                fut_slope = pool.submit(gee.slope_pct, field.lat, field.lon)
+                fut_grace = pool.submit(gee.grace_trend, field.lat, field.lon)
+                fut_smap = pool.submit(gee.smap_rootzone, field.lat, field.lon, "2015-04-01", str(end))
+                fut_firms = (
+                    pool.submit(gee.fire_detections, field.lat, field.lon, f"{end.year - 4}-01-01", str(end))
+                    if gee_active
+                    else None
+                )
+                fut_ndvi = (
+                    pool.submit(gee.ndvi_timeseries, field.lat, field.lon, f"{end.year - 4}-01-01", str(end))
+                    if gee_active
+                    else None
+                )
+
+                try:
+                    weather = fut_power.result(timeout=20.0)
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("NASA POWER live fetch failed: %s; using location-calibrated regional weather", exc)
+                    weather = None
+
+                try:
+                    props, _used = fut_soil.result(timeout=20.0)
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("SoilGrids live fetch failed: %s; using regional soil fallback", exc)
+                    props = None
+
+                if fut_slope is not None:
+                    try:
+                        slope_val = fut_slope.result(timeout=6.0)
+                    except Exception:  # noqa: BLE001
+                        slope_val = None
+
+                if fut_grace is not None:
+                    try:
+                        gw_trend, _ = fut_grace.result(timeout=6.0)
+                    except Exception:  # noqa: BLE001
+                        gw_trend = None
+
+                smap_series = None
+                if fut_smap is not None:
+                    try:
+                        smap_series = fut_smap.result(timeout=6.0)
+                    except Exception:  # noqa: BLE001
+                        smap_series = None
+
+                if fut_firms is not None:
+                    try:
+                        fire_df = fut_firms.result(timeout=6.0)
+                    except Exception:  # noqa: BLE001
+                        fire_df = None
+
+                if fut_ndvi is not None:
+                    try:
+                        ndvi_df = fut_ndvi.result(timeout=6.0)
+                    except Exception:  # noqa: BLE001
+                        ndvi_df = None
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Parallel external fetcher pool error: %s", exc)
+    else:
+        slope_val = gee.slope_pct(field.lat, field.lon)
+        gw_trend, _ = gee.grace_trend(field.lat, field.lon)
+        smap_series = gee.smap_rootzone(field.lat, field.lon, "2015-04-01", str(end))
+
+    if weather is None:
         weather = nasa_power.synthetic_daily_weather(field.lat, field.lon, (start.year, end.year))
         power_mode = "regional_climatology"
-
-    imerg_s = None
-    imerg_prov = None
-    if gee.init():
-        try:
-            imerg_s = gee.imerg_daily(field.lat, field.lon, start="2001-01-01", end=str(end))
-            imerg_prov = gee.IMERG_PROVENANCE.model_copy(update={"mode": "observed"})
-        except Exception:
-            log.warning("GEE IMERG lookup failed; using POWER post-2001 IMERG-fused series", exc_info=True)
 
     from . import region_registry
 
@@ -328,61 +398,43 @@ def build_profile(
         field.lat,
         lon=field.lon,
         prov_mode=power_mode,
-        imerg_precip=imerg_s,
-        imerg_prov=imerg_prov,
         bias_corrected=bool(reg_cfg.igp_merra2_bias_correction),
     )
 
-    soil_mode = "observed"
-    try:
-        props, _used = soilgrids.fetch_topsoil(field.lat, field.lon)
-    except Exception:
-        log.exception("SoilGrids failed")
-        props = None
     if not props:
         props = regional_indian_soil_fallback(field.lat, field.lon)
         soil_mode = "regional_climatology"
     soil_summary = summarise_soil(props, prov_mode=soil_mode)
 
     # 1. Slope from NASADEM (TASK-D06)
-    slope_val = None
-    try:
-        slope_val = gee.slope_pct(field.lat, field.lon)
+    if slope_val is not None:
         soil_summary.slope_pct = slope_val
         nasadem_prov = gee.provenance_with_mode(gee.NASADEM_PROVENANCE)
         if not any(p.source == nasadem_prov.source for p in soil_summary.provenance):
             soil_summary.provenance.append(nasadem_prov)
-    except Exception:
-        log.warning("NASADEM slope lookup failed", exc_info=True)
 
     # 2. Water summary + GRACE-FO + SMAP (TASK-D04, D05)
     water_prov = list(climate.provenance)
-    gw_trend = None
-    try:
-        gw_trend, _ = gee.grace_trend(field.lat, field.lon)
+    if gw_trend is not None:
         water_prov.append(gee.provenance_with_mode(gee.GRACE_PROVENANCE))
-    except Exception:
-        log.warning("GRACE trend lookup failed", exc_info=True)
 
     smap_pctiles = None
-    try:
-        smap_series = gee.smap_rootzone(field.lat, field.lon, start="2015-04-01", end=str(end))
-        if not smap_series.empty:
-            recent_start = pd.Timestamp(end.year - 2, 1, 1)
-            recent_smap = smap_series[smap_series.index >= recent_start]
-            pctiles = []
-            for m in range(1, 13):
-                clim_m = smap_series[smap_series.index.month == m].dropna().to_numpy()
-                rec_m = recent_smap[recent_smap.index.month == m].dropna().to_numpy()
-                if len(clim_m) > 0 and len(rec_m) > 0:
-                    pct = float(np.mean(clim_m <= np.mean(rec_m)) * 100.0)
-                    pctiles.append(round(pct, 1))
-                else:
-                    pctiles.append(50.0)
-            smap_pctiles = pctiles
-            water_prov.append(gee.provenance_with_mode(gee.SMAP_PROVENANCE))
-    except Exception:
-        log.warning("SMAP rootzone lookup failed", exc_info=True)
+    if smap_series is not None and not smap_series.empty:
+        recent_start = pd.Timestamp(end.year - 2, 1, 1)
+        recent_smap = smap_series[smap_series.index >= recent_start]
+        pctiles = []
+        for m in range(1, 13):
+            clim_m = smap_series[smap_series.index.month == m].dropna().to_numpy()
+            rec_m = recent_smap[recent_smap.index.month == m].dropna().to_numpy()
+            if len(clim_m) > 0 and len(rec_m) > 0:
+                pct = float(np.mean(clim_m <= np.mean(rec_m)) * 100.0)
+                pctiles.append(round(pct, 1))
+            else:
+                pctiles.append(50.0)
+        smap_pctiles = pctiles
+        water_prov.append(gee.provenance_with_mode(gee.SMAP_PROVENANCE))
+    elif not (use_live_network and gee.is_live()):
+        water_prov.append(gee.provenance_with_mode(gee.SMAP_PROVENANCE, unknown_if_offline=True))
 
     water = WaterSummary(
         root_zone_moisture_percentile=smap_pctiles,
@@ -392,36 +444,25 @@ def build_profile(
     )
 
     # 3. FIRMS fire detections (TASK-D07)
-    try:
-        if gee.is_live():
-            fire_df = gee.fire_detections(field.lat, field.lon, start=f"{end.year - 4}-01-01", end=str(end))
-            if not fire_df.empty and "date" in fire_df.columns:
-                fire_dates = pd.to_datetime(fire_df["date"])
-                oct_nov = (fire_dates.dt.month == 10) | (fire_dates.dt.month == 11)
-                hazards.residue_burning_detected = bool(oct_nov.any())
-            else:
-                hazards.residue_burning_detected = False
-        else:
-            hazards.residue_burning_detected = None
-    except Exception:
-        log.warning("FIRMS fire detections lookup failed", exc_info=True)
+    if fire_df is not None and not fire_df.empty and "date" in fire_df.columns:
+        fire_dates = pd.to_datetime(fire_df["date"])
+        oct_nov = (fire_dates.dt.month == 10) | (fire_dates.dt.month == 11)
+        hazards.residue_burning_detected = bool(oct_nov.any())
+    elif use_live_network and gee.is_live():
+        hazards.residue_burning_detected = False
+    else:
         hazards.residue_burning_detected = None
     hazards.provenance.append(gee.provenance_with_mode(gee.FIRMS_PROVENANCE, unknown_if_offline=True))
 
     # 4. Phenology & crop history (TASK-E01, E02)
     crop_history = []
     seasons_per_year = None
-    try:
-        if gee.is_live():
-            ndvi_df = gee.ndvi_timeseries(field.lat, field.lon, start=f"{end.year - 4}-01-01", end=str(end))
-            if not ndvi_df.empty and "ndvi" in ndvi_df.columns:
-                s_ndvi = pd.Series(ndvi_df["ndvi"].values, index=pd.to_datetime(ndvi_df["date"]))
-                crop_history = phenology.infer_history(s_ndvi, field.lat, field.lon)
-                if crop_history:
-                    years_detected = [h.year for h in crop_history]
-                    seasons_per_year = round(len(crop_history) / max(1, len(set(years_detected))))
-    except Exception:
-        log.warning("Phenology crop history inference failed", exc_info=True)
+    if ndvi_df is not None and not ndvi_df.empty and "ndvi" in ndvi_df.columns:
+        s_ndvi = pd.Series(ndvi_df["ndvi"].values, index=pd.to_datetime(ndvi_df["date"]))
+        crop_history = phenology.infer_history(s_ndvi, field.lat, field.lon)
+        if crop_history:
+            years_detected = [h.year for h in crop_history]
+            seasons_per_year = round(len(crop_history) / max(1, len(set(years_detected))))
     crop_history_prov = [gee.provenance_with_mode(gee.HLS_PROVENANCE, unknown_if_offline=True)]
 
     # Erosion screening using NASADEM slope
@@ -437,12 +478,16 @@ def build_profile(
         a = rusle.soil_loss(r, k, rusle.ls_factor(slope), c=0.3)
         hazards.erosion_risk_class = rusle.erosion_class(a)  # type: ignore[assignment]
 
-    if power_mode != "observed" or soil_mode != "observed":
+    # Data mode truthfulness: only mark fallback_synthetic if NASA POWER climate fetch actually failed
+    if power_mode != "observed":
         data_mode = "fallback_synthetic"
-    elif not gee.is_live():
+        is_fallback = True
+    elif soil_mode != "observed" or not gee.is_live():
         data_mode = "hybrid_regional"
+        is_fallback = False
     else:
         data_mode = "observed"
+        is_fallback = False
 
     profile = FieldProfile(
         field=field,
@@ -460,7 +505,7 @@ def build_profile(
         agro_zone=reg_cfg.agro_zone,
         validation_status=reg_cfg.validation_status,
         validation_message=reg_cfg.validation_message,
-        is_fallback=(data_mode == "fallback_synthetic"),
+        is_fallback=is_fallback,
         data_mode=data_mode,  # type: ignore[arg-type]
     )
 
