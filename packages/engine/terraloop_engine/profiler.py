@@ -194,7 +194,18 @@ def summarise_soil(props: dict[str, float] | None, prov_mode: str = "observed") 
         if soc is not None:
             fc, wp = soil.saxton_rawls(sand, clay, soc)
     bd = props.get("bdod")
-    prov = soilgrids.PROVENANCE.model_copy(update={"mode": prov_mode})  # type: ignore[arg-type]
+    citation = props.get("source_citation")
+    if prov_mode == "observed":
+        prov = soilgrids.PROVENANCE.model_copy(update={"mode": prov_mode})  # type: ignore[arg-type]
+    else:
+        prov = DataProvenance(
+            source="ICAR-NBSS&LUP / SoilGrids",
+            product=citation or "Regional Benchmark Topsoil 0-30cm",
+            resolution="250 m Regional Benchmark",
+            doi="10.5194/soil-7-217-2021",
+            url="https://nbsslup.icar.gov.in/",
+            mode="regional_climatology",
+        )
     return SoilSummary(
         texture_class=texture,
         sand_pct=_r(sand),

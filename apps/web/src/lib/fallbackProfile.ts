@@ -210,8 +210,8 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
     state: reg.regionName,
     served_from: "demo_snapshot",
     snapshot_date: "Regional Climatology",
-    is_fallback: true,
-    data_mode: "fallback_synthetic",
+    is_fallback: !isSA,
+    data_mode: isSA ? "hybrid_regional" : "fallback_synthetic",
     validation_status: isSA ? "validated_india" : "unvalidated_global",
     validation_message: isSA
       ? undefined

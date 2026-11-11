@@ -102,6 +102,56 @@ west_coast:
   nitrogen: 0.85
   source_citation: "KAU Coastal Laterite Soil Benchmark"
 
+eastern_gangetic:
+  sand: 38.0
+  silt: 34.0
+  clay: 28.0
+  soc: 6.2
+  phh2o: 6.8
+  bdod: 144.0
+  nitrogen: 0.62
+  source_citation: "ICAR-RCER Patna & BAU Sabour Eastern Gangetic Alluvial Benchmark"
+
+gujarat:
+  sand: 42.0
+  silt: 28.0
+  clay: 30.0
+  soc: 4.5
+  phh2o: 8.1
+  bdod: 148.0
+  nitrogen: 0.48
+  source_citation: "AAU Anand & JAU Junagadh Gujarat Plains Soil Benchmark"
+
+himalayan:
+  sand: 52.0
+  silt: 32.0
+  clay: 16.0
+  soc: 9.5
+  phh2o: 6.0
+  bdod: 132.0
+  nitrogen: 0.90
+  source_citation: "YSPUHF Solan & ICAR-IISWC Himalayan Loam Benchmark"
+
+eastern_himalayan:
+  sand: 46.0
+  silt: 30.0
+  clay: 24.0
+  soc: 11.0
+  phh2o: 5.2
+  bdod: 128.0
+  nitrogen: 1.05
+  source_citation: "ICAR Research Complex for NEH Region Barapani Acidic Loam Benchmark"
+
+islands:
+  sand: 54.0
+  silt: 22.0
+  clay: 24.0
+  soc: 7.5
+  phh2o: 6.8
+  bdod: 138.0
+  nitrogen: 0.72
+  source_citation: "ICAR-CIARI Port Blair Island Sandy Clay Loam Benchmark"
+
 default_soil:
   sand: 44.0
   silt: 36.0
