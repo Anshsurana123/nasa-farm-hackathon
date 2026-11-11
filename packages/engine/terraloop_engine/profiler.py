@@ -26,7 +26,7 @@ from terraloop_schemas import (
 
 from .data import gee, nasa_power, soilgrids
 from .eo import phenology
-from .models import agroclimate, economics, rusle, soil
+from .models import agroclimate, rusle, soil
 
 log = logging.getLogger(__name__)
 
@@ -49,12 +49,22 @@ def summarise_climate(
     prov_mode: str = "observed",
     imerg_precip: pd.Series | None = None,
     imerg_prov: DataProvenance | None = None,
+    lon: float | None = None,
+    bias_corrected: bool | None = None,
 ) -> tuple[ClimateSummary, HazardSummary, float]:
     """Compute climate + hazard indicators from a daily POWER DataFrame (+ optional GPM IMERG V07 series).
 
     Returns (climate, hazards, annual climatic water balance P-ET0 in mm).
     Pure function: easy to unit-test with synthetic data.
     """
+    if bias_corrected is None:
+        if lon is not None:
+            from . import region_registry
+
+            reg_cfg = region_registry.detect_region_config(lat, lon)
+            bias_corrected = bool(reg_cfg.igp_merra2_bias_correction)
+        else:
+            bias_corrected = False
     df = df.copy()
     df["ET0"] = agroclimate.et0_hargreaves(df["T2M_MAX"], df["T2M_MIN"], lat)
     df["GDD10"] = agroclimate.gdd(df["T2M_MAX"], df["T2M_MIN"], base=10.0)
@@ -122,7 +132,9 @@ def summarise_climate(
         is_terminal = (df.index.month == 3) | ((df.index.month == 4) & (df.index.day <= 15))
     terminal_heat_per_yr = float((is_terminal & (df["T2M_MAX"] > 32.0)).groupby(years).sum().mean())
 
-    power_prov = nasa_power.provenance(df.index.min().date(), df.index.max().date(), mode=prov_mode)
+    power_prov = nasa_power.provenance(
+        df.index.min().date(), df.index.max().date(), mode=prov_mode, bias_corrected=bias_corrected
+    )
     clim_provs = [power_prov]
     if imerg_prov is not None:
         clim_provs.append(imerg_prov)
@@ -165,29 +177,8 @@ def summarise_climate(
 # ---------------------------------------------------------------------------
 def regional_indian_soil_fallback(lat: float, lon: float) -> dict[str, float]:
     """Return representative NBSS&LUP / ICAR topsoil properties for Indian agro-zones when SoilGrids is offline."""
-    if (24.0 <= lat < 28.5) and (69.0 <= lon < 76.0):
-        # Western Dry / Thar Arid Torripsamment (Desert Loamy Sand / Sandy Loam - NBSS&LUP)
-        return {"sand": 76.0, "silt": 14.0, "clay": 10.0, "soc": 2.8, "phh2o": 8.3, "bdod": 158.0, "nitrogen": 0.32}
-    if (18.0 <= lat < 23.0) and (75.0 <= lon <= 80.5):
-        # Vidarbha Deccan Vertisol (Black Cotton Soil - high clay, high water holding)
-        return {"sand": 22.0, "silt": 26.0, "clay": 52.0, "soc": 6.2, "phh2o": 7.8, "bdod": 136.0, "nitrogen": 0.65}
-    if (21.0 <= lat < 25.0) and (74.5 <= lon < 79.5):
-        # Central Malwa Medium-Deep Vertisol (Clay / Clay Loam - NBSS&LUP)
-        return {"sand": 26.0, "silt": 30.0, "clay": 44.0, "soc": 6.5, "phh2o": 7.6, "bdod": 138.0, "nitrogen": 0.68}
-    if (23.5 <= lat < 27.0) and (77.5 <= lon <= 81.5):
-        # Bundelkhand Red/Parwa Sandy Loam (low SOC, low water holding)
-        return {"sand": 62.0, "silt": 22.0, "clay": 16.0, "soc": 4.2, "phh2o": 7.3, "bdod": 152.0, "nitrogen": 0.48}
-    if (28.5 <= lat <= 31.2) and (73.5 <= lon < 75.2):
-        # Bathinda SW Punjab Arid Sandy Loam (coarse texture, alkaline pH)
-        return {"sand": 64.0, "silt": 22.0, "clay": 14.0, "soc": 4.0, "phh2o": 8.2, "bdod": 154.0, "nitrogen": 0.45}
-    if lat < 17.0 and lon < 78.0:
-        # Southern Peninsular Alfisol / Red Sandy Clay Loam (Karnataka / Rayalaseema)
-        return {"sand": 56.0, "silt": 20.0, "clay": 24.0, "soc": 5.4, "phh2o": 6.7, "bdod": 146.0, "nitrogen": 0.55}
-    if lat < 15.0:
-        # Thanjavur Cauvery Delta Alluvial Clay Loam
-        return {"sand": 32.0, "silt": 32.0, "clay": 36.0, "soc": 7.4, "phh2o": 6.9, "bdod": 140.0, "nitrogen": 0.78}
-    # Central Punjab / Indo-Gangetic Alluvial Loam (Sangrur / Ludhiana / IGP)
-    return {"sand": 44.0, "silt": 36.0, "clay": 20.0, "soc": 5.2, "phh2o": 7.9, "bdod": 148.0, "nitrogen": 0.58}
+    from . import region_registry
+    return region_registry.get_regional_soil(lat, lon)
 
 
 def summarise_soil(props: dict[str, float] | None, prov_mode: str = "observed") -> SoilSummary:
@@ -327,8 +318,19 @@ def build_profile(
         except Exception:
             log.warning("GEE IMERG lookup failed; using POWER post-2001 IMERG-fused series", exc_info=True)
 
+    from . import region_registry
+
+    reg_cfg = region_registry.detect_region_config(field.lat, field.lon)
+    state = region_registry.detect_state(field.lat, field.lon)
+
     climate, hazards, water_balance = summarise_climate(
-        weather, field.lat, prov_mode=power_mode, imerg_precip=imerg_s, imerg_prov=imerg_prov
+        weather,
+        field.lat,
+        lon=field.lon,
+        prov_mode=power_mode,
+        imerg_precip=imerg_s,
+        imerg_prov=imerg_prov,
+        bias_corrected=bool(reg_cfg.igp_merra2_bias_correction),
     )
 
     soil_mode = "observed"
@@ -343,9 +345,10 @@ def build_profile(
     soil_summary = summarise_soil(props, prov_mode=soil_mode)
 
     # 1. Slope from NASADEM (TASK-D06)
+    slope_val = None
     try:
-        slope = gee.slope_pct(field.lat, field.lon)
-        soil_summary.slope_pct = slope
+        slope_val = gee.slope_pct(field.lat, field.lon)
+        soil_summary.slope_pct = slope_val
         nasadem_prov = gee.provenance_with_mode(gee.NASADEM_PROVENANCE)
         if not any(p.source == nasadem_prov.source for p in soil_summary.provenance):
             soil_summary.provenance.append(nasadem_prov)
@@ -389,11 +392,9 @@ def build_profile(
     )
 
     # 3. FIRMS fire detections (TASK-D07)
-    firms_mode = "unknown"
     try:
-        if gee.init():
+        if gee.is_live():
             fire_df = gee.fire_detections(field.lat, field.lon, start=f"{end.year - 4}-01-01", end=str(end))
-            firms_mode = "observed"
             if not fire_df.empty and "date" in fire_df.columns:
                 fire_dates = pd.to_datetime(fire_df["date"])
                 oct_nov = (fire_dates.dt.month == 10) | (fire_dates.dt.month == 11)
@@ -405,24 +406,23 @@ def build_profile(
     except Exception:
         log.warning("FIRMS fire detections lookup failed", exc_info=True)
         hazards.residue_burning_detected = None
-    hazards.provenance.append(gee.FIRMS_PROVENANCE.model_copy(update={"mode": firms_mode}))  # type: ignore[arg-type]
+    hazards.provenance.append(gee.provenance_with_mode(gee.FIRMS_PROVENANCE, unknown_if_offline=True))
 
     # 4. Phenology & crop history (TASK-E01, E02)
     crop_history = []
     seasons_per_year = None
-    hls_mode = "unknown"
     try:
-        ndvi_df = gee.ndvi_timeseries(field.lat, field.lon, start=f"{end.year - 4}-01-01", end=str(end))
-        if not ndvi_df.empty and "ndvi" in ndvi_df.columns:
-            hls_mode = "observed" if gee.is_live() else "regional_climatology"
-            s_ndvi = pd.Series(ndvi_df["ndvi"].values, index=pd.to_datetime(ndvi_df["date"]))
-            crop_history = phenology.infer_history(s_ndvi, field.lat, field.lon)
-            if crop_history:
-                years_detected = [h.year for h in crop_history]
-                seasons_per_year = round(len(crop_history) / max(1, len(set(years_detected))))
+        if gee.is_live():
+            ndvi_df = gee.ndvi_timeseries(field.lat, field.lon, start=f"{end.year - 4}-01-01", end=str(end))
+            if not ndvi_df.empty and "ndvi" in ndvi_df.columns:
+                s_ndvi = pd.Series(ndvi_df["ndvi"].values, index=pd.to_datetime(ndvi_df["date"]))
+                crop_history = phenology.infer_history(s_ndvi, field.lat, field.lon)
+                if crop_history:
+                    years_detected = [h.year for h in crop_history]
+                    seasons_per_year = round(len(crop_history) / max(1, len(set(years_detected))))
     except Exception:
         log.warning("Phenology crop history inference failed", exc_info=True)
-    crop_history_prov = [gee.HLS_PROVENANCE.model_copy(update={"mode": hls_mode})]  # type: ignore[arg-type]
+    crop_history_prov = [gee.provenance_with_mode(gee.HLS_PROVENANCE, unknown_if_offline=True)]
 
     # Erosion screening using NASADEM slope
     if soil_summary.sand_pct is not None and soil_summary.soc_g_per_kg is not None:
@@ -437,10 +437,6 @@ def build_profile(
         a = rusle.soil_loss(r, k, rusle.ls_factor(slope), c=0.3)
         hazards.erosion_risk_class = rusle.erosion_class(a)  # type: ignore[assignment]
 
-    region = economics.detect_region(field.lat, field.lon)
-    curr_info = economics.get_currency_info(region)
-    agro_zone = economics.detect_agro_zone(field.lat, field.lon)
-
     if power_mode != "observed" or soil_mode != "observed":
         data_mode = "fallback_synthetic"
     elif not gee.is_live():
@@ -450,6 +446,7 @@ def build_profile(
 
     profile = FieldProfile(
         field=field,
+        state=state,
         climate=climate,
         water=water,
         soil=soil_summary,
@@ -458,9 +455,11 @@ def build_profile(
         crop_history=crop_history,
         crop_history_provenance=crop_history_prov,
         agro_climatic_notes=build_notes(climate, soil_summary, water, hazards, lat=field.lat),
-        currency=curr_info["code"],
-        currency_symbol=curr_info["symbol"],
-        agro_zone=agro_zone,
+        currency=reg_cfg.currency,
+        currency_symbol=reg_cfg.currency_symbol,
+        agro_zone=reg_cfg.agro_zone,
+        validation_status=reg_cfg.validation_status,
+        validation_message=reg_cfg.validation_message,
         is_fallback=(data_mode == "fallback_synthetic"),
         data_mode=data_mode,  # type: ignore[arg-type]
     )

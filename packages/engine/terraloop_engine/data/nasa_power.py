@@ -41,12 +41,18 @@ class PowerRequest:
     parameters: tuple[str, ...] = tuple(DEFAULT_PARAMETERS)
 
 
-def provenance(start: date, end: date, mode: str = "observed") -> DataProvenance:
+def provenance(start: date, end: date, mode: str = "observed", bias_corrected: bool = False) -> DataProvenance:
+    product = "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)"
+    doi = "10.5067/POWER/0001"
+    if bias_corrected:
+        product += " [IGP irrigation warm-bias corrected (-4.5°C Mar Tmax; Ambika & Mishra 2019 / IMD 1981-2010)]"
+        doi = "10.1029/2019GL084367"
     return DataProvenance(
         source="NASA POWER",
-        product="Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        product=product,
         period=f"{start.year}-{end.year}",
         resolution="0.5 x 0.625 deg, daily",
+        doi=doi,
         url="https://power.larc.nasa.gov/",
         mode=mode,  # type: ignore[arg-type]
     )
@@ -96,6 +102,13 @@ _IGP_MONTHLY_TMAX_BIAS_C: dict[int, float] = {
 }
 
 
+def snap_to_power_grid(lat: float, lon: float) -> tuple[float, float]:
+    """Snap lat/lon to NASA POWER native 0.5° x 0.625° grid-cell center."""
+    grid_lat = round(round((lat - 0.25) / 0.5) * 0.5 + 0.25, 4)
+    grid_lon = round(round((lon - 0.3125) / 0.625) * 0.625 + 0.3125, 4)
+    return grid_lat, grid_lon
+
+
 def apply_igp_irrigation_bias_correction(df: pd.DataFrame, lat: float, lon: float) -> pd.DataFrame:
     """TASK-D11: Bias-correct NASA POWER MERRA-2 T2M_MAX warm bias across the irrigated Indo-Gangetic Plain.
 
@@ -118,7 +131,9 @@ def apply_igp_irrigation_bias_correction(df: pd.DataFrame, lat: float, lon: floa
         return df
     out = df.copy()
 
-    is_igp = (26.0 <= lat <= 32.5) and (73.5 <= lon <= 86.0)
+    from .. import region_registry
+    reg_cfg = region_registry.detect_region_config(lat, lon)
+    is_igp = bool(reg_cfg.igp_merra2_bias_correction)
     if is_igp and "T2M_MAX" in out.columns:
         months = out.index.month
         for month_num, offset_c in _IGP_MONTHLY_TMAX_BIAS_C.items():
@@ -132,10 +147,14 @@ def apply_igp_irrigation_bias_correction(df: pd.DataFrame, lat: float, lon: floa
 
 
 def fetch_daily(req: PowerRequest) -> pd.DataFrame:
-    """Return a daily DataFrame indexed by date with one column per parameter."""
+    """Return a daily DataFrame indexed by date with one column per parameter.
+
+    Uses native 0.5° x 0.625° grid-cell snapping for exact caching across nearby farm coordinates.
+    """
+    grid_lat, grid_lon = snap_to_power_grid(req.lat, req.lon)
     payload = _fetch_json(
-        req.lat,
-        req.lon,
+        grid_lat,
+        grid_lon,
         req.start.strftime("%Y%m%d"),
         req.end.strftime("%Y%m%d"),
         ",".join(req.parameters),
@@ -164,72 +183,34 @@ def synthetic_daily_weather(
     n_days = len(idx)
     rng = np.random.default_rng(seed + int(abs(lat * 10 + lon)))
 
-    is_mediterranean = (32.0 <= lat <= 44.0) and ((-125.0 <= lon <= -114.0) or (-10.0 <= lon <= 35.0))
-    is_cauvery_delta = (8.0 <= lat < 15.0) and (76.0 <= lon <= 82.0)
-    is_vidarbha = (18.0 <= lat < 23.0) and (75.0 <= lon <= 80.5)
-    is_bundelkhand = (23.5 <= lat < 27.0) and (77.5 <= lon <= 81.5)
-    is_sw_punjab = (28.5 <= lat <= 31.2) and (73.5 <= lon < 75.2)
-    is_south_asia = (8.0 <= lat <= 35.0) and (68.0 <= lon <= 92.0)
+    from .. import region_registry
+    w_params = region_registry.get_regional_weather_params(lat, lon)
 
     # Temperature model
-    if is_cauvery_delta:
-        t_base = 28.5
-        amplitude = 4.2
-        peak_doy = 140
-    elif is_vidarbha:
-        t_base = 27.5
-        amplitude = 7.8
-        peak_doy = 140
-    elif is_bundelkhand:
-        t_base = 26.2
-        amplitude = 10.5
-        peak_doy = 150
-    elif is_south_asia:
-        t_base = 24.5
-        amplitude = 11.5
-        peak_doy = 160
-    else:
-        t_base = 29.0 - 0.32 * abs(lat)
-        amplitude = 10.5 if is_mediterranean else min(17.0, max(2.5, 0.40 * abs(lat)))
-        peak_doy = 25 if lat < 0 else 205
+    t_base = float(w_params.get("t_base", 25.0))
+    amplitude = float(w_params.get("amplitude", 9.0))
+    peak_doy = int(w_params.get("peak_doy", 150))
 
     t_seasonal = amplitude * np.cos(2.0 * np.pi * (doy - peak_doy) / 365.25)
     t_noise = rng.normal(0, 1.4, n_days)
     tmean = t_base + t_seasonal + t_noise
 
-    diurnal = 11.5 + 1.8 * np.sin(2.0 * np.pi * doy / 365.25)
+    diurnal = float(w_params.get("trange_c", 11.0))
     tmax = np.round(tmean + 0.5 * diurnal, 2)
     tmin = np.round(tmean - 0.5 * diurnal, 2)
 
-    # Precipitation model
-    if is_mediterranean:
-        wet_prob = np.where((idx.month >= 11) | (idx.month <= 3), 0.22, 0.02)
-        precip = np.where(rng.random(n_days) < wet_prob, rng.gamma(1.5, 8.0, n_days), 0.0)
-    elif is_cauvery_delta:
-        # NE Monsoon (Oct-Dec) + SW Monsoon (Jul-Sep) -> ~1020 mm/yr
-        ne_monsoon = (idx.month >= 10) & (idx.month <= 12)
-        sw_monsoon = (idx.month >= 7) & (idx.month <= 9)
-        precip = np.where(
-            ne_monsoon,
-            rng.gamma(0.75, 14.5, n_days),
-            np.where(sw_monsoon, rng.gamma(0.45, 9.0, n_days), rng.gamma(0.06, 3.5, n_days)),
-        )
-    elif is_sw_punjab:
-        # Bathinda Semi-Arid (~430 mm/yr)
-        monsoon = (idx.month >= 7) & (idx.month <= 9)
-        precip = np.where(monsoon, rng.gamma(0.45, 9.5, n_days), rng.gamma(0.05, 3.0, n_days))
-    elif is_vidarbha or is_bundelkhand:
-        # Central India Rainfed (~820 mm/yr concentrated Jun-Sep, dry Oct-May)
-        monsoon = (idx.month >= 6) & (idx.month <= 9)
-        precip = np.where(monsoon, rng.gamma(0.65, 11.5, n_days), rng.gamma(0.04, 2.5, n_days))
-    elif is_south_asia:
-        monsoon = (idx.month >= 7) & (idx.month <= 9)
-        precip = np.where(monsoon, rng.gamma(0.62, 12.5, n_days), rng.gamma(0.08, 4.0, n_days))
-    else:
-        summer_months = (idx.month >= 11) | (idx.month <= 2) if lat < 0 else (idx.month >= 5) & (idx.month <= 8)
-        wet_prob = np.where(summer_months, 0.22, 0.14)
-        precip = np.where(rng.random(n_days) < wet_prob, rng.gamma(1.0, 6.0, n_days), 0.0)
+    # Precipitation model from regional gamma parameters
+    wet_start = int(w_params.get("wet_start_month", 7))
+    wet_end = int(w_params.get("wet_end_month", 9))
+    gamma_wet = w_params.get("gamma_wet", [0.5, 10.0])
+    gamma_dry = w_params.get("gamma_dry", [0.08, 3.0])
 
+    wet = (idx.month >= wet_start) & (idx.month <= wet_end)
+    precip = np.where(
+        wet,
+        rng.gamma(gamma_wet[0], gamma_wet[1], n_days),
+        rng.gamma(gamma_dry[0], gamma_dry[1], n_days),
+    )
     precip = np.round(np.maximum(0.0, precip), 2)
 
     solar_base = max(10.0, 22.0 - 0.12 * abs(lat))

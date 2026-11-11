@@ -1,0 +1,128 @@
+# Haryana Agricultural Economics Data (CACP MSP 2024-25 & Haryana State A2+FL Costs)
+# Sources: CACP Kharif & Rabi Price Policy Reports 2024-25 (Haryana A2+FL cost tables),
+#          CCS HAU Hisar Department of Agricultural Economics Farm Management Budgets
+currency: INR
+usd_exchange_rate: 83.5
+state: Haryana
+economics_basis: local_verified
+
+crops:
+  rice_puddled:
+    price_per_tonne: 23000
+    price_usd_per_tonne: 275.4
+    cost_per_ha: 63000
+    labor_cost_per_ha: 23800
+    cost_usd_per_ha: 754.5
+    market_risk: 0.05
+    procurement_type: "msp_assured"
+    sources: ["CACP Kharif 2024-25 (Paddy MSP Rs 2,300/q; Haryana A2+FL cost Rs 63,000/ha)"]
+
+  rice_short:
+    price_per_tonne: 23200
+    price_usd_per_tonne: 277.8
+    cost_per_ha: 58500
+    labor_cost_per_ha: 21500
+    cost_usd_per_ha: 700.6
+    market_risk: 0.05
+    procurement_type: "msp_assured"
+    sources: ["CACP Kharif 2024-25 (Paddy Grade A MSP Rs 2,320/q; PR-126)"]
+
+  rice_dsr:
+    price_per_tonne: 23200
+    price_usd_per_tonne: 277.8
+    cost_per_ha: 52000
+    labor_cost_per_ha: 14000
+    cost_usd_per_ha: 622.8
+    market_risk: 0.06
+    procurement_type: "msp_assured"
+    sources: ["HAU Hisar DSR Field Trial Economics"]
+
+  basmati:
+    price_per_tonne: 37500
+    price_usd_per_tonne: 449.1
+    cost_per_ha: 61000
+    labor_cost_per_ha: 23000
+    cost_usd_per_ha: 730.5
+    market_risk: 0.24
+    procurement_type: "mandi_linked"
+    sources: ["Haryana Mandi Board Karnal/Taraori Basmati Market Bulletin"]
+
+  wheat:
+    price_per_tonne: 24250
+    price_usd_per_tonne: 290.4
+    cost_per_ha: 47500
+    labor_cost_per_ha: 13000
+    cost_usd_per_ha: 568.9
+    market_risk: 0.05
+    procurement_type: "msp_assured"
+    sources: ["CACP Rabi 2024-25 (Wheat MSP Rs 2,425/q; Haryana A2+FL cost Rs 47,500/ha)"]
+
+  maize:
+    price_per_tonne: 22250
+    price_usd_per_tonne: 266.5
+    cost_per_ha: 45000
+    labor_cost_per_ha: 14000
+    cost_usd_per_ha: 538.9
+    market_risk: 0.16
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Maize MSP Rs 2,225/q)"]
+
+  mustard:
+    price_per_tonne: 56500
+    price_usd_per_tonne: 676.6
+    cost_per_ha: 31500
+    labor_cost_per_ha: 10500
+    cost_usd_per_ha: 377.2
+    market_risk: 0.10
+    procurement_type: "nafed_pss"
+    sources: ["CACP Rabi 2024-25 (Mustard MSP Rs 5,650/q; Haryana A2+FL cost Rs 31,500/ha)"]
+
+  moong:
+    price_per_tonne: 86820
+    price_usd_per_tonne: 1039.8
+    cost_per_ha: 29000
+    labor_cost_per_ha: 10000
+    cost_usd_per_ha: 347.3
+    market_risk: 0.12
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Moong MSP Rs 8,682/q)"]
+
+  cotton:
+    price_per_tonne: 71210
+    price_usd_per_tonne: 852.8
+    cost_per_ha: 52000
+    labor_cost_per_ha: 19000
+    cost_usd_per_ha: 622.8
+    market_risk: 0.15
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Cotton medium staple MSP Rs 7,121/q; Haryana A2+FL cost Rs 52,000/ha)"]
+
+  pearl_millet:
+    price_per_tonne: 26250
+    price_usd_per_tonne: 314.4
+    cost_per_ha: 28000
+    labor_cost_per_ha: 9500
+    cost_usd_per_ha: 335.3
+    market_risk: 0.12
+    procurement_type: "msp_assured"
+    sources: ["CACP Kharif 2024-25 (Bajra MSP Rs 2,625/q; Haryana state procurement)"]
+
+  chickpea:
+    price_per_tonne: 54400
+    price_usd_per_tonne: 651.5
+    cost_per_ha: 31000
+    labor_cost_per_ha: 10500
+    cost_usd_per_ha: 371.3
+    market_risk: 0.10
+    procurement_type: "nafed_pss"
+    sources: ["CACP Rabi 2024-25 (Gram MSP Rs 5,440/q)"]
+
+  urad:
+    price_per_tonne: 74000
+    price_usd_per_tonne: 886.2
+    cost_per_ha: 28000
+    labor_cost_per_ha: 9800
+    cost_usd_per_ha: 335.3
+    market_risk: 0.12
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Urad MSP Rs 7,400/q)"]

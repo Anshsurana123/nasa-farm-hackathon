@@ -26,7 +26,7 @@ from terraloop_schemas import (
     SimulationResult,
 )
 
-from terraloop_engine import crop_kb
+from terraloop_engine import crop_kb, region_registry
 from terraloop_engine.models import economics, fao56_runner, rusle, soil_health, surrogate
 
 # Backward-compatible alias
@@ -70,11 +70,18 @@ def evaluate_rotation(
     scenario_set_id: str = "historical",
     price_shock_pct: float = 0.0,
     fertilizer_shock_pct: float = 0.0,
+    step_cache: dict | None = None,
 ) -> SimulationResult:
     """Evaluate a single rotation across all climate ensemble members."""
     crops = crop_kb.load_crops()
     soil = profile.soil
-    econ_table = economics.load_economics("punjab").get("crops", {})
+
+    from .. import region_registry
+    reg_cfg = region_registry.detect_region_config(profile.field.lat, profile.field.lon)
+    state_to_use = getattr(profile, "state", None) or reg_cfg.state
+    econ_region = state_to_use.lower().replace(" ", "_") if state_to_use else reg_cfg.region_id
+    econ_data = economics.load_economics(econ_region)
+    econ_table = econ_data.get("crops", {})
 
     member_profits: list[float] = []
     member_irrigations: list[float] = []
@@ -110,6 +117,7 @@ def evaluate_rotation(
                 constraints=constraints,
                 start_year=start_year,
                 lat=profile.field.lat,
+                step_cache=step_cache,
             )
 
             tot_irr = 0.0
@@ -154,7 +162,7 @@ def evaluate_rotation(
                         cid,
                         y_val,
                         practices=practices,
-                        region="punjab",
+                        region=econ_region,
                         currency=profile.currency or "INR",
                         price_multiplier=price_mult,
                         preceded_by_legume=prec_leg,
@@ -183,6 +191,7 @@ def evaluate_rotation(
     p90 = float(np.percentile(p_arr, 90))
     worst_10 = p_arr[p_arr <= p10]
     cvar10 = float(np.mean(worst_10)) if len(worst_10) > 0 else p10
+    cvar_ci_low, cvar_ci_high = economics.cvar_bootstrap_ci(member_profits, alpha=0.10)
 
     # Soil Carbon (RothC-lite 10-year simulation)
     # Account for both aboveground straw C (depending on burning/retention/fodder removal) and belowground root C
@@ -219,6 +228,18 @@ def evaluate_rotation(
     ]
     m_precip = profile.climate.monthly_precip_mm
     m_et0 = [(profile.climate.annual_et0_mm or 1550.0) / 12.0] * 12
+
+    if members:
+        sample_df = next(iter(members.values()))
+        if len(sample_df) >= 365 and isinstance(sample_df.index, pd.DatetimeIndex):
+            t_mean = (sample_df["T2M_MAX"] + sample_df["T2M_MIN"]) / 2.0
+            p_mean = sample_df["PRECTOTCORR"]
+            monthly_t_seq = t_mean.resample("MS").mean().dropna().tolist()
+            monthly_p_seq = p_mean.resample("MS").sum().dropna().tolist()
+            if len(monthly_t_seq) >= 12:
+                m_temp = [round(float(v), 2) for v in monthly_t_seq]
+                m_precip = [round(float(v), 2) for v in monthly_p_seq]
+                m_et0 = [(profile.climate.annual_et0_mm or 1550.0) / 12.0] * len(m_temp)
 
     rothc_res = soil_health.rothc_lite(
         soil=soil,
@@ -305,6 +326,8 @@ def evaluate_rotation(
         profit_p50=round(p50, 1),
         profit_p90=round(p90, 1),
         cvar_profit_10=round(cvar10, 1),
+        cvar_ci_low=cvar_ci_low,
+        cvar_ci_high=cvar_ci_high,
     )
 
 
@@ -318,6 +341,7 @@ def evaluate_candidates(
     fertilizer_shock_pct: float = 0.0,
 ) -> list[SimulationResult]:
     """Evaluate a list of candidate rotations across climate members."""
+    shared_step_cache: dict = {}
     return [
         evaluate_rotation(
             rotation=r,
@@ -327,6 +351,7 @@ def evaluate_candidates(
             scenario_set_id=scenario_set_id,
             price_shock_pct=price_shock_pct,
             fertilizer_shock_pct=fertilizer_shock_pct,
+            step_cache=shared_step_cache,
         )
         for r in rotations
     ]
@@ -395,13 +420,36 @@ def compute_practical_farmer_metrics(
     """Translate biophysical simulation outputs into practical Indian farmer decision metrics."""
     if crops is None:
         crops = crop_kb.load_crops()
-    econ_crops = economics.load_economics("punjab").get("crops", {})
+    from .. import region_registry
+    state_to_use = None
+    if region_id:
+        known_states = {
+            "haryana": "Haryana",
+            "punjab": "Punjab",
+            "uttar_pradesh": "Uttar Pradesh",
+            "maharashtra": "Maharashtra",
+            "tamil_nadu": "Tamil Nadu",
+            "vidarbha": "Maharashtra",
+            "bundelkhand": "Uttar Pradesh",
+            "cauvery": "Tamil Nadu",
+            "thanjavur": "Tamil Nadu",
+            "sangrur": "Punjab",
+            "ludhiana": "Punjab",
+            "bathinda": "Punjab",
+        }
+        state_to_use = known_states.get(region_id.lower())
+        if not state_to_use:
+            state_to_use = region_id.capitalize()
+    if not state_to_use and profile is not None:
+        state_to_use = getattr(profile, "state", None) or region_registry.detect_state(profile.field.lat, profile.field.lon)
+    reg_cfg = region_registry.detect_region_config(profile.field.lat, profile.field.lon) if profile is not None else None
+    econ_region = (region_id or (state_to_use.lower().replace(" ", "_") if state_to_use else (reg_cfg.region_id if reg_cfg else "punjab"))).lower()
+    econ_data = economics.load_economics(econ_region)
+    econ_crops = econ_data.get("crops", {})
     irr_mode = constraints.irrigation if constraints is not None else "full"
 
     if profile is not None and region_id is None:
-        from .. import region_registry
-        reg_cfg = region_registry.detect_region_config(profile.field.lat, profile.field.lon)
-        region_id = reg_cfg.region_id
+        region_id = reg_cfg.region_id if reg_cfg else None
 
     # Soil Health Card available nitrogen mineralization credit (if laboratory tested)
     if shc_n_credit is None:
@@ -478,6 +526,7 @@ def compute_practical_farmer_metrics(
                 s.crop_id,
                 mean_y,
                 practices=s.practices,
+                region=econ_region,
                 preceded_by_legume=prec_leg,
                 irrigation=irr_mode,
             )
@@ -565,64 +614,16 @@ def compute_practical_farmer_metrics(
     else:
         msp_level = "NAFED / PSS Supported"
 
-    # 4. Matching Regional & National Government Support Schemes
-    schemes: list[str] = []
+    # 4. Matching Regional & National Government Support Schemes (YAML-driven via scheme_kb)
     planted_ids = {s.crop_id for s in rotation.steps if s.crop_id != "fallow"}
     all_practices = {p for s in rotation.steps for p in s.practices}
 
-    # Region-specific state schemes
-    if region_id == "haryana":
-        if "rice_puddled" not in planted_ids and any(
-            c in planted_ids for c in ("maize", "moong", "urad", "blackgram", "pigeon_pea", "soybean", "groundnut", "pearl_millet", "cotton")
-        ):
-            schemes.append("Haryana Mera Pani Meri Virasat (₹17,500/ha crop diversification incentive)")
-    elif region_id in ("punjab", "punjab_central", "punjab_southwest"):
-        if "rice_dsr" in planted_ids or "direct_seeded" in all_practices:
-            schemes.append("Punjab DSR Promotion Scheme (₹3,750/ha direct-seeding incentive)")
-        if "rice_puddled" not in planted_ids and any(
-            c in planted_ids for c in ("maize", "moong", "cotton", "soybean", "groundnut")
-        ):
-            schemes.append("Punjab Crop Diversification Mission (support for non-paddy Kharif alternatives)")
-        if any(p in all_practices for p in ("happy_seeder", "zero_till", "residue_retained")) and not any(
-            soil_health.is_burning_practice(s.practices) for s in rotation.steps
-        ):
-            schemes.append("CRM Sub-Mission on Crop Residue Management (50–80% Happy Seeder / CHC subsidy)")
-    elif region_id in ("vidarbha", "maharashtra"):
-        schemes.append("Maharashtra PoCRA (Nanaji Deshmukh Krishi Sanjivani Climate-Resilient Agriculture Subsidy)")
-        if any(p in all_practices for p in ("broad_bed_furrow", "zero_till", "residue_retained")):
-            schemes.append("Maharashtra Soil Health & In-Situ Moisture Conservation Incentive")
-    elif region_id in ("cauvery", "thanjavur", "tamil_nadu"):
-        if any(c in planted_ids for c in ("urad", "blackgram", "moong")):
-            schemes.append("Tamil Nadu Kalaignarin Rice Fallow Pulses Mission (100% certified seed subsidy)")
-        if "rice_dsr" in planted_ids or "direct_seeded" in all_practices:
-            schemes.append("Tamil Nadu Sustainable Dryland & Water Conservation Mission")
-    elif region_id == "bundelkhand":
-        schemes.append("Bundelkhand Drought Mitigation & Pulses Promotion Mission (Special Package)")
-    elif region_id in ("rajasthan_arid", "gujarat"):
-        schemes.append("National Micro-Irrigation Mission & Drought-Prone Area Programme (DPAP)")
-
-    # Universal National / Central schemes
-    if any(c in planted_ids for c in ("moong", "urad", "chickpea", "lentil", "pigeon_pea")):
-        schemes.append("NFSM-Pulses & NAFED e-Samridhi Assured MSP Procurement")
-    if any(c in planted_ids for c in ("mustard", "groundnut", "sunflower", "soybean")):
-        schemes.append("National Mission on Edible Oils (NMEO-Oilseeds) Seed & Procurement Support")
-    if any(p in all_practices for p in ("happy_seeder", "zero_till", "residue_retained")) and not any(
-        s in schemes for s in ("CRM Sub-Mission on Crop Residue Management (50–80% Happy Seeder / CHC subsidy)",)
-    ):
-        schemes.append("Sub-Mission on Agricultural Mechanization (SMAM / Conservation Tillage Subsidy)")
-    if urea_bags_saved >= 1.5:
-        schemes.append("PM-PRANAM Alternative Fertiliser & Bio-N Incentive")
-
-    return PracticalFarmerMetrics(
-        turnaround_days_kharif_rabi=turnaround_days,
-        urea_bags_saved_per_ha=urea_bags_saved,
-        irrigations_saved_per_yr=irrigations_saved,
-        pumping_hours_saved_per_ha=pumping_hours_saved,
-        msp_assurance_level=msp_level,
-        eligible_schemes=schemes,
-        labor_cost_inr_per_ha=round(tot_labor_inr / rotation_years, 0),
-        input_cost_inr_per_ha=round(tot_cost_inr / rotation_years, 0),
-        seasonal_operations=seasonal_ops,
+    from .. import scheme_kb
+    schemes = scheme_kb.get_matching_schemes(
+        state=state_to_use,
+        planted_crops=planted_ids,
+        practices=all_practices,
+        urea_bags_saved=urea_bags_saved,
     )
 
     return PracticalFarmerMetrics(
@@ -642,49 +643,78 @@ def prescreen_rotations_with_surrogate(
     rotations: list[Rotation],
     profile: FieldProfile,
     crops: dict[str, CropSpec] | None = None,
-    max_candidates: int = 32,
+    max_candidates: int = 85,
     rank_scores: dict[str, float] | None = None,
 ) -> list[Rotation]:
     """TASK-O05: Fast polynomial Ridge surrogate pre-screener for large rotation pools."""
     if len(rotations) <= max_candidates:
         return rotations
     crops = crops or crop_kb.load_crops()
-    features = []
-    targets = []
+    reg_cfg = region_registry.detect_region_config(profile.field.lat, profile.field.lon)
+    econ_reg = reg_cfg.state.lower().replace(" ", "_") if reg_cfg.state else reg_cfg.region_id
+    econ_crops = economics.load_economics(econ_reg).get("crops", {})
+
+    features: list[list[float]] = []
+    targets: list[float] = []
     for rot in rotations:
         yrs = max(1, max(s.year_index for s in rot.steps) + 1)
         water_req = 0.0
         n_fix = 0.0
         dur_tot = 0.0
+        val_est = 0.0
         active_cids = [s.crop_id for s in rot.steps if s.crop_id in crops and s.crop_id != "fallow"]
         for cid in active_cids:
             c = crops[cid]
             water_req += 0.5 * (c.water_requirement_mm[0] + c.water_requirement_mm[1])
             n_fix += c.n_fixation_kg_ha
             dur_tot += 0.5 * (c.duration_days[0] + c.duration_days[1])
+            ce = econ_crops.get(cid, {})
+            price = ce.get("price_inr_per_qtl", 3500.0)
+            cost = ce.get("cost_a2_fl_inr_per_ha", 25000.0)
+            val_est += (2.5 * price * 10.0) - cost
         mean_suit = (
             float(np.mean([rank_scores.get(cid, 0.3) for cid in active_cids]))
             if (rank_scores and active_cids)
             else 0.6
         )
         has_leg = 0.25 if any(crops[cid].n_fixation_kg_ha > 0 for cid in active_cids) else 0.0
-        has_cereal_or_fiber = 0.20 if any(crops[cid].group in ("cereal", "fiber") for cid in active_cids) else 0.0
+        has_cereal_fiber = 0.20 if any(crops[cid].group in ("cereal", "fiber", "fibre") for cid in active_cids) else 0.0
         fams = len({crops[cid].family for cid in active_cids})
-        x_vec = [water_req / yrs, n_fix / yrs, dur_tot / yrs, mean_suit * 100.0, float(fams)]
-        # Objective agronomic proxy: suitability fit + legume biological N + cereal/fiber anchor + botanical family diversity
-        score_proxy = mean_suit + has_leg + has_cereal_or_fiber + 0.10 * fams
+        x_vec = [water_req / yrs, n_fix / yrs, dur_tot / yrs, mean_suit * 100.0, float(fams), val_est / yrs]
+        # Multi-pillar composite: suitability + legume biological N + cereal/fiber anchor + botanical diversity + economic gross margin
+        score_proxy = mean_suit + has_leg + has_cereal_fiber + 0.10 * fams + (val_est / yrs) / 100000.0
         features.append(x_vec)
         targets.append(score_proxy)
     X_arr = np.asarray(features, dtype=float)
     y_arr = np.asarray(targets, dtype=float)
     model = surrogate.train_crop_surrogate(X_arr, y_arr, degree=2, alpha=0.5)
     preds = 0.5 * np.asarray(model.predict(X_arr), dtype=float).ravel() + 0.5 * y_arr
-    ranked_idx = np.argsort(-preds)
-    selected: list[Rotation] = []
-    for idx in ranked_idx:
-        if rotations[int(idx)].is_baseline or len(selected) < max_candidates:
-            selected.append(rotations[int(idx)])
-    return selected
+
+    # Stratified primary pair diversity: group candidates by (Kharif, Rabi) pair
+    pair_to_cands: dict[tuple[str, str], list[tuple[float, int]]] = {}
+    for i, r in enumerate(rotations):
+        pair = (r.steps[0].crop_id if len(r.steps) > 0 else "", r.steps[1].crop_id if len(r.steps) > 1 else "")
+        pair_to_cands.setdefault(pair, []).append((preds[i], i))
+
+    selected_indices: set[int] = set()
+    for r_i, r in enumerate(rotations):
+        if r.is_baseline:
+            selected_indices.add(r_i)
+
+    # Include top 2 candidates from each distinct primary pair to preserve diversity
+    for c_list in pair_to_cands.values():
+        c_list.sort(key=lambda x: -x[0])
+        for _, i in c_list[:2]:
+            selected_indices.add(i)
+
+    # Fill remaining capacity with top surrogate predictions
+    order = np.argsort(-preds)
+    for i in order:
+        if len(selected_indices) >= max_candidates:
+            break
+        selected_indices.add(int(i))
+
+    return [rotations[i] for i in sorted(selected_indices)]
 
 
 def compute_resilience_and_regret(

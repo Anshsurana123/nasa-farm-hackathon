@@ -177,7 +177,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] text-muted uppercase block">Root Soil Moisture</span>
                 <span className="text-[8px] px-1 py-0.2 rounded bg-foreground/10 text-muted font-mono uppercase tracking-wider">
-                  Context Only
+                  {t("badge.contextOnly")}
                 </span>
               </div>
               <span className="text-base font-bold text-foreground">
@@ -596,7 +596,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                       <Gauge className="w-3.5 h-3.5 text-cyan-400" />
                       <span>{t("water.smap")}</span>
                       <span className="text-[8px] px-1.5 py-0.5 rounded bg-foreground/10 text-muted font-mono uppercase tracking-wider font-normal">
-                        Context Only
+                        {t("badge.contextOnly")}
                       </span>
                     </span>
                     <span className="text-muted">Climatological %ile</span>

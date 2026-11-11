@@ -1,0 +1,231 @@
+# Indian Agro-Climatic Zones & Regional Reference Parameters (TASK-D01, WS-C)
+# References:
+#   1. ICAR / Planning Commission 15 Agro-Climatic Regional Planning Zones
+#   2. Rodell et al. 2009 Nature (Satellite-based estimates of groundwater depletion in India)
+#   3. Asoka et al. 2017 Nature Geoscience (Indian summer monsoon rainfall and GRACE TWS trends)
+#   4. Central Ground Water Board (CGWB) 2023 National Compilation on Dynamic Ground Water Resources of India
+#   5. IMD Climatological Normals 1981-2010 (Station Ludhiana PAU)
+
+zones:
+  punjab_central:
+    name: "Trans-Gangetic Plains (Alluvial Rice–Wheat Belt)"
+    agro_zone: "Trans-Gangetic Plains (Alluvial Rice–Wheat Belt)"
+    states: ["Punjab", "Chandigarh"]
+    baseline_rotation: ["rice_puddled", "wheat", "fallow"]
+    baseline_slope_pct: 0.8
+    grace_trend_cm_yr: -3.85
+    grace_citation: "Rodell et al. (2009 Nature, DOI:10.1038/nature08238); CGWB 2023"
+    igp_merra2_bias_correction: true
+    economics_table: "punjab"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  punjab_southwest:
+    name: "Trans-Gangetic Semi-Arid Belt (South-West Punjab / Haryana)"
+    agro_zone: "Trans-Gangetic Semi-Arid Belt (South-West Punjab / Haryana)"
+    states: ["Punjab"]
+    baseline_rotation: ["cotton", "wheat", "fallow"]
+    baseline_slope_pct: 0.8
+    grace_trend_cm_yr: -2.40
+    grace_citation: "Asoka et al. (2017 Nature Geosci.); CGWB 2023"
+    igp_merra2_bias_correction: true
+    economics_table: "punjab"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  haryana:
+    name: "Trans-Gangetic Plains (Haryana Agricultural Zone)"
+    agro_zone: "Trans-Gangetic Plains (Alluvial Rice–Wheat Belt)"
+    states: ["Haryana", "Delhi"]
+    baseline_rotation: ["rice_puddled", "wheat", "fallow"]
+    baseline_slope_pct: 0.8
+    grace_trend_cm_yr: -3.45
+    grace_citation: "CGWB 2023 Dynamic GW Resources"
+    igp_merra2_bias_correction: true
+    economics_table: "haryana"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  bundelkhand:
+    name: "Central Plateau & Hills (Bundelkhand Semi-Arid Zone)"
+    agro_zone: "Central Plateau & Hills (Bundelkhand Semi-Arid Zone)"
+    states: ["Uttar Pradesh", "Madhya Pradesh"]
+    baseline_rotation: ["sorghum", "wheat", "fallow"]
+    baseline_slope_pct: 2.2
+    grace_trend_cm_yr: -1.25
+    grace_citation: "Asoka et al. (2017 Nature Geosci.); CGWB 2023"
+    igp_merra2_bias_correction: false
+    economics_table: "uttar_pradesh"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  vidarbha:
+    name: "Western / Central Deccan Plateau (Vidarbha Black Cotton Vertisol Belt)"
+    agro_zone: "Western / Central Deccan Plateau (Vidarbha Black Cotton Vertisol Belt)"
+    states: ["Maharashtra"]
+    baseline_rotation: ["cotton", "chickpea", "fallow"]
+    baseline_slope_pct: 1.6
+    grace_trend_cm_yr: -0.65
+    grace_citation: "Asoka et al. (2017 Nature Geosci.); CGWB 2023"
+    igp_merra2_bias_correction: false
+    economics_table: "maharashtra"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  cauvery:
+    name: "East Coast Plains & Deltas (Cauvery / Coastal Alluvial Zone)"
+    agro_zone: "East Coast Plains & Deltas (Cauvery / Coastal Alluvial Zone)"
+    states: ["Tamil Nadu", "Puducherry"]
+    baseline_rotation: ["rice_puddled", "rice_puddled", "moong"]
+    baseline_slope_pct: 0.4
+    grace_trend_cm_yr: -0.50
+    grace_citation: "CGWB 2023 Dynamic GW Resources"
+    igp_merra2_bias_correction: false
+    economics_table: "tamil_nadu"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  rajasthan_arid:
+    name: "Western Dry Region (Thar Arid & Marwar Belt, Rajasthan)"
+    agro_zone: "Western Dry Region (Thar Arid & Marwar Belt, Rajasthan)"
+    states: ["Rajasthan"]
+    baseline_rotation: ["pearl_millet", "mustard", "fallow"]
+    baseline_slope_pct: 1.2
+    grace_trend_cm_yr: -2.10
+    grace_citation: "CGWB 2023"
+    igp_merra2_bias_correction: false
+    economics_table: "rajasthan"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  gujarat:
+    name: "Gujarat Plains & Hills (Semi-Arid Cotton–Groundnut Zone)"
+    agro_zone: "Gujarat Plains & Hills (Semi-Arid Cotton–Groundnut Zone)"
+    states: ["Gujarat", "Dadra and Nagar Haveli and Daman and Diu"]
+    baseline_rotation: ["cotton", "wheat", "fallow"]
+    baseline_slope_pct: 1.2
+    grace_trend_cm_yr: -1.10
+    grace_citation: "CGWB 2023"
+    igp_merra2_bias_correction: false
+    economics_table: "gujarat"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  eastern_gangetic:
+    name: "Eastern Gangetic Plains (Bihar, Eastern UP, West Bengal Alluvial Belt)"
+    agro_zone: "Eastern Gangetic Plains (Bihar, Eastern UP, West Bengal Alluvial Belt)"
+    states: ["Bihar", "West Bengal", "Jharkhand", "Odisha", "Uttar Pradesh"]
+    baseline_rotation: ["rice_puddled", "wheat", "fallow"]
+    baseline_slope_pct: 0.6
+    grace_trend_cm_yr: -1.20
+    grace_citation: "CGWB 2023"
+    igp_merra2_bias_correction: false
+    economics_table: "eastern_gangetic"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  southern_hills:
+    name: "Southern Plateau & Hills (Deccan Vertisol & Red Soil Zone)"
+    agro_zone: "Southern Plateau & Hills (Deccan Vertisol & Red Soil Zone)"
+    states: ["Karnataka", "Telangana", "Andhra Pradesh"]
+    baseline_rotation: ["sorghum", "chickpea", "fallow"]
+    baseline_slope_pct: 1.4
+    grace_trend_cm_yr: -0.75
+    grace_citation: "CGWB 2023"
+    igp_merra2_bias_correction: false
+    economics_table: "southern_plateau"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  west_coast:
+    name: "West Coast Plains & Ghats (Coastal Alluvial / Laterite Zone)"
+    agro_zone: "West Coast Plains & Ghats (Coastal Alluvial / Laterite Zone)"
+    states: ["Kerala", "Goa"]
+    baseline_rotation: ["rice_puddled", "fallow", "fallow"]
+    baseline_slope_pct: 2.5
+    grace_trend_cm_yr: -0.40
+    grace_citation: "CGWB 2023"
+    igp_merra2_bias_correction: false
+    economics_table: "kerala"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  himalayan:
+    name: "Western Himalayan Region (Hill & Sub-Montane Zone)"
+    agro_zone: "Western Himalayan Region (Hill & Sub-Montane Zone)"
+    states: ["Himachal Pradesh", "Jammu and Kashmir", "Ladakh", "Uttarakhand"]
+    baseline_rotation: ["maize", "wheat", "fallow"]
+    baseline_slope_pct: 5.0
+    grace_trend_cm_yr: -0.30
+    grace_citation: "CGWB 2023"
+    igp_merra2_bias_correction: false
+    economics_table: "himalayan"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  eastern_himalayan:
+    name: "Eastern Himalayan & North-Eastern Hills Region"
+    agro_zone: "Eastern Himalayan & North-Eastern Hills Region"
+    states: ["Assam", "Arunachal Pradesh", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Sikkim", "Tripura"]
+    baseline_rotation: ["rice_puddled", "fallow", "fallow"]
+    baseline_slope_pct: 4.0
+    grace_trend_cm_yr: -0.35
+    grace_citation: "CGWB 2023"
+    igp_merra2_bias_correction: false
+    economics_table: "northeast"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  central_malwa:
+    name: "Central Plateau & Hills (Malwa / Vindhyan Black Soil Zone)"
+    agro_zone: "Central Plateau & Hills (Malwa / Vindhyan Black Soil Zone)"
+    states: ["Madhya Pradesh", "Chhattisgarh"]
+    baseline_rotation: ["soybean", "wheat", "fallow"]
+    baseline_slope_pct: 1.5
+    grace_trend_cm_yr: -0.90
+    grace_citation: "CGWB 2023"
+    igp_merra2_bias_correction: false
+    economics_table: "madhya_pradesh"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  islands:
+    name: "Island Region (Tropical Humid Agro-Ecosystem)"
+    agro_zone: "Island Region (Tropical Humid Agro-Ecosystem)"
+    states: ["Andaman and Nicobar", "Lakshadweep"]
+    baseline_rotation: ["rice_puddled", "fallow", "fallow"]
+    baseline_slope_pct: 2.0
+    grace_trend_cm_yr: 0.0
+    grace_citation: "CGWB 2023"
+    igp_merra2_bias_correction: false
+    economics_table: "islands"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+default_zone:
+  name: "All-India Agricultural Plain Average"
+  agro_zone: "Trans-Gangetic Plains (Alluvial Rice–Wheat Belt)"
+  baseline_rotation: ["rice_puddled", "wheat", "fallow"]
+  baseline_slope_pct: 1.2
+  grace_trend_cm_yr: -1.50
+  grace_citation: "Rodell et al. 2009; CGWB 2023 National Average"
+  igp_merra2_bias_correction: false
+  economics_table: "punjab"
+  currency: "INR"
+  currency_symbol: "₹"
+  is_validated: true

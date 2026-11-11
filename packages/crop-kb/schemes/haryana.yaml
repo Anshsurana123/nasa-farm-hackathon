@@ -1,0 +1,15 @@
+# Haryana State Schemes (WS-E)
+# Official Source: Haryana Agriculture Department / https://fasal.haryana.gov.in/
+
+schemes:
+  - id: "haryana_mera_pani"
+    name: "Haryana Mera Pani Meri Virasat"
+    display_title: "Haryana Mera Pani Meri Virasat (₹17,500/ha crop diversification incentive)"
+    state: "Haryana"
+    eligible_crops: ["maize", "moong", "urad", "pigeon_pea", "soybean", "groundnut", "pearl_millet", "cotton"]
+    ineligible_crops: ["rice_puddled"]
+    amount: 17500
+    unit: "INR/ha"
+    source_url: "https://fasal.haryana.gov.in/"
+    as_of_date: "2024-05-01"
+    description: "State incentive of Rs 7,000/acre (Rs 17,500/ha) for shifting from puddled paddy to alternate low-water Kharif crops."

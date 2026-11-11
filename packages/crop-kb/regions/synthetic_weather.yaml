@@ -1,0 +1,69 @@
+# Regional Synthetic Weather Climatology Parameters (TASK-D11, WS-A2)
+# Calibrated against IMD 1981-2010 station climatological normals.
+# Used ONLY as a clearly-labelled fallback ('regional_climatology') when NASA POWER API is unreachable.
+
+cauvery:
+  t_base: 28.5
+  amplitude: 4.2
+  peak_doy: 140
+  trange_c: 9.0
+  wet_start_month: 8
+  wet_end_month: 12
+  gamma_wet: [0.6, 14.0]
+  gamma_dry: [0.1, 3.5]
+  citation: "IMD Climatological Normals 1981-2010 (Station 43335 Thanjavur / Nagapattinam)"
+
+vidarbha:
+  t_base: 27.5
+  amplitude: 6.5
+  peak_doy: 135
+  trange_c: 12.0
+  wet_start_month: 6
+  wet_end_month: 9
+  gamma_wet: [0.55, 12.5]
+  gamma_dry: [0.08, 3.0]
+  citation: "IMD Climatological Normals 1981-2010 (Station 42898 Nagpur / Yavatmal)"
+
+bundelkhand:
+  t_base: 26.5
+  amplitude: 8.5
+  peak_doy: 145
+  trange_c: 13.0
+  wet_start_month: 7
+  wet_end_month: 9
+  gamma_wet: [0.5, 12.0]
+  gamma_dry: [0.06, 2.5]
+  citation: "IMD Climatological Normals 1981-2010 (Station 42475 Jhansi)"
+
+punjab_southwest:
+  t_base: 25.0
+  amplitude: 11.5
+  peak_doy: 160
+  trange_c: 13.5
+  wet_start_month: 7
+  wet_end_month: 9
+  gamma_wet: [0.4, 9.0]
+  gamma_dry: [0.05, 2.0]
+  citation: "IMD Climatological Normals 1981-2010 (Station 42100 Bathinda)"
+
+punjab_central:
+  t_base: 24.5
+  amplitude: 11.0
+  peak_doy: 160
+  trange_c: 13.0
+  wet_start_month: 7
+  wet_end_month: 9
+  gamma_wet: [0.5, 11.0]
+  gamma_dry: [0.08, 3.0]
+  citation: "IMD Climatological Normals 1981-2010 (Station 42099 Ludhiana PAU)"
+
+default_weather:
+  t_base: 25.0
+  amplitude: 9.0
+  peak_doy: 150
+  trange_c: 11.0
+  wet_start_month: 7
+  wet_end_month: 9
+  gamma_wet: [0.5, 10.0]
+  gamma_dry: [0.08, 3.0]
+  citation: "All-India Agricultural Climatological Average"

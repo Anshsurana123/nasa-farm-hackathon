@@ -1,0 +1,25 @@
+# Maharashtra State Schemes (WS-E)
+# Official Source: Department of Agriculture Maharashtra / https://mahapocra.gov.in/
+
+schemes:
+  - id: "maharashtra_pocra"
+    name: "Maharashtra PoCRA"
+    display_title: "Maharashtra PoCRA (Nanaji Deshmukh Krishi Sanjivani Climate-Resilient Agriculture Subsidy)"
+    state: "Maharashtra"
+    eligible_crops: null
+    amount: null
+    unit: null
+    source_url: "https://mahapocra.gov.in/"
+    as_of_date: "2024-04-01"
+    description: "Climate-resilient agriculture project across Vidarbha and Marathwada supporting broad bed furrow seeders and farm ponds."
+
+  - id: "maharashtra_in_situ_moisture"
+    name: "Maharashtra Soil Health & In-Situ Moisture Conservation"
+    display_title: "Maharashtra Soil Health & In-Situ Moisture Conservation Incentive"
+    state: "Maharashtra"
+    eligible_practices: ["broad_bed_furrow", "zero_till", "residue_retained"]
+    amount: null
+    unit: null
+    source_url: "https://krishi.maharashtra.gov.in/"
+    as_of_date: "2024-05-01"
+    description: "Support for in-situ soil moisture retention, mulching, and broad-bed furrow cultivation on Vertisols."

@@ -1,12 +1,12 @@
 """Multi-objective NSGA-II sorting and priority-based selection from evaluated candidates. (TASK-O03, TASK-O04)
 
 Each candidate carries objective values (all oriented so HIGHER IS BETTER):
-    profit        : median profit per ha
-    water_savings : negative irrigation mm (or -groundwater draw)
-    soil_health   : soil health score 0-100
-    low_risk      : CVaR-10 profit (worst 10% mean)
-    low_labour    : negative labour days
-    food_security : staple calories
+    profit        : median net profit (₹/ha/yr)
+    water_savings : negative annual irrigation demand (-irrigation_mm, scaled by GRACE groundwater urgency)
+    soil_health   : USDA-NRCS composite soil health score (0–100 pts)
+    low_risk      : CVaR-10 downside profit in severe drought years (₹/ha/yr)
+    low_labour    : negative annual hired/imputed labour cost (-labor_cost_inr_per_ha in ₹/ha, where less negative = lower labour requirement)
+    food_security : food and nutrition security index (0–1 scale)
 Selection: normalise each objective to [0,1] across candidates, weighted sum with the
 farmer's Priorities, then keep the top-k that are also mutually different
 (diversity filter so the 3 cards are not near-duplicates).
@@ -156,9 +156,14 @@ def select_top(
             return crop_pairs[idx]
         return _extract_primary_pair(labels[idx])
 
+    max_score = max(scores) if scores else 1.0
+
     # Pass 1: Require distinct Kharif crop AND distinct (Kharif, Rabi) pair among viable Pareto candidates
+    # that remain competitive with farmer priority weights (score >= 0.60 * max_score)
     for i in order:
         if i not in viable:
+            continue
+        if scores[i] < max_score * 0.60:
             continue
         pair = _get_pair(i)
         if pair not in seen_pairs and pair[0] not in seen_kharif:

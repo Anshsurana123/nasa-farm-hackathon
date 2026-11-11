@@ -1,0 +1,48 @@
+# Government of India Central / National Agricultural Schemes (WS-E)
+# Official Sources: PIB Delhi, Ministry of Agriculture & Farmers Welfare, Ministry of Chemicals & Fertilisers
+
+schemes:
+  - id: "pm_pranam"
+    name: "PM-PRANAM"
+    display_title: "PM-PRANAM Alternative Fertiliser & Bio-N Incentive"
+    state: "Central"
+    trigger_min_urea_bags_saved: 1.5
+    amount: null
+    unit: null
+    source_url: "https://fert.gov.in/pm-pranam"
+    as_of_date: "2024-01-01"
+    description: "National programme incentivising reduction in chemical urea through legume bio-fixation and residue recycling."
+
+  - id: "nfsm_pulses"
+    name: "NFSM-Pulses & NAFED e-Samridhi"
+    display_title: "NFSM-Pulses & NAFED e-Samridhi Assured MSP Procurement"
+    state: "Central"
+    eligible_crops: ["moong", "urad", "chickpea", "lentil", "pigeon_pea"]
+    amount: null
+    unit: null
+    source_url: "https://www.nafed-india.com/"
+    as_of_date: "2024-01-01"
+    description: "100% MSP procurement assurance for registered pulse farmers under National Food Security Mission."
+
+  - id: "nmeo_oilseeds"
+    name: "NMEO-Oilseeds"
+    display_title: "National Mission on Edible Oils (NMEO-Oilseeds) Seed & Procurement Support"
+    state: "Central"
+    eligible_crops: ["mustard", "groundnut", "sunflower", "soybean"]
+    amount: null
+    unit: null
+    source_url: "https://nmeo.dac.gov.in/"
+    as_of_date: "2024-02-01"
+    description: "Central mission supporting oilseed seed hubs and cluster demonstrations."
+
+  - id: "smam_mechanization"
+    name: "SMAM Conservation Tillage"
+    display_title: "Sub-Mission on Agricultural Mechanization (SMAM / Conservation Tillage Subsidy)"
+    state: "Central"
+    eligible_practices: ["happy_seeder", "zero_till", "residue_retained", "super_seeder"]
+    ineligible_practices: ["residue_burned", "burning"]
+    amount: null
+    unit: null
+    source_url: "https://agrimachinery.nic.in/"
+    as_of_date: "2024-01-01"
+    description: "Sub-Mission on Agricultural Mechanization supporting zero-till drill and Happy Seeder acquisition."

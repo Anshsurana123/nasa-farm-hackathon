@@ -150,7 +150,7 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
         * Bundelkhand Semi-Arid: 'sorghum'
         * Default moderate Kharif peak: 'maize'
       - Rabi (season_index 1): Peak in Dec-Apr (months 12, 1-4).
-        * Cauvery Delta (lat < 15.0): 'urad' (rice-fallow blackgram)
+        * Cauvery Delta: 'urad' (rice-fallow blackgram)
         * Vidarbha Rainfed Vertisol: 'chickpea'
         * Early Jan peak with moderate NDVI (< 0.60): 'mustard'
         * Default irrigated Rabi cereal: 'wheat'

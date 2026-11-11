@@ -113,7 +113,7 @@ export function TelemetryBar({ profile }: { profile: FieldProfile }) {
                 {t("telemetry.waterBalance")}
               </span>
               <span className="text-[8px] px-1 rounded bg-foreground/10 text-muted font-mono uppercase tracking-wider">
-                Context Only
+                {t("badge.contextOnly")}
               </span>
             </div>
 

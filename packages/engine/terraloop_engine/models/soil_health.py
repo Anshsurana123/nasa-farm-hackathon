@@ -109,20 +109,25 @@ def rothc_lite(
     f_bio = 0.46 * (1.0 - f_co2)
     f_hum = 0.54 * (1.0 - f_co2)
 
-    temps = list(monthly_temp_c) if monthly_temp_c and len(monthly_temp_c) == 12 else [
+    temps = list(monthly_temp_c) if monthly_temp_c else [
         13.0, 16.0, 22.0, 28.0, 33.0, 34.0, 31.0, 30.0, 29.0, 25.0, 19.0, 14.0
     ]
-    precips = list(monthly_precip_mm) if monthly_precip_mm and len(monthly_precip_mm) == 12 else [
+    precips = list(monthly_precip_mm) if monthly_precip_mm else [
         20.0, 20.0, 20.0, 15.0, 25.0, 70.0, 150.0, 140.0, 80.0, 15.0, 5.0, 10.0
     ]
-    et0s = list(monthly_et0_mm) if monthly_et0_mm and len(monthly_et0_mm) == 12 else [
+    et0s = list(monthly_et0_mm) if monthly_et0_mm else [
         60.0, 80.0, 120.0, 170.0, 220.0, 210.0, 160.0, 140.0, 130.0, 110.0, 80.0, 55.0
     ]
 
-    if monthly_c_inputs_t_ha and len(monthly_c_inputs_t_ha) == 12:
+    n_t = len(temps)
+    n_p = len(precips)
+    n_e = len(et0s)
+
+    if monthly_c_inputs_t_ha:
         m_inputs = list(monthly_c_inputs_t_ha)
     else:
         m_inputs = [annual_c_input_t_ha / 12.0] * 12
+    n_in = len(m_inputs)
 
     f_dpm_in = dpm_rpm_ratio / (dpm_rpm_ratio + 1.0)
     f_rpm_in = 1.0 / (dpm_rpm_ratio + 1.0)
@@ -130,10 +135,11 @@ def rothc_lite(
     # Compute mean annual rate modifier xi_bar for this site's climate to initialize
     # labile pools (DPM, RPM, BIO) in steady-state equilibrium with reference C_eq = 2.35 t C/ha/yr
     xi_months = []
-    for m in range(12):
+    first_year_n = min(12, n_t)
+    for m in range(first_year_n):
         a_t = rothc_temp_factor(temps[m])
-        b_m = rothc_moisture_factor(precips[m], et0s[m])
-        c_cov = 0.6 if (crop_cover_months and (m + 1) in crop_cover_months) else 0.75
+        b_m = rothc_moisture_factor(precips[m % n_p], et0s[m % n_e])
+        c_cov = 0.6 if (crop_cover_months and (m % 12 + 1) in crop_cover_months) else 0.75
         xi_months.append(a_t * b_m * c_cov)
     xi_bar = max(0.5, float(np.mean(xi_months)))
 
@@ -148,13 +154,15 @@ def rothc_lite(
     eff_k_hum = min(k_hum, (ann_hum_gain_at_eq / max(5.0, hum * xi_bar)) / 12.0)
 
     soc_history = [round(tot_soc, 2)]
+    co2_emitted_total = 0.0
 
-    for _year in range(years):
+    for year_idx in range(years):
         for m in range(12):
-            month_idx = m + 1
-            a_t = rothc_temp_factor(temps[m])
-            b_m = rothc_moisture_factor(precips[m], et0s[m])
-            c_cov = 0.6 if (crop_cover_months and month_idx in crop_cover_months) else 0.85
+            month_idx = year_idx * 12 + m
+            cal_month = m + 1
+            a_t = rothc_temp_factor(temps[month_idx % n_t])
+            b_m = rothc_moisture_factor(precips[month_idx % n_p], et0s[month_idx % n_e])
+            c_cov = 0.6 if (crop_cover_months and cal_month in crop_cover_months) else 0.85
             xi = a_t * b_m * c_cov
 
             dec_dpm = dpm * (1.0 - math.exp(-k_dpm * xi))
@@ -171,8 +179,9 @@ def rothc_lite(
 
             bio += f_bio * total_dec
             hum += f_hum * total_dec
+            co2_emitted_total += (1.0 - f_bio - f_hum) * total_dec
 
-            c_in = m_inputs[m]
+            c_in = m_inputs[month_idx % n_in]
             dpm += f_dpm_in * c_in
             rpm += f_rpm_in * c_in
 
@@ -185,6 +194,7 @@ def rothc_lite(
         "annual_soc_t_ha": soc_history,
         "soc_delta_10yr": delta,
         "final_soc_t_ha": soc_history[-1],
+        "cumulative_co2_t_ha": round(co2_emitted_total, 2),
     }
 
 
@@ -224,15 +234,30 @@ def n_balance(
     yield_t_ha: float,
     fertilizer_n_kg_ha: float | None = None,
     preceded_by_legume: bool = False,
+    preceding_crop: CropSpec | None = None,
     atmospheric_deposition_kg_ha: float = 10.0,
     residue_retained: bool = False,
     soil_n_credit_kg_ha: float = 0.0,
 ) -> dict[str, float]:
-    """Calculate seasonal nitrogen mass balance (kg N / ha)."""
+    """Calculate seasonal nitrogen mass balance (kg N / ha).
+
+    Citations:
+      - Peoples et al. (1995) Plant and Soil: biological nitrogen fixation by grain legumes.
+      - Ladha et al. (2003) Field Crops Research: N contribution of summer green manure and pulses in rice-wheat.
+    """
     base_demand = crop.n_demand_kg_ha
 
-    # Legume biological N credit (25 kg N/ha) + retained residue mineralization credit (~12 kg N/ha)
-    legume_credit = 25.0 if preceded_by_legume and crop.group not in ("legume", "cover") else 0.0
+    # Species-specific biological N credit derived from preceding crop YAML n_fixation_kg_ha
+    if (preceded_by_legume or (preceding_crop and preceding_crop.group in ("legume", "cover"))) and crop.group not in ("legume", "cover"):
+        if preceding_crop is not None:
+            # 50% of fixed N is credited when legume haulm/residue is incorporated/retained, 35% if grain harvested & haulm removed
+            ret_factor = 0.50 if residue_retained else 0.35
+            legume_credit = float(np.clip(preceding_crop.n_fixation_kg_ha * ret_factor, 15.0, 45.0))
+        else:
+            legume_credit = 25.0
+    else:
+        legume_credit = 0.0
+
     residue_credit = 12.0 if residue_retained and crop.group not in ("legume", "cover") else 0.0
     shc_credit = soil_n_credit_kg_ha if crop.group not in ("legume", "cover") else 0.0
     total_saved = max(0.0, legume_credit + residue_credit + max(0.0, shc_credit))
@@ -271,6 +296,7 @@ def soil_health_breakdown(
     soc_delta_10yr: float = 0.0,
     erosion_t_ha_yr: float = 5.0,
     has_livestock: bool = False,
+    soil: SoilSummary | None = None,
 ) -> dict[str, float]:
     """Calculate component sub-scores and modifiers for the composite Soil Health Score (0-100).
 
@@ -280,9 +306,10 @@ def soil_health_breakdown(
       - living_roots (0..15 pts): active root days per year (/ 330 d)
       - biodiversity (0..15 pts): botanical family Shannon diversity index (H' / 0.95)
       - biological_n_livestock (0..15 pts): symbiotic legume N fixation & fodder/livestock integration
-      - soc_modifier (-15..+18 pts): 10-year RothC-lite soil organic carbon trajectory
-      - erosion_modifier (-10..+10 pts): RUSLE annual soil loss hazard relative to 5 t/ha/yr tolerance
-      - burning_penalty (-8..0 pts): direct thermal sterilization penalty for open-field burning
+      - soc_modifier (-10..+15 pts): 10-year RothC-lite soil organic carbon trajectory
+      - erosion_modifier (-10..+3 pts): RUSLE annual soil loss hazard relative to 5 t/ha/yr tolerance
+      - burning_penalty (-5..0 pts): direct thermal sterilization penalty for open-field burning
+      - soil_condition_modifier (-5..+5 pts): baseline topsoil condition (SOC, pH) from SoilGrids / SHC
       - total_score (0..100 pts): clipped sum
     """
     total_steps = len(rotation.steps)
@@ -296,6 +323,7 @@ def soil_health_breakdown(
             "soc_modifier": 0.0,
             "erosion_modifier": 0.0,
             "burning_penalty": 0.0,
+            "soil_condition_modifier": 0.0,
             "total_score": 30.0,
         }
 
@@ -385,7 +413,20 @@ def soil_health_breakdown(
 
     burning_penalty = -5.0 if any_burning else 0.0
 
-    total_score = round(float(np.clip(base_sum + soc_mod + erosion_mod + burning_penalty, 0.0, 100.0)), 1)
+    # Baseline Soil Condition modifier (-5 to +5 pts) responding to measured SOC and pH (WS-G1)
+    soil_cond_mod = 0.0
+    if soil is not None:
+        if soil.soc_g_per_kg is not None:
+            soc_diff = (soil.soc_g_per_kg - 6.0) / 4.0
+            soil_cond_mod += float(np.clip(soc_diff * 3.0, -3.0, 3.0))
+        if soil.ph is not None:
+            if soil.ph < 6.0:
+                soil_cond_mod -= min(3.0, (6.0 - soil.ph) * 1.5)
+            elif soil.ph > 8.2:
+                soil_cond_mod -= min(3.0, (soil.ph - 8.2) * 1.5)
+        soil_cond_mod = float(np.clip(soil_cond_mod, -5.0, 5.0))
+
+    total_score = round(float(np.clip(base_sum + soc_mod + erosion_mod + burning_penalty + soil_cond_mod, 0.0, 100.0)), 1)
     return {
         "disturbance_minimization": round(disturbance_score, 1),
         "soil_armor_cover": round(cover_score, 1),
@@ -395,6 +436,7 @@ def soil_health_breakdown(
         "soc_modifier": round(soc_mod, 1),
         "erosion_modifier": round(erosion_mod, 1),
         "burning_penalty": round(burning_penalty, 1),
+        "soil_condition_modifier": round(soil_cond_mod, 1),
         "total_score": total_score,
     }
 
@@ -405,6 +447,7 @@ def soil_health_score(
     soc_delta_10yr: float = 0.0,
     erosion_t_ha_yr: float = 5.0,
     has_livestock: bool = False,
+    soil: SoilSummary | None = None,
 ) -> float:
     """Calculate composite Soil Health Score (0-100) based on 5 USDA-NRCS principles + SOC & RUSLE."""
     return soil_health_breakdown(
@@ -413,4 +456,5 @@ def soil_health_score(
         soc_delta_10yr=soc_delta_10yr,
         erosion_t_ha_yr=erosion_t_ha_yr,
         has_livestock=has_livestock,
+        soil=soil,
     )["total_score"]

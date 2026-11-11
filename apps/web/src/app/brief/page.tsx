@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { AgronomicBrief } from "@/components/AgronomicBrief";
 import { useField } from "@/context/FieldContext";
+import { useI18n } from "@/i18n";
 import { fmtMoney, isSouthAsia } from "@/lib/ui";
 import {
   BookOpen,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 
 export default function BriefPage() {
+  const { t } = useI18n();
   const { profile, strategies, selectedField } = useField();
   const [areaHa, setAreaHa] = useState<number>(2.5);
   const [selectedRank, setSelectedRank] = useState<number>(1);
@@ -69,8 +71,8 @@ export default function BriefPage() {
     <AppShell
       pageStep="06"
       pageBadge="EXECUTIVE EXTENSION DOSSIER · FARM-SCALE IMPACT CALCULATOR · PRINT-READY PDF"
-      pageTitle="Agronomic Advisory Brief & Farm Holding Impact Scaler"
-      pageDescription="Scale per-hectare biophysical simulations across your total farm holding (hectares / acres) and generate a print-ready extension dossier with full NASA satellite provenance."
+      pageTitle={t("brief.title")}
+      pageDescription={t("brief.subtitle")}
       headerActions={
         <div className="flex flex-wrap items-center gap-2.5 print:hidden">
           <Link
@@ -78,14 +80,14 @@ export default function BriefPage() {
             className="px-3.5 py-2.5 rounded-xl bg-surface-2 hover:bg-surface border border-line text-foreground font-mono text-xs font-semibold flex items-center gap-1.5 transition-colors"
           >
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Adjust Rotation</span>
+            <span>{t("brief.adjustRotation")}</span>
           </Link>
           <Link
             href="/methodology"
             className="px-3.5 py-2.5 rounded-xl bg-surface-2 hover:bg-surface border border-line text-foreground font-mono text-xs font-semibold flex items-center gap-1.5 transition-colors"
           >
             <BookOpen className="w-3.5 h-3.5 text-stone-400" />
-            <span>Equations &amp; DOIs</span>
+            <span>{t("brief.equationsDois")}</span>
           </Link>
           <button
             type="button"
@@ -93,7 +95,7 @@ export default function BriefPage() {
             className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity cursor-pointer"
           >
             <Printer className="w-4 h-4" />
-            <span>Print / Save Advisory PDF</span>
+            <span>{t("brief.exportPdf")}</span>
           </button>
         </div>
       }
@@ -106,17 +108,17 @@ export default function BriefPage() {
               <div className="flex items-center gap-2">
                 <Sliders className="w-4 h-4 text-emerald-400" />
                 <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 font-bold">
-                  Interactive Holding Multiplier
+                  {t("brief.holdingMultiplier")}
                 </span>
               </div>
               <h2 className="text-lg font-display font-bold text-foreground">
-                Farm-Scale Cumulative Impact Calculator ({areaHa} ha / {acres} acres)
+                {t("brief.scalerTitle")} ({areaHa} ha / {acres} acres)
               </h2>
             </div>
 
             {/* Strategy Selector Pills */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-mono text-muted">Active Prescription:</span>
+              <span className="text-xs font-mono text-muted">{t("brief.activePrescription")}</span>
               {strategies
                 .filter((s) => s.rank > 0)
                 .map((strat) => (
@@ -141,7 +143,7 @@ export default function BriefPage() {
             <div className="lg:col-span-7 space-y-2">
               <div className="flex items-center justify-between text-xs font-mono">
                 <label htmlFor="farm-area-slider" className="text-muted">
-                  Drag to scale farm area (0.5 ha – 50 ha):
+                  {t("brief.dragToScale")}
                 </label>
                 <span className="text-sm font-bold text-emerald-400">
                   {areaHa.toFixed(1)} Hectares ({acres} Acres)
@@ -194,7 +196,7 @@ export default function BriefPage() {
             <div className="p-4 rounded-xl bg-surface-2/80 border border-cyan-500/30 space-y-1">
               <div className="flex items-center justify-between text-cyan-400">
                 <span className="text-[10px] font-mono uppercase tracking-wider font-bold">
-                  Groundwater Saved / Yr
+                  {t("brief.waterSavedYr")}
                 </span>
                 <Droplets className="w-4 h-4" />
               </div>
@@ -209,7 +211,7 @@ export default function BriefPage() {
             <div className="p-4 rounded-xl bg-surface-2/80 border border-amber-500/30 space-y-1">
               <div className="flex items-center justify-between text-amber-400">
                 <span className="text-[10px] font-mono uppercase tracking-wider font-bold">
-                  Total Farm Net Margin
+                  {t("brief.netProfitYr")}
                 </span>
                 <Coins className="w-4 h-4" />
               </div>
@@ -225,7 +227,7 @@ export default function BriefPage() {
             <div className="p-4 rounded-xl bg-surface-2/80 border border-emerald-500/30 space-y-1">
               <div className="flex items-center justify-between text-emerald-400">
                 <span className="text-[10px] font-mono uppercase tracking-wider font-bold">
-                  10-Yr Carbon Sequestered
+                  {t("brief.socAccreted")}
                 </span>
                 <Leaf className="w-4 h-4" />
               </div>
@@ -241,7 +243,7 @@ export default function BriefPage() {
             <div className="p-4 rounded-xl bg-surface-2/80 border border-stone-500/30 space-y-1">
               <div className="flex items-center justify-between text-stone-400">
                 <span className="text-[10px] font-mono uppercase tracking-wider font-bold">
-                  Biological &amp; Residue N Credit
+                  {t("brief.ureaAvoided")}
                 </span>
                 <Sprout className="w-4 h-4" />
               </div>

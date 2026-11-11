@@ -14,7 +14,7 @@ from pathlib import Path
 
 from terraloop_engine import crop_kb, profiler
 from terraloop_engine.data import gee, nasa_power
-from terraloop_schemas import FarmConstraints, FieldGeometry, FieldProfile, Priorities
+from terraloop_schemas import FarmConstraints, FieldGeometry, Priorities
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -62,24 +62,52 @@ def main(ids: list[str]) -> None:
         web_field_dir = WEB_GOLDEN / fid
         web_field_dir.mkdir(parents=True, exist_ok=True)
 
-        # 1. Build and save FieldProfile (preserve existing live GEE observed profile when GEE is offline)
+        # 1. Build and save FieldProfile with honest provenance & demo_snapshot tagging
         existing_prof_path = field_dir / "profile.json"
-        if existing_prof_path.exists() and not gee.is_live():
-            existing_prof = FieldProfile.model_validate_json(existing_prof_path.read_text(encoding="utf-8"))
-            if existing_prof.data_mode == "observed":
-                prof = existing_prof
-                prof_json_str = prof.model_dump_json(indent=2)
-                (web_field_dir / "profile.json").write_text(prof_json_str, encoding="utf-8")
-            else:
-                prof = profiler.build_profile(FieldGeometry(lat=lat, lon=lon, name=name))
-                prof_json_str = prof.model_dump_json(indent=2)
-                existing_prof_path.write_text(prof_json_str, encoding="utf-8")
-                (web_field_dir / "profile.json").write_text(prof_json_str, encoding="utf-8")
-        else:
-            prof = profiler.build_profile(FieldGeometry(lat=lat, lon=lon, name=name))
-            prof_json_str = prof.model_dump_json(indent=2)
-            existing_prof_path.write_text(prof_json_str, encoding="utf-8")
-            (web_field_dir / "profile.json").write_text(prof_json_str, encoding="utf-8")
+        prof = profiler.build_profile(FieldGeometry(id=fid, lat=lat, lon=lon, name=name))
+        prof.field.id = fid
+        prof.served_from = "demo_snapshot"
+        prof.snapshot_date = "2026-11-10"
+
+        from terraloop_engine import region_registry
+        if not prof.state:
+            prof.state = region_registry.detect_state(lat, lon)
+
+        if not gee.is_live():
+            # If GEE is not live during precomputation, refuse to label GEE products as "observed" (WS-A1)
+            prof.soil.provenance = [
+                p.model_copy(update={"mode": "regional_climatology"})
+                if "NASADEM" in (p.source or "") and p.mode == "observed"
+                else p
+                for p in prof.soil.provenance
+            ]
+            prof.water.provenance = [
+                p.model_copy(update={"mode": "regional_climatology"})
+                if ("GRACE" in (p.source or "") or "SMAP" in (p.source or "")) and p.mode == "observed"
+                else p
+                for p in prof.water.provenance
+            ]
+            prof.hazards.provenance = [
+                p.model_copy(update={"mode": "unknown"})
+                if "FIRMS" in (p.source or "") and p.mode == "observed"
+                else p
+                for p in prof.hazards.provenance
+            ]
+            prof.hazards.residue_burning_detected = None
+            prof.crop_history_provenance = [
+                p.model_copy(update={"mode": "unknown"})
+                if "HLS" in (p.source or "") and p.mode == "observed"
+                else p
+                for p in prof.crop_history_provenance
+            ]
+            prof.crop_history = []
+            if prof.data_mode == "observed":
+                prof.data_mode = "hybrid_regional"
+                prof.is_fallback = False
+
+        prof_json_str = prof.model_dump_json(indent=2)
+        existing_prof_path.write_text(prof_json_str, encoding="utf-8")
+        (web_field_dir / "profile.json").write_text(prof_json_str, encoding="utf-8")
 
         # 2. Fetch or generate 30-year daily weather (1995-2024) for 30 historical ensemble members
         weather_path = field_dir / "weather.json"
@@ -97,13 +125,19 @@ def main(ids: list[str]) -> None:
         irrigation_mode = "none" if fid in ("vidarbha", "bundelkhand") else ("limited" if fid == "bathinda" else "full")
         recs = recommend(
             RecommendRequest(
-                field=FieldGeometry(lat=lat, lon=lon, name=name),
+                field=FieldGeometry(id=fid, lat=lat, lon=lon, name=name),
                 priorities=Priorities(
                     profit=4.0, water_savings=4.5, soil_health=4.0, low_risk=4.0, low_labour=3.0, food_security=3.5
                 ),
                 constraints=FarmConstraints(irrigation=irrigation_mode, rotation_years=1),
             )
         )
+        for r in recs:
+            r.served_from = "demo_snapshot"
+            r.snapshot_date = "2026-11-10"
+            r.state = prof.state
+            r.data_mode = prof.data_mode
+            r.is_fallback = prof.is_fallback
         recs_json_str = json.dumps([json.loads(r.model_dump_json()) for r in recs], indent=2)
         (field_dir / "recommendations.json").write_text(recs_json_str, encoding="utf-8")
         (web_field_dir / "recommendations.json").write_text(recs_json_str, encoding="utf-8")
@@ -142,6 +176,9 @@ def main(ids: list[str]) -> None:
             "is_fallback": prof.is_fallback,
             "soil_source": prof.soil.source,
             "soil_provenance_modes": [p.mode for p in prof.soil.provenance],
+            "water_provenance_modes": [p.mode for p in prof.water.provenance],
+            "hazards_provenance_modes": [p.mode for p in prof.hazards.provenance],
+            "crop_history_provenance_modes": [p.mode for p in prof.crop_history_provenance],
             "crop_history_seasons_detected": len(prof.crop_history),
             "firms_residue_burning_detected": prof.hazards.residue_burning_detected,
             "grace_tws_trend_cm_yr": prof.water.groundwater_trend_cm_per_year,

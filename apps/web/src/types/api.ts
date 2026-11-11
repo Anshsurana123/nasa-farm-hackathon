@@ -109,8 +109,11 @@ export interface FieldProfile {
   currency?: string;
   currency_symbol?: string;
   agro_zone?: string | null;
+  state?: string | null;
+  served_from?: "live_computation" | "demo_snapshot";
+  snapshot_date?: string | null;
   is_fallback?: boolean;
-  data_mode?: "observed" | "hybrid_regional" | "fallback_synthetic";
+  data_mode?: "observed" | "hybrid_regional" | "fallback_synthetic" | "regional_climatology";
   validation_status?: "validated_india" | "unvalidated_global";
   validation_message?: string | null;
 }
@@ -207,6 +210,8 @@ export interface SimulationResult {
   profit_p50: number;
   profit_p90: number;
   cvar_profit_10: number;
+  cvar_ci_low?: number | null;
+  cvar_ci_high?: number | null;
 }
 
 export interface SeasonalOperationStep {
@@ -254,8 +259,12 @@ export interface StrategyRecommendation {
   currency_symbol?: string;
   practical_metrics?: PracticalFarmerMetrics | null;
   narrative_summary?: string | null;
+  state?: string | null;
+  served_from?: "live_computation" | "demo_snapshot";
+  snapshot_date?: string | null;
+  economics_basis?: "local_verified" | "punjab_proxy";
   is_fallback?: boolean;
-  data_mode?: "observed" | "hybrid_regional" | "fallback_synthetic";
+  data_mode?: "observed" | "hybrid_regional" | "fallback_synthetic" | "regional_climatology";
   validation_status?: "validated_india" | "unvalidated_global";
   validation_message?: string | null;
 }
@@ -299,4 +308,16 @@ export interface GeocodeResult {
   lat: number;
   lon: number;
   name: string;
+}
+
+export interface RecommendJobStatus {
+  job_id: string;
+  status: "running" | "completed" | "failed";
+  stage?: "profile" | "weather" | "simulating" | "ranking" | "done" | "failed";
+  step?: string;
+  progress_pct?: number;
+  progress?: number;
+  message?: string | null;
+  result?: StrategyRecommendation[] | null;
+  error?: string | null;
 }

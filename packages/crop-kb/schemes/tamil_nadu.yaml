@@ -1,0 +1,26 @@
+# Tamil Nadu State Schemes (WS-E)
+# Official Source: Department of Agriculture Tamil Nadu / TNAU Agritech Portal
+
+schemes:
+  - id: "tn_rice_fallow_pulses"
+    name: "Tamil Nadu Kalaignarin Rice Fallow Pulses Mission"
+    display_title: "Tamil Nadu Kalaignarin Rice Fallow Pulses Mission (100% certified seed subsidy)"
+    state: "Tamil Nadu"
+    eligible_crops: ["urad", "blackgram", "moong"]
+    amount: null
+    unit: null
+    source_url: "https://agritech.tnau.ac.in/"
+    as_of_date: "2024-01-15"
+    description: "100% subsidy on certified blackgram/greengram seeds and DAP foliar spray for Cauvery delta rice fallow cultivation."
+
+  - id: "tn_water_conservation"
+    name: "Tamil Nadu Sustainable Dryland & Water Conservation Mission"
+    display_title: "Tamil Nadu Sustainable Dryland & Water Conservation Mission"
+    state: "Tamil Nadu"
+    eligible_crops: ["rice_dsr", "maize", "groundnut"]
+    eligible_practices: ["direct_seeded", "drip_irrigation"]
+    amount: null
+    unit: null
+    source_url: "https://tnhorticulture.tn.gov.in/"
+    as_of_date: "2024-06-01"
+    description: "Financial assistance for direct-seeded rice and micro-irrigation in water-stressed Cauvery delta blocks."

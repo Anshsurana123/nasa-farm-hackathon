@@ -316,8 +316,12 @@ def _call_gemini_api(
     model: str = "gemini-2.0-flash",
     timeout_sec: float = 4.0,
 ) -> str | None:
-    """Execute REST call to Google Gemini generateContent endpoint."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    """Execute REST call to Google Gemini generateContent endpoint with header-based auth."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    headers = {
+        "x-goog-api-key": api_key,
+        "Content-Type": "application/json",
+    }
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -327,7 +331,7 @@ def _call_gemini_api(
     }
     try:
         with httpx.Client(timeout=timeout_sec) as client:
-            resp = client.post(url, json=payload)
+            resp = client.post(url, headers=headers, json=payload)
             if resp.status_code == 200:
                 data = resp.json()
                 candidates = data.get("candidates", [])

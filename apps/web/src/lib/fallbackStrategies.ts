@@ -99,10 +99,19 @@ export function adaptStrategiesForHorizon(
 export function getFallbackStrategies(
   _field?: FieldGeometry,
   _currencySymbol: string = "₹",
-  rotationYears: number = 1
+  rotationYears: number = 1,
+  lang: "en" | "pa" | "hi" = "en"
 ): StrategyRecommendation[] {
-  void _field;
   void _currencySymbol;
+  // Ensure fallback strategies are ONLY ever served if explicitly requested for the Sangrur demo snapshot (WS-J2)
+  const isSangrur =
+    !_field ||
+    !_field.id ||
+    _field.id === "sangrur" ||
+    (Math.abs(_field.lat - 30.19) < 0.25 && Math.abs(_field.lon - 75.78) < 0.25);
+  if (!isSangrur) {
+    return [];
+  }
   const baseStrategies: StrategyRecommendation[] = [
     {
       rank: 0,
@@ -439,5 +448,47 @@ export function getFallbackStrategies(
     },
   ];
 
-  return adaptStrategiesForHorizon(baseStrategies, rotationYears);
+  const localized = baseStrategies.map((s) => {
+    let label = s.rotation.label;
+    let narrative = s.narrative_summary;
+    if (lang === "pa") {
+      if (s.rank === 0) {
+        label = "ਕੱਦੂ ਕੀਤਾ ਝੋਨਾ → ਕਣਕ → ਖ਼ਾਲੀ";
+        narrative = "ਮੌਜੂਦਾ ਖੇਤ ਆਧਾਰ ('ਕੱਦੂ ਕੀਤਾ ਝੋਨਾ → ਕਣਕ'): 1,233 ਮਿਲੀਮੀਟਰ/ਸਾਲ ਸਿੰਚਾਈ ਦੀ ਮੰਗ ਕਰਦਾ ਹੈ ਅਤੇ ਕਣਕ ਦੀ ਬਿਜਾਈ ਲਈ ਸਿਰਫ਼ 11 ਦਿਨ ਬਚਦੇ ਹਨ, ਜਿਸ ਕਾਰਨ ਪਰਾਲੀ ਸਾੜਨੀ ਪੈਂਦੀ ਹੈ।";
+      } else if (s.rank === 1) {
+        label = "ਸਿੱਧੀ ਬਿਜਾਈ ਝੋਨਾ (DSR) → ਕਣਕ → ਮੂੰਗੀ";
+        narrative = "ਸਿਫ਼ਾਰਿਸ਼ ਕੀਤੀ ਰਣਨੀਤੀ: DSR ਝੋਨਾ + ਹੈਪੀ ਸੀਡਰ ਜ਼ੀਰੋ-ਟਿਲ ਕਣਕ + ਗਰਮੀਆਂ ਦੀ ਮੂੰਗੀ। ਸਿੰਚਾਈ ਪਾਣੀ ਦੀ 28% ਬਚਤ, ਪਰਾਲੀ ਸਾੜਨ ਤੋਂ ਮੁਕਤੀ, ਅਤੇ 10 ਸਾਲਾਂ ਵਿੱਚ ਮਿੱਟੀ ਦੇ ਕਾਰਬਨ ਵਿੱਚ +2.0 t C/ha ਵਾਧਾ।";
+      } else if (s.rank === 2) {
+        label = "ਬੀਟੀ ਨਰਮਾ/ਕਪਾਹ → ਕਣਕ → ਮੂੰਗੀ";
+        narrative = "ਨਰਮਾ-ਕਣਕ ਪ੍ਰਣਾਲੀ: ਝੋਨੇ ਨੂੰ ਨਰਮੇ ਨਾਲ ਬਦਲ ਕੇ 41% ਪਾਣੀ ਦੀ ਬਚਤ ਅਤੇ ਉੱਚ ਸ਼ੁੱਧ ਆਮਦਨ।";
+      } else if (s.rank === 3) {
+        label = "ਛੋਟੀ ਮਿਆਦ ਝੋਨਾ (PR-126) → ਕਣਕ → ਮੂੰਗੀ";
+        narrative = "ਸੁਰੱਖਿਅਤ ਤਬਦੀਲੀ: PR-126 ਝੋਨਾ 100% ਐੱਮ.ਐੱਸ.ਪੀ. ਖ਼ਰੀਦ ਬਰਕਰਾਰ ਰੱਖਦਾ ਹੈ, 30 ਦਿਨਾਂ ਦੀ ਪਰਾਲੀ-ਮੁਕਤ ਹੈਪੀ ਸੀਡਰ ਖਿੜਕੀ ਖੋਲ੍ਹਦਾ ਹੈ ਅਤੇ 21% ਪਾਣੀ ਬਚਾਉਂਦਾ ਹੈ।";
+      }
+    } else if (lang === "hi") {
+      if (s.rank === 0) {
+        label = "पारंपरिक रोपाई धान → गेहूं → परती";
+        narrative = "वर्तमान खेत आधारभूत ('रोपाई धान → गेहूं'): 1,233 मिमी/वर्ष सिंचाई की मांग करता है और गेहूं की बुवाई से पहले केवल 11 दिन का समय छोड़ता है, जिससे पराली जलाने की मजबूरी होती है।";
+      } else if (s.rank === 1) {
+        label = "सीधी बुवाई धान (DSR) → गेहूं → मूंग";
+        narrative = "अनुशंसित रणनीति: DSR धान + हैप्पी सीडर गेहूं + ग्रीष्मकालीन मूंग। 28% सिंचाई जल की बचत, पराली जलाने से मुक्ति, और 10 वर्षों में +2.0 t C/ha मृदा जैविक कार्बन का संचय।";
+      } else if (s.rank === 2) {
+        label = "बीटी कपास → गेहूं → ग्रीष्मकालीन मूंग";
+        narrative = "कपास-गेहूं प्रणाली: धान के स्थान पर कपास से 41% जल संरक्षण एवं उच्च शुद्ध आय।";
+      } else if (s.rank === 3) {
+        label = "कम अवधि धान (PR-126) → गेहूं → मूंग";
+        narrative = "सुरक्षित बदलाव: PR-126 धान 100% MSP खरीद सुनिश्चित रखते हुए 30 दिन की पराली-मुक्त हैप्पी सीडर खिड़की खोलता है और 21% जल बचाता है।";
+      }
+    }
+    return {
+      ...s,
+      rotation: { ...s.rotation, label },
+      narrative_summary: narrative,
+      served_from: "demo_snapshot" as const,
+      snapshot_date: "2026-11-10",
+      state: "Punjab",
+    };
+  });
+
+  return adaptStrategiesForHorizon(localized, rotationYears);
 }

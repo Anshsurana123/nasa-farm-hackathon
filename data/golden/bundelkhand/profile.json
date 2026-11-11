@@ -1,6 +1,6 @@
 {
   "field": {
-    "id": null,
+    "id": "bundelkhand",
     "lat": 25.38,
     "lon": 78.62,
     "polygon": null,
@@ -75,7 +75,7 @@
         "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
         "period": "1985-2024",
         "resolution": "0.5 x 0.625 deg, daily",
-        "doi": null,
+        "doi": "10.5067/POWER/0001",
         "url": "https://power.larc.nasa.gov/",
         "mode": "observed"
       },
@@ -114,7 +114,7 @@
         "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
         "period": "1985-2024",
         "resolution": "0.5 x 0.625 deg, daily",
-        "doi": null,
+        "doi": "10.5067/POWER/0001",
         "url": "https://power.larc.nasa.gov/",
         "mode": "observed"
       },
@@ -196,7 +196,7 @@
         "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
         "period": "1985-2024",
         "resolution": "0.5 x 0.625 deg, daily",
-        "doi": null,
+        "doi": "10.5067/POWER/0001",
         "url": "https://power.larc.nasa.gov/",
         "mode": "observed"
       },
@@ -342,6 +342,9 @@
   "currency": "INR",
   "currency_symbol": "₹",
   "agro_zone": "Central Plateau & Hills (Bundelkhand Semi-Arid Zone)",
+  "state": "Madhya Pradesh",
+  "served_from": "demo_snapshot",
+  "snapshot_date": "2026-11-10",
   "is_fallback": false,
   "data_mode": "observed",
   "validation_status": "validated_india",

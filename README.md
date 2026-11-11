@@ -9,7 +9,7 @@
 [![React](https://img.shields.io/badge/React-19.2+-61DAFB.svg?logo=react&logoColor=black)](https://react.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38B2AC.svg?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![NASA Earth Observations](https://img.shields.io/badge/NASA-Earth%20Observations-critical.svg?logo=nasa&logoColor=white)](https://earthdata.nasa.gov/)
-[![Tests: 66/66 Passing](https://img.shields.io/badge/Tests-66%2F66%20Passing-success.svg?logo=pytest&logoColor=white)](tests/)
+[![Tests: 86/86 Passing](https://img.shields.io/badge/Tests-86%2F86%20Passing-success.svg?logo=pytest&logoColor=white)](tests/)
 [![Ruff](https://img.shields.io/badge/Linter-Ruff%20Clean-brightgreen.svg?logo=ruff&logoColor=white)](https://astral.sh/ruff)
 [![i18n](https://img.shields.io/badge/Languages-English%20%7C%20%E0%A8%AA%E0%A9%B0%E0%A8%9C%E0%A8%BE%E0%A8%AC%E0%A9%80%20%7C%20%E0%A4%B9%E0%A4%BF%E0%A4%A8%E0%A5%8D%E0%A4%A6%E0%A5%80-orange.svg)](#-multilingual-grassroots-accessibility-i18n)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -627,7 +627,7 @@ terraloop/
 ├── scripts/
 │   ├── precompute_golden.py              # Precomputes golden fields from live GEE/POWER
 │   └── run_validation_benchmarks.py      # Executes and verifies empirical benchmark suite
-├── tests/                                # Pytest test suite (66 tests, 100% offline passing)
+├── tests/                                # Pytest test suite (86 tests, 100% offline passing)
 │   ├── test_deploy.py                    # Vercel service routing & filesystem tests
 │   ├── test_engine.py                    # Engine integration, suitability & API tests
 │   └── test_models.py                    # Biophysical unit tests (FAO-56, RothC, RUSLE, etc.)

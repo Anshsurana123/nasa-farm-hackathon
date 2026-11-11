@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import math
 from datetime import date
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -43,6 +44,46 @@ class FieldGeometry(BaseModel):
     lon: float = Field(..., ge=-180, le=180)
     polygon: dict | None = Field(None, description="GeoJSON Polygon geometry")
     name: str | None = None
+
+    @field_validator("polygon")
+    @classmethod
+    def validate_polygon(cls, v: dict | None) -> dict | None:
+        if v is None:
+            return None
+        if not isinstance(v, dict):
+            raise TypeError("Polygon must be a dictionary")
+        poly_type = v.get("type")
+        if poly_type != "Polygon":
+            raise ValueError(f"Expected GeoJSON Polygon geometry, got '{poly_type}'")
+        coords = v.get("coordinates")
+        if not isinstance(coords, list) or len(coords) == 0:
+            raise ValueError("Polygon coordinates must be a non-empty list of rings")
+        ring = coords[0]
+        if not isinstance(ring, list) or len(ring) < 4:
+            raise ValueError("Polygon exterior ring must contain at least 4 coordinate vertices")
+        if len(ring) > 500:
+            raise ValueError(f"Polygon ring exceeds maximum allowed vertex count (500), got {len(ring)}")
+
+        lons = []
+        lats = []
+        for pt in ring:
+            if not isinstance(pt, (list, tuple)) or len(pt) < 2:
+                raise ValueError(f"Invalid coordinate point in polygon: {pt}")
+            x, y = float(pt[0]), float(pt[1])
+            if not (-180.0 <= x <= 180.0 and -90.0 <= y <= 90.0):
+                raise ValueError(f"Coordinate point out of bounds: lon={x}, lat={y}")
+            lons.append(x)
+            lats.append(y)
+
+        mean_lat_rad = math.radians(sum(lats) / len(lats))
+        cos_lat = math.cos(mean_lat_rad)
+        x_km = [lon * 111.32 * cos_lat for lon in lons]
+        y_km = [lat * 110.57 for lat in lats]
+        area_km2 = 0.5 * abs(sum(x_km[i] * y_km[i + 1] - x_km[i + 1] * y_km[i] for i in range(len(x_km) - 1)))
+        area_ha = area_km2 * 100.0
+        if area_ha > 10000.0:
+            raise ValueError(f"Polygon area ({area_ha:.1f} ha) exceeds maximum allowed farm field area (10,000 ha)")
+        return v
 
 
 class ClimateSummary(BaseModel):
@@ -133,8 +174,11 @@ class FieldProfile(BaseModel):
     currency: str = "INR"
     currency_symbol: str = "₹"
     agro_zone: str | None = None
+    state: str | None = None
+    served_from: Literal["live_computation", "demo_snapshot"] = "live_computation"
+    snapshot_date: str | None = None
     is_fallback: bool = False
-    data_mode: Literal["observed", "hybrid_regional", "fallback_synthetic"] = "observed"
+    data_mode: Literal["observed", "hybrid_regional", "fallback_synthetic", "regional_climatology"] = "observed"
     validation_status: Literal["validated_india", "unvalidated_global"] = "validated_india"
     validation_message: str | None = None
 
@@ -263,6 +307,8 @@ class SimulationResult(BaseModel):
     profit_p50: float
     profit_p90: float
     cvar_profit_10: float
+    cvar_ci_low: float | None = None
+    cvar_ci_high: float | None = None
 
 
 class SeasonalOperationStep(BaseModel):
@@ -332,8 +378,12 @@ class StrategyRecommendation(BaseModel):
     currency_symbol: str = "₹"
     practical_metrics: PracticalFarmerMetrics | None = None
     narrative_summary: str | None = None
+    state: str | None = None
+    served_from: Literal["live_computation", "demo_snapshot"] = "live_computation"
+    snapshot_date: str | None = None
+    economics_basis: Literal["local_verified", "punjab_proxy"] = "local_verified"
     is_fallback: bool = False
-    data_mode: Literal["observed", "hybrid_regional", "fallback_synthetic"] = "observed"
+    data_mode: Literal["observed", "hybrid_regional", "fallback_synthetic", "regional_climatology"] = "observed"
     validation_status: Literal["validated_india", "unvalidated_global"] = "validated_india"
     validation_message: str | None = None
 
@@ -376,6 +426,6 @@ class RecommendRequest(BaseModel):
         "ssp585_2030s",
         "ssp585_2050s",
     ] = "historical"
-    drought_shock_pct: float = 0.0
-    price_shock_pct: float = 0.0
-    fertilizer_shock_pct: float = 0.0
+    drought_shock_pct: float = Field(0.0, ge=-100.0, le=100.0)
+    price_shock_pct: float = Field(0.0, ge=-100.0, le=200.0)
+    fertilizer_shock_pct: float = Field(0.0, ge=-100.0, le=300.0)

@@ -1,0 +1,118 @@
+# Uttar Pradesh Agricultural Economics Data (CACP MSP 2024-25 & UP A2+FL Costs)
+# Sources: CACP Reports on Price Policy for Kharif & Rabi Crops 2024-25 (UP Cost of Cultivation Table),
+#          Banda University of Agriculture & Technology / CSAUA&T Kanpur Enterprise Budgets
+currency: INR
+usd_exchange_rate: 83.5
+state: Uttar Pradesh
+economics_basis: local_verified
+
+crops:
+  wheat:
+    price_per_tonne: 24250
+    price_usd_per_tonne: 290.4
+    cost_per_ha: 41500
+    labor_cost_per_ha: 11500
+    cost_usd_per_ha: 497.0
+    market_risk: 0.05
+    procurement_type: "msp_assured"
+    sources: ["CACP Rabi 2024-25 (Wheat MSP Rs 2,425/q; UP A2+FL cost ~Rs 41,500/ha)"]
+
+  rice_puddled:
+    price_per_tonne: 23000
+    price_usd_per_tonne: 275.4
+    cost_per_ha: 49500
+    labor_cost_per_ha: 18500
+    cost_usd_per_ha: 592.8
+    market_risk: 0.06
+    procurement_type: "msp_assured"
+    sources: ["CACP Kharif 2024-25 (Paddy MSP Rs 2,300/q; UP A2+FL cost ~Rs 49,500/ha)"]
+
+  rice_dsr:
+    price_per_tonne: 23200
+    price_usd_per_tonne: 277.8
+    cost_per_ha: 43000
+    labor_cost_per_ha: 12500
+    cost_usd_per_ha: 515.0
+    market_risk: 0.06
+    procurement_type: "msp_assured"
+    sources: ["CSAUA&T Kanpur DSR Field Trial Economics"]
+
+  sorghum:
+    price_per_tonne: 33710
+    price_usd_per_tonne: 403.7
+    cost_per_ha: 25000
+    labor_cost_per_ha: 8500
+    cost_usd_per_ha: 299.4
+    market_risk: 0.12
+    procurement_type: "msp_assured"
+    sources: ["CACP Kharif 2024-25 (Jowar MSP Rs 3,371/q; Bundelkhand rainfed A2+FL cost ~Rs 25,000/ha)"]
+
+  chickpea:
+    price_per_tonne: 54400
+    price_usd_per_tonne: 651.5
+    cost_per_ha: 29500
+    labor_cost_per_ha: 10000
+    cost_usd_per_ha: 353.3
+    market_risk: 0.10
+    procurement_type: "nafed_pss"
+    sources: ["CACP Rabi 2024-25 (Gram MSP Rs 5,440/q; Bundelkhand A2+FL cost ~Rs 29,500/ha)"]
+
+  lentil:
+    price_per_tonne: 67000
+    price_usd_per_tonne: 802.4
+    cost_per_ha: 27500
+    labor_cost_per_ha: 9200
+    cost_usd_per_ha: 329.3
+    market_risk: 0.10
+    procurement_type: "nafed_pss"
+    sources: ["CACP Rabi 2024-25 (Masur MSP Rs 6,700/q; UP A2+FL cost ~Rs 27,500/ha)"]
+
+  mustard:
+    price_per_tonne: 56500
+    price_usd_per_tonne: 676.6
+    cost_per_ha: 29500
+    labor_cost_per_ha: 9500
+    cost_usd_per_ha: 353.3
+    market_risk: 0.10
+    procurement_type: "nafed_pss"
+    sources: ["CACP Rabi 2024-25 (Mustard MSP Rs 5,650/q; UP A2+FL cost ~Rs 29,500/ha)"]
+
+  maize:
+    price_per_tonne: 22250
+    price_usd_per_tonne: 266.5
+    cost_per_ha: 38000
+    labor_cost_per_ha: 12000
+    cost_usd_per_ha: 455.1
+    market_risk: 0.18
+    procurement_type: "mandi_linked"
+    sources: ["CACP Kharif 2024-25 (Maize MSP Rs 2,225/q; UP mandi-linked)"]
+
+  pigeon_pea:
+    price_per_tonne: 75500
+    price_usd_per_tonne: 904.2
+    cost_per_ha: 31000
+    labor_cost_per_ha: 10500
+    cost_usd_per_ha: 371.3
+    market_risk: 0.12
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Tur MSP Rs 7,550/q)"]
+
+  moong:
+    price_per_tonne: 86820
+    price_usd_per_tonne: 1039.8
+    cost_per_ha: 26500
+    labor_cost_per_ha: 9200
+    cost_usd_per_ha: 317.4
+    market_risk: 0.12
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Moong MSP Rs 8,682/q)"]
+
+  urad:
+    price_per_tonne: 74000
+    price_usd_per_tonne: 886.2
+    cost_per_ha: 26000
+    labor_cost_per_ha: 9000
+    cost_usd_per_ha: 311.4
+    market_risk: 0.12
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Urad MSP Rs 7,400/q)"]

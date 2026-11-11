@@ -4,6 +4,7 @@ import type {
   FieldGeometry,
   FieldProfile,
   GoldenField,
+  RecommendJobStatus,
   RecommendRequest,
   StrategyRecommendation,
   SuitabilityItem,
@@ -61,69 +62,55 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   // If live /recommend is requested while backend API is offline, serve precomputed golden recommendations
+  // ONLY if reqBody.field.id exactly matches a known demo benchmark field ID (WS-B2)
   if (path === "/recommend" && init?.body) {
     try {
       const reqBody = JSON.parse(init.body as string) as RecommendRequest;
-      // Realistic brief delay for solver computation feedback
-      await new Promise((resolve) => setTimeout(resolve, 450));
-      const fieldsRes = await fetch("/golden/fields.json");
-      if (fieldsRes.ok) {
-        const fields = (await fieldsRes.json()) as GoldenField[];
-        if (fields.length > 0) {
-          let closest = fields[0];
-          let minDist = Infinity;
-          for (const f of fields) {
-            const d = Math.hypot(f.lat - reqBody.field.lat, f.lon - reqBody.field.lon);
-            if (d < minDist) {
-              minDist = d;
-              closest = f;
+      const fieldId = reqBody.field?.id;
+      if (fieldId) {
+        const fieldsRes = await fetch("/golden/fields.json");
+        if (fieldsRes.ok) {
+          const fields = (await fieldsRes.json()) as GoldenField[];
+          const exact = fields.find((f) => f.id === fieldId);
+          if (exact) {
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            const recRes = await fetch(`/golden/${exact.id}/recommendations.json`);
+            if (recRes.ok) {
+              const recs = (await recRes.json()) as StrategyRecommendation[];
+              const effYears = reqBody.constraints?.rotation_years ?? 1;
+              const stamped = recs.map((r) => ({
+                ...r,
+                served_from: "demo_snapshot" as const,
+              }));
+              return adaptStrategiesForHorizon(stamped, effYears) as T;
             }
-          }
-          const recRes = await fetch(`/golden/${closest.id}/recommendations.json`);
-          if (recRes.ok) {
-            const recs = (await recRes.json()) as StrategyRecommendation[];
-            const effYears = reqBody.constraints?.rotation_years ?? 1;
-            return adaptStrategiesForHorizon(recs, effYears) as T;
           }
         }
       }
     } catch {
-      // Ignore and proceed
+      // Ignore and proceed to throw
     }
   }
 
-  // If live /profile is requested but backend API is offline, adapt closest golden field
+  // If live /profile is requested but backend API is offline, serve golden profile ONLY on exact field.id match (WS-B2)
   if (path === "/profile" && init?.body) {
     try {
       const field = JSON.parse(init.body as string) as FieldGeometry;
-      const fieldsRes = await fetch("/golden/fields.json");
-      if (fieldsRes.ok) {
-        const fields = (await fieldsRes.json()) as GoldenField[];
-        if (fields.length > 0) {
-          // Find closest golden field by distance
-          let closest = fields[0];
-          let minDist = Infinity;
-          for (const f of fields) {
-            const d = Math.hypot(f.lat - field.lat, f.lon - field.lon);
-            if (d < minDist) {
-              minDist = d;
-              closest = f;
+      const fieldId = field?.id;
+      if (fieldId) {
+        const fieldsRes = await fetch("/golden/fields.json");
+        if (fieldsRes.ok) {
+          const fields = (await fieldsRes.json()) as GoldenField[];
+          const exact = fields.find((f) => f.id === fieldId);
+          if (exact) {
+            const profRes = await fetch(`/golden/${exact.id}/profile.json`);
+            if (profRes.ok) {
+              const prof = (await profRes.json()) as FieldProfile;
+              return {
+                ...prof,
+                served_from: "demo_snapshot" as const,
+              } as T;
             }
-          }
-          const profRes = await fetch(`/golden/${closest.id}/profile.json`);
-          if (profRes.ok) {
-            const prof = (await profRes.json()) as FieldProfile;
-            const isSouthAsia = field.lat >= 5 && field.lat <= 38.5 && field.lon >= 66 && field.lon <= 99;
-            return {
-              ...prof,
-              field: {
-                lat: field.lat,
-                lon: field.lon,
-                name: field.name ?? `Field (${field.lat.toFixed(3)}°, ${field.lon.toFixed(3)}°)`,
-              },
-              currency: isSouthAsia ? "INR" : "USD",
-              currency_symbol: isSouthAsia ? "₹" : "$",
-            } as T;
           }
         }
       }
@@ -198,5 +185,79 @@ export const api = {
     request<SuitabilityItem[]>("/suitability", { method: "POST", body: JSON.stringify(req) }),
   recommend: (req: RecommendRequest) =>
     request<StrategyRecommendation[]>("/recommend", { method: "POST", body: JSON.stringify(req) }),
+  recommendAsync: (req: RecommendRequest) =>
+    request<RecommendJobStatus>("/recommend/async", { method: "POST", body: JSON.stringify(req) }),
+  getRecommendJob: (jobId: string) =>
+    request<RecommendJobStatus>(`/recommend/jobs/${jobId}`),
   geocode: (q: string) => request<import("@/types/api").GeocodeResult>(`/geocode?q=${encodeURIComponent(q)}`),
 };
+
+export type ProgressCallback = (status: {
+  stage: "profile" | "weather" | "simulating" | "ranking" | "done" | "failed";
+  progressPct: number;
+  message?: string;
+}) => void;
+
+export async function recommendWithProgress(
+  req: RecommendRequest,
+  onProgress?: ProgressCallback
+): Promise<StrategyRecommendation[]> {
+  try {
+    const job = await api.recommendAsync(req);
+    const jobId = job.job_id;
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        sessionStorage.setItem("terraloop_active_job_id", jobId);
+      }
+    } catch {
+      // Ignore sessionStorage errors
+    }
+
+    onProgress?.({
+      stage: (job.stage || job.step || "profile") as "profile" | "weather" | "simulating" | "ranking" | "done" | "failed",
+      progressPct: Math.round(job.progress_pct ?? (job.progress ? job.progress * 100 : 10)),
+      message: job.message ?? undefined,
+    });
+
+    const maxWaitMs = 60000;
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitMs) {
+      await new Promise((r) => setTimeout(r, 400));
+      const poll = await api.getRecommendJob(jobId);
+
+      const stage = (poll.stage || poll.step || "simulating") as "profile" | "weather" | "simulating" | "ranking" | "done" | "failed";
+      const pct = Math.round(poll.progress_pct ?? (poll.progress ? poll.progress * 100 : 50));
+      onProgress?.({ stage, progressPct: pct, message: poll.message ?? undefined });
+
+      if (poll.status === "completed" && poll.result) {
+        try {
+          if (typeof window !== "undefined" && window.sessionStorage) {
+            sessionStorage.removeItem("terraloop_active_job_id");
+          }
+        } catch {}
+        onProgress?.({ stage: "done", progressPct: 100 });
+        return poll.result;
+      }
+      if (poll.status === "failed") {
+        try {
+          if (typeof window !== "undefined" && window.sessionStorage) {
+            sessionStorage.removeItem("terraloop_active_job_id");
+          }
+        } catch {}
+        throw new Error(poll.error || "Simulation job failed");
+      }
+    }
+    throw new Error("Simulation timed out");
+  } catch {
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        sessionStorage.removeItem("terraloop_active_job_id");
+      }
+    } catch {}
+    onProgress?.({ stage: "simulating", progressPct: 50 });
+    const res = await api.recommend(req);
+    onProgress?.({ stage: "done", progressPct: 100 });
+    return res;
+  }
+}

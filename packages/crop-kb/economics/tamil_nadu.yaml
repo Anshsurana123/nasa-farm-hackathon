@@ -1,0 +1,88 @@
+# Tamil Nadu Agricultural Economics Data (CACP MSP 2024-25 & Cauvery Delta A2+FL Costs)
+# Sources: CACP Reports on Price Policy for Kharif & Rabi Crops 2024-25 (Tamil Nadu Cost of Cultivation Table),
+#          Tamil Nadu Agricultural University (TNAU) Department of Agricultural Economics Cost Studies
+currency: INR
+usd_exchange_rate: 83.5
+state: Tamil Nadu
+economics_basis: local_verified
+
+crops:
+  rice_puddled:
+    price_per_tonne: 24270
+    price_usd_per_tonne: 290.7
+    cost_per_ha: 58000
+    labor_cost_per_ha: 22500
+    cost_usd_per_ha: 694.6
+    market_risk: 0.05
+    procurement_type: "msp_assured"
+    sources: ["CACP Kharif 2024-25 (Paddy Common MSP Rs 2,300/q + TN State Incentive Rs 107/q; Cauvery Delta A2+FL cost ~Rs 58,000/ha)", "TNAU Cost Studies"]
+
+  rice_short:
+    price_per_tonne: 24470
+    price_usd_per_tonne: 293.1
+    cost_per_ha: 54000
+    labor_cost_per_ha: 20500
+    cost_usd_per_ha: 646.7
+    market_risk: 0.05
+    procurement_type: "msp_assured"
+    sources: ["CACP Kharif 2024-25 (Paddy Grade A MSP Rs 2,320/q + TN State Incentive Rs 127/q, ADT-43/ASD-16)"]
+
+  rice_dsr:
+    price_per_tonne: 24470
+    price_usd_per_tonne: 293.1
+    cost_per_ha: 47000
+    labor_cost_per_ha: 14000
+    cost_usd_per_ha: 562.9
+    market_risk: 0.06
+    procurement_type: "msp_assured"
+    sources: ["TNAU Direct-Seeded Rice Pilot Trials (Cauvery Delta water-saving package)"]
+
+  urad:
+    price_per_tonne: 74000
+    price_usd_per_tonne: 886.2
+    cost_per_ha: 22000
+    labor_cost_per_ha: 8500
+    cost_usd_per_ha: 263.5
+    market_risk: 0.12
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Urad MSP Rs 7,400/q; Rice-fallow relay pulses cost ~Rs 22,000/ha; zero land prep)", "TNAU Pulse Directorate"]
+
+  moong:
+    price_per_tonne: 86820
+    price_usd_per_tonne: 1039.8
+    cost_per_ha: 23000
+    labor_cost_per_ha: 8800
+    cost_usd_per_ha: 275.4
+    market_risk: 0.12
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Moong MSP Rs 8,682/q; Rice-fallow pulse relay)"]
+
+  maize:
+    price_per_tonne: 22250
+    price_usd_per_tonne: 266.5
+    cost_per_ha: 44000
+    labor_cost_per_ha: 13500
+    cost_usd_per_ha: 526.9
+    market_risk: 0.18
+    procurement_type: "mandi_linked"
+    sources: ["CACP Kharif 2024-25 (Maize MSP Rs 2,225/q; Tamil Nadu poultry feed demand & mandi pricing)"]
+
+  groundnut:
+    price_per_tonne: 67830
+    price_usd_per_tonne: 812.3
+    cost_per_ha: 49000
+    labor_cost_per_ha: 17000
+    cost_usd_per_ha: 586.8
+    market_risk: 0.12
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Groundnut MSP Rs 6,783/q; Tamil Nadu oilseed market)"]
+
+  cotton:
+    price_per_tonne: 71210
+    price_usd_per_tonne: 852.8
+    cost_per_ha: 48000
+    labor_cost_per_ha: 18000
+    cost_usd_per_ha: 574.9
+    market_risk: 0.15
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Cotton MSP Rs 7,121/q)"]

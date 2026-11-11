@@ -191,10 +191,10 @@ def _resolve_credentials(ee_module) -> tuple[object | None, str | None]:
 def init() -> bool:
     """Initialise Earth Engine once per process. Returns True if successfully initialized."""
     global _initialised
-    if _initialised:
-        return True
     if os.environ.get("GEE_DISABLE") == "1":
         return False
+    if _initialised:
+        return True
     try:
         _load_dotenv_if_needed()
         import ee
@@ -214,21 +214,29 @@ def init() -> bool:
 
 def is_live() -> bool:
     """Return True if Google Earth Engine is initialized and active."""
+    if os.environ.get("GEE_DISABLE") == "1":
+        return False
     return _initialised
 
 
-def provenance_with_mode(prov: DataProvenance, unknown_if_offline: bool = False) -> DataProvenance:
-    """Return a copy of the provenance tagged with 'observed' if GEE is live.
+def provenance_with_mode(
+    prov: DataProvenance,
+    mode: str | None = None,
+    unknown_if_offline: bool = False,
+) -> DataProvenance:
+    """Return a copy of the provenance tagged with the actual data collection mode.
 
-    When GEE is offline the mode is 'regional_climatology' (sources with an honest climatology fallback, e.g.
-    GRACE/SMAP/NASADEM) or 'unknown' when ``unknown_if_offline=True`` (sources with no fallback that must never
-    be fabricated, e.g. FIRMS fire detections and HLS NDVI crop history).
+    If ``mode`` is explicitly provided, it is used.
+    Otherwise, if GEE is live, mode is 'observed'.
+    When GEE is offline, mode is 'unknown' if ``unknown_if_offline=True``, else 'regional_climatology'.
     """
-    if _initialised:
-        mode = "observed"
+    if mode is not None:
+        effective_mode = mode
+    elif is_live():
+        effective_mode = "observed"
     else:
-        mode = "unknown" if unknown_if_offline else "regional_climatology"
-    return prov.model_copy(update={"mode": mode})
+        effective_mode = "unknown" if unknown_if_offline else "regional_climatology"
+    return prov.model_copy(update={"mode": effective_mode})
 
 
 @disk_cache(namespace="gee_imerg_live")
@@ -375,24 +383,18 @@ def smap_rootzone(lat: float, lon: float, start: str, end: str) -> pd.Series:
     doy = idx.dayofyear.to_numpy()
     years = (idx.year - idx.year.min()).to_numpy()
 
-    # Regionally differentiated root-zone soil moisture climatology + dry/wet anomaly trend
     from .. import region_registry
     reg = region_registry.detect_region_config(lat, lon)
 
     if reg.region_id == "bundelkhand":
-        # Bundelkhand rainfed drought-prone (lower recent soil moisture percentile ~28th)
         sm_base = 0.18 + 0.09 * np.sin(2 * np.pi * (doy - 205) / 365) - 0.004 * years
     elif reg.region_id == "vidarbha":
-        # Vidarbha rainfed Vertisol (~34th percentile)
         sm_base = 0.24 + 0.10 * np.sin(2 * np.pi * (doy - 210) / 365) - 0.003 * years
     elif reg.region_id in ("punjab_southwest", "rajasthan_arid"):
-        # Bathinda semi-arid cotton belt (~38th percentile)
         sm_base = 0.17 + 0.07 * np.sin(2 * np.pi * (doy - 200) / 365) - 0.002 * years
     elif reg.region_id in ("cauvery", "southern_hills"):
-        # Thanjavur Cauvery Delta (~62nd percentile)
         sm_base = 0.28 + 0.08 * np.sin(2 * np.pi * (doy - 270) / 365) + 0.002 * years
     else:
-        # Central Punjab irrigated alluvial plain (~46th percentile)
         sm_base = 0.23 + 0.08 * np.sin(2 * np.pi * (doy - 200) / 365) - 0.001 * years
 
     rng = np.random.default_rng(int(abs(lat * 100 + lon)))
@@ -435,26 +437,8 @@ def grace_trend(lat: float, lon: float) -> tuple[float, pd.Series]:
     idx = pd.date_range("2002-04-01", "2024-12-31", freq="MS")
     years = (idx - idx[0]).days / 365.25
 
-    # Published regional GRACE/GRACE-FO JPL Mascon trends across Indian agro-ecological zones
-    # Sources: Rodell et al. (2009 Nature), Asoka et al. (2017 Nature Geosci.), CGWB Dynamic GW Resources
-    if (29.5 <= lat <= 32.5) and (75.2 <= lon <= 77.5):
-        # Central Punjab (Sangrur / Ludhiana sweet-water tube-well belt)
-        annual_trend = -3.85 if lat < 30.6 else -3.45
-    elif (28.5 <= lat <= 31.2) and (73.5 <= lon < 75.2):
-        # South-West Punjab (Bathinda brackish/canal-command cotton belt)
-        annual_trend = -2.40
-    elif (23.5 <= lat < 27.0) and (77.5 <= lon <= 81.5):
-        # Bundelkhand hard-rock semi-arid plateau (Jhansi)
-        annual_trend = -1.25
-    elif (18.0 <= lat < 23.0) and (75.0 <= lon <= 80.5):
-        # Vidarbha Deccan trap basalt (Akola/Amravati)
-        annual_trend = -0.65
-    elif lat < 15.0:
-        # Cauvery Delta Tamil Nadu (Thanjavur)
-        annual_trend = -0.50
-    else:
-        # All-India agricultural plain average
-        annual_trend = -1.50
+    from .. import region_registry
+    annual_trend, _citation = region_registry.get_regional_grace_trend(lat, lon)
 
     seasonal_cycle = 4.0 * np.sin(2 * np.pi * (idx.month - 5) / 12)
     lwe_series = annual_trend * years + seasonal_cycle
@@ -476,25 +460,10 @@ def _slope_pct_live(lat: float, lon: float, buffer_m: int = 100) -> float:
     return float(round(pct, 2))
 
 
-def _regional_baseline_slope(lat: float, lon: float) -> float:
-    if lat < 15.0:
-        # Cauvery Delta flat coastal alluvium
-        return 0.4
-    if (28.0 <= lat <= 33.0) and (73.0 <= lon <= 78.0):
-        # Indo-Gangetic plain (Punjab)
-        return 0.8
-    if (18.0 <= lat < 23.0) and (75.0 <= lon <= 80.5):
-        # Vidarbha Deccan plateau undulating Vertisols
-        return 1.6
-    if (23.5 <= lat < 27.0) and (77.5 <= lon <= 81.5):
-        # Bundelkhand dissected plateau
-        return 2.2
-    return 1.2
-
-
 def slope_pct(lat: float, lon: float, buffer_m: int = 100) -> float:
     """TASK-D06: Mean slope (%) from NASADEM around the field, despiked for 30m int16 radar noise."""
-    reg_slope = _regional_baseline_slope(lat, lon)
+    from .. import region_registry
+    reg_slope = region_registry.get_regional_slope(lat, lon)
     if init():
         try:
             raw_pct = _slope_pct_live(lat, lon, buffer_m=buffer_m)
@@ -505,7 +474,7 @@ def slope_pct(lat: float, lon: float, buffer_m: int = 100) -> float:
                 return float(round(0.6 * reg_slope + 0.25 * raw_pct, 2))
             return raw_pct
         except Exception as exc:  # noqa: BLE001
-            log.warning("GEE NASADEM call failed: %s", exc)
+            log.warning("GEE NASADEM call failed: %s, using regional baseline slope", exc)
 
     return reg_slope
 
@@ -594,7 +563,7 @@ def ndvi_timeseries(lat: float, lon: float, start: str, end: str, buffer_m: int 
         try:
             return _ndvi_timeseries_live(lat, lon, start, end, buffer_m=buffer_m)
         except Exception as exc:  # noqa: BLE001
-            log.warning("GEE HLS call failed: %s", exc)
+            log.warning("GEE HLS NDVI call failed: %s", exc)
 
     return pd.DataFrame(columns=["date", "ndvi", "sensor"])
 
@@ -653,23 +622,22 @@ def cmip6_daily(lat: float, lon: float, model: str, scenario: str, start: str, e
     else:
         warming = 1.5
 
-    # Location-aware baseline temperature & seasonal amplitude
-    if lat < 15.0:
-        base_tmax, amp_c, trange_c = 32.5, 4.5, 9.0
-    elif lat < 23.5:
-        base_tmax, amp_c, trange_c = 33.0, 7.5, 12.0
-    else:
-        base_tmax, amp_c, trange_c = 30.0, 10.0, 13.0
+    from .. import region_registry
+    w_params = region_registry.get_regional_weather_params(lat, lon)
+    base_tmax = w_params.base_tmax
+    amp_c = w_params.amp_c
+    trange_c = w_params.trange_c
 
     tmax = base_tmax + warming + amp_c * np.sin(2 * np.pi * (doy - 80) / 365)
     tmin = tmax - trange_c
-    # Deterministic seed across Python processes using CRC32 instead of randomized hash()
     seed = int((zlib.crc32(model.encode("utf-8")) % 10000) + abs(lat * 100) + abs(lon * 10))
     rng = np.random.default_rng(seed)
-    if lat < 15.0:
-        wet = (idx.month >= 8) & (idx.month <= 12)
-    else:
-        wet = (idx.month >= 7) & (idx.month <= 9)
+    wet = idx.month.isin(w_params.wet_months)
+    pr = np.where(
+        wet,
+        rng.gamma(w_params.wet_shape, w_params.wet_scale, len(idx)),
+        rng.gamma(w_params.dry_shape, w_params.dry_scale, len(idx)),
+    )
     pr = np.where(wet, rng.gamma(0.6, 13.0, len(idx)), rng.gamma(0.1, 4.0, len(idx)))
 
     return pd.DataFrame(

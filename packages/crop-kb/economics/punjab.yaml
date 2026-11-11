@@ -3,6 +3,8 @@
 #          PAU Department of Economics & Sociology Enterprise Budgets (2024)
 currency: INR
 usd_exchange_rate: 83.5
+state: Punjab
+economics_basis: local_verified
 
 crops:
   rice_puddled:

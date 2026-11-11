@@ -2,6 +2,7 @@
 
 import type { FieldProfile, StrategyRecommendation } from "@/types/api";
 import { useField } from "@/context/FieldContext";
+import { useI18n } from "@/i18n";
 import { fmtAreaMoney, fmtAreaUnit, fmtDMS, fmtSigned, isSouthAsia, scaleByUnit } from "@/lib/ui";
 import { Printer, CheckCircle2, FileText, Award, ShieldCheck } from "lucide-react";
 
@@ -11,10 +12,13 @@ interface AgronomicBriefProps {
 }
 
 export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
+  const { t } = useI18n();
   const { selectedRank, unitSystem } = useField();
   const { field, soil, water, hazards, agro_climatic_notes } = profile;
   const isSA = isSouthAsia(field.lat, field.lon);
   const currencySymbol = profile.currency_symbol ?? (isSA ? "₹" : "$");
+  const gwTrend = profile?.water?.groundwater_trend_cm_per_year ?? 0;
+  const graceMult = gwTrend < -1.0 ? Math.min(1.5, 1.0 + 0.1 * (Math.abs(gwTrend) - 1.0)) : 1.0;
 
   const baseline = strategies.find((s) => s.rank === 0) ?? strategies[0];
   const topStrategy =
@@ -46,18 +50,29 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
             <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 font-bold">
               DOC // FIELD-BRIEF-2026
             </span>
-            <span>NASA EARTH OBSERVATION &amp; KVK ADVISORY</span>
+            <span>{t("brief.badge")}</span>
             { profile.agro_zone && (
               <span className="px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border border-cyan-500/30 font-bold">
                 {profile.agro_zone}
               </span>
             )}
+            { profile.served_from === "demo_snapshot" && (
+              <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30 font-bold">
+                {t("badge.demoSnapshot")}
+                {profile.snapshot_date ? ` (${profile.snapshot_date})` : ""}
+              </span>
+            )}
+            { topStrategy?.economics_basis === "punjab_proxy" && (
+              <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30 font-bold" title={t("badge.punjabProxyTooltip")}>
+                {t("badge.punjabProxyEconomics")}
+              </span>
+            )}
           </div>
           <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
-            TerraLoop Field Agronomic Advisory Brief
+            {t("brief.title")}
           </h2>
           <p className="text-xs text-muted font-mono">
-            Stratigraphic Soil, Subsurface Hydrology, Turnaround Window &amp; Crop Rotation Prescription ({fmtAreaUnit(unitSystem)})
+            {t("brief.subtitle")} ({fmtAreaUnit(unitSystem)})
           </p>
         </div>
 
@@ -68,7 +83,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
             className="px-4 py-2 rounded-lg bg-foreground text-background hover:opacity-90 text-xs font-mono font-bold print:hidden cursor-pointer flex items-center gap-2 transition-opacity"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>Export / Print PDF</span>
+            <span>{t("brief.exportPdf")}</span>
           </button>
           <p className="text-[10px] text-muted font-mono">
             ISSUED: {new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
@@ -79,7 +94,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
       {/* Field Identification Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-line rounded-xl bg-surface border border-line text-xs">
         <div className="p-4 space-y-1">
-          <span className="text-muted block text-[10px] font-mono uppercase tracking-wider">Parcel Coordinates</span>
+          <span className="text-muted block text-[10px] font-mono uppercase tracking-wider">{t("brief.parcelCoords")}</span>
           <span className="font-bold text-sm text-foreground block">{field.name ?? "Target Field"}</span>
           <span className="block text-[11px] font-mono text-muted">
             {fmtDMS(field.lat, true)} · {fmtDMS(field.lon, false)}
@@ -87,7 +102,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
         </div>
 
         <div className="p-4 space-y-1">
-          <span className="text-muted block text-[10px] font-mono uppercase tracking-wider">Regional TWS Trend (GRACE)</span>
+          <span className="text-muted block text-[10px] font-mono uppercase tracking-wider">{t("brief.twsTrend")}</span>
           <span
             className={`font-bold text-sm font-mono block ${
               water.groundwater_trend_cm_per_year && water.groundwater_trend_cm_per_year < -2
@@ -99,11 +114,22 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
               ? `${water.groundwater_trend_cm_per_year.toFixed(2)} cm/yr`
               : "Stable"}
           </span>
-          <span className="block text-[10px] font-mono text-muted">NASA GRACE-FO Mascon</span>
+          <span className="block text-[10px] font-mono text-muted">{t("sensor.grace")}</span>
+          {graceMult > 1.0 && (
+            <div className="pt-1">
+              <span className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-semibold leading-tight">
+                {/* t("badge.graceUrgencyActive") */}
+                {t("badge.graceUrgencyActive", {
+                  mult: graceMult.toFixed(2),
+                  trend: Math.abs(gwTrend).toFixed(2),
+                })}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="p-4 space-y-1">
-          <span className="text-muted block text-[10px] font-mono uppercase tracking-wider">Horizon A Topsoil</span>
+          <span className="text-muted block text-[10px] font-mono uppercase tracking-wider">{t("brief.topsoil")}</span>
           <span className="font-bold text-sm capitalize text-foreground block">
             {soil.texture_class ?? "Loam"} (pH {soil.ph?.toFixed(1) ?? "7.5"})
           </span>
@@ -113,22 +139,22 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
         </div>
 
         <div className="p-4 space-y-1">
-          <span className="text-muted block text-[10px] font-mono uppercase tracking-wider">Thermal Fire Status</span>
+          <span className="text-muted block text-[10px] font-mono uppercase tracking-wider">{t("brief.fireStatus")}</span>
           <span
             className={`font-bold text-sm font-mono block ${
               hazards.residue_burning_detected ? "text-rose-500" : "text-emerald-600 dark:text-emerald-400"
             }`}
           >
-            {hazards.residue_burning_detected ? "Active Residue Fire" : "No Fire Anomaly"}
+            {hazards.residue_burning_detected ? t("brief.activeFire") : t("brief.noFire")}
           </span>
-          <span className="block text-[10px] font-mono text-muted">NASA FIRMS MODIS/VIIRS</span>
+          <span className="block text-[10px] font-mono text-muted">{t("sensor.firms")}</span>
         </div>
       </div>
 
       {/* Side-by-Side Comparative Impact Cards */}
       <div className="space-y-3">
         <h4 className="font-mono text-[11px] font-bold uppercase tracking-widest text-muted">
-          Prescriptive Rotation Strategy Comparison ({fmtAreaUnit(unitSystem)})
+          {t("brief.strategyComp")} ({fmtAreaUnit(unitSystem)})
         </h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -136,7 +162,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
           <div className="p-5 rounded-xl border border-line bg-surface/50 hatch-pattern space-y-3">
             <div className="flex items-center justify-between font-mono">
               <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-foreground/10 text-muted border border-line">
-                REF // Current Farm Baseline
+                REF // {t("strategy.baseline")}
               </span>
               <span className="text-xs text-rose-500 font-bold">{baseIrr} mm/yr Irrigation</span>
             </div>
@@ -167,7 +193,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
           <div className="p-5 rounded-xl border-2 border-emerald-500/70 bg-emerald-500/[0.04] space-y-3">
             <div className="flex items-center justify-between font-mono">
               <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40">
-                {`OPT 0${topStrategy?.rank || 1} // Recommended Strategy`}
+                {`OPT 0${topStrategy?.rank || 1} // ${t("brief.recommended")}`}
               </span>
               <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">
                 {topIrr} mm/yr (−{waterSavedPct}% H₂O)
@@ -206,7 +232,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className="font-mono text-[11px] font-bold text-cyan-600 dark:text-cyan-300 uppercase tracking-widest flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-cyan-400" />
-              <span>KVK Field Action Metrics &amp; Indian Government Scheme Eligibility</span>
+              <span>{t("brief.kvkTitle")}</span>
             </h4>
             {pm && (
               <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold">
@@ -224,17 +250,17 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
           {pm && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 text-xs font-mono">
               <div className="p-3 rounded-lg bg-surface border border-line">
-                <span className="text-[10px] text-muted block uppercase">Kharif→Rabi Window</span>
+                <span className="text-[10px] text-muted block uppercase">{t("brief.turnaroundWindow")}</span>
                 <span className="text-sm font-bold text-emerald-500 dark:text-emerald-400">
                   {pm.turnaround_days_kharif_rabi} days
                 </span>
                 <span className="text-[10px] text-muted block font-sans">
-                  {pm.turnaround_days_kharif_rabi >= 20 ? "Burn-free Happy Seeder window" : "Tight sowing window"}
+                  {pm.turnaround_days_kharif_rabi >= 20 ? t("brief.happySeederWindow") : t("brief.tightWindow")}
                 </span>
               </div>
 
               <div className="p-3 rounded-lg bg-surface border border-line">
-                <span className="text-[10px] text-muted block uppercase">Irrigations Saved</span>
+                <span className="text-[10px] text-muted block uppercase">{t("brief.irrigationsSaved")}</span>
                 <span className="text-sm font-bold text-cyan-500 dark:text-cyan-300">
                   {pm.irrigations_saved_per_yr > 0 ? `−${pm.irrigations_saved_per_yr.toFixed(1)}` : "0"} irrigations/yr
                 </span>
@@ -244,7 +270,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
               </div>
 
               <div className="p-3 rounded-lg bg-surface border border-line">
-                <span className="text-[10px] text-muted block uppercase">45-kg Urea Bags Saved</span>
+                <span className="text-[10px] text-muted block uppercase">{t("brief.ureaBagsSaved")}</span>
                 <span className="text-sm font-bold text-emerald-500 dark:text-emerald-400">
                   {scaleByUnit(pm.urea_bags_saved_per_ha, unitSystem).toFixed(1)} bags{fmtAreaUnit(unitSystem)}
                 </span>
@@ -254,7 +280,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
               </div>
 
               <div className="p-3 rounded-lg bg-surface border border-line">
-                <span className="text-[10px] text-muted block uppercase">Est. Labour Cost</span>
+                <span className="text-[10px] text-muted block uppercase">{t("brief.labourCost")}</span>
                 <span className="text-sm font-bold text-foreground">
                   {fmtAreaMoney(pm.labor_cost_inr_per_ha, currencySymbol, unitSystem)}
                 </span>
@@ -268,7 +294,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
           {pm?.eligible_schemes && pm.eligible_schemes.length > 0 && (
             <div className="pt-2 border-t border-line/60 flex flex-wrap items-center gap-2">
               <span className="text-[10px] font-mono uppercase tracking-wider text-amber-500 flex items-center gap-1 font-bold">
-                <Award className="w-3.5 h-3.5" /> Eligible Subsidies &amp; Schemes:
+                <Award className="w-3.5 h-3.5" /> {t("brief.eligibleSubsidies")}:
               </span>
               {pm.eligible_schemes.map((scheme: string, i: number) => (
                 <span
@@ -283,11 +309,43 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
         </div>
       )}
 
+      {/* What the Model Does NOT Capture (Disclosure Panel) */}
+      <div className="p-5 rounded-xl bg-amber-500/[0.07] border border-amber-500/30 space-y-2.5 print:block">
+        <h4 className="font-mono text-[11px] font-bold text-amber-700 dark:text-amber-300 uppercase tracking-widest flex items-center gap-1.5">
+          <span>⚠️ {t("unmodelled.title")}</span>
+        </h4>
+        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-foreground/85">
+          <li className="flex items-start gap-1.5">
+            <span className="text-amber-500 font-bold">•</span>
+            <span>{t("unmodelled.pests")}</span>
+          </li>
+          <li className="flex items-start gap-1.5">
+            <span className="text-amber-500 font-bold">•</span>
+            <span>{t("unmodelled.weather")}</span>
+          </li>
+          <li className="flex items-start gap-1.5">
+            <span className="text-amber-500 font-bold">•</span>
+            <span>{t("unmodelled.market")}</span>
+          </li>
+          <li className="flex items-start gap-1.5">
+            <span className="text-amber-500 font-bold">•</span>
+            <span>{t("unmodelled.labour")}</span>
+          </li>
+          <li className="flex items-start gap-1.5 sm:col-span-2">
+            <span className="text-amber-500 font-bold">•</span>
+            <span>{t("unmodelled.water")}</span>
+          </li>
+        </ul>
+        <p className="text-[10px] font-mono text-muted pt-1 border-t border-amber-500/20">
+          {t("warning.yieldGapDisclaimer")}
+        </p>
+      </div>
+
       {/* Key Agronomic Recommendations & Evidence */}
       {topStrategy?.why && topStrategy.why.length > 0 && (
         <div className="p-5 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/25 space-y-2.5">
           <h4 className="font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-widest">
-            Grounded Satellite &amp; Biophysical Evidence
+            {t("brief.evidenceTitle")}
           </h4>
           <ul className="space-y-2 text-xs text-foreground/90 leading-relaxed prose-measure">
             {topStrategy.why.map((reason, idx) => (
@@ -299,7 +357,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
             <li className="flex items-start gap-2 font-medium">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
               <span>
-                Net Parcel Impact: Conserves <strong>{baseIrr - topIrr} mm/yr</strong> irrigation water, mitigates aquifer drawdown, and shifts topsoil organic carbon by <strong>{fmtSigned(carbonDelta, 1, " t C/ha")}</strong> vs. baseline over 10 years.
+                {t("brief.netImpact")}: {t("brief.conserves")} <strong>{baseIrr - topIrr} mm/yr</strong> {t("brief.irrWaterMitigates")} <strong>{fmtSigned(carbonDelta, 1, " t C/ha")}</strong> {t("brief.vsBaseline10Yr")}
               </span>
             </li>
           </ul>
@@ -311,7 +369,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
         <div className="space-y-1.5 text-xs">
           <h4 className="text-[10px] font-mono font-bold text-muted uppercase tracking-widest flex items-center gap-1.5">
             <FileText className="w-3.5 h-3.5 text-muted" />
-            <span>NASA Agro-Climatic Diagnostics</span>
+            <span>{t("brief.diagnosticsTitle")}</span>
           </h4>
           <ul className="space-y-1 text-muted list-disc list-inside leading-relaxed prose-measure">
             {agro_climatic_notes.map((note, idx) => (
@@ -323,8 +381,8 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
 
       {/* Footer Provenance */}
       <div className="pt-5 border-t border-line text-[10px] font-mono text-muted flex flex-wrap items-center justify-between gap-2">
-        <span>PROVENANCE: NASA POWER · ISRIC SoilGrids · NASA SMAP · NASA GRACE-FO · NASA FIRMS · FAO-56 Root-Zone Water Balance</span>
-        <span className="font-bold text-foreground/80">TERRALOOP // NASA SPACE APPS CHALLENGE 2026</span>
+        <span>{t("brief.provenanceFooter")}</span>
+        <span className="font-bold text-foreground/80">{t("brief.challengeFooter")}</span>
       </div>
     </div>
   );

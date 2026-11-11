@@ -6,13 +6,26 @@
       "lat": 25.38,
       "lon": 78.62
     },
-    "timestamp_utc": "2026-11-10T08:49:50.536755+00:00",
-    "gee_live": false,
+    "timestamp_utc": "2026-11-11T03:33:21.755521+00:00",
+    "gee_live": true,
     "data_mode": "observed",
     "is_fallback": false,
     "soil_source": "modelled",
     "soil_provenance_modes": [
       "observed",
+      "observed"
+    ],
+    "water_provenance_modes": [
+      "observed",
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "hazards_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "crop_history_provenance_modes": [
       "observed"
     ],
     "crop_history_seasons_detected": 10,
@@ -27,13 +40,26 @@
       "lat": 10.72,
       "lon": 79.25
     },
-    "timestamp_utc": "2026-11-10T08:50:05.411364+00:00",
-    "gee_live": false,
+    "timestamp_utc": "2026-11-11T03:33:48.418780+00:00",
+    "gee_live": true,
     "data_mode": "observed",
     "is_fallback": false,
     "soil_source": "modelled",
     "soil_provenance_modes": [
       "observed",
+      "observed"
+    ],
+    "water_provenance_modes": [
+      "observed",
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "hazards_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "crop_history_provenance_modes": [
       "observed"
     ],
     "crop_history_seasons_detected": 12,
@@ -48,13 +74,26 @@
       "lat": 30.19,
       "lon": 75.78
     },
-    "timestamp_utc": "2026-11-10T08:49:12.774234+00:00",
-    "gee_live": false,
+    "timestamp_utc": "2026-11-11T03:32:44.300112+00:00",
+    "gee_live": true,
     "data_mode": "observed",
     "is_fallback": false,
     "soil_source": "modelled",
     "soil_provenance_modes": [
       "observed",
+      "observed"
+    ],
+    "water_provenance_modes": [
+      "observed",
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "hazards_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "crop_history_provenance_modes": [
       "observed"
     ],
     "crop_history_seasons_detected": 10,
@@ -69,13 +108,26 @@
       "lat": 30.82,
       "lon": 75.68
     },
-    "timestamp_utc": "2026-11-10T08:49:26.457770+00:00",
-    "gee_live": false,
+    "timestamp_utc": "2026-11-11T03:32:57.733366+00:00",
+    "gee_live": true,
     "data_mode": "observed",
     "is_fallback": false,
     "soil_source": "modelled",
     "soil_provenance_modes": [
       "observed",
+      "observed"
+    ],
+    "water_provenance_modes": [
+      "observed",
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "hazards_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "crop_history_provenance_modes": [
       "observed"
     ],
     "crop_history_seasons_detected": 10,
@@ -90,13 +142,26 @@
       "lat": 30.12,
       "lon": 74.86
     },
-    "timestamp_utc": "2026-11-10T08:49:43.218540+00:00",
-    "gee_live": false,
+    "timestamp_utc": "2026-11-11T03:33:12.021011+00:00",
+    "gee_live": true,
     "data_mode": "observed",
     "is_fallback": false,
     "soil_source": "modelled",
     "soil_provenance_modes": [
       "observed",
+      "observed"
+    ],
+    "water_provenance_modes": [
+      "observed",
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "hazards_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "crop_history_provenance_modes": [
       "observed"
     ],
     "crop_history_seasons_detected": 10,
@@ -111,13 +176,26 @@
       "lat": 20.39,
       "lon": 78.13
     },
-    "timestamp_utc": "2026-11-10T08:49:46.870602+00:00",
-    "gee_live": false,
+    "timestamp_utc": "2026-11-11T03:33:16.917002+00:00",
+    "gee_live": true,
     "data_mode": "observed",
     "is_fallback": false,
     "soil_source": "modelled",
     "soil_provenance_modes": [
       "observed",
+      "observed"
+    ],
+    "water_provenance_modes": [
+      "observed",
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "hazards_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "crop_history_provenance_modes": [
       "observed"
     ],
     "crop_history_seasons_detected": 6,

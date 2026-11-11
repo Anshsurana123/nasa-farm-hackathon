@@ -11,16 +11,20 @@ import json
 import logging
 import os
 import re
+import threading
+import time
 import urllib.parse
+import uuid
 from datetime import date
 from pathlib import Path
 
 import httpx
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from terraloop_engine import crop_kb, profiler, region_registry, suitability
+from starlette.responses import JSONResponse
+from terraloop_engine import cache, crop_kb, profiler, region_registry, suitability
 from terraloop_engine.climate import ensembles
 from terraloop_engine.data import nasa_power
 from terraloop_engine.explain import why_cards
@@ -79,6 +83,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ---------------------------------------------------------------------------
+# Rate Limiting Middleware & Nominatim Throttling (Issue 19 / WS-K4)
+# ---------------------------------------------------------------------------
+_RATE_LIMIT_BUCKET: dict[str, list[float]] = {}
+_RATE_LIMIT_LOCK = threading.Lock()
+_NOMINATIM_LOCK = threading.Lock()
+_LAST_NOMINATIM_CALL_TIME: float = 0.0
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    # Only rate-limit compute-heavy endpoints (/recommend and /profile) to prevent abuse (Issue 19 / WS-K4)
+    path = request.url.path
+    if not path.startswith(("/recommend", "/profile")):
+        return await call_next(request)
+    if path.startswith("/recommend/jobs"):
+        return await call_next(request)
+
+    limit_per_min = int(os.environ.get("TERRALOOP_RATE_LIMIT_PER_MIN", "60"))
+    if limit_per_min <= 0:
+        return await call_next(request)
+
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    now = time.time()
+
+    with _RATE_LIMIT_LOCK:
+        timestamps = _RATE_LIMIT_BUCKET.setdefault(client_ip, [])
+        # Prune timestamps older than 60s
+        timestamps = [t for t in timestamps if now - t < 60.0]
+        _RATE_LIMIT_BUCKET[client_ip] = timestamps
+
+        if len(timestamps) >= limit_per_min:
+            retry_after = int(60.0 - (now - timestamps[0])) + 1
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "detail": f"Rate limit of {limit_per_min} requests/minute exceeded. Please retry after {retry_after}s.",
+                    "client_ip": client_ip,
+                    "retry_after_seconds": retry_after,
+                },
+                headers={"Retry-After": str(retry_after)},
+            )
+        timestamps.append(now)
+
+    return await call_next(request)
+
 
 # ---------------------------------------------------------------------------
 # Meta
@@ -100,15 +150,15 @@ def _golden_index() -> list[dict]:
     return json.loads((GOLDEN_DIR / "fields.json").read_text(encoding="utf-8"))
 
 
-def _match_golden_field(field: FieldGeometry, radius: float = 0.15) -> str | None:
-    """Match a field geometry to a precomputed golden benchmark field by ID, name, or spatial proximity (<0.15°)."""
-    f_name = (field.name or "").lower()
-    matches = [
-        f for f in _golden_index()
-        if (field.id and f["id"] == field.id)
-        or (f_name and f["id"] in f_name)
-        or (abs(f["lat"] - field.lat) < radius and abs(f["lon"] - field.lon) < radius)
-    ]
+def _match_golden_field(field: FieldGeometry) -> str | None:
+    """Match a field geometry to a precomputed golden benchmark field ONLY by exact field.id.
+
+    Golden/precomputed data is strictly reserved for explicitly-selected demonstration fields.
+    Spatial proximity matching (<0.15°) and name substring heuristics are prohibited (WS-B).
+    """
+    if not field.id:
+        return None
+    matches = [f for f in _golden_index() if f["id"] == field.id]
     return matches[0]["id"] if matches else None
 
 
@@ -139,13 +189,18 @@ def golden_profile(field_id: str) -> FieldProfile:
         prof = FieldProfile.model_validate_json(path.read_text(encoding="utf-8"))
         prof.currency = "INR"
         prof.currency_symbol = "₹"
+        prof.served_from = "demo_snapshot"
+        prof.snapshot_date = "2026-11-10"
         if not prof.agro_zone:
             prof.agro_zone = economics.detect_agro_zone(prof.field.lat, prof.field.lon)
         return prof
     match = next((f for f in _golden_index() if f["id"] == field_id), None)
     if not match:
         raise HTTPException(404, f"Unknown golden field '{field_id}'")
-    return profiler.build_profile(FieldGeometry(lat=match["lat"], lon=match["lon"], name=match["name"]))
+    prof = profiler.build_profile(FieldGeometry(lat=match["lat"], lon=match["lon"], name=match["name"], id=field_id))
+    prof.served_from = "demo_snapshot"
+    prof.snapshot_date = "2026-11-10"
+    return prof
 
 
 @app.get("/golden/{field_id}/recommendations", response_model=list[StrategyRecommendation])
@@ -153,12 +208,16 @@ def golden_recommendations(field_id: str) -> list[StrategyRecommendation]:
     path = GOLDEN_DIR / field_id / "recommendations.json"
     if path.exists():
         raw_list = json.loads(path.read_text(encoding="utf-8"))
-        return [StrategyRecommendation.model_validate(item) for item in raw_list]
+        recs = [StrategyRecommendation.model_validate(item) for item in raw_list]
+        for r in recs:
+            r.served_from = "demo_snapshot"
+            r.snapshot_date = "2026-11-10"
+        return recs
     match = next((f for f in _golden_index() if f["id"] == field_id), None)
     if not match:
         raise HTTPException(404, f"Unknown golden field '{field_id}'")
     return recommend(
-        RecommendRequest(field=FieldGeometry(lat=match["lat"], lon=match["lon"], name=match["name"]))
+        RecommendRequest(field=FieldGeometry(lat=match["lat"], lon=match["lon"], name=match["name"], id=field_id))
     )
 
 
@@ -188,35 +247,71 @@ def _extract_place_name_from_url(url_str: str) -> str | None:
     return None
 
 
-def _reverse_geocode_nominatim(lat: float, lon: float) -> str | None:
-    """Best-effort reverse geocode using OSM Nominatim to obtain a human-friendly place name."""
-    try:
-        with httpx.Client(timeout=4.0) as client:
-            resp = client.get(
-                "https://nominatim.openstreetmap.org/reverse",
-                params={"lat": lat, "lon": lon, "format": "json"},
-                headers={"User-Agent": "TerraLoop-SpaceApps/1.0"},
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                addr = data.get("address", {})
-                local = (
-                    addr.get("village")
-                    or addr.get("town")
-                    or addr.get("city")
-                    or addr.get("county")
-                    or addr.get("state_district")
-                    or addr.get("suburb")
+@cache.disk_cache(namespace="geocode_reverse")
+def _call_nominatim_reverse(lat: float, lon: float) -> str | None:
+    global _LAST_NOMINATIM_CALL_TIME
+    with _NOMINATIM_LOCK:
+        now = time.time()
+        elapsed = now - _LAST_NOMINATIM_CALL_TIME
+        if elapsed < 1.0:
+            time.sleep(1.0 - elapsed)
+        _LAST_NOMINATIM_CALL_TIME = time.time()
+
+        try:
+            with httpx.Client(timeout=4.0) as client:
+                resp = client.get(
+                    "https://nominatim.openstreetmap.org/reverse",
+                    params={"lat": lat, "lon": lon, "format": "json"},
+                    headers={"User-Agent": "TerraLoop-SpaceApps/1.0"},
                 )
-                state = addr.get("state")
-                if local and state:
-                    return f"{local}, {state}"
-                disp = data.get("display_name")
-                if disp:
-                    parts = [p.strip() for p in disp.split(",") if p.strip()]
-                    return parts[0] if len(parts) <= 2 else f"{parts[0]}, {parts[-1]}"
-    except Exception:  # noqa: BLE001, S110
-        pass
+                if resp.status_code == 200:
+                    data = resp.json()
+                    addr = data.get("address", {})
+                    local = (
+                        addr.get("village")
+                        or addr.get("town")
+                        or addr.get("city")
+                        or addr.get("county")
+                        or addr.get("state_district")
+                        or addr.get("suburb")
+                    )
+                    state = addr.get("state")
+                    if local and state:
+                        return f"{local}, {state}"
+                    disp = data.get("display_name")
+                    if disp:
+                        parts = [p.strip() for p in disp.split(",") if p.strip()]
+                        return parts[0] if len(parts) <= 2 else f"{parts[0]}, {parts[-1]}"
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Nominatim reverse geocode lookup failed: %s", exc)
+    return None
+
+
+def _reverse_geocode_nominatim(lat: float, lon: float) -> str | None:
+    """Best-effort reverse geocode using OSM Nominatim with disk caching & 1.0s thread-safe throttling."""
+    return _call_nominatim_reverse(round(lat, 4), round(lon, 4))
+
+
+@cache.disk_cache(namespace="geocode")
+def _call_nominatim_search(query_text: str) -> list[dict] | None:
+    global _LAST_NOMINATIM_CALL_TIME
+    with _NOMINATIM_LOCK:
+        now = time.time()
+        elapsed = now - _LAST_NOMINATIM_CALL_TIME
+        if elapsed < 1.0:
+            time.sleep(1.0 - elapsed)
+        _LAST_NOMINATIM_CALL_TIME = time.time()
+
+        url = "https://nominatim.openstreetmap.org/search"
+        headers = {"User-Agent": "TerraLoop-SpaceApps/1.0"}
+        params = {"q": query_text, "format": "json", "limit": 1, "countrycodes": "in"}
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.get(url, params=params, headers=headers)
+                if resp.status_code == 200:
+                    return resp.json()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Nominatim geocoding failed for '%s': %s", query_text, exc)
     return None
 
 
@@ -322,26 +417,17 @@ def geocode_location(q: str) -> GeocodeResult:
         elif extracted_name:
             text = extracted_name
 
-    url = "https://nominatim.openstreetmap.org/search"
-    headers = {"User-Agent": "TerraLoop-SpaceApps/1.0"}
-    params = {"q": text, "format": "json", "limit": 1, "countrycodes": "in"}
-    try:
-        with httpx.Client(timeout=10.0) as client:
-            resp = client.get(url, params=params, headers=headers)
-            if resp.status_code == 200:
-                data = resp.json()
-                if data and len(data) > 0:
-                    item = data[0]
-                    disp = item.get("display_name", text)
-                    parts = [p.strip() for p in disp.split(",") if p.strip()]
-                    short_name = parts[0] if len(parts) == 1 else f"{parts[0]}, {parts[-2] if len(parts) > 2 else parts[-1]}"
-                    return GeocodeResult(
-                        lat=round(float(item["lat"]), 4),
-                        lon=round(float(item["lon"]), 4),
-                        name=short_name,
-                    )
-    except Exception as exc:  # noqa: BLE001
-        log.warning("Nominatim geocoding failed for '%s': %s", text, exc)
+    data = _call_nominatim_search(text)
+    if data and len(data) > 0:
+        item = data[0]
+        disp = item.get("display_name", text)
+        parts = [p.strip() for p in disp.split(",") if p.strip()]
+        short_name = parts[0] if len(parts) == 1 else f"{parts[0]}, {parts[-2] if len(parts) > 2 else parts[-1]}"
+        return GeocodeResult(
+            lat=round(float(item["lat"]), 4),
+            lon=round(float(item["lon"]), 4),
+            name=short_name,
+        )
 
     raise HTTPException(status_code=404, detail=f"Indian location or village '{q}' not found")
 
@@ -349,12 +435,16 @@ def geocode_location(q: str) -> GeocodeResult:
 @app.post("/profile", response_model=FieldProfile)
 def build_profile(field: FieldGeometry) -> FieldProfile:
     reg_cfg = region_registry.detect_region_config(field.lat, field.lon)
-    matched_id = _match_golden_field(field, radius=0.15)
+    matched_id = _match_golden_field(field)
     if matched_id:
         prof = golden_profile(matched_id)
+        prof.served_from = "demo_snapshot"
+        prof.snapshot_date = "2026-11-10"
     else:
         try:
             prof = profiler.build_profile(field)
+            prof.served_from = "live_computation"
+            prof.snapshot_date = None
         except Exception as exc:
             log.exception("profile failed")
             raise HTTPException(502, f"Upstream data error: {exc}") from exc
@@ -369,13 +459,125 @@ def build_profile(field: FieldGeometry) -> FieldProfile:
 
 @app.post("/suitability", response_model=list[SuitabilityItem])
 def crop_suitability(req: SuitabilityRequest) -> list[SuitabilityItem]:
-    matched_id = _match_golden_field(req.field, radius=0.15)
+    matched_id = _match_golden_field(req.field)
     prof = golden_profile(matched_id) if matched_id else profiler.build_profile(req.field)
     crops = crop_kb.load_crops()
     return [
         SuitabilityItem(name=crops[r.crop_id].name, **r.__dict__)
         for r in suitability.rank_crops(prof, crops, req.constraints)
     ]
+
+
+def build_objective_dict(
+    rot: rotations.Rotation,
+    res: evaluate.SimulationResult,
+    pm: evaluate.PracticalFarmerMetrics,
+    econ_crops: dict[str, dict] | None = None,
+    prof: FieldProfile | None = None,
+    rot_years: int = 1,
+) -> dict[str, float]:
+    """Build the 6-objective dictionary for multi-criteria NSGA-II Pareto & Priority ranking.
+
+    Standardized Signs, Units, and Reference Points:
+    -------------------------------------------------
+    1. 'profit': Effective Median Operating Profit (P50) in ₹/ha/year.
+       - Sign: Positive is better.
+       - Unit: ₹/ha/year (INR).
+       - Scaling: Scaled by procurement assurance factor (0.70 to 1.00) based on
+         CACP open-ended MSP procurement (Wheat, Paddy) vs NAFED PSS (Pulses/Oilseeds)
+         vs private mandi market realization risk.
+    2. 'water_savings': Effective Annual Irrigation Extraction.
+       - Sign: Negative irrigation (-mm/year) so that higher (less negative) is better.
+       - Unit: -mm/year of net irrigation water pumped.
+       - Scaling: Modulated by NASA GRACE groundwater depletion trend (+10%/cm/yr depletion,
+         capped at 1.50x urgency multiplier for severely depleting aquifers like Punjab).
+    3. 'soil_health': Decadal Soil Health Composite Score.
+       - Sign: Higher is better (0 to 100 scale).
+       - Unit: Score (0-100).
+       - Composition: USDA-NRCS 5-principles (Armor, Min Disturbance, Diversity, Living Roots,
+         Organic N) + RothC-lite 26.3 10-yr SOC delta modifier + RUSLE erosion modifier - burn penalty.
+    4. 'low_risk': Downside Risk (CVaR-10).
+       - Sign: Higher (less negative loss or higher positive income in worst 10% climate years) is better.
+       - Unit: ₹/ha/year (INR).
+       - Definition: Expected profit in the worst 10% historical/CMIP6 climate years (Conditional Value at Risk at alpha=0.10).
+    5. 'low_labour': Negative Annual Labour Cost.
+       - Sign: Negative (-₹/ha/year) so that higher (closer to 0) is better.
+       - Unit: -₹/ha/year (-INR).
+       - Definition: -pm.labor_cost_inr_per_ha. Less negative indicates lower hired and imputed labour requirement.
+    6. 'food_security': Nutrition Adequacy Index.
+       - Sign: Higher is better (0 to 100 scale).
+       - Unit: Score (0-100).
+       - Definition: ICMR-NIN (2020) RDA adequacy based on metabolizable food energy (Mcal/ha)
+         and dietary protein (kg/ha) per hectare per year.
+    """
+    mean_irr = float(np.mean(res.irrigation_mm)) if res.irrigation_mm else 0.0
+    active_cids = [s.crop_id for s in rot.steps if s.crop_id != "fallow"]
+    main_cids = [s.crop_id for s in rot.steps if s.crop_id != "fallow" and s.season_index in (0, 1)]
+
+    # Procurement assurance factor: reflects CACP open-ended MSP procurement (Wheat, Paddy)
+    # vs NAFED PSS price support (25% cap) vs open mandi market realization
+    proc_factors: list[float] = []
+    msp_count = 0
+    econ_lookup = econ_crops or {}
+    for cid in active_cids:
+        c_econ = econ_lookup.get(cid, {})
+        p_type = str(c_econ.get("procurement_type", "nafed_pss"))
+        m_risk = float(c_econ.get("market_risk", 0.12))
+        if p_type == "msp_assured":
+            p_base = 1.0
+            if cid in main_cids:
+                msp_count += 1
+        elif p_type == "nafed_pss":
+            p_base = 0.85
+        else:
+            p_base = 0.75
+        proc_factors.append(p_base * (1.0 - 0.50 * m_risk))
+    proc_assurance = float(np.mean(proc_factors)) if proc_factors else 0.85
+    if msp_count >= 2:
+        proc_assurance = min(1.0, proc_assurance + 0.10)
+    elif msp_count == 1:
+        proc_assurance = min(0.96, proc_assurance + 0.04)
+
+    # Median Operating Profit (P50) with price realization floor
+    p50 = res.profit_p50
+    if p50 >= 0.0:
+        effective_profit = p50 * (0.85 + 0.15 * proc_assurance)
+    else:
+        effective_profit = p50 * (2.0 - proc_assurance)
+
+    # Downside Risk (CVaR-10): worst-10% ensemble climate profit.
+    # When CVaR is negative (operating loss), lower procurement assurance deepens the loss
+    # rather than artificially reducing it.
+    cvar = res.cvar_profit_10
+    if cvar >= 0.0:
+        effective_cvar = cvar * (0.85 + 0.15 * proc_assurance)
+    else:
+        effective_cvar = cvar * (2.0 - proc_assurance)
+
+    # Food Security: calculated metabolizable food energy (Mcal/ha) and dietary protein (kg/ha)
+    # benchmarked against ICMR-NIN (2020) rural household Recommended Dietary Allowances.
+    step_yields = [
+        (s.crop_id, float(np.mean(res.yield_t_ha.get(s.crop_id, [0.0]))))
+        for s in rot.steps
+    ]
+    nutr = nutrition.compute_nutrition_yield(step_yields, rotation_years=rot_years)
+
+    # Groundwater trend from NASA GRACE-FO modulates water savings urgency (F-05)
+    gw_trend = prof.water.groundwater_trend_cm_per_year if (prof and prof.water) else None
+    if gw_trend is not None and gw_trend < -1.0:
+        gw_mult = min(1.50, 1.0 + 0.10 * (abs(gw_trend) - 1.0))
+    else:
+        gw_mult = 1.0
+    effective_water_obj = -mean_irr * gw_mult
+
+    return {
+        "profit": round(effective_profit, 1),
+        "water_savings": round(effective_water_obj, 1),
+        "soil_health": res.soil_health_score,
+        "low_risk": round(effective_cvar, 1),
+        "low_labour": -pm.labor_cost_inr_per_ha,
+        "food_security": nutr["food_security_score"],
+    }
 
 
 @app.post("/recommend", response_model=list[StrategyRecommendation])
@@ -385,23 +587,28 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     Returns list[StrategyRecommendation] containing baseline (rank 0) plus top 3 recommendations."""
     # 1. Field Profile & Regional Validation Status
     reg_cfg = region_registry.detect_region_config(req.field.lat, req.field.lon)
-    matched_golden_id: str | None = _match_golden_field(req.field, radius=0.15)
+    matched_golden_id: str | None = _match_golden_field(req.field)
 
     if matched_golden_id:
         prof = golden_profile(matched_golden_id)
+        prof.served_from = "demo_snapshot"
+        prof.snapshot_date = "2026-11-10"
     else:
         try:
             prof = profiler.build_profile(req.field)
+            prof.served_from = "live_computation"
+            prof.snapshot_date = None
         except Exception as exc:  # noqa: BLE001
             log.warning("Live profiler failed: %s; falling back to regional Indian profile", exc)
             syn_weather = nasa_power.synthetic_daily_weather(req.field.lat, req.field.lon, (1995, 2024))
             c, h, wb = profiler.summarise_climate(syn_weather, req.field.lat, prov_mode="regional_climatology")
             s = profiler.summarise_soil(
-                profiler.regional_indian_soil_fallback(req.field.lat, req.field.lon),
+                region_registry.get_regional_soil(req.field.lat, req.field.lon),
                 prov_mode="regional_climatology",
             )
             prof = FieldProfile(
                 field=req.field,
+                state=reg_cfg.state,
                 climate=c,
                 water=WaterSummary(climatic_water_balance_mm=wb),
                 soil=s,
@@ -409,8 +616,12 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
                 currency=reg_cfg.currency,
                 currency_symbol=reg_cfg.currency_symbol,
                 agro_zone=reg_cfg.agro_zone,
+                validation_status=reg_cfg.validation_status,
+                validation_message=reg_cfg.validation_message,
                 is_fallback=True,
-                data_mode="fallback_synthetic",
+                data_mode="regional_climatology",
+                served_from="live_computation",
+                snapshot_date=None,
                 agro_climatic_notes=profiler.build_notes(
                     c, s, WaterSummary(climatic_water_balance_mm=wb), h, lat=req.field.lat
                 ),
@@ -516,12 +727,12 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     seasons = rotations.derive_seasons(prof)
     candidate_rotations = rotations.generate_rotations(filtered_crops, req.constraints, seasons=seasons)
 
-    if len(candidate_rotations) > 75:
+    if len(candidate_rotations) > 85:
         candidate_rotations = evaluate.prescreen_rotations_with_surrogate(
             candidate_rotations,
             prof,
             crops=crops,
-            max_candidates=75,
+            max_candidates=85,
             rank_scores=rank_scores,
         )
 
@@ -556,80 +767,19 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     )
 
     # 6. Map to objective scores for Pareto / Priority selection (incorporating procurement_type & market_risk)
-    econ_crops = economics.load_economics("punjab").get("crops", {})
+    econ_region = reg_cfg.state.lower().replace(" ", "_") if reg_cfg.state else reg_cfg.region_id
+    econ_data = economics.load_economics(econ_region)
+    econ_crops = econ_data.get("crops", {})
+    econ_basis = econ_data.get("economics_basis", "local_verified")
 
     def _build_objective_dict(
         rot: rotations.Rotation,
         res: evaluate.SimulationResult,
         pm: evaluate.PracticalFarmerMetrics,
     ) -> dict[str, float]:
-        mean_irr = float(np.mean(res.irrigation_mm)) if res.irrigation_mm else 0.0
-        active_cids = [s.crop_id for s in rot.steps if s.crop_id != "fallow"]
-        main_cids = [s.crop_id for s in rot.steps if s.crop_id != "fallow" and s.season_index in (0, 1)]
-
-        # Procurement assurance factor: reflects CACP open-ended MSP procurement (Wheat, Paddy)
-        # vs NAFED PSS price support (25% cap) vs open mandi market realization
-        proc_factors: list[float] = []
-        msp_count = 0
-        for cid in active_cids:
-            c_econ = econ_crops.get(cid, {})
-            p_type = str(c_econ.get("procurement_type", "nafed_pss"))
-            m_risk = float(c_econ.get("market_risk", 0.12))
-            if p_type == "msp_assured":
-                p_base = 1.0
-                if cid in main_cids:
-                    msp_count += 1
-            elif p_type == "nafed_pss":
-                p_base = 0.85
-            else:
-                p_base = 0.75
-            proc_factors.append(p_base * (1.0 - 0.50 * m_risk))
-        proc_assurance = float(np.mean(proc_factors)) if proc_factors else 0.85
-        if msp_count >= 2:
-            proc_assurance = min(1.0, proc_assurance + 0.10)
-        elif msp_count == 1:
-            proc_assurance = min(0.96, proc_assurance + 0.04)
-
-        # Median Operating Profit (P50) with price realization floor
-        p50 = res.profit_p50
-        if p50 >= 0.0:
-            effective_profit = p50 * (0.85 + 0.15 * proc_assurance)
-        else:
-            effective_profit = p50 * (2.0 - proc_assurance)
-
-        # Downside Risk (CVaR-10): worst-10% ensemble climate profit.
-        # When CVaR is negative (operating loss), lower procurement assurance deepens the loss
-        # rather than artificially reducing it.
-        cvar = res.cvar_profit_10
-        if cvar >= 0.0:
-            effective_cvar = cvar * (0.85 + 0.15 * proc_assurance)
-        else:
-            effective_cvar = cvar * (2.0 - proc_assurance)
-
-        # Food Security: calculated metabolizable food energy (Mcal/ha) and dietary protein (kg/ha)
-        # benchmarked against ICMR-NIN (2020) rural household Recommended Dietary Allowances.
-        step_yields = [
-            (s.crop_id, float(np.mean(res.yield_t_ha.get(s.crop_id, [0.0]))))
-            for s in rot.steps
-        ]
-        nutr = nutrition.compute_nutrition_yield(step_yields, rotation_years=rot_years)
-
-        # Groundwater trend from NASA GRACE-FO modulates water savings urgency (F-05)
-        gw_trend = prof.water.groundwater_trend_cm_per_year
-        if gw_trend is not None and gw_trend < -1.0:
-            gw_mult = min(1.50, 1.0 + 0.10 * (abs(gw_trend) - 1.0))
-        else:
-            gw_mult = 1.0
-        effective_water_obj = -mean_irr * gw_mult
-
-        return {
-            "profit": round(effective_profit, 1),
-            "water_savings": round(effective_water_obj, 1),
-            "soil_health": res.soil_health_score,
-            "low_risk": round(effective_cvar, 1),
-            "low_labour": -pm.labor_cost_inr_per_ha,
-            "food_security": nutr["food_security_score"],
-        }
+        return build_objective_dict(
+            rot, res, pm, econ_crops=econ_crops, prof=prof, rot_years=rot_years
+        )
 
     cand_obj_dicts: list[dict[str, float]] = [
         _build_objective_dict(baseline_rot, baseline_result, baseline_pm)
@@ -698,6 +848,10 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         data_mode=rec_data_mode,
         validation_status=reg_cfg.validation_status,
         validation_message=reg_cfg.validation_message,
+        economics_basis=econ_basis,
+        state=prof.state,
+        served_from="demo_snapshot" if matched_golden_id else "live_computation",
+        snapshot_date="2026-11-10" if matched_golden_id else None,
     )
     baseline_rec.narrative_summary = why_cards.grounded_llm_explain(
         prof, baseline_rec, baseline_rec, language=req.language
@@ -753,6 +907,10 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
             data_mode=rec_data_mode,
             validation_status=reg_cfg.validation_status,
             validation_message=reg_cfg.validation_message,
+            economics_basis=econ_basis,
+            state=prof.state,
+            served_from="demo_snapshot" if matched_golden_id else "live_computation",
+            snapshot_date="2026-11-10" if matched_golden_id else None,
         )
         cards, provs = why_cards.why_cards(prof, rec, baseline_rec, language=req.language)
         if scenario_set.kind == "cmip6":
@@ -765,3 +923,61 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         out_recs.append(rec)
 
     return out_recs
+
+
+# ---------------------------------------------------------------------------
+# Async Recommend Jobs (TASK-H02)
+# ---------------------------------------------------------------------------
+_RECOMMEND_JOBS: dict[str, dict] = {}
+
+
+def _async_recommend_worker(job_id: str, req: RecommendRequest) -> None:
+    try:
+        _RECOMMEND_JOBS[job_id]["status"] = "running"
+        _RECOMMEND_JOBS[job_id]["step"] = "evaluating"
+        _RECOMMEND_JOBS[job_id]["progress"] = 0.3
+        recs = recommend(req)
+        _RECOMMEND_JOBS[job_id]["status"] = "completed"
+        _RECOMMEND_JOBS[job_id]["step"] = "done"
+        _RECOMMEND_JOBS[job_id]["progress"] = 1.0
+        _RECOMMEND_JOBS[job_id]["result"] = [r.model_dump() for r in recs]
+        _RECOMMEND_JOBS[job_id]["error"] = None
+    except Exception as exc:
+        log.exception("Async recommend worker error for job %s", job_id)
+        _RECOMMEND_JOBS[job_id]["status"] = "failed"
+        _RECOMMEND_JOBS[job_id]["step"] = "failed"
+        _RECOMMEND_JOBS[job_id]["progress"] = 1.0
+        _RECOMMEND_JOBS[job_id]["result"] = None
+        _RECOMMEND_JOBS[job_id]["error"] = str(exc)
+
+
+@app.post("/recommend/async")
+def recommend_async(req: RecommendRequest) -> dict:
+    """Submit an asynchronous crop-rotation recommendation simulation job (TASK-H02)."""
+    job_id = str(uuid.uuid4())
+    _RECOMMEND_JOBS[job_id] = {
+        "job_id": job_id,
+        "status": "running",
+        "progress": 0.1,
+        "step": "profile",
+        "result": None,
+        "error": None,
+        "created_at": time.time(),
+    }
+    thread = threading.Thread(target=_async_recommend_worker, args=(job_id, req), daemon=True)
+    thread.start()
+    return {
+        "job_id": job_id,
+        "status": "running",
+        "progress": 0.1,
+        "step": "profile",
+    }
+
+
+@app.get("/recommend/jobs/{job_id}")
+def get_recommend_job(job_id: str) -> dict:
+    """Poll status and retrieve results of an asynchronous recommendation job (TASK-H02)."""
+    job = _RECOMMEND_JOBS.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+    return job

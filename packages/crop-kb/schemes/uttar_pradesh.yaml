@@ -1,0 +1,14 @@
+# Uttar Pradesh State Schemes (WS-E)
+# Official Source: UP Agriculture Department / https://upagripardarshi.gov.in/
+
+schemes:
+  - id: "up_bundelkhand_package"
+    name: "Bundelkhand Drought Mitigation & Pulses Promotion Mission"
+    display_title: "Bundelkhand Drought Mitigation & Pulses Promotion Mission (Special Package)"
+    state: "Uttar Pradesh"
+    eligible_crops: ["chickpea", "lentil", "mustard", "sorghum", "pigeon_pea"]
+    amount: null
+    unit: null
+    source_url: "https://upagripardarshi.gov.in/"
+    as_of_date: "2024-07-01"
+    description: "Special package for Bundelkhand farmers providing certified seed minikits for drought-tolerant pulses and oilseeds."

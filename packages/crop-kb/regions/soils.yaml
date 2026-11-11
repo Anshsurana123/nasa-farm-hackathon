@@ -1,0 +1,113 @@
+# Representative NBSS&LUP / ICAR Regional Topsoil Properties (WS-C, Rule 11)
+# Used as clearly-labelled 'regional_climatology' fallback when ISRIC SoilGrids REST API is unreachable.
+# Units: sand/silt/clay (%), soc (g/kg), phh2o (pH), bdod (cg/cm3 -> /100 = g/cm3), nitrogen (g/kg).
+
+punjab_central:
+  sand: 44.0
+  silt: 36.0
+  clay: 20.0
+  soc: 5.2
+  phh2o: 7.9
+  bdod: 148.0
+  nitrogen: 0.58
+  source_citation: "ICAR-CSSRI & PAU Benchmark Alluvial Inceptisol (Sangrur/Ludhiana)"
+
+punjab_southwest:
+  sand: 64.0
+  silt: 22.0
+  clay: 14.0
+  soc: 4.0
+  phh2o: 8.2
+  bdod: 154.0
+  nitrogen: 0.45
+  source_citation: "PAU Regional Research Station Bathinda (Arid Sandy Loam)"
+
+haryana:
+  sand: 48.0
+  silt: 34.0
+  clay: 18.0
+  soc: 4.8
+  phh2o: 8.0
+  bdod: 150.0
+  nitrogen: 0.52
+  source_citation: "HAU Hisar Alluvial Soil Benchmark"
+
+bundelkhand:
+  sand: 62.0
+  silt: 22.0
+  clay: 16.0
+  soc: 4.2
+  phh2o: 7.3
+  bdod: 152.0
+  nitrogen: 0.48
+  source_citation: "ICAR-CAFRI Jhansi Bundelkhand Parwa / Red Sandy Loam"
+
+vidarbha:
+  sand: 22.0
+  silt: 26.0
+  clay: 52.0
+  soc: 6.2
+  phh2o: 7.8
+  bdod: 136.0
+  nitrogen: 0.65
+  source_citation: "PDKV Akola / NBSS&LUP Nagpur Deep Black Vertisol"
+
+cauvery:
+  sand: 32.0
+  silt: 32.0
+  clay: 36.0
+  soc: 7.4
+  phh2o: 6.9
+  bdod: 140.0
+  nitrogen: 0.78
+  source_citation: "TNAU Soil Survey Cauvery Delta Alluvial Clay Loam (Thanjavur)"
+
+rajasthan_arid:
+  sand: 76.0
+  silt: 14.0
+  clay: 10.0
+  soc: 2.8
+  phh2o: 8.3
+  bdod: 158.0
+  nitrogen: 0.32
+  source_citation: "CAZRI Jodhpur Thar Arid Torripsamment (Desert Loamy Sand)"
+
+central_malwa:
+  sand: 26.0
+  silt: 30.0
+  clay: 44.0
+  soc: 6.5
+  phh2o: 7.6
+  bdod: 138.0
+  nitrogen: 0.68
+  source_citation: "ICAR-IISR Indore Malwa Medium-Deep Vertisol"
+
+southern_hills:
+  sand: 56.0
+  silt: 20.0
+  clay: 24.0
+  soc: 5.4
+  phh2o: 6.7
+  bdod: 146.0
+  nitrogen: 0.55
+  source_citation: "UAS Bangalore / ICRISAT Southern Peninsular Alfisol"
+
+west_coast:
+  sand: 40.0
+  silt: 25.0
+  clay: 35.0
+  soc: 8.5
+  phh2o: 5.5
+  bdod: 135.0
+  nitrogen: 0.85
+  source_citation: "KAU Coastal Laterite Soil Benchmark"
+
+default_soil:
+  sand: 44.0
+  silt: 36.0
+  clay: 20.0
+  soc: 5.2
+  phh2o: 7.9
+  bdod: 148.0
+  nitrogen: 0.58
+  source_citation: "Indo-Gangetic Alluvial Loam Average"

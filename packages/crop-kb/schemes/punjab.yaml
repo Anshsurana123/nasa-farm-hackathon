@@ -1,0 +1,39 @@
+# Punjab State Schemes (WS-E)
+# Official Source: Department of Agriculture & Farmers Welfare, Punjab / https://agri.punjab.gov.in/
+
+schemes:
+  - id: "punjab_dsr"
+    name: "Punjab DSR Promotion Scheme"
+    display_title: "Punjab DSR Promotion Scheme (₹3,750/ha direct-seeding incentive)"
+    state: "Punjab"
+    eligible_crops: ["rice_dsr"]
+    eligible_practices: ["direct_seeded", "awd"]
+    amount: 3750
+    unit: "INR/ha"
+    source_url: "https://agri.punjab.gov.in/"
+    as_of_date: "2024-05-15"
+    description: "Punjab government incentive of Rs 1,500/acre (Rs 3,750/ha) for direct seeding of rice to conserve groundwater."
+
+  - id: "punjab_crop_diversification"
+    name: "Punjab Crop Diversification Mission"
+    display_title: "Punjab Crop Diversification Mission (support for non-paddy Kharif alternatives)"
+    state: "Punjab"
+    eligible_crops: ["maize", "moong", "cotton", "soybean", "groundnut"]
+    ineligible_crops: ["rice_puddled"]
+    amount: null
+    unit: null
+    source_url: "https://agri.punjab.gov.in/"
+    as_of_date: "2024-06-01"
+    description: "Seed subsidies and technical guidance for cultivating non-paddy Kharif alternatives in over-exploited blocks."
+
+  - id: "crm_punjab"
+    name: "CRM Sub-Mission on Crop Residue Management"
+    display_title: "CRM Sub-Mission on Crop Residue Management (50–80% Happy Seeder / CHC subsidy)"
+    state: "Punjab"
+    eligible_practices: ["happy_seeder", "zero_till", "residue_retained", "super_seeder"]
+    ineligible_practices: ["residue_burned", "burning"]
+    amount: null
+    unit: null
+    source_url: "https://agrimachinery.nic.in/"
+    as_of_date: "2024-09-01"
+    description: "50% individual subsidy and 80% Custom Hiring Centre (CHC) subsidy for in-situ residue management machinery."

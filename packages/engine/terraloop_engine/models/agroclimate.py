@@ -61,3 +61,69 @@ def longest_dry_spell(precip: pd.Series, months: list[int], threshold_mm: float 
             longest = max(longest, run)
         spells.append(longest)
     return float(np.mean(spells))
+
+
+# ---------------------------------------------------------------------------
+# FAO-56 Annex Worked Examples & Equations (WS-F4)
+# ---------------------------------------------------------------------------
+def wind_speed_2m(u_z: float, z: float = 10.0) -> float:
+    """Convert wind speed measured at height z (m) to standard 2m height (FAO-56 eq. 47).
+
+    u_2 = u_z * 4.87 / ln(67.8 * z - 5.42).
+    For standard 10m anemometer height: conversion factor is 4.87 / ln(672.58) = 0.748.
+    """
+    if z <= 2.0:
+        return float(u_z)
+    factor = 4.87 / np.log(67.8 * z - 5.42)
+    return float(u_z * factor)
+
+
+def saturation_vapor_pressure(t_c: float) -> float:
+    """Saturation vapour pressure e_s(T) in kPa from air temperature (FAO-56 eq. 11)."""
+    return float(0.6108 * np.exp(17.27 * t_c / (t_c + 237.3)))
+
+
+def vapor_pressure_slope(t_c: float) -> float:
+    """Slope of saturation vapour pressure curve Delta in kPa/°C (FAO-56 eq. 13)."""
+    es = saturation_vapor_pressure(t_c)
+    return float(4098.0 * es / ((t_c + 237.3) ** 2))
+
+
+def psychrometric_constant(elevation_m: float = 0.0) -> float:
+    """Psychrometric constant gamma in kPa/°C at given elevation (FAO-56 eq. 7, 8)."""
+    # Atmospheric pressure P in kPa (FAO-56 eq. 7)
+    p = 101.3 * (((293.0 - 0.0065 * elevation_m) / 293.0) ** 5.26)
+    return float(0.000665 * p)
+
+
+def et0_penman_monteith(
+    tmean_c: float,
+    rn_mj_m2_day: float,
+    g_mj_m2_day: float,
+    u2_m_s: float,
+    ea_kpa: float,
+    elevation_m: float = 0.0,
+) -> float:
+    """Standard daily reference evapotranspiration ET0 (mm/day) via FAO-56 Penman-Monteith (eq. 6)."""
+    es = saturation_vapor_pressure(tmean_c)
+    delta = vapor_pressure_slope(tmean_c)
+    gamma = psychrometric_constant(elevation_m)
+
+    numerator = 0.408 * delta * (rn_mj_m2_day - g_mj_m2_day) + gamma * (900.0 / (tmean_c + 273.0)) * u2_m_s * (es - ea_kpa)
+    denominator = delta + gamma * (1.0 + 0.34 * u2_m_s)
+    return float(max(0.0, numerator / denominator))
+
+
+def fao56_depletion_ks(dr_mm: float, raw_mm: float, taw_mm: float) -> float:
+    """Daily root-zone water stress coefficient Ks (FAO-56 eq. 84, Box 11).
+
+    When Dr <= RAW: Ks = 1.0 (no water stress).
+    When RAW < Dr < TAW: Ks declines linearly: Ks = (TAW - Dr) / (TAW - RAW).
+    When Dr >= TAW: Ks = 0.0 (wilting point reached).
+    """
+    if dr_mm <= raw_mm:
+        return 1.0
+    if dr_mm >= taw_mm:
+        return 0.0
+    return float(max(0.0, (taw_mm - dr_mm) / max(1e-6, (taw_mm - raw_mm))))
+

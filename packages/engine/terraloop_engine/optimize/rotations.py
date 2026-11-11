@@ -333,10 +333,9 @@ def baseline_rice_wheat(years: int = 1) -> Rotation:
 
 def derive_seasons(profile: FieldProfile) -> tuple[SeasonSlot, ...]:
     """Determine seasonal slots for Indian agro-climatic zones."""
-    lat = profile.field.lat
-    c = profile.climate
-    # Southern Coastal / Peninsular India with warm frost-free winter (e.g. Thanjavur Cauvery Delta)
-    if lat < 16.5 and c.frost_days_per_year == 0 and min(c.monthly_tmin_c) >= 18.0:
+    from .. import region_registry
+    reg_cfg = region_registry.detect_region_config(profile.field.lat, profile.field.lon)
+    if reg_cfg.region_id in ("cauvery", "southern_hills") and profile.climate.frost_days_per_year == 0:
         return SOUTHERN_DELTA_SEASONS
     return PUNJAB_SEASONS
 
@@ -384,7 +383,9 @@ def derive_baseline_rotation(
             c0 = slot_map[0]
             c1 = slot_map[1]
             c2 = slot_map.get(2, FALLOW)
-            if c0 in ("rice_puddled", "cotton", "pigeon_pea") and lat >= 16.5:
+            from .. import region_registry
+            reg_cfg = region_registry.detect_region_config(lat, lon)
+            if c0 in ("rice_puddled", "cotton", "pigeon_pea") and reg_cfg.region_id not in ("cauvery", "southern_hills"):
                 c2 = FALLOW
             steps = []
             for y in range(years):
@@ -396,45 +397,21 @@ def derive_baseline_rotation(
             label = _format_rotation_label([c0, c1, c2], crops or {}, 3)
             return Rotation(id="observed_baseline", steps=steps, label=label, is_baseline=True)
 
-    # 3. Regional Indian agro-climatic zone defaults
-    # Vidarbha / Deccan Black Cotton Soil Belt
-    if 17.5 <= lat <= 23.0 and 75.0 <= lon <= 81.0:
-        steps = [
-            step
-            for y in range(years)
-            for step in (
-                RotationStep(year_index=y, season_index=0, crop_id="cotton", practices=[]),
-                RotationStep(year_index=y, season_index=1, crop_id="chickpea", practices=[]),
-                RotationStep(year_index=y, season_index=2, crop_id=FALLOW, practices=[]),
-            )
-        ]
-        return Rotation(id="vidarbha_baseline", steps=steps, label="Cotton → Chickpea → Fallow", is_baseline=True)
+    # 3. Regional Indian agro-climatic zone defaults loaded from packages/crop-kb/regions/zones.yaml
+    from .. import region_registry
+    reg_cfg = region_registry.detect_region_config(lat, lon)
+    base_cids = region_registry.get_baseline_rotation(lat, lon)
+    while len(base_cids) < 3:
+        base_cids.append(FALLOW)
+    c0, c1, c2 = base_cids[0], base_cids[1], base_cids[2]
 
-    # Bundelkhand / Semi-Arid Central Plateau
-    if 23.5 <= lat <= 26.8 and 77.5 <= lon <= 81.5:
-        steps = [
-            step
-            for y in range(years)
-            for step in (
-                RotationStep(year_index=y, season_index=0, crop_id="sorghum", practices=[]),
-                RotationStep(year_index=y, season_index=1, crop_id="wheat", practices=[]),
-                RotationStep(year_index=y, season_index=2, crop_id=FALLOW, practices=[]),
-            )
-        ]
-        return Rotation(id="bundelkhand_baseline", steps=steps, label="Sorghum → Wheat → Fallow", is_baseline=True)
+    steps = []
+    for y in range(years):
+        p0 = ["puddling", "burning", "residue_burnt"] if (burning and c0 == "rice_puddled") else (["puddling"] if c0 == "rice_puddled" else [])
+        p1 = ["conventional", "burning", "residue_burnt"] if (burning and c0 == "rice_puddled") else (["puddling"] if c1 == "rice_puddled" else [])
+        steps.append(RotationStep(year_index=y, season_index=0, crop_id=c0, practices=p0))
+        steps.append(RotationStep(year_index=y, season_index=1, crop_id=c1, practices=p1))
+        steps.append(RotationStep(year_index=y, season_index=2, crop_id=c2, practices=[]))
 
-    # Southern Coastal Delta (Thanjavur / Cauvery)
-    if lat < 16.5:
-        steps = [
-            step
-            for y in range(years)
-            for step in (
-                RotationStep(year_index=y, season_index=0, crop_id="rice_puddled", practices=["puddling"]),
-                RotationStep(year_index=y, season_index=1, crop_id="rice_puddled", practices=["puddling"]),
-                RotationStep(year_index=y, season_index=2, crop_id=FALLOW, practices=[]),
-            )
-        ]
-        return Rotation(id="delta_baseline", steps=steps, label="Puddled Rice → Puddled Rice → Fallow", is_baseline=True)
-
-    # Default Indo-Gangetic / Punjab baseline: Puddled Rice -> Wheat -> Fallow
-    return baseline_rice_wheat(years=years)
+    label = _format_rotation_label([c0, c1, c2], crops or {}, 3)
+    return Rotation(id=f"{reg_cfg.region_id}_baseline", steps=steps, label=label, is_baseline=True)

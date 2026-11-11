@@ -175,7 +175,8 @@ def _compute_thermal_and_waterlog_factors(
     if "cool" in crop.season_type and "warm" not in crop.season_type:
         # Cool-season Rabi crops (wheat, mustard, chickpea, barley, lentil, potato)
         # Sensitive to March terminal heat (>32.0 C during grain filling; Asseng et al. 2011; Lobell et al. 2012)
-        crit_temp = min(crop.max_temp_c - 2.0, 32.0)
+        # Chickpea/lentil pod-set is sensitive above 30.0 C (Gaur et al. 2015)
+        crit_temp = 30.0 if crop.id in ("chickpea", "lentil") else min(crop.max_temp_c - 2.0, 32.0)
         heat_hdd = float(np.sum(np.maximum(0.0, repro_tmax - crit_temp)))
         # Sensitivity inversely proportional to heat_tolerance (1..5)
         sens = 0.0021 * (1.35 - 0.15 * crop.heat_tolerance)
@@ -186,6 +187,19 @@ def _compute_thermal_and_waterlog_factors(
         heat_hdd = float(np.sum(np.maximum(0.0, repro_tmax - crit_temp)))
         sens = 0.0035 * (1.35 - 0.15 * crop.heat_tolerance)
         f_heat = max(0.55, 1.0 - sens * heat_hdd)
+
+    # 1b. Stage-specific flowering heat stress (Rice spikelet sterility & Maize silking heat)
+    # Citations: Satake & Yoshida (1978); Matsui et al. (2001); Cicchino et al. (2010)
+    if "rice" in crop.id:
+        anthesis_tmax = eff_tmax[int(0.65 * n_days) : int(0.82 * n_days)]
+        if len(anthesis_tmax) > 0:
+            sterility_load = float(np.sum(np.maximum(0.0, anthesis_tmax - 35.0)))
+            f_heat = min(f_heat, max(0.40, 1.0 - 0.035 * sterility_load))
+    elif crop.id == "maize":
+        silking_tmax = eff_tmax[int(0.50 * n_days) : int(0.70 * n_days)]
+        if len(silking_tmax) > 0:
+            silking_heat = float(np.sum(np.maximum(0.0, silking_tmax - 35.0)))
+            f_heat = min(f_heat, max(0.45, 1.0 - 0.030 * silking_heat))
 
     # 2. Vegetative extreme heat load above crop.max_temp_c (pre-reproductive to avoid double-counting)
     extreme_hdd = float(np.sum(np.maximum(0.0, eff_tmax[:repro_start] - crop.max_temp_c)))
@@ -207,10 +221,11 @@ def _compute_thermal_and_waterlog_factors(
         f_gdd = 1.0
 
     # 5. Monsoon waterlogging penalty for sensitive upland crops (maize, pulses, cotton)
-    if crop.waterlogging_tolerance <= 2 and clay_pct >= 32.0:
+    # Citation: Rathore et al. (1998) Soil & Tillage Research; PAU Package of Practices for Kharif Crops
+    if crop.waterlogging_tolerance <= 2 and clay_pct >= 20.0:
         heavy_rain_days = int(np.sum(precip_arr > 50.0))
-        if heavy_rain_days >= 3:
-            f_waterlog = max(0.70, 1.0 - 0.05 * (heavy_rain_days - 2))
+        if heavy_rain_days >= 2:
+            f_waterlog = max(0.60, 1.0 - 0.08 * (heavy_rain_days - 1))
         else:
             f_waterlog = 1.0
     else:
@@ -316,10 +331,44 @@ def _simulate_step(
         # PAU Summer Moong recommendation: 2-3 light irrigations (~120 mm max), terminated by May 20
         irr_cap = min(irr_cap, 120.0)
 
-    # Potential yield benchmark (upper quartile of typical range under unstressed conditions)
+    # Potential yield benchmark with physical sensitivity to solar radiation, sowing date, and soil texture/SOC (WS-F2)
     y_min, y_max = crop.typical_yield_t_ha
-    q_pot = 0.85 if crop_id == "wheat" else 0.68
-    y_pot = float(y_min + q_pot * (y_max - y_min))
+    q_pot = 0.45 if crop_id == "wheat" else 0.68
+    y_pot_base = float(y_min + q_pot * (y_max - y_min))
+
+    # 1. Solar Radiation responsiveness during grain filling (Monteith 1977; Fischer 1985)
+    solar_col = "SolarRadiation" if "SolarRadiation" in sub_w.columns else ("ALLSKY_SFC_SW_DWN" if "ALLSKY_SFC_SW_DWN" in sub_w.columns else None)
+    if solar_col and len(sub_w) > 0:
+        fill_start = int(0.50 * n_days)
+        mean_rad = float(np.mean(sub_w[solar_col].iloc[fill_start:]))
+        # Benchmark radiation in North/Central India during grain fill is ~18.5 MJ/m2/day
+        f_radiation = float(np.clip(0.90 + 0.10 * (mean_rad / 18.5), 0.88, 1.10))
+    else:
+        f_radiation = 1.0
+
+    # 2. Sowing date / late sowing penalty for Rabi wheat (PAU Package of Practices: ~0.7% / day delay after Nov 15)
+    sowing_penalty = 1.0
+    if crop_id == "wheat" and season_index == 1:
+        sow_doy = sowing_date.dayofyear
+        if sow_doy > 319 and sow_doy < 366:
+            late_days = sow_doy - 319
+            sowing_penalty = float(max(0.78, 1.0 - 0.007 * late_days))
+
+    # 3. Soil texture, organic carbon & pH responsiveness (Saxton-Rawls / PAU soil fertility guide / WS-G2)
+    sand_fertility_penalty = float(np.clip(1.0 - 0.18 * max(0.0, (sand_pct - 50.0) / 40.0), 0.84, 1.0))
+    soc_val = float(soil.soc_g_per_kg or 5.2)
+    soc_fertility_bonus = float(np.clip(0.92 + 0.12 * (soc_val / 7.0), 0.90, 1.08))
+    ph_penalty = 1.0
+    if soil.ph is not None:
+        if soil.ph < 5.5:
+            # Aluminum/Mn toxicity and phosphorus fixation in acidic soils (pH < 5.5)
+            ph_penalty = float(max(0.70, 1.0 - 0.12 * (5.5 - soil.ph)))
+        elif soil.ph > 8.5:
+            # Micronutrient (Zn, Fe) deficiency and sodicity/osmotic stress in alkali soils (pH > 8.5)
+            ph_penalty = float(max(0.72, 1.0 - 0.10 * (soil.ph - 8.5)))
+    f_soil_fertility = sand_fertility_penalty * soc_fertility_bonus * ph_penalty
+
+    y_pot = float(y_pot_base * f_radiation * sowing_penalty * f_soil_fertility)
 
     # -----------------------------------------------------------------------
     # Case 1: Lowland Paddy Rice (Puddled Transplanted vs Direct-Seeded DSR)
@@ -538,6 +587,7 @@ def simulate_rotation(
     start_year: int = 2020,
     crops: dict[str, CropSpec] | None = None,
     lat: float = 30.0,
+    step_cache: dict | None = None,
 ) -> list[dict]:
     """Simulate multi-year rotation sequence under daily FAO-56 soil-water balance."""
     crops = crops or crop_kb.load_crops()
@@ -557,6 +607,25 @@ def simulate_rotation(
 
     for step in rotation.steps:
         sim_year = start_year + step.year_index
+        cache_key = None
+        if step_cache is not None:
+            cache_key = (
+                step.crop_id,
+                tuple(sorted(step.practices)),
+                step.season_index,
+                sim_year,
+                round(current_depletion_mm, 1),
+                constraints.irrigation,
+                constraints.irrigation_cap_mm,
+            )
+            if cache_key in step_cache:
+                cached_res, next_dep = step_cache[cache_key]
+                res = dict(cached_res)
+                res["year_index"] = step.year_index
+                current_depletion_mm = next_dep
+                results.append(res)
+                continue
+
         res, next_dep = _simulate_step(
             crop_id=step.crop_id,
             practices=step.practices,
@@ -568,6 +637,9 @@ def simulate_rotation(
             crops=crops,
             initial_depletion_mm=current_depletion_mm,
         )
+        if step_cache is not None and cache_key is not None:
+            step_cache[cache_key] = (dict(res), next_dep)
+
         res["year_index"] = step.year_index
         current_depletion_mm = next_dep
         results.append(res)

@@ -27,7 +27,7 @@ import {
   type UnitSystem,
 } from "@/lib/ui";
 import { getFallbackStrategies } from "@/lib/fallbackStrategies";
-import { api } from "@/lib/api";
+import { api, recommendWithProgress } from "@/lib/api";
 import {
   Printer,
   Sliders,
@@ -80,11 +80,26 @@ export function RotationExplorer({
     unitSystem,
     soilHealthCard,
     baselineOverride,
+    setBaselineOverride,
   } = useField();
+
+  const [isBaselineConfirmed, setIsBaselineConfirmed] = useState<boolean>(false);
+  const [showBaselineSelector, setShowBaselineSelector] = useState<boolean>(false);
+  const [customKharif, setCustomKharif] = useState<string>("rice_puddled");
+  const [customRabi, setCustomRabi] = useState<string>("wheat");
+  const [customZaid, setCustomZaid] = useState<string>("fallow");
+  const [simProgress, setSimProgress] = useState<{
+    stage: "profile" | "weather" | "simulating" | "ranking" | "done" | "failed";
+    progressPct: number;
+    message?: string;
+  } | null>(null);
 
   const isSA = isSouthAsia(field.lat, field.lon);
   const currencySymbol = profile?.currency_symbol ?? "₹";
+  const gwTrend = profile?.water?.groundwater_trend_cm_per_year ?? 0;
+  const graceMult = gwTrend < -1.0 ? Math.min(1.5, 1.0 + 0.1 * (Math.abs(gwTrend) - 1.0)) : 1.0;
   const fieldKey = `${field.lat},${field.lon}`;
+  const GOLDEN_IDS = new Set(["sangrur", "ludhiana", "bathinda", "bundelkhand", "vidarbha", "thanjavur"]);
 
   const [internalData, setInternalData] = useState<{ key: string; list: StrategyRecommendation[] }>({
     key: fieldKey,
@@ -130,16 +145,20 @@ export function RotationExplorer({
     setInternalLoading(true);
     setSuccessBanner(null);
     setErrorBanner(null);
+    setSimProgress({ stage: "profile", progressPct: 15, message: t("async.stage.profile") });
     try {
-      const recs = await api.recommend({
-        field,
-        priorities: pToUse,
-        constraints: cToUse,
-        language: (lang as "en" | "pa" | "hi") || "en",
-        soil_health_card: soilHealthCard,
-        baseline_override: baselineOverride,
-        climate_scenario: climateScenario,
-      });
+      const recs = await recommendWithProgress(
+        {
+          field,
+          priorities: pToUse,
+          constraints: cToUse,
+          language: (lang as "en" | "pa" | "hi") || "en",
+          soil_health_card: soilHealthCard,
+          baseline_override: baselineOverride,
+          climate_scenario: climateScenario,
+        },
+        (status) => setSimProgress(status)
+      );
       if (recs && recs.length > 0) {
         setInternalStrategies(recs);
         onStrategiesLoaded?.(recs);
@@ -151,15 +170,21 @@ export function RotationExplorer({
         setTimeout(() => setSuccessBanner(null), 4000);
       }
     } catch (err) {
-      console.warn("Backend /recommend failed, falling back to simulated strategies", err);
-      const fallback = getFallbackStrategies(field, currencySymbol, cToUse.rotation_years);
-      setInternalStrategies(fallback);
-      onStrategiesLoaded?.(fallback);
-      setErrorBanner(
-        "Recommendation engine unreachable or offline. Displaying precomputed demonstration strategies (Punjab baseline). Recommendations are NOT calibrated to your custom coordinates."
-      );
+      console.warn("Backend /recommend failed", err);
+      const isGolden = field?.id && GOLDEN_IDS.has(field.id);
+      if (isGolden) {
+        const fallback = getFallbackStrategies(field, currencySymbol, cToUse.rotation_years);
+        setInternalStrategies(fallback);
+        onStrategiesLoaded?.(fallback);
+        setErrorBanner(t("error.recommendFailedDemo"));
+      } else {
+        setInternalStrategies([]);
+        onStrategiesLoaded?.([]);
+        setErrorBanner(t("error.recommendFailedCustom"));
+      }
     } finally {
       setInternalLoading(false);
+      setSimProgress(null);
     }
   };
 
@@ -190,6 +215,52 @@ export function RotationExplorer({
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      const activeJobId = sessionStorage.getItem("terraloop_active_job_id");
+      if (activeJobId && !externalStrategies) {
+        setInternalLoading(true);
+        api
+          .getRecommendJob(activeJobId)
+          .then(async (poll) => {
+            if (poll.status === "completed" && poll.result) {
+              sessionStorage.removeItem("terraloop_active_job_id");
+              setInternalStrategies(poll.result);
+              onStrategiesLoaded?.(poll.result);
+              setInternalLoading(false);
+            } else if (poll.status === "running") {
+              try {
+                const recs = await recommendWithProgress(
+                  {
+                    field,
+                    priorities,
+                    constraints,
+                    language: (lang as "en" | "pa" | "hi") || "en",
+                    soil_health_card: soilHealthCard,
+                    baseline_override: baselineOverride,
+                    climate_scenario: climateScenario,
+                  },
+                  (status) => setSimProgress(status)
+                );
+                setInternalStrategies(recs);
+                onStrategiesLoaded?.(recs);
+              } catch (err) {
+                console.warn("Resumed recommendation failed", err);
+              } finally {
+                setInternalLoading(false);
+                setSimProgress(null);
+              }
+            }
+          })
+          .catch(() => {
+            sessionStorage.removeItem("terraloop_active_job_id");
+            setInternalLoading(false);
+          });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     if (externalStrategies || !field) return;
     let isCancelled = false;
     api
@@ -211,13 +282,18 @@ export function RotationExplorer({
       })
       .catch((err) => {
         if (!isCancelled) {
-          console.warn("Backend /recommend failed, falling back to simulated strategies", err);
-          const fallback = getFallbackStrategies(field, currencySymbol);
-          setInternalData({ key: fieldKey, list: fallback });
-          onStrategiesLoaded?.(fallback);
-          setErrorBanner(
-            "Recommendation engine unreachable or offline. Displaying precomputed demonstration strategies (Punjab baseline). Recommendations are NOT calibrated to your custom coordinates."
-          );
+          console.warn("Backend /recommend failed", err);
+          const isGolden = field?.id && GOLDEN_IDS.has(field.id);
+          if (isGolden) {
+            const fallback = getFallbackStrategies(field, currencySymbol);
+            setInternalData({ key: fieldKey, list: fallback });
+            onStrategiesLoaded?.(fallback);
+            setErrorBanner(t("error.recommendFailedDemo"));
+          } else {
+            setInternalData({ key: fieldKey, list: [] });
+            onStrategiesLoaded?.([]);
+            setErrorBanner(t("error.recommendFailedCustom"));
+          }
         }
       });
     return () => {
@@ -295,7 +371,7 @@ export function RotationExplorer({
             className="px-3 py-1.5 rounded-lg text-xs font-mono font-semibold bg-surface hover:bg-foreground/10 text-foreground border border-line flex items-center gap-1.5 transition-colors"
           >
             <FileText className="w-3.5 h-3.5 text-sky-400" />
-            <span>Executive Brief</span>
+            <span>{t("nav.executiveBrief")}</span>
           </Link>
 
           <button
@@ -319,7 +395,7 @@ export function RotationExplorer({
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>Strategies &amp; Calendar</span>
+                <span>{t("tab.strategiesCalendar")}</span>
               </button>
               <button
                 type="button"
@@ -331,7 +407,7 @@ export function RotationExplorer({
                 }`}
               >
                 <TrendingUp className="w-3.5 h-3.5" />
-                <span>3D Pareto Space</span>
+                <span>{t("tab.paretoSpace")}</span>
               </button>
               <button
                 type="button"
@@ -363,7 +439,7 @@ export function RotationExplorer({
 
             {/* Quick Weighting Persona Presets */}
             <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-mono">
-              <span className="text-muted pr-1 uppercase text-[10px]">Farmer Personas:</span>
+              <span className="text-muted pr-1 uppercase text-[10px]">{t("label.farmerPersonas")}</span>
               <button
                 type="button"
                 onClick={() => applyPreset("water")}
@@ -405,7 +481,7 @@ export function RotationExplorer({
           {/* Live Proportional Weight Distribution Bar */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-[10px] font-mono text-muted">
-              <span>OBJECTIVE WEIGHT ALLOCATION</span>
+              <span>{t("label.weightAllocation")}</span>
               <span>
                 Water {wWater}% · Profit {wProfit}% · Soil {wSoil}% · Resilience {wRisk}% · Labour {wLabour}% · Food {wFood}%
               </span>
@@ -603,11 +679,11 @@ export function RotationExplorer({
                   }
                   className="w-4 h-4 rounded accent-emerald-500 cursor-pointer"
                 />
-                <span>Integrate Fodder / Livestock</span>
+                <span>{t("label.integrateLivestock")}</span>
               </label>
 
               <div className="flex items-center gap-2">
-                <span className="text-muted">Water Supply:</span>
+                <span className="text-muted">{t("label.waterSupply")}</span>
                 <select
                   value={constraints.irrigation}
                   onChange={(e) =>
@@ -618,14 +694,14 @@ export function RotationExplorer({
                   }
                   className="px-2.5 py-1 rounded-lg border border-line-strong bg-surface text-foreground text-[11px] font-mono outline-none cursor-pointer"
                 >
-                  <option value="limited">Tube-well (Restricted Cap)</option>
-                  <option value="full">Tube-well / Canal (Unrestricted)</option>
+                  <option value="limited">{t("label.tubewellRestricted")}</option>
+                  <option value="full">{t("label.tubewellUnrestricted")}</option>
                   <option value="none">Rainfed Only</option>
                 </select>
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-muted">Rotation Horizon:</span>
+                <span className="text-muted">{t("label.rotationHorizon")}</span>
                 <select
                   value={constraints.rotation_years}
                   onChange={(e) => {
@@ -636,9 +712,9 @@ export function RotationExplorer({
                   }}
                   className="px-2.5 py-1 rounded-lg border border-line-strong bg-surface text-foreground text-[11px] font-mono outline-none cursor-pointer"
                 >
-                  <option value={1}>1 Year (Annual Cycle)</option>
-                  <option value={2}>2 Years (Alternating Pest-Break)</option>
-                  <option value={3}>3 Years (Multi-Year Sequence)</option>
+                  <option value={1}>{t("horizon.1year")}</option>
+                  <option value={2}>{t("horizon.2year")}</option>
+                  <option value={3}>{t("horizon.3year")}</option>
                 </select>
               </div>
             </div>
@@ -662,23 +738,45 @@ export function RotationExplorer({
         {/* VIEW MODE 1: Comparative Strategy Cards + Interactive Calendar & Radar */}
         {activeTab === "cards" && (
           <div className="space-y-6">
-            {/* Prominent Multi-Objective Simulation Loading Banner */}
+            {/* Prominent Multi-Objective Simulation Loading Banner with Live Progress (Issue 10 / WS-H3) */}
             {loading && (
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono animate-pulse">
-                <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-300">
-                  <RefreshCw className="w-4 h-4 animate-spin text-emerald-500 shrink-0" />
-                  <div>
-                    <div className="font-bold text-sm">
-                      Simulating {constraints.rotation_years}-Year Rotations across 30-Year Climate Ensemble…
-                    </div>
-                    <div className="text-[11px] text-muted">
-                      Solving FAO-56 daily water balance · RothC-26.3 soil organic carbon · USDA-NRCS multi-objective Pareto trade-offs
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 flex flex-col gap-3 text-xs font-mono">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-emerald-600 dark:text-emerald-300">
+                  <div className="flex items-center gap-3">
+                    <RefreshCw className="w-4 h-4 animate-spin text-emerald-500 shrink-0" />
+                    <div>
+                      <div className="font-bold text-sm">
+                        {simProgress?.stage === "profile"
+                          ? t("async.stage.profile")
+                          : simProgress?.stage === "weather"
+                          ? t("async.stage.weather")
+                          : simProgress?.stage === "simulating"
+                          ? t("async.stage.simulating")
+                          : simProgress?.stage === "ranking"
+                          ? t("async.stage.ranking")
+                          : `Simulating ${constraints.rotation_years}-Year Rotations across 30-Year Climate Ensemble…`}
+                      </div>
+                      <div className="text-[11px] text-muted">
+                        {simProgress?.message ||
+                          "Solving FAO-56 daily water balance · RothC-26.3 soil organic carbon · USDA-NRCS multi-objective Pareto trade-offs"}
+                      </div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-emerald-500 text-sm">
+                      {simProgress?.progressPct ? `${simProgress.progressPct}%` : "In Progress"}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 text-[10px] font-bold uppercase tracking-wider shrink-0 self-start sm:self-auto">
+                      {constraints.rotation_years}-Year Horizon Active
+                    </span>
+                  </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 text-[10px] font-bold uppercase tracking-wider shrink-0 self-start sm:self-auto">
-                  {constraints.rotation_years}-Year Horizon Active
-                </span>
+                <div className="w-full bg-surface h-2 rounded-full overflow-hidden border border-line">
+                  <div
+                    className="bg-emerald-500 h-full transition-all duration-300"
+                    style={{ width: `${Math.max(10, simProgress?.progressPct ?? 35)}%` }}
+                  />
+                </div>
               </div>
             )}
 
@@ -689,7 +787,7 @@ export function RotationExplorer({
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                   <span className="font-bold">{successBanner}</span>
                 </div>
-                <span className="text-[10px] text-muted hidden sm:inline">NSGA-II Pareto Frontier Updated</span>
+                <span className="text-[10px] text-muted hidden sm:inline">{t("label.paretoUpdated")}</span>
               </div>
             )}
 
@@ -728,6 +826,242 @@ export function RotationExplorer({
                 <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 font-bold">
                   NASA Global EO
                 </span>
+              </div>
+            )}
+
+            {/* Demo Snapshot Banner (Issue 4 / WS-B3 & WS-J4) */}
+            {(profile?.served_from === "demo_snapshot" || baseline?.served_from === "demo_snapshot") && !loading && (
+              <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-between text-xs font-mono text-cyan-700 dark:text-cyan-300">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                  <span className="font-bold">
+                    {t("badge.demoSnapshot")}
+                    {profile?.snapshot_date ? ` (${profile.snapshot_date})` : ""}
+                  </span>
+                </div>
+                <span className="text-[10px] uppercase font-bold text-muted">
+                  {profile?.data_mode ? t(`data_mode.${profile.data_mode}`) : t("badge.demoSnapshot")}
+                </span>
+              </div>
+            )}
+
+            {/* GRACE Aquifer Urgency Active Notice (Issue 18 / WS-J4) */}
+            {graceMult > 1.0 && !loading && (
+              <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-between text-xs font-mono text-sky-700 dark:text-sky-300">
+                <div className="flex items-center gap-2">
+                  <Droplets className="w-4 h-4 text-sky-500 shrink-0" />
+                  <span className="font-bold">
+                    {/* t("badge.graceUrgencyActive") */}
+                    {t("badge.graceUrgencyActive", {
+                      mult: graceMult.toFixed(2),
+                      trend: Math.abs(gwTrend).toFixed(2),
+                    })}
+                  </span>
+                </div>
+                <span className="text-[10px] uppercase font-bold text-muted">
+                  {t("sensor.grace")}
+                </span>
+              </div>
+            )}
+
+            {/* Yield-gap Potential Disclaimer Banner (Issue 7 / WS-F5) */}
+            <div
+              className={`p-3 rounded-xl border flex items-start gap-2.5 text-xs font-mono ${
+                constraints.irrigation === "none"
+                  ? "bg-amber-500/15 border-amber-500/40 text-amber-800 dark:text-amber-200"
+                  : "bg-surface/80 border-line text-muted"
+              }`}
+            >
+              <AlertTriangle
+                className={`w-4 h-4 shrink-0 mt-0.5 ${
+                  constraints.irrigation === "none" ? "text-amber-500" : "text-muted"
+                }`}
+              />
+              <div>
+                <span className="font-bold uppercase tracking-wider text-[10px] block">
+                  {constraints.irrigation === "none"
+                    ? t("warning.rainfedYieldTitle")
+                    : t("warning.biophysicalYieldTitle")}
+                </span>
+                <p className="mt-0.5 leading-relaxed text-[11px]">
+                  {t("warning.yieldGapDisclaimer")}
+                </p>
+              </div>
+            </div>
+
+            {/* Detected Current Farm Baseline Card (Issue 16 / WS-I7) */}
+            {baseline && (
+              <div className="p-4 sm:p-5 rounded-2xl bg-surface/80 border border-line space-y-3.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Wheat className="w-4 h-4 text-amber-500" />
+                      <span className="font-mono text-xs font-bold uppercase tracking-wider text-foreground">
+                        {t("baseline.detectedTitle")}
+                      </span>
+                      {isBaselineConfirmed && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40">
+                          <CheckCircle2 className="w-3 h-3" />
+                          {t("baseline.confirmed")}
+                        </span>
+                      )}
+                      {baselineOverride && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/40">
+                          {t("baseline.customSelected")}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] font-mono text-muted">
+                      {profile?.crop_history && profile.crop_history.length > 0 ? (
+                        <span>
+                          {t("baseline.sourceHls")} (
+                          {Math.round(
+                            (profile.crop_history.reduce((a, b) => a + (b.confidence ?? 0.8), 0) /
+                              profile.crop_history.length) *
+                              100
+                          )}
+                          % {t("baseline.confidence")})
+                        </span>
+                      ) : (
+                        <span>{t("baseline.sourceRegional")}</span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setIsBaselineConfirmed(!isBaselineConfirmed)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all border flex items-center gap-1.5 cursor-pointer ${
+                        isBaselineConfirmed
+                          ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-300"
+                          : "bg-surface-2 border-line text-muted hover:text-foreground"
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{isBaselineConfirmed ? t("baseline.confirmed") : t("baseline.confirmButton")}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowBaselineSelector(!showBaselineSelector)}
+                      className="px-3 py-1.5 rounded-xl text-xs font-mono font-bold bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-600 dark:text-cyan-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>{t("baseline.changeButton")}</span>
+                    </button>
+
+                    {baselineOverride && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBaselineOverride(null);
+                          fetchRecommendations(priorities, constraints);
+                        }}
+                        className="px-2 py-1.5 text-xs text-rose-500 hover:underline font-mono cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Baseline Sequence Display */}
+                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-line/60">
+                  <span className="text-xs font-mono text-muted mr-1">{t("baseline.detectedTitle")}:</span>
+                  {baseline.rotation.steps.map((step, idx) => {
+                    const meta = cropMeta(step.crop_id);
+                    return (
+                      <span
+                        key={idx}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium border ${meta.tone}`}
+                      >
+                        <span>{meta.emoji}</span>
+                        <span className="capitalize">{cropName(step.crop_id)}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+
+                {/* 1-Tap Crop Override Selector */}
+                {showBaselineSelector && (
+                  <div className="p-4 rounded-xl bg-background/80 border border-cyan-500/30 space-y-3 pt-3">
+                    <div className="text-xs font-mono font-bold text-foreground">
+                      {t("baseline.changeButton")}:
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
+                      <div>
+                        <label className="text-[10px] text-muted block mb-1 uppercase">
+                          {t("baseline.selectKharif")}
+                        </label>
+                        <select
+                          value={customKharif}
+                          onChange={(e) => setCustomKharif(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-surface border border-line text-foreground"
+                        >
+                          <option value="rice_puddled">{cropName("rice_puddled")}</option>
+                          <option value="rice_dsr">{cropName("rice_dsr")}</option>
+                          <option value="cotton">{cropName("cotton")}</option>
+                          <option value="maize">{cropName("maize")}</option>
+                          <option value="pearl_millet">{cropName("pearl_millet")}</option>
+                          <option value="groundnut">{cropName("groundnut")}</option>
+                          <option value="soybean">{cropName("soybean")}</option>
+                          <option value="fallow">{cropName("fallow")}</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-muted block mb-1 uppercase">
+                          {t("baseline.selectRabi")}
+                        </label>
+                        <select
+                          value={customRabi}
+                          onChange={(e) => setCustomRabi(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-surface border border-line text-foreground"
+                        >
+                          <option value="wheat">{cropName("wheat")}</option>
+                          <option value="chickpea">{cropName("chickpea")}</option>
+                          <option value="mustard">{cropName("mustard")}</option>
+                          <option value="potato">{cropName("potato")}</option>
+                          <option value="barley">{cropName("barley")}</option>
+                          <option value="fallow">{cropName("fallow")}</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-muted block mb-1 uppercase">
+                          {t("baseline.selectZaid")}
+                        </label>
+                        <select
+                          value={customZaid}
+                          onChange={(e) => setCustomZaid(e.target.value)}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-surface border border-line text-foreground"
+                        >
+                          <option value="fallow">{cropName("fallow")}</option>
+                          <option value="summer_moong">{cropName("summer_moong")}</option>
+                          <option value="fodder_sorghum">{cropName("fodder_sorghum")}</option>
+                          <option value="urad">{cropName("urad")}</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const overrideArr = [customKharif, customRabi, customZaid];
+                          setBaselineOverride(overrideArr);
+                          setIsBaselineConfirmed(true);
+                          setShowBaselineSelector(false);
+                          fetchRecommendations(priorities, constraints);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        {t("baseline.applyOverride")}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -797,7 +1131,7 @@ export function RotationExplorer({
                 {focusedStrategy.practical_metrics && (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
                     <div className="p-3 rounded-xl bg-background/75 border border-line">
-                      <span className="text-[10px] text-muted uppercase block">Kharif–Rabi Turnaround</span>
+                      <span className="text-[10px] text-muted uppercase block">{t("brief.turnaroundWindow")}</span>
                       <span
                         className={`text-sm font-bold ${
                           focusedStrategy.practical_metrics.turnaround_days_kharif_rabi >= 20
@@ -812,7 +1146,7 @@ export function RotationExplorer({
                       </span>
                     </div>
                     <div className="p-3 rounded-xl bg-background/75 border border-line">
-                      <span className="text-[10px] text-muted uppercase block">Irrigations Saved</span>
+                      <span className="text-[10px] text-muted uppercase block">{t("brief.irrigationsSaved")}</span>
                       <span className="text-sm font-bold text-cyan-400">
                         {focusedStrategy.practical_metrics.irrigations_saved_per_yr} Irrigations (
                         {Math.round(
@@ -825,7 +1159,7 @@ export function RotationExplorer({
                       </span>
                     </div>
                     <div className="p-3 rounded-xl bg-background/75 border border-line">
-                      <span className="text-[10px] text-muted uppercase block">45-kg Urea Saved</span>
+                      <span className="text-[10px] text-muted uppercase block">{t("brief.ureaBagsSaved")}</span>
                       <span className="text-sm font-bold text-emerald-400">
                         {scaleByUnit(
                           focusedStrategy.practical_metrics.urea_bags_saved_per_ha,
@@ -835,7 +1169,7 @@ export function RotationExplorer({
                       </span>
                     </div>
                     <div className="p-3 rounded-xl bg-background/75 border border-line">
-                      <span className="text-[10px] text-muted uppercase block">Labour Outlay</span>
+                      <span className="text-[10px] text-muted uppercase block">{t("brief.labourCost")}</span>
                       <span className="text-sm font-bold text-foreground">
                         {fmtAreaMoney(
                           focusedStrategy.practical_metrics.labor_cost_inr_per_ha,
@@ -853,7 +1187,7 @@ export function RotationExplorer({
                   focusedStrategy.practical_metrics.eligible_schemes.length > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
                       <span className="text-[10px] font-mono font-bold uppercase text-muted mr-1">
-                        Eligible Schemes:
+                        {t("brief.eligibleSubsidies")}:
                       </span>
                       {focusedStrategy.practical_metrics.eligible_schemes.map((sch, idx) => (
                         <span
@@ -867,6 +1201,38 @@ export function RotationExplorer({
                   )}
               </div>
             )}
+
+            {/* "What This Model Does NOT Capture" Disclosure Panel (Issue 18 / WS-J4 & WS-J5) */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-surface/60 border border-line space-y-2.5">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
+                <h4 className="font-mono text-xs font-bold uppercase tracking-wider text-foreground">
+                  {t("unmodelled.title")}
+                </h4>
+              </div>
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono text-muted pt-1">
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-500 shrink-0">•</span>
+                  <span>{t("unmodelled.pests")}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-500 shrink-0">•</span>
+                  <span>{t("unmodelled.weather")}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-500 shrink-0">•</span>
+                  <span>{t("unmodelled.market")}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-500 shrink-0">•</span>
+                  <span>{t("unmodelled.labour")}</span>
+                </li>
+                <li className="flex items-start gap-2 md:col-span-2">
+                  <span className="text-amber-500 shrink-0">•</span>
+                  <span>{t("unmodelled.water")}</span>
+                </li>
+              </ul>
+            </div>
 
             {/* Interactive Deep-Dive: 12-Month Agronomic Calendar + 5-Axis Soil Health Radar */}
             {focusedStrategy && baseline && (
@@ -999,7 +1365,7 @@ export function RotationExplorer({
                     </span>
                     <span className="flex items-center gap-1.5 text-rose-400">
                       <span className="w-3 h-1.5 rounded bg-rose-400 inline-block" />
-                      <span>Current Baseline</span>
+                      <span>{t("strategy.baseline")}</span>
                     </span>
                   </div>
                 </div>
@@ -1175,7 +1541,7 @@ export function RotationExplorer({
               <div>
                 <h4 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
                   <Box className="w-4 h-4 text-stone-400" />
-                  <span>Multi-Objective Pareto Trade-Off Frontier</span>
+                  <span>{t("pareto.frontierTitle")}</span>
                 </h4>
                 <p className="text-[11px] font-mono text-muted mt-0.5">
                   Simultaneous optimization across Irrigation Demand [mm/yr], Net Margin [
@@ -1267,7 +1633,7 @@ export function RotationExplorer({
               <div>
                 <h4 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
                   <FlaskConical className="w-4 h-4 text-amber-400" />
-                  <span>What-If Hydro-Climatic, CMIP6 &amp; Market Stress Perturbation Lab</span>
+                  <span>{t("whatif.title")}</span>
                 </h4>
                 <p className="text-[11px] font-mono text-muted mt-0.5">
                   Perturb NASA NEX-GDDP-CMIP6 future climate ensembles, ET₀ drought anomaly, MSP/market price, and synthetic N-fertilizer cost
@@ -1276,7 +1642,7 @@ export function RotationExplorer({
 
               <div className="flex flex-wrap items-center gap-2.5 text-xs font-mono">
                 <label className="flex items-center gap-2">
-                  <span className="text-muted text-[11px]">Climate Scenario:</span>
+                  <span className="text-muted text-[11px]">{t("whatif.climateScenario")}</span>
                   <select
                     value={climateScenario}
                     onChange={(e) => {
@@ -1286,11 +1652,11 @@ export function RotationExplorer({
                     }}
                     className="px-2.5 py-1.5 rounded-lg border border-amber-500/40 bg-surface text-foreground text-[11px] font-mono outline-none cursor-pointer"
                   >
-                    <option value="historical">Historical Baseline (1995–2024 NASA POWER)</option>
-                    <option value="ssp245_2030s">CMIP6 SSP2-4.5 Near-Term (2030s: +1.15°C)</option>
-                    <option value="ssp245_2050s">CMIP6 SSP2-4.5 Mid-Century (2050s: +1.85°C)</option>
-                    <option value="ssp585_2030s">CMIP6 SSP5-8.5 High-Emission (2030s: +1.45°C)</option>
-                    <option value="ssp585_2050s">CMIP6 SSP5-8.5 High-Emission (2050s: +2.65°C)</option>
+                    <option value="historical">{t("whatif.histBaseline")}</option>
+                    <option value="ssp245_2030s">{t("whatif.ssp245Near")}</option>
+                    <option value="ssp245_2050s">{t("whatif.ssp245Mid")}</option>
+                    <option value="ssp585_2030s">{t("whatif.ssp585Near")}</option>
+                    <option value="ssp585_2050s">{t("whatif.ssp585Mid")}</option>
                   </select>
                 </label>
 
@@ -1310,7 +1676,7 @@ export function RotationExplorer({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5 rounded-2xl bg-amber-500/[0.07] border border-amber-500/35">
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-mono">
-                  <span className="font-semibold text-foreground">Drought / ET₀ Anomaly</span>
+                  <span className="font-semibold text-foreground">{t("whatif.droughtEt0")}</span>
                   <span className="font-bold text-amber-500">+{droughtShockPct}%</span>
                 </div>
                 <input
@@ -1332,7 +1698,7 @@ export function RotationExplorer({
 
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-mono">
-                  <span className="font-semibold text-foreground">Harvest Price Perturbation</span>
+                  <span className="font-semibold text-foreground">{t("whatif.harvestPrice")}</span>
                   <span className="font-bold text-cyan-400">
                     {priceShockPct > 0 ? `+${priceShockPct}` : priceShockPct}%
                   </span>
@@ -1356,7 +1722,7 @@ export function RotationExplorer({
 
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-mono">
-                  <span className="font-semibold text-foreground">Urea / Synthetic N Cost Spike</span>
+                  <span className="font-semibold text-foreground">{t("whatif.ureaSpike")}</span>
                   <span className="font-bold text-rose-500">+{fertilizerShockPct}%</span>
                 </div>
                 <input
@@ -1385,13 +1751,13 @@ export function RotationExplorer({
                 </caption>
                 <thead className="bg-foreground/[0.05] text-foreground font-mono text-[11px] uppercase tracking-wider border-b border-line">
                   <tr>
-                    <th scope="col" className="py-3.5 px-4">Rotation Strategy</th>
-                    <th scope="col" className="py-3.5 px-3">Baseline Margin</th>
-                    <th scope="col" className="py-3.5 px-3">Stressed Margin</th>
-                    <th scope="col" className="py-3.5 px-3">Drought Income (Worst 10%)</th>
-                    <th scope="col" className="py-3.5 px-3">Regret / Drawdown</th>
-                    <th scope="col" className="py-3.5 px-3">Stressed Irrigation</th>
-                    <th scope="col" className="py-3.5 px-3">Resilience Class</th>
+                    <th scope="col" className="py-3.5 px-4">{t("whatif.rotStrategy")}</th>
+                    <th scope="col" className="py-3.5 px-3">{t("whatif.baseMargin")}</th>
+                    <th scope="col" className="py-3.5 px-3">{t("whatif.stressedMargin")}</th>
+                    <th scope="col" className="py-3.5 px-3">{t("whatif.droughtIncome")}</th>
+                    <th scope="col" className="py-3.5 px-3">{t("whatif.regretDrawdown")}</th>
+                    <th scope="col" className="py-3.5 px-3">{t("whatif.stressedIrrigation")}</th>
+                    <th scope="col" className="py-3.5 px-3">{t("whatif.resilienceClass")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line text-foreground/90 font-mono">
@@ -1516,6 +1882,7 @@ function SoilHealthRadar({
   focused: StrategyRecommendation;
   baseline: StrategyRecommendation;
 }) {
+  const { t } = useI18n();
   const fRes = focused.results[0];
   const bRes = baseline.results[0];
 
@@ -1646,8 +2013,8 @@ function SoilHealthRadar({
       {fRes?.soil_health_breakdown && (
         <div className="w-full mt-2 pt-2 border-t border-line space-y-1 text-[10px] font-mono">
           <div className="flex justify-between text-muted uppercase font-bold">
-            <span>Soil Health Component (Weight)</span>
-            <span>Selected vs Base</span>
+            <span>{t("radar.shComponent")}</span>
+            <span>{t("radar.selectedVsBase")}</span>
           </div>
           {[
             { key: "disturbance_minimization", label: "1. Min Disturbance (/15)" },
@@ -1676,12 +2043,12 @@ function SoilHealthRadar({
 
       {/* Accessible fallback table */}
       <table className="sr-only">
-        <caption>USDA-NRCS 5-Axis Soil Health Comparison</caption>
+        <caption>{t("radar.usdaTitle")}</caption>
         <thead>
           <tr>
             <th>Principle</th>
-            <th>Selected Strategy</th>
-            <th>Baseline</th>
+            <th>{t("radar.selectedStrategy")}</th>
+            <th>{t("strategy.baseline")}</th>
           </tr>
         </thead>
         <tbody>
@@ -1773,6 +2140,14 @@ function StrategyCard({
           </span>
 
           <div className="flex items-center gap-1.5">
+            {strategy.economics_basis === "punjab_proxy" && (
+              <span
+                className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/35"
+                title={t("badge.punjabProxyTooltip")}
+              >
+                {t("badge.punjabProxyEconomics")}
+              </span>
+            )}
             {isMultiYear && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border border-cyan-500/35">
                 {numYears}Y
@@ -1877,7 +2252,7 @@ function StrategyCard({
         {/* Quantitative Metrics Grid */}
         <div className="pt-2.5 border-t border-line space-y-2 text-xs font-mono">
           <div className="flex justify-between items-center">
-            <span className="text-muted font-sans">Irrigation Demand</span>
+            <span className="text-muted font-sans">{t("radar.irrigationDemand")}</span>
             <span
               className={`font-bold ${
                 isBaseline ? "text-rose-500" : "text-cyan-500 dark:text-cyan-300"
@@ -1898,6 +2273,17 @@ function StrategyCard({
               </span>
             </span>
           </div>
+          <div className="text-[9px] text-muted font-sans text-right -mt-1">
+            {t("label.netOperatingIncomeNote")}
+          </div>
+          {res?.cvar_ci_low !== undefined && res?.cvar_ci_high !== undefined && (
+            <div className="flex justify-between items-center text-[10px] text-muted">
+              <span>{"CVaR₁₀ 90% CI"}</span>
+              <span>
+                [{fmtAreaMoney(res.cvar_ci_low, currSym, unitSystem)}–{fmtAreaMoney(res.cvar_ci_high, currSym, unitSystem)}]
+              </span>
+            </div>
+          )}
 
           <div className="flex justify-between items-center">
             <span className="text-muted font-sans">{t("strategy.socTrajectory")}</span>
