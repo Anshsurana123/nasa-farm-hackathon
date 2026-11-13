@@ -4,17 +4,19 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { RotationExplorer } from "@/components/RotationExplorer";
 import { useField } from "@/context/FieldContext";
+import { useI18n } from "@/i18n";
 import { ArrowRight, Box, FileText, Sprout } from "lucide-react";
 
 export default function RotationsPage() {
+  const { t } = useI18n();
   const { selectedField, profile, strategies, setStrategies, optimizing } = useField();
 
   return (
     <AppShell
       pageStep="03"
       pageBadge="FAO-56 / FAO-33 · RothC-26.3 · RUSLE · NSGA-II Multi-Objective"
-      pageTitle="Rotation Studio & 12-Month Agronomic Calendar"
-      pageDescription="Tune farmer priority weights, apply persona presets, inspect the 12-month Kharif–Rabi–Zaid phenology Gantt timeline, Seasonal Field Operations & Budget Ledger, and evaluate 5-axis USDA-NRCS soil health trade-offs against the status-quo monoculture."
+      pageTitle={t("rotations.pageTitle")}
+      pageDescription={t("rotations.pageDesc")}
       headerActions={
         <div className="flex flex-wrap items-center gap-2.5">
           <Link
@@ -22,14 +24,14 @@ export default function RotationsPage() {
             className="px-3.5 py-2.5 rounded-xl bg-surface-2 hover:bg-surface border border-line text-foreground font-mono text-xs font-semibold flex items-center gap-1.5 transition-colors"
           >
             <Sprout className="w-3.5 h-3.5 text-emerald-400" />
-            <span>23-Crop Atlas</span>
+            <span>{t("rotations.cropAtlasBtn")}</span>
           </Link>
           <Link
             href="/lab"
             className="px-4 py-2.5 rounded-xl bg-cyan-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
           >
             <Box className="w-4 h-4" />
-            <span>Open 3D Pareto &amp; Shock Lab</span>
+            <span>{t("rotations.openLabBtn")}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
           <Link
@@ -37,7 +39,7 @@ export default function RotationsPage() {
             className="px-3.5 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-400 font-mono text-xs font-bold flex items-center gap-1.5 transition-colors"
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>Advisory Brief</span>
+            <span>{t("rotations.briefBtn")}</span>
           </Link>
         </div>
       }

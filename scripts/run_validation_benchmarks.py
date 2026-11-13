@@ -107,6 +107,8 @@ def run_benchmarks() -> str:
     )
     lines.append("| :--- | :--- | :---: | :---: | :---: | :---: | :--- |")
 
+    eval_stats: dict[tuple[str, str], tuple[float, float, float]] = {}
+
     calib_df = gt_df[~gt_df["is_held_out"]].copy()
     for _, row in calib_df.iterrows():
         fid = row["district_id"]
@@ -133,6 +135,7 @@ def run_benchmarks() -> str:
         sim_med = float(np.median(sim_vals))
         abs_err = sim_med - obs_y
         rel_err = (abs_err / obs_y) * 100.0 if obs_y > 0 else 0.0
+        eval_stats[(fid, cid)] = (obs_y, sim_med, rel_err)
         lines.append(
             f"| **{d_name}** | {c_label} | {obs_y:.2f} | **{sim_med:.2f}** | {abs_err:+.2f} | **{rel_err:+.1f}%** | {ref_src} |"
         )
@@ -176,34 +179,45 @@ def run_benchmarks() -> str:
         sim_med = float(np.median(sim_vals))
         abs_err = sim_med - obs_y
         rel_err = (abs_err / obs_y) * 100.0 if obs_y > 0 else 0.0
+        eval_stats[(fid, cid)] = (obs_y, sim_med, rel_err)
         lines.append(
             f"| **{d_name}** | {c_label} | {obs_y:.2f} | **{sim_med:.2f}** | {abs_err:+.2f} | **{rel_err:+.1f}%** | {ref_src} |"
         )
+
+    def _fmt_stat(fid: str, cid: str) -> tuple[float, float, float]:
+        return eval_stats.get((fid, cid), (0.0, 0.0, 0.0))
+
+    _lu_w_obs, _lu_w_sim, lu_w_err = _fmt_stat("ludhiana", "wheat")
+    _lu_r_obs, _lu_r_sim, lu_r_err = _fmt_stat("ludhiana", "rice_puddled")
+    _ba_w_obs, _ba_w_sim, ba_w_err = _fmt_stat("bathinda", "wheat")
+    ya_c_obs, ya_c_sim, ya_c_err = _fmt_stat("vidarbha", "cotton")
+    jh_s_obs, jh_s_sim, jh_s_err = _fmt_stat("bundelkhand", "sorghum")
+    th_r_obs, th_r_sim, th_r_err = _fmt_stat("thanjavur", "rice_puddled")
 
     lines.append("")
     lines.append("### 1.3 Analysis of Discrepancies on Held-Out Districts")
     lines.append("")
     lines.append(
-        "While held-out Trans-Gangetic Punjab sites match within single-digit percentage errors (Ludhiana wheat +5.7%, "
-        "Ludhiana paddy -2.7%, Bathinda wheat +8.2%), larger deviations occur in peninsular and semi-arid rainfed sites "
-        "(+20% to +43%). We intentionally report these discrepancies transparently without manual post-hoc adjustments for "
-        "the following physical and agronomic reasons:"
+        f"While held-out Trans-Gangetic Punjab sites match within single-digit percentage errors "
+        f"(Ludhiana wheat {lu_w_err:+.1f}%, Ludhiana paddy {lu_r_err:+.1f}%, Bathinda wheat {ba_w_err:+.1f}%), "
+        f"larger deviations occur in peninsular and semi-arid rainfed sites. We intentionally report these discrepancies "
+        f"transparently without manual post-hoc adjustments for the following physical and agronomic reasons:"
     )
     lines.append("")
     lines.append(
-        "1. **Yavatmal, Maharashtra — Rainfed Seed Cotton (+42.6% error, 1.92 vs 1.35 t/ha):** "
+        f"1. **Yavatmal, Maharashtra — Rainfed Seed Cotton ({ya_c_err:+.1f}% error, {ya_c_sim:.2f} vs {ya_c_obs:.2f} t/ha):** "
         "DES APY statistics report farm-gate seed cotton across diverse marginal plots. In Vidarbha, rainfed cotton "
         "routinely suffers from chronic pink bollworm (*Pectinophora gossypiella*) infestation, boll rot during late monsoon showers, "
         "and sub-optimal fertilizer application. The FAO-56 / FAO-33 engine simulates pure abiotic water and temperature stress; "
         "it does not incorporate a biotic insect pest damage module."
     )
     lines.append(
-        "2. **Jhansi (Bundelkhand), Uttar Pradesh — Rainfed Sorghum (+26.5% error, 1.67 vs 1.32 t/ha):** "
+        f"2. **Jhansi (Bundelkhand), Uttar Pradesh — Rainfed Sorghum ({jh_s_err:+.1f}% error, {jh_s_sim:.2f} vs {jh_s_obs:.2f} t/ha):** "
         "Bundelkhand sorghum averages reflect marginal, unfertilized subsistence fields with shallow rocky subsoils and severe bird foraging damage. "
         "Simulated yields represent potential yield constrained solely by soil-water availability, without nutrient deficiency penalties."
     )
     lines.append(
-        "3. **Thanjavur, Tamil Nadu — Irrigated Paddy (+20.0% error, 7.02 vs 5.85 t/ha):** "
+        f"3. **Thanjavur, Tamil Nadu — Irrigated Paddy ({th_r_err:+.1f}% error, {th_r_sim:.2f} vs {th_r_obs:.2f} t/ha):** "
         "In the Cauvery delta coastal belt, the Samba rice crop is frequently subject to North-East monsoon cyclonic storms, "
         "prolonged drainage congestion/waterlogging at maturity, and blast disease (*Magnaporthe oryzae*). "
         "The model accurately simulates unstressed vegetative potential but does not depress yield for lodging or harvest flood damage."
@@ -336,11 +350,11 @@ def run_benchmarks() -> str:
     lines.append("## 4. Kharif Rice Hydrology & Stubble-Burning Turnaround Window")
     lines.append("")
     lines.append(
-        "Compares Puddled Long-Duration Rice (`rice_puddled`, 126 field days, 175 mm puddling + continuous ponded head driving "
-        "3.5 mm/day percolation), PAU Short-Duration Rice (`rice_short` PR-126, 104 field days, 175 mm puddling), and "
-        "Direct-Seeded Rice (`rice_dsr`, 127 days, 75 mm pre-sowing rauni wetting + Alternate Wetting & Drying with non-ponded "
-        "intermittent drainage averaging 2.55 mm/day) on Sangrur Alluvial Loam. Parameterised to match Punjab Agricultural "
-        "University experimental trials (Ladha et al. 2009; Sudhir-Yadav et al. 2011)."
+        "Compares Puddled Long-Duration Rice (`rice_puddled`, 175 mm puddling + continuous ponded head driving "
+        "3.5 mm/day percolation), PAU Short-Duration Rice (`rice_short` PR-126, 175 mm puddling), and "
+        "Direct-Seeded Rice (`rice_dsr`, 75 mm pre-sowing rauni wetting + Alternate Wetting & Drying with non-ponded "
+        "intermittent drainage averaging 2.55 mm/day) on Sangrur Alluvial Loam across their exact simulated cycle lengths. "
+        "Parameterised to match Punjab Agricultural University experimental trials (Ladha et al. 2009; Sudhir-Yadav et al. 2011)."
     )
     lines.append("")
     lines.append(
@@ -384,7 +398,7 @@ def run_benchmarks() -> str:
     lines.append(
         "Evaluates 30-member ensemble outcomes on Sangrur Alluvial Loam across four management systems, "
         "including the transparent component-by-component breakdown of the 0–100 Soil Health Index "
-        "(5 USDA-NRCS principles × 15 pts max = 75 pts + SOC & RUSLE modifiers ±25 pts − 5 pt residue burning penalty)."
+        "(5 USDA-NRCS principles × 15 pts max = 75 pts + SOC (−10..+15), RUSLE (−10..+3) & soil condition (−5..+5) modifiers − 5 pt residue burning penalty)."
     )
     lines.append("")
     lines.append(
@@ -470,16 +484,17 @@ def run_benchmarks() -> str:
     lines.append("### Soil Health Index Component & Weight Breakdown (`models/soil_health.py`)")
     lines.append("")
     lines.append(
-        "| Rotation System | Armor (/15) | Min Disturbance (/15) | Diversity (/15) | Living Roots (/15) | Organic N (/15) | SOC Mod | Erosion Mod | Burn Penalty | Total (/100) |"
+        "| Rotation System | Armor (/15) | Min Disturbance (/15) | Diversity (/15) | Living Roots (/15) | Organic N (/15) | SOC Mod | Erosion Mod | Soil Cond Mod | Burn Penalty | Total (/100) |"
     )
-    lines.append("| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |")
+    lines.append("| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |")
     for sys_name, ev_res in eval_pairs:
         bd = ev_res.soil_health_breakdown
         lines.append(
             f"| {sys_name} | {bd.get('soil_armor_cover', 0):.1f} | {bd.get('disturbance_minimization', 0):.1f} | "
             f"{bd.get('biodiversity', 0):.1f} | {bd.get('living_roots', 0):.1f} | "
             f"{bd.get('biological_n_livestock', 0):.1f} | {bd.get('soc_modifier', 0):+.1f} | "
-            f"{bd.get('erosion_modifier', 0):+.1f} | {bd.get('burning_penalty', 0):+.1f} | **{ev_res.soil_health_score:.1f}** |"
+            f"{bd.get('erosion_modifier', 0):+.1f} | {bd.get('soil_condition_modifier', 0):+.1f} | "
+            f"{bd.get('burning_penalty', 0):+.1f} | **{ev_res.soil_health_score:.1f}** |"
         )
     lines.append("")
 

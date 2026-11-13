@@ -68,8 +68,9 @@
 | `score_puddling` | 5.5 | points | **[CALIBRATED]** | Principle 1 score for intensive tractor rotary puddling breaking soil aggregates. | Calibrated to reflect complete macro-aggregate disruption and plough pan compaction. |
 | `score_burn` | 3.5 | points | **[CALIBRATED]** | Principle 1 score when residue is burned, destroying surface microbial biomass. | Bhuvaneshwari et al. (2019). |
 | `burn_penalty` | -5.0 | points | **[CALIBRATED]** | Direct penalty subtracted from total 0–100 Soil Health Score if crop residues are burned. | USDA-NRCS air quality & surface biology impairment penalty. |
-| `soc_mod_weight` | ±15.0 | points | **[CALIBRATED]** | Centered modifier scaling with 10-year RothC SOC accumulation (±3.0 t C/ha range). | Calibrated so a +3.0 t C/ha decadal gain awards full +15 bonus points. |
-| `erosion_mod_weight` | ±5.0 | points | **[CALIBRATED]** | Centered modifier based on RUSLE annual soil loss relative to 5.0 t/ha/yr tolerable soil loss ($T$-value). | USDA-NRCS Soil Loss Tolerance Guidelines ($T$-value). |
+| `soc_mod_weight` | -10.0 to +15.0 | points | **[CALIBRATED]** | Piecewise modifier scaling with 10-year RothC SOC accumulation relative to ±2.2 t C/ha. | Calibrated so +2.2 t C/ha decadal gain awards +15 pts and -2.2 t C/ha loss deducts -10 pts. |
+| `erosion_mod_weight` | -10.0 to +3.0 | points | **[CALIBRATED]** | Modifier based on RUSLE annual soil loss relative to 5.0 t/ha/yr tolerable soil loss ($T$-value). | USDA-NRCS Soil Loss Tolerance ($T$-value); flat topography grants ≤3 pts while >5 t/ha/yr loss deducts up to -10 pts. |
+| `soil_condition_modifier` | -5.0 to +5.0 | points | **[CALIBRATED]** | Baseline topsoil SOC, pH, and available P/K condition adjustment from SoilGrids / SHC. | Reflects baseline fertility & salinity/acidity constraints on long-term soil health score. |
 
 ---
 
@@ -96,9 +97,9 @@
 
 | Constant | Value | Units | Classification | Physical Meaning | Exact Citation / Reference |
 | :--- | :---: | :---: | :---: | :--- | :--- |
-| Singh-Babu R equation | $R = 79.0 + 0.363 \cdot P_{\text{ann}}$ | MJ·mm/(ha·h·yr) | **[CITED]** | Annual rainfall erosivity index derived from annual precipitation for Indian conditions. | Singh, Babu & Chandra (1981) *Indian J. Soil Conserv.* 9(2): 108-115; ICAR-IISWC Dehradun. |
+| Renard-Freimund R equation | $0.0483 P^{1.61}$ ($P<850$) / quadratic ($P\ge 850$) | MJ·mm/(ha·h·yr) | **[CITED]** | Annual rainfall erosivity index derived from 2001+ homogeneous precipitation. | Renard & Freimund (1994) *J. Hydrology* 157: 287-306. |
 | Sharpley-Williams K | EPIC equation | t·ha·h/(ha·MJ·mm) | **[CITED]** | Soil erodibility factor $K$ derived from sand %, silt %, clay %, and organic carbon %. | Sharpley & Williams (1990) *EPIC Technical Manual*, USDA-ARS; Wischmeier & Smith (1978). |
-| McCool LS equation | Sub-divided slopes | dimensionless | **[CITED]** | Topographic slope length and steepness factor. | McCool et al. (1987) *Trans. ASAE* 30(5): 1387-1396. |
+| Wischmeier-Smith LS | $\lambda = 50\text{ m}$ | dimensionless | **[CITED]** | Topographic slope length and steepness factor from 30 m NASADEM slope %. | Wischmeier & Smith (1978) *USDA Agric. Handbook* 537. |
 
 ---
 
@@ -125,7 +126,7 @@
 
 ## 10. Summary Verification Tally
 
-- **Total Parameter Entries:** 31
-- **[CITED] (Peer-Reviewed Literature / Government Norms):** 21 (67.7%)
-- **[CALIBRATED] (Empirically Tuned Against Field Trials / Ground Truth):** 9 (29.0%)
-- **[HEURISTIC / INVENTED] (Subject to Domain-Expert Review Queue):** 1 (3.2%) — *GRACE urgency scaling factor* (bounded at 1.5× max, visible in diagnostics).
+- **Total Parameter Entries:** 32
+- **[CITED] (Peer-Reviewed Literature / Government Norms):** 21 (65.6%)
+- **[CALIBRATED] (Empirically Tuned Against Field Trials / Ground Truth):** 10 (31.3%)
+- **[HEURISTIC / INVENTED] (Subject to Domain-Expert Review Queue):** 1 (3.1%) — *GRACE urgency scaling factor* (bounded at 1.5× max, visible in diagnostics).

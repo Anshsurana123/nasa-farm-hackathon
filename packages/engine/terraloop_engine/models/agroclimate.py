@@ -114,6 +114,61 @@ def et0_penman_monteith(
     return float(max(0.0, numerator / denominator))
 
 
+def et0_penman_monteith_series(
+    tmax: pd.Series,
+    tmin: pd.Series,
+    lat_deg: float,
+    rs_mj_m2_day: pd.Series | None = None,
+    rh_mean_pct: pd.Series | None = None,
+    wind_m_s: pd.Series | None = None,
+    elevation_m: float = 200.0,
+    wind_height_m: float = 2.0,
+) -> pd.Series:
+    """Vectorized daily FAO-56 Penman-Monteith ET0 (mm/day) with Hargreaves fallback on missing inputs.
+
+    Follows FAO Irrigation and Drainage Paper No. 56 equations 6, 11-19, 37-40, and 47.
+    """
+    harg = et0_hargreaves(tmax, tmin, lat_deg)
+    if rs_mj_m2_day is None or rh_mean_pct is None or wind_m_s is None:
+        return harg
+
+    tmean = 0.5 * (tmax + tmin)
+    doy = tmax.index.dayofyear.to_numpy()
+    ra = extraterrestrial_radiation(lat_deg, doy)
+    rso = (0.75 + 2e-5 * elevation_m) * ra
+
+    # Saturation & actual vapour pressure (FAO-56 eq. 11, 12, 19)
+    es_tx = 0.6108 * np.exp(17.27 * tmax / (tmax + 237.3))
+    es_tn = 0.6108 * np.exp(17.27 * tmin / (tmin + 237.3))
+    es = 0.5 * (es_tx + es_tn)
+    rh = np.clip(rh_mean_pct.astype(float), 5.0, 100.0)
+    ea = np.maximum(0.05, es * (rh / 100.0))
+
+    # Net shortwave & net longwave radiation (FAO-56 eq. 38, 39, 40)
+    rs = np.maximum(0.5, rs_mj_m2_day.astype(float))
+    rns = 0.77 * rs
+    ratio = np.clip(rs / np.maximum(rso, 1.0), 0.25, 1.0)
+    sigma = 4.903e-9
+    tk4 = 0.5 * (((tmax + 273.16) ** 4) + ((tmin + 273.16) ** 4))
+    rnl = sigma * tk4 * (0.34 - 0.14 * np.sqrt(ea)) * (1.35 * ratio - 0.35)
+    rn = rns - rnl
+
+    u2_raw = np.maximum(0.2, wind_m_s.astype(float))
+    if wind_height_m > 2.0:
+        u2 = u2_raw * (4.87 / np.log(67.8 * wind_height_m - 5.42))
+    else:
+        u2 = u2_raw
+
+    delta = 4098.0 * (0.6108 * np.exp(17.27 * tmean / (tmean + 237.3))) / ((tmean + 237.3) ** 2)
+    gamma = psychrometric_constant(elevation_m)
+
+    num = 0.408 * delta * rn + gamma * (900.0 / (tmean + 273.0)) * u2 * np.maximum(0.0, es - ea)
+    den = delta + gamma * (1.0 + 0.34 * u2)
+    pm = (num / den).clip(lower=0.0)
+    valid = ~(pm.isna() | rs_mj_m2_day.isna() | rh_mean_pct.isna() | wind_m_s.isna())
+    return pm.where(valid, harg)
+
+
 def fao56_depletion_ks(dr_mm: float, raw_mm: float, taw_mm: float) -> float:
     """Daily root-zone water stress coefficient Ks (FAO-56 eq. 84, Box 11).
 

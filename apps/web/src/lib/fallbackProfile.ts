@@ -112,18 +112,50 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
     bd = 1.35;
   }
 
-  // Monthly curves (12 months)
-  const monthlyTx = [20.5, 24.2, 30.8, 36.5, 40.2, 39.0, 34.5, 33.0, 33.2, 31.8, 27.0, 22.0];
-  const monthlyTn = [6.8, 9.5, 14.5, 20.2, 25.0, 27.5, 26.8, 26.0, 24.2, 18.5, 12.0, 7.8];
-  const monthlyP = [18.0, 22.0, 15.0, 10.0, 14.0, 65.0, 210.0, 180.0, 85.0, 12.0, 6.0, 12.0];
+  // Monthly curves (12 months), calibrated cleanly for temperate/global or Southern Hemisphere sites
+  let monthlyTx = [20.5, 24.2, 30.8, 36.5, 40.2, 39.0, 34.5, 33.0, 33.2, 31.8, 27.0, 22.0];
+  let monthlyTn = [6.8, 9.5, 14.5, 20.2, 25.0, 27.5, 26.8, 26.0, 24.2, 18.5, 12.0, 7.8];
+  let monthlyP = [18.0, 22.0, 15.0, 10.0, 14.0, 65.0, 210.0, 180.0, 85.0, 12.0, 6.0, 12.0];
+  let annualEt0 = 1480;
+  let wettestMonths = [6, 7, 8, 9];
+  let gdd10 = 4850;
+  let frostDays = lat > 28 ? 1.5 : 0.0;
+
+  if (!isSA) {
+    const absLat = Math.abs(lat);
+    const amp = absLat > 23 ? 11.5 : 3.5;
+    const isSh = lat < 0;
+    const baseTx = Math.max(8, 30.0 - 0.36 * absLat);
+    monthlyTx = Array.from({ length: 12 }, (_, idx) => {
+      const m = idx + 1;
+      const peakMonth = isSh ? 1 : 7;
+      const phase = ((m - peakMonth) / 12) * 2 * Math.PI;
+      return Number((baseTx + amp * Math.cos(phase)).toFixed(1));
+    });
+    monthlyTn = monthlyTx.map((tx) => Number((tx - 10.5).toFixed(1)));
+    const pWeights = isSh
+      ? [0.13, 0.12, 0.10, 0.07, 0.05, 0.04, 0.04, 0.05, 0.07, 0.09, 0.11, 0.13]
+      : absLat > 40
+        ? [0.08, 0.07, 0.08, 0.08, 0.09, 0.09, 0.08, 0.08, 0.08, 0.09, 0.09, 0.09]
+        : [0.06, 0.06, 0.07, 0.08, 0.11, 0.12, 0.12, 0.11, 0.09, 0.07, 0.06, 0.05];
+    monthlyP = pWeights.map((w) => Number((annualP * w).toFixed(1)));
+    annualEt0 = Math.round(720 + Math.max(0, 35 - absLat) * 22);
+    wettestMonths = isSh ? [12, 1, 2, 3] : [5, 6, 7, 8];
+    gdd10 = Math.round(
+      monthlyTx.reduce((acc, tx, idx) => acc + Math.max(0, (tx + monthlyTn[idx]) / 2 - 10) * 30.4, 0)
+    );
+    frostDays = monthlyTn.reduce((acc, tn) => acc + (tn < 1 ? 10 : 0), 0);
+  }
 
   const provFallback: DataProvenance = {
-    source: "Regional Climatology & Soil Inventory",
-    product: "Location-calibrated biophysical synthetic fallback",
-    resolution: "Regional Indian agro-zone",
+    source: isSA ? "Regional Climatology & Soil Inventory" : "Latitude-Zonal Global Fallback Climatology",
+    product: isSA
+      ? "Location-calibrated Indian regional synthetic fallback"
+      : "Unvalidated global fallback climatology (exploratory)",
+    resolution: isSA ? "Regional Indian agro-zone" : "Global zonal estimate",
     period: "1985-2024",
     doi: "10.5067/POWER/0001",
-    mode: "regional_climatology",
+    mode: isSA ? "regional_climatology" : "fallback_estimate",
   };
 
   const climate: ClimateSummary = {
@@ -135,23 +167,23 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
     recent_annual_precip_mm: annualP * 0.96,
     precip_change_pct: -4.0,
     tmax_change_c: 0.85,
-    heat_days_per_year: heatDays - 6,
+    heat_days_per_year: Math.max(0, heatDays - 4),
     recent_heat_days_per_year: heatDays,
-    frost_days_per_year: lat > 28 ? 1.5 : 0.0,
-    longest_dry_spell_days_mean: 14.5,
-    annual_et0_mm: 1480,
-    gdd_base10_per_year: 4850,
+    frost_days_per_year: frostDays,
+    longest_dry_spell_days_mean: isSA ? 14.5 : 9.0,
+    annual_et0_mm: annualEt0,
+    gdd_base10_per_year: gdd10,
     monthly_precip_mm: monthlyP,
     monthly_tmax_c: monthlyTx,
     monthly_tmin_c: monthlyTn,
-    wettest_months: [6, 7, 8, 9],
+    wettest_months: wettestMonths,
     provenance: [provFallback],
   };
 
   const water: WaterSummary = {
     root_zone_moisture_percentile: [45, 42, 38, 30, 28, 35, 65, 70, 58, 48, 42, 44],
     groundwater_trend_cm_per_year: gwTrend,
-    climatic_water_balance_mm: annualP - 1480,
+    climatic_water_balance_mm: annualP - annualEt0,
     provenance: [provFallback],
   };
 
@@ -173,10 +205,10 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
   };
 
   const hazards: HazardSummary = {
-    drought_frequency: 0.22,
+    drought_frequency: isSA ? 0.22 : 0.14,
     extreme_rain_days_per_year: 2.8,
-    heat_stress_probability: 0.72,
-    frost_risk: lat > 28 ? 0.08 : 0.0,
+    heat_stress_probability: isSA ? 0.72 : 0.15,
+    frost_risk: frostDays > 2 ? 0.35 : lat > 28 ? 0.08 : 0.0,
     terminal_heat_days_per_year: terminalHeatDays,
     erosion_risk_class: "low",
     residue_burning_detected: null,
@@ -185,12 +217,14 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
 
   const agro_climatic_notes = [
     `Location-calibrated regional estimates active for ${reg.shortName} (${lat.toFixed(3)}°, ${lon.toFixed(3)}°).`,
-    `Evaporative deficit: annual ET0 (1,480 mm) exceeds rainfall (${annualP} mm); water-efficient rotations critical.`,
-    `Soil organic carbon is ${soc} g/kg (${texture}): organic residue retention and summer pulses build carbon.`,
+    annualEt0 > annualP
+      ? `Evaporative deficit: annual ET0 (${annualEt0.toLocaleString()} mm) exceeds rainfall (${annualP} mm); water-efficient rotations critical.`
+      : `Positive seasonal moisture balance: rainfall (${annualP} mm) supports diverse rainfed sequences (ET0 ${annualEt0.toLocaleString()} mm).`,
+    `Soil organic carbon is ${soc} g/kg (${texture}): organic residue retention and pulse integration build soil carbon.`,
   ];
   if (terminalHeatDays >= 5) {
     agro_climatic_notes.push(
-      `Wheat terminal heat: March grain-fill averages ${terminalHeatDays.toFixed(1)} days/yr above 32°C. Surface mulch buffers canopy temperature.`
+      `Wheat terminal heat: grain-fill averages ${terminalHeatDays.toFixed(1)} days/yr above 32°C. Surface mulch buffers canopy temperature.`
     );
   }
 
@@ -208,10 +242,10 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
     currency_symbol: isSA ? "₹" : "$",
     agro_zone: reg.shortName,
     state: reg.regionName,
-    served_from: "demo_snapshot",
-    snapshot_date: "Regional Climatology",
-    is_fallback: !isSA,
-    data_mode: isSA ? "hybrid_regional" : "fallback_synthetic",
+    served_from: "live_computation",
+    snapshot_date: null,
+    is_fallback: true,
+    data_mode: isSA ? "regional_climatology" : "fallback_synthetic",
     validation_status: isSA ? "validated_india" : "unvalidated_global",
     validation_message: isSA
       ? undefined

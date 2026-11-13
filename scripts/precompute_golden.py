@@ -64,10 +64,11 @@ def main(ids: list[str]) -> None:
 
         # 1. Build and save FieldProfile with honest provenance & demo_snapshot tagging
         existing_prof_path = field_dir / "profile.json"
+        snapshot_dt = datetime.now(UTC).date().isoformat()
         prof = profiler.build_profile(FieldGeometry(id=fid, lat=lat, lon=lon, name=name))
         prof.field.id = fid
         prof.served_from = "demo_snapshot"
-        prof.snapshot_date = "2026-11-10"
+        prof.snapshot_date = snapshot_dt
 
         from terraloop_engine import region_registry
         if not prof.state:
@@ -134,7 +135,7 @@ def main(ids: list[str]) -> None:
         )
         for r in recs:
             r.served_from = "demo_snapshot"
-            r.snapshot_date = "2026-11-10"
+            r.snapshot_date = snapshot_dt
             r.state = prof.state
             r.data_mode = prof.data_mode
             r.is_fallback = prof.is_fallback

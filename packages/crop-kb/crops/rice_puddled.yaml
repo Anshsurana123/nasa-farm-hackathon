@@ -7,7 +7,7 @@ gdd_to_maturity: 1900
 base_temp_c: 10
 optimal_temp_c: [25, 32]
 max_temp_c: 40
-min_temp_c: 15
+min_temp_c: 10
 duration_days: [110, 150]
 water_requirement_mm: [1200, 1800]   # incl. puddling + percolation losses in Punjab
 kc: [1.05, 1.20, 0.75]

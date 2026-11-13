@@ -8,7 +8,7 @@ before code uses it. Status: ✅ integrated · ⬜ planned.
 |---|---|---|---|---|---|---|
 | ✅ | NASA POWER Agroclimatology | REST `temporal/daily/point`, community `AG` | 0.5°×0.625°, daily, 1981+ | Tmax/Tmin, rain, radiation, RH, wind → climate summary, ET0, GDD, AquaCrop weather | `data/nasa_power.py` | https://power.larc.nasa.gov/ |
 | ✅ | GPM IMERG V07 | `NASA/GPM_L3/IMERG_V07` | 0.1°, 30-min → daily | Rainfall, extremes, RUSLE R | `data/gee.py::imerg_daily` | 10.5067/GPM/IMERG/3B-HH/07 |
-| ✅ | SMAP L4 Soil Moisture | `NASA/SMAP/SPL4SMGP/007` | 9 km, 3-hourly | Root-zone moisture percentiles, drought | `gee.smap_rootzone` | 10.5067/K2VT90DE20GV |
+| ✅ | SMAP L4 Soil Moisture | `NASA/SMAP/SPL4SMGP/008` | 9 km, 3-hourly | Root-zone moisture percentiles, drought | `gee.smap_rootzone` | 10.5067/K2VT90DE20GV |
 | ✅ | GRACE / GRACE-FO mascons | `NASA/GRACE/MASS_GRIDS_V04/MASCON_CRI` | ~0.5° (native ~3°) monthly | Groundwater/TWS trend | `gee.grace_trend` | 10.5067/TEMSC-3MJ62 |
 | ✅ | NASADEM | `NASA/NASADEM_HGT/001` | 30 m | Slope → RUSLE LS | `gee.slope_pct` | 10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001 |
 | ✅ | FIRMS active fire | `FIRMS` (MODIS/VIIRS) | 375 m–1 km | Residue burning detection | `gee.fire_detections` | https://firms.modaps.eosdis.nasa.gov/ |
@@ -32,4 +32,4 @@ before code uses it. Status: ✅ integrated · ⬜ planned.
 | ✅ | DES / ICRISAT District Level Database | District yield ground-truth validation (6 Indian districts) | `data/benchmarks/district_ground_truth.csv`, `scripts/run_validation_benchmarks.py` | http://data.icrisat.org/dld/ |
 | ✅ | CGWB / India-WRIS well levels | GRACE-FO groundwater trend cross-validation | `data/gee.py::grace_trend` | https://indiawris.gov.in/ |
 | ✅ | FAO-56 / FAO-33 tables | Dual Kc, root depth, depletion fraction $p$, yield-response $K_y$ | `packages/crop-kb/crops/*.yaml`, `models/fao56_runner.py` | FAO Irrigation & Drainage Papers 56 & 33 |
-| ✅ | PAU Package of Practices & CACP MSP | Punjab crop calendars, Happy Seeder / DSR practices & CACP 2024–25 budgets | `packages/crop-kb/crops/*.yaml`, `packages/crop-kb/economics/punjab.yaml` | https://www.pau.edu/ · https://cacp.dacnet.nic.in/ |
+| ✅ | PAU Package of Practices & CACP MSP | Crop calendars, Happy Seeder / DSR practices & state CACP 2024–25 budgets | `packages/crop-kb/crops/*.yaml`, `packages/crop-kb/economics/*.yaml` | https://www.pau.edu/ · https://cacp.dacnet.nic.in/ |

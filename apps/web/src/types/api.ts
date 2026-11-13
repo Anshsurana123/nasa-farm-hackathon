@@ -58,6 +58,8 @@ export interface SoilSummary {
   ph?: number | null;
   bulk_density_g_cm3?: number | null;
   cec_cmol_kg?: number | null;
+  available_p_kg_ha?: number | null;
+  available_k_kg_ha?: number | null;
   field_capacity_vol?: number | null;
   wilting_point_vol?: number | null;
   slope_pct?: number | null;
@@ -212,6 +214,8 @@ export interface SimulationResult {
   cvar_profit_10: number;
   cvar_ci_low?: number | null;
   cvar_ci_high?: number | null;
+  step_yields?: Record<string, number>;
+  step_irrigations_mm?: Record<string, number>;
 }
 
 export interface SeasonalOperationStep {
@@ -244,6 +248,11 @@ export interface PracticalFarmerMetrics {
   eligible_schemes: string[];
   labor_cost_inr_per_ha: number;
   input_cost_inr_per_ha: number;
+  area_ha?: number;
+  total_farm_profit_p50?: number;
+  total_farm_input_cost?: number;
+  total_farm_urea_bags_saved?: number;
+  total_farm_pumping_hours_saved?: number;
   seasonal_operations?: SeasonalOperationStep[];
 }
 
@@ -292,6 +301,8 @@ export interface RecommendRequest {
 export interface SuitabilityRequest {
   field: FieldGeometry;
   constraints?: FarmConstraints;
+  profile?: FieldProfile | null;
+  soil_health_card?: SoilHealthCardInput | null;
 }
 
 export interface SuitabilityItem {
@@ -313,7 +324,7 @@ export interface GeocodeResult {
 export interface RecommendJobStatus {
   job_id: string;
   status: "running" | "completed" | "failed";
-  stage?: "profile" | "weather" | "simulating" | "ranking" | "done" | "failed";
+  stage?: "profile" | "weather" | "generating" | "simulating" | "selecting" | "explaining" | "ranking" | "done" | "failed";
   step?: string;
   progress_pct?: number;
   progress?: number;

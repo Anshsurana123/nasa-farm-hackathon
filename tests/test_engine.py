@@ -569,22 +569,32 @@ def test_grounded_llm_explain(punjab_profile):
         objective_scores={"profit": 82000.0},
     )
 
+    # Missing GRACE trend must omit fabricated GRACE claims
+    text_no_grace = why_cards.grounded_llm_explain(punjab_profile, rec, base_rec, language="en")
+    assert "FAO-56" in text_no_grace
+    assert "GRACE" not in text_no_grace
+    assert "RothC" in text_no_grace
+    assert "700 mm/yr" in text_no_grace or "48%" in text_no_grace
+
+    prof_with_grace = punjab_profile.model_copy(deep=True)
+    prof_with_grace.water.groundwater_trend_cm_per_year = -3.85
+
     # Test English
-    text_en = why_cards.grounded_llm_explain(punjab_profile, rec, base_rec, language="en")
+    text_en = why_cards.grounded_llm_explain(prof_with_grace, rec, base_rec, language="en")
     assert "FAO-56" in text_en
     assert "GRACE" in text_en
     assert "RothC" in text_en
     assert "700 mm/yr" in text_en or "48%" in text_en  # 1450 - 750 = 700
 
     # Test Hindi
-    text_hi = why_cards.grounded_llm_explain(punjab_profile, rec, base_rec, language="hi")
+    text_hi = why_cards.grounded_llm_explain(prof_with_grace, rec, base_rec, language="hi")
     assert "नासा GRACE" in text_hi
     assert "FAO-56" in text_hi
     assert "RothC" in text_hi
     assert "75/100" in text_hi
 
     # Test Punjabi
-    text_pa = why_cards.grounded_llm_explain(punjab_profile, rec, base_rec, language="pa")
+    text_pa = why_cards.grounded_llm_explain(prof_with_grace, rec, base_rec, language="pa")
     assert "ਨਾਸਾ GRACE" in text_pa
     assert "FAO-56" in text_pa
     assert "RothC" in text_pa
@@ -1585,7 +1595,10 @@ def test_load_economics_honors_region_and_reports_basis():
     assert vidarbha_eco.get("economics_basis") == "local_verified"
 
     thanjavur_eco = load_economics("thanjavur")
-    assert thanjavur_eco.get("economics_basis") == "punjab_proxy"
+    assert thanjavur_eco.get("economics_basis") == "local_verified"
+
+    kerala_eco = load_economics("kerala")
+    assert kerala_eco.get("economics_basis") == "punjab_proxy"
 
 
 def test_merra2_bias_correction_provenance_and_toggle():
@@ -1688,8 +1701,8 @@ def test_i18n_key_parity_and_no_hardcoded_jsx_error_strings():
 
     # Assert badge.graceUrgencyActive is referenced in both RotationExplorer.tsx and AgronomicBrief.tsx
     agronomic_brief_code = (root / "apps" / "web" / "src" / "components" / "AgronomicBrief.tsx").read_text(encoding="utf-8")
-    assert 't("badge.graceUrgencyActive")' in rot_explorer_code
-    assert 't("badge.graceUrgencyActive")' in agronomic_brief_code
+    assert 't("badge.graceUrgencyActive"' in rot_explorer_code
+    assert 't("badge.graceUrgencyActive"' in agronomic_brief_code
 
     # Scan RotationExplorer.tsx, AgronomicBrief.tsx, and brief/page.tsx for unlocalized multi-word English JSX text nodes (>12 chars)
     target_tsx_files = [
@@ -2324,13 +2337,14 @@ def test_baseline_confirmation_and_no_satellite_history_path(punjab_profile, mon
     default_crop_ids = [s.crop_id for s in base_default.steps]
     assert default_crop_ids == ["rice_puddled", "wheat", "fallow"]
 
-    # 2. Verify baseline_override replaces default baseline with farmer-confirmed sequence
+    # 2. Verify baseline_override normalizes aliases (e.g. "summer_moong" -> "moong") and replaces default baseline
     confirmed_crops = ["maize", "wheat", "summer_moong"]
+    expected_canonical_crops = ["maize", "wheat", "moong"]
     base_confirmed = rotations.derive_baseline_rotation(
         prof_no_history, crops, years=1, baseline_override=confirmed_crops
     )
     confirmed_crop_ids = [s.crop_id for s in base_confirmed.steps]
-    assert confirmed_crop_ids == confirmed_crops
+    assert confirmed_crop_ids == expected_canonical_crops
 
     # 3. Test API end-to-end: Rank 0 matches confirmed baseline and vs_baseline deltas shift
     client = TestClient(app)
@@ -2366,7 +2380,7 @@ def test_baseline_confirmation_and_no_satellite_history_path(punjab_profile, mon
     )
     assert res_over.status_code == 200
     recs_over = res_over.json()
-    assert [s["crop_id"] for s in recs_over[0]["rotation"]["steps"]] == confirmed_crops
+    assert [s["crop_id"] for s in recs_over[0]["rotation"]["steps"]] == expected_canonical_crops
 
     dsr_cand_over = next(
         (s for s in recs_over[1:] if any(step["crop_id"] == "rice_dsr" for step in s["rotation"]["steps"])),
@@ -2422,3 +2436,281 @@ def test_profiler_hybrid_regional_and_fallback_modes(monkeypatch):
 
 
 
+
+
+def test_shc_p_k_overrides_affect_soil_health_suitability_and_notes() -> None:
+    """Verify SHC available P & K overrides wire through profiler, suitability, notes, and soil health."""
+    import json
+    from pathlib import Path
+
+    from terraloop_engine import crop_kb, profiler, suitability
+    from terraloop_engine.models import soil_health
+    from terraloop_schemas import FieldProfile, Rotation, RotationStep, SoilHealthCardInput
+
+    raw = json.loads(Path("data/golden/sangrur/profile.json").read_text(encoding="utf-8"))
+    base_prof = FieldProfile(**raw)
+    crops = crop_kb.load_crops()
+
+    shc_low = SoilHealthCardInput(available_p_kg_ha=8.0, available_k_kg_ha=90.0)
+    shc_high = SoilHealthCardInput(available_p_kg_ha=38.0, available_k_kg_ha=250.0)
+    prof_low = profiler.apply_soil_health_card_override(base_prof, shc_low)
+    prof_high = profiler.apply_soil_health_card_override(base_prof, shc_high)
+
+    assert prof_low.soil.available_p_kg_ha == 8.0
+    assert prof_low.soil.available_k_kg_ha == 90.0
+    assert prof_low.soil.source == "farmer_test"
+
+    notes_joined = " ".join(prof_low.agro_climatic_notes).lower()
+    assert "phosphorus" in notes_joined
+    assert "potassium" in notes_joined
+
+    # Suitability: potato is penalized when K < 110 kg/ha; legume evaluation must use n_fixation_kg_ha cleanly
+    pot_low = suitability.score_crop(prof_low, crops["potato"])
+    pot_high = suitability.score_crop(prof_high, crops["potato"])
+    assert pot_low.score < pot_high.score
+    moong_low = suitability.score_crop(prof_low, crops["moong"])
+    assert moong_low.score > 0.0
+
+    rot = Rotation(
+        id="shc_pk_test",
+        steps=[
+            RotationStep(year_index=0, season_index=0, crop_id="rice_dsr"),
+            RotationStep(year_index=0, season_index=1, crop_id="wheat", practices=["happy_seeder", "residue_retained"]),
+            RotationStep(year_index=0, season_index=2, crop_id="moong"),
+        ],
+    )
+    bd_low = soil_health.soil_health_breakdown(rot, crops, soc_delta_10yr=1.2, erosion_t_ha_yr=1.0, soil=prof_low.soil)
+    bd_high = soil_health.soil_health_breakdown(rot, crops, soc_delta_10yr=1.2, erosion_t_ha_yr=1.0, soil=prof_high.soil)
+    assert bd_low["soil_condition_modifier"] < bd_high["soil_condition_modifier"]
+    assert bd_low["total_score"] <= bd_high["total_score"]
+
+
+def test_area_ha_scaling_and_must_grow_exclude_irrigation_cap() -> None:
+    """Verify whole-farm area_ha scaling plus must_grow, exclude, and irrigation_cap_mm constraints."""
+    import json
+    from pathlib import Path
+
+    from terraloop_engine import crop_kb
+    from terraloop_engine.climate import ensembles
+    from terraloop_engine.data import nasa_power
+    from terraloop_engine.optimize import evaluate, rotations
+    from terraloop_schemas import FarmConstraints, FieldProfile, Rotation, RotationStep
+
+    raw = json.loads(Path("data/golden/sangrur/profile.json").read_text(encoding="utf-8"))
+    prof = FieldProfile(**raw)
+    crops = crop_kb.load_crops()
+    wdf = nasa_power.synthetic_daily_weather(30.19, 75.78, (1995, 2002))
+    _, members = ensembles.build_scenario_set(kind="historical", power_df=wdf, rotation_years=1, lat=30.19, lon=75.78)
+    members = dict(list(members.items())[:4])
+
+    rot = Rotation(
+        id="area_test",
+        steps=[
+            RotationStep(year_index=0, season_index=0, crop_id="rice_dsr", practices=["direct_seeded", "residue_retained"]),
+            RotationStep(year_index=0, season_index=1, crop_id="wheat", practices=["happy_seeder", "residue_retained"]),
+            RotationStep(year_index=0, season_index=2, crop_id="moong"),
+        ],
+    )
+    sim_unlim = evaluate.evaluate_rotation(rot, members, prof, FarmConstraints(area_ha=1.0, irrigation="full"))
+    pm_1 = evaluate.compute_practical_farmer_metrics(
+        rot, sim_unlim, sim_unlim, crops, constraints=FarmConstraints(area_ha=1.0), profile=prof, region_id="punjab_central"
+    )
+    pm_35 = evaluate.compute_practical_farmer_metrics(
+        rot, sim_unlim, sim_unlim, crops, constraints=FarmConstraints(area_ha=3.5), profile=prof, region_id="punjab_central"
+    )
+    assert pm_35.area_ha == 3.5
+    assert abs(pm_35.total_farm_profit_p50 - round(pm_1.total_farm_profit_p50 * 3.5, 2)) <= 5.0
+    assert abs(pm_35.total_farm_input_cost - round(pm_1.total_farm_input_cost * 3.5, 2)) <= 5.0
+
+    # Irrigation cap constrains simulated irrigation demand
+    sim_capped = evaluate.evaluate_rotation(
+        rot, members, prof, FarmConstraints(area_ha=1.0, irrigation="limited", irrigation_cap_mm=150.0)
+    )
+    mean_irr_unlim = sum(sim_unlim.irrigation_mm) / len(sim_unlim.irrigation_mm)
+    mean_irr_capped = sum(sim_capped.irrigation_mm) / len(sim_capped.irrigation_mm)
+    assert mean_irr_capped < mean_irr_unlim
+
+    # must_grow & exclude constraints enforced cleanly by rotation generator
+    cons = FarmConstraints(must_grow=["chickpea"], exclude=["rice_puddled", "rice_short"])
+    cands = rotations.generate_rotations(crops, cons)
+    assert len(cands) > 0
+    for cand in cands:
+        cids = [s.crop_id for s in cand.steps]
+        assert "chickpea" in cids
+        assert "rice_puddled" not in cids and "rice_short" not in cids
+
+
+def test_non_india_unvalidated_global_and_usd_currency(monkeypatch) -> None:
+    """Verify non-Indian field sets unvalidated_global, USD/$ currency, proxy economics, and no Indian schemes."""
+    from fastapi.testclient import TestClient
+    from terraloop_api.main import app
+    from terraloop_engine.data import gee, nasa_power, soilgrids
+    from terraloop_schemas import FieldGeometry, FieldProfile
+
+    monkeypatch.setenv("GEE_DISABLE", "1")
+    monkeypatch.setattr(gee, "is_live", lambda: False)
+    monkeypatch.setattr(
+        nasa_power,
+        "fetch_daily",
+        lambda req: nasa_power.synthetic_daily_weather(req.lat, req.lon, (1995, 2024)),
+    )
+    monkeypatch.setattr(soilgrids, "fetch_topsoil", lambda lat, lon: (_ for _ in ()).throw(RuntimeError("offline")))
+
+    from terraloop_engine import profiler
+
+    global_prof = profiler.build_profile(FieldGeometry(lat=42.03, lon=-93.62, name="Ames, Iowa USA"))
+    assert isinstance(global_prof, FieldProfile)
+    assert global_prof.validation_status == "unvalidated_global"
+    assert global_prof.currency == "USD"
+    assert global_prof.currency_symbol == "$"
+
+    client = TestClient(app)
+    res = client.post(
+        "/recommend",
+        json={
+            "field": {"lat": 42.03, "lon": -93.62, "name": "Ames, Iowa USA"},
+            "constraints": {"irrigation": "limited"},
+            "language": "en",
+        },
+    )
+    assert res.status_code == 200
+    recs = res.json()
+    assert len(recs) >= 2
+    for rec in recs:
+        assert rec["validation_status"] == "unvalidated_global"
+        assert rec["currency"] == "USD"
+        assert rec["currency_symbol"] == "$"
+        assert rec["economics_basis"] == "punjab_proxy"
+        assert rec["practical_metrics"]["eligible_schemes"] == []
+        for card in rec["why"]:
+            assert "₹" not in card
+
+
+def test_suitability_endpoint_honors_prebuilt_profile_and_shc(monkeypatch) -> None:
+    """Verify POST /suitability reuses passed profile (no network fetch) and applies SHC overrides."""
+    import json
+    from pathlib import Path
+
+    from fastapi.testclient import TestClient
+    from terraloop_api.main import app
+    from terraloop_engine import profiler
+
+    monkeypatch.setattr(
+        profiler,
+        "build_profile",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("build_profile should be skipped when profile is supplied")),
+    )
+    raw = json.loads(Path("data/golden/sangrur/profile.json").read_text(encoding="utf-8"))
+    raw["soil"]["ph"] = 5.0
+
+    client = TestClient(app)
+    res_acid = client.post(
+        "/suitability",
+        json={"field": raw["field"], "constraints": {"irrigation": "limited"}, "profile": raw},
+    )
+    res_shc = client.post(
+        "/suitability",
+        json={
+            "field": raw["field"],
+            "constraints": {"irrigation": "limited"},
+            "profile": raw,
+            "soil_health_card": {"ph": 7.2, "available_p_kg_ha": 10.0, "available_k_kg_ha": 95.0},
+        },
+    )
+    assert res_acid.status_code == 200
+    assert res_shc.status_code == 200
+    by_id_acid = {x["crop_id"]: x for x in res_acid.json()}
+    by_id_shc = {x["crop_id"]: x for x in res_shc.json()}
+    assert by_id_shc["wheat"]["score"] > by_id_acid["wheat"]["score"]
+    assert by_id_shc["potato"]["score"] < by_id_acid["potato"]["score"]
+
+
+def test_async_job_atomic_disk_persistence(monkeypatch, tmp_path) -> None:
+    """Verify _save_job writes atomically without .tmp files and _load_job recovers across workers."""
+    import terraloop_api.main as api_main
+
+    monkeypatch.setattr(api_main, "_jobs_dir", lambda: tmp_path)
+    api_main._RECOMMEND_JOBS.clear()
+    payload = {"job_id": "job-atomic-1", "status": "completed", "progress": 1.0, "step": "done", "result": []}
+    api_main._save_job("job-atomic-1", payload)
+
+    assert (tmp_path / "job-atomic-1.json").exists()
+    assert list(tmp_path.glob("*.tmp")) == []
+
+    # Simulate cold serverless worker with empty RAM dict
+    api_main._RECOMMEND_JOBS.clear()
+    loaded = api_main._load_job("job-atomic-1")
+    assert loaded is not None
+    assert loaded["status"] == "completed"
+    assert loaded["job_id"] == "job-atomic-1"
+
+
+def test_llm_circuit_breaker_skips_on_429(monkeypatch) -> None:
+    """Verify _call_gemini_api activates cooldown backoff on HTTP 429 and short-circuits repeat calls."""
+    import time
+
+    import httpx
+    from terraloop_engine.explain import why_cards
+
+    calls = 0
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+        def post(self, *args, **kwargs):
+            nonlocal calls
+            calls += 1
+            return httpx.Response(429, request=httpx.Request("POST", "https://example.test"))
+
+    why_cards._LLM_COOLDOWN_UNTIL = 0.0
+    monkeypatch.setattr(why_cards.httpx, "Client", FakeClient)
+    try:
+        out1 = why_cards._call_gemini_api("hello", "fake-key")
+        assert out1 is None
+        assert calls == 1
+        assert why_cards._LLM_COOLDOWN_UNTIL > time.monotonic()
+
+        out2 = why_cards._call_gemini_api("hello again", "fake-key")
+        assert out2 is None
+        assert calls == 1
+    finally:
+        why_cards._LLM_COOLDOWN_UNTIL = 0.0
+
+
+def test_cmip6_step_cache_isolates_divergent_weather() -> None:
+    """Verify evaluate_rotation step_cache prevents cross-member leakage when weather differs under same member key."""
+    import json
+    from pathlib import Path
+
+    from terraloop_engine.data import nasa_power
+    from terraloop_engine.optimize import evaluate
+    from terraloop_schemas import FarmConstraints, FieldProfile, Rotation, RotationStep
+
+    raw = json.loads(Path("data/golden/sangrur/profile.json").read_text(encoding="utf-8"))
+    prof = FieldProfile(**raw)
+    df_base = nasa_power.synthetic_daily_weather(30.19, 75.78, (1995, 1998))
+    df_warm = df_base.copy()
+    df_warm["T2M_MAX"] = df_warm["T2M_MAX"] + 4.5
+    df_warm["T2M_MIN"] = df_warm["T2M_MIN"] + 3.5
+    df_warm["PRECTOTCORR"] = df_warm["PRECTOTCORR"] * 0.40
+
+    rot = Rotation(
+        id="cache_iso",
+        steps=[
+            RotationStep(year_index=0, season_index=0, crop_id="rice_dsr"),
+            RotationStep(year_index=0, season_index=1, crop_id="wheat"),
+            RotationStep(year_index=0, season_index=2, crop_id="moong"),
+        ],
+    )
+    shared_cache: dict = {}
+    res_base = evaluate.evaluate_rotation(rot, {"m0": df_base}, prof, FarmConstraints(), step_cache=shared_cache)
+    res_warm = evaluate.evaluate_rotation(rot, {"m0": df_warm}, prof, FarmConstraints(), step_cache=shared_cache)
+
+    assert res_warm.irrigation_mm[0] > res_base.irrigation_mm[0] or res_warm.yield_t_ha["wheat"][0] != res_base.yield_t_ha["wheat"][0]

@@ -20,7 +20,7 @@ import type {
 import { api } from "@/lib/api";
 import { getFallbackStrategies } from "@/lib/fallbackStrategies";
 import { generateFallbackProfile } from "@/lib/fallbackProfile";
-import { type UnitSystem } from "@/lib/ui";
+import { regionContext, type UnitSystem } from "@/lib/ui";
 import { useI18n } from "@/i18n";
 
 interface SelectedParcel {
@@ -113,10 +113,12 @@ export function FieldProvider({ children }: { children: ReactNode }) {
         if (
           typeof parsed.lat === "number" &&
           typeof parsed.lon === "number" &&
-          parsed.lat >= 5 &&
-          parsed.lat <= 38.5 &&
-          parsed.lon >= 66 &&
-          parsed.lon <= 99
+          Number.isFinite(parsed.lat) &&
+          Number.isFinite(parsed.lon) &&
+          parsed.lat >= -85 &&
+          parsed.lat <= 85 &&
+          parsed.lon >= -180 &&
+          parsed.lon <= 180
         ) {
           setSelectedField(parsed);
         }
@@ -210,6 +212,18 @@ export function FieldProvider({ children }: { children: ReactNode }) {
                 (soilHealthCard.available_n_kg_ha / 2240).toFixed(2)
               );
             }
+            if (
+              soilHealthCard.available_p_kg_ha !== undefined &&
+              soilHealthCard.available_p_kg_ha !== null
+            ) {
+              nextSoil.available_p_kg_ha = soilHealthCard.available_p_kg_ha;
+            }
+            if (
+              soilHealthCard.available_k_kg_ha !== undefined &&
+              soilHealthCard.available_k_kg_ha !== null
+            ) {
+              nextSoil.available_k_kg_ha = soilHealthCard.available_k_kg_ha;
+            }
             nextSoil.source = "farmer_test";
             setProfile({ ...data, soil: nextSoil });
           } else {
@@ -219,22 +233,34 @@ export function FieldProvider({ children }: { children: ReactNode }) {
           setSettledProfileKey(requestKey);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (!isCancelled) {
           const fallback = generateFallbackProfile({
+            id: selectedGoldenId ?? undefined,
             lat: selectedField.lat,
             lon: selectedField.lon,
             name: selectedField.name,
           });
           setProfile(fallback);
-          setErrorState({ key: requestKey, msg: null });
+          setErrorState({
+            key: requestKey,
+            msg:
+              err instanceof Error
+                ? `Live satellite profile unavailable (${err.message}); showing regional climatology estimate.`
+                : "Live satellite profile unavailable; showing regional climatology estimate.",
+          });
           setSettledProfileKey(requestKey);
         }
       });
 
     api
       .recommend({
-        field: { lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name },
+        field: {
+          id: selectedGoldenId ?? undefined,
+          lat: selectedField.lat,
+          lon: selectedField.lon,
+          name: selectedField.name,
+        },
         priorities,
         constraints,
         language: (lang as "en" | "pa" | "hi") || "en",
@@ -246,14 +272,31 @@ export function FieldProvider({ children }: { children: ReactNode }) {
           setStrategies(recs);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (!isCancelled) {
-          setStrategies(
-            getFallbackStrategies(
-              { lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name },
-              "₹"
-            )
+          const fallbackList = getFallbackStrategies(
+            {
+              id: selectedGoldenId ?? undefined,
+              lat: selectedField.lat,
+              lon: selectedField.lon,
+              name: selectedField.name,
+            },
+            regionContext(selectedField.lat, selectedField.lon, selectedGoldenId).currencySymbol ?? "$",
+            constraints.rotation_years,
+            (lang as "en" | "pa" | "hi") || "en"
           );
+          if (fallbackList.length > 0) {
+            setStrategies(fallbackList);
+          } else {
+            setStrategies([]);
+          }
+          setErrorState({
+            key: requestKey,
+            msg:
+              err instanceof Error
+                ? `Live optimizer error: ${err.message}`
+                : "Live rotation optimizer failed; please retry.",
+          });
         }
       })
       .finally(() => {
@@ -362,9 +405,15 @@ export function FieldProvider({ children }: { children: ReactNode }) {
       const shcToUse = overrideShc !== undefined ? overrideShc : soilHealthCard;
       const baseToUse = overrideBase !== undefined ? overrideBase : baselineOverride;
       setManualOptimizing(true);
+      setErrorState({ key: requestKey, msg: null });
       try {
         const recs = await api.recommend({
-          field: { lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name },
+          field: {
+            id: selectedGoldenId ?? undefined,
+            lat: selectedField.lat,
+            lon: selectedField.lon,
+            name: selectedField.name,
+          },
           priorities: pToUse,
           constraints: cToUse,
           language: (lang as "en" | "pa" | "hi") || "en",
@@ -374,18 +423,33 @@ export function FieldProvider({ children }: { children: ReactNode }) {
         if (recs && recs.length > 0) {
           setStrategies(recs);
         }
-      } catch {
-        setStrategies(
-          getFallbackStrategies(
-            { lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name },
-            "₹"
-          )
+      } catch (err) {
+        const fallbackList = getFallbackStrategies(
+          {
+            id: selectedGoldenId ?? undefined,
+            lat: selectedField.lat,
+            lon: selectedField.lon,
+            name: selectedField.name,
+          },
+          profile?.currency_symbol ?? regionContext(selectedField.lat, selectedField.lon, selectedGoldenId).currencySymbol ?? "$",
+          cToUse.rotation_years,
+          (lang as "en" | "pa" | "hi") || "en"
         );
+        if (fallbackList.length > 0) {
+          setStrategies(fallbackList);
+        }
+        setErrorState({
+          key: requestKey,
+          msg:
+            err instanceof Error
+              ? `Live optimization failed: ${err.message}`
+              : "Live optimization failed; please check connection and retry.",
+        });
       } finally {
         setManualOptimizing(false);
       }
     },
-    [selectedField, priorities, constraints, lang, soilHealthCard, baselineOverride]
+    [selectedField, selectedGoldenId, profile?.currency_symbol, requestKey, priorities, constraints, lang, soilHealthCard, baselineOverride]
   );
 
   return (

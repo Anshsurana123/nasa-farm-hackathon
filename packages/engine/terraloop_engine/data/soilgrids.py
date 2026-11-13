@@ -75,7 +75,7 @@ def fetch_topsoil(lat: float, lon: float) -> tuple[dict[str, float] | None, tupl
     Units: clay/sand/silt %, soc g/kg, phh2o pH, bdod g/cm3 (cg/cm3 / 100),
     cec cmol(c)/kg, nitrogen g/kg.
     """
-    for dlat, dlon in _OFFSETS[:3]:
+    for dlat, dlon in _OFFSETS:
         plat, plon = lat + dlat, lon + dlon
         try:
             raw = _query(plat, plon)

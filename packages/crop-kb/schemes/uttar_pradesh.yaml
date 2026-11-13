@@ -6,9 +6,46 @@ schemes:
     name: "Bundelkhand Drought Mitigation & Pulses Promotion Mission"
     display_title: "Bundelkhand Drought Mitigation & Pulses Promotion Mission (Special Package)"
     state: "Uttar Pradesh"
+    eligible_zones: ["bundelkhand"]
     eligible_crops: ["chickpea", "lentil", "mustard", "sorghum", "pigeon_pea"]
     amount: null
     unit: null
     source_url: "https://upagripardarshi.gov.in/"
     as_of_date: "2024-07-01"
     description: "Special package for Bundelkhand farmers providing certified seed minikits for drought-tolerant pulses and oilseeds."
+
+  - id: "up_crm_mechanization"
+    name: "CRM Sub-Mission on Crop Residue Management (UP)"
+    display_title: "CRM Sub-Mission on Crop Residue Management (UP Happy Seeder / Zero-Till 50–80% Subsidy)"
+    state: "Uttar Pradesh"
+    eligible_practices: ["happy_seeder", "zero_till", "residue_retained", "super_seeder"]
+    ineligible_practices: ["residue_burned", "burning"]
+    amount: null
+    unit: null
+    source_url: "https://upagripardarshi.gov.in/"
+    as_of_date: "2024-09-01"
+    description: "50% individual and 80% CHC machinery subsidy in Uttar Pradesh for Happy Seeder, Super Seeder, and Zero-Till in-situ residue management."
+
+  - id: "up_pulses_oilseeds_minikit"
+    name: "UP Free Oilseeds & Pulses Seed Minikit Scheme"
+    display_title: "UP Free Certified Pulses & Oilseeds Seed Minikit Scheme"
+    state: "Uttar Pradesh"
+    eligible_crops: ["chickpea", "lentil", "mustard", "moong", "urad", "groundnut", "pigeon_pea", "soybean"]
+    amount: null
+    unit: null
+    source_url: "https://upagripardarshi.gov.in/"
+    as_of_date: "2024-07-01"
+    description: "Statewide certified seed minikit distribution across Uttar Pradesh for Zaid/Rabi pulses and mustard-groundnut oilseed diversification."
+
+  - id: "up_dsr_diversification"
+    name: "UP Direct-Seeded Rice & Soil Conservation Incentive"
+    display_title: "UP Direct-Seeded Rice & Kharif Diversification Mechanisation Support"
+    state: "Uttar Pradesh"
+    eligible_crops: ["rice_dsr", "maize", "moong", "pigeon_pea"]
+    eligible_practices: ["direct_seeded", "awd"]
+    ineligible_crops: ["rice_puddled"]
+    amount: null
+    unit: null
+    source_url: "https://upagripardarshi.gov.in/"
+    as_of_date: "2024-06-01"
+    description: "Uttar Pradesh agriculture extension support for DSR seed-drill adoption and non-puddled Kharif diversification in over-exploited western/central blocks."

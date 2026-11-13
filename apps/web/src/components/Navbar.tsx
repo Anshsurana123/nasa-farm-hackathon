@@ -30,9 +30,8 @@ export const WORKFLOW_ROUTES = [
     href: "/",
     step: "01",
     key: "nav.home",
-    navLabel: "Mission",
-    shortLabel: "Mission Control",
-    desc: "3D Earth & Subsurface Hub",
+    shortKey: "nav.shortHome",
+    descKey: "nav.descHome",
     icon: Compass,
     accent: "text-emerald-400",
     activeBg: "bg-emerald-500/15 border-emerald-500/50 text-emerald-600 dark:text-emerald-300",
@@ -41,9 +40,8 @@ export const WORKFLOW_ROUTES = [
     href: "/diagnostics",
     step: "02",
     key: "nav.diagnostics",
-    navLabel: "Diagnostics",
-    shortLabel: "Diagnostics",
-    desc: "Climate, Soil & Aquifer Atlas",
+    shortKey: "nav.diagnostics",
+    descKey: "nav.descDiagnostics",
     icon: Activity,
     accent: "text-cyan-400",
     activeBg: "bg-cyan-500/15 border-cyan-500/50 text-cyan-600 dark:text-cyan-300",
@@ -52,9 +50,8 @@ export const WORKFLOW_ROUTES = [
     href: "/rotations",
     step: "03",
     key: "nav.rotations",
-    navLabel: "Rotations",
-    shortLabel: "Rotation Studio",
-    desc: "NSGA-II Optimizer & Calendar",
+    shortKey: "nav.shortRotations",
+    descKey: "nav.descRotations",
     icon: Layers,
     accent: "text-amber-400",
     activeBg: "bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-300",
@@ -63,9 +60,8 @@ export const WORKFLOW_ROUTES = [
     href: "/lab",
     step: "04",
     key: "nav.lab",
-    navLabel: "Pareto Lab",
-    shortLabel: "3D Pareto & Lab",
-    desc: "Frontier Cube & Shock Simulator",
+    shortKey: "nav.shortLab",
+    descKey: "nav.descLab",
     icon: FlaskConical,
     accent: "text-stone-400",
     activeBg: "bg-stone-500/15 border-stone-500/50 text-stone-600 dark:text-stone-300",
@@ -74,9 +70,8 @@ export const WORKFLOW_ROUTES = [
     href: "/crops",
     step: "05",
     key: "nav.crops",
-    navLabel: "Crop KB",
-    shortLabel: "Crop KB (23)",
-    desc: "Botanical Specs & Suitability",
+    shortKey: "nav.shortCrops",
+    descKey: "nav.descCrops",
     icon: Sprout,
     accent: "text-emerald-400",
     activeBg: "bg-emerald-500/15 border-emerald-500/50 text-emerald-600 dark:text-emerald-300",
@@ -85,9 +80,8 @@ export const WORKFLOW_ROUTES = [
     href: "/brief",
     step: "06",
     key: "nav.brief",
-    navLabel: "Brief",
-    shortLabel: "Advisory Brief",
-    desc: "Executive Dossier & Print PDF",
+    shortKey: "nav.shortBrief",
+    descKey: "nav.descBrief",
     icon: FileText,
     accent: "text-sky-400",
     activeBg: "bg-sky-500/15 border-sky-500/50 text-sky-600 dark:text-sky-300",
@@ -163,10 +157,10 @@ export function Navbar() {
         setShowLocator(false);
         setSearchQuery("");
       } else {
-        setSearchError("Location not found");
+        setSearchError(t("nav.locationNotFound"));
       }
     } catch (err: unknown) {
-      setSearchError(err instanceof Error ? err.message : "Could not resolve location");
+      setSearchError(err instanceof Error ? err.message : t("nav.locationError"));
     } finally {
       setSearchLoading(false);
     }
@@ -244,7 +238,7 @@ export function Navbar() {
                 key={item.href}
                 href={item.href}
                 onClick={(e) => handleNavigate(e, item.href)}
-                title={`${item.step} · ${t(item.key)} — ${item.desc}`}
+                title={`${item.step} · ${t(item.key)} — ${t(item.descKey)}`}
                 className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-1.5 border whitespace-nowrap shrink-0 ${
                   isActive
                     ? `${item.activeBg} shadow-xs`
@@ -253,7 +247,7 @@ export function Navbar() {
               >
                 <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "" : item.accent}`} />
                 <span className="hidden xl:inline text-[10px] opacity-70">{item.step}</span>
-                <span>{item.navLabel}</span>
+                <span>{t(item.shortKey)}</span>
               </Link>
             );
           })}
@@ -278,9 +272,9 @@ export function Navbar() {
           <button
             type="button"
             onClick={toggleTheme}
-            aria-label="Toggle dark/light theme"
+            aria-label={t("nav.toggleThemeAria")}
             className="p-2 rounded-lg text-xs font-medium border border-line bg-surface hover:bg-foreground/10 text-foreground transition-colors cursor-pointer flex items-center justify-center shrink-0"
-            title={isDark ? "Switch to Botanical Alabaster Mode" : "Switch to Orbital Dark Mode"}
+            title={isDark ? t("nav.themeLightTitle") : t("nav.themeDarkTitle")}
           >
             {isDark ? (
               <Sun className="w-4 h-4 text-amber-400" />
@@ -292,7 +286,7 @@ export function Navbar() {
           {/* Area Unit Switcher: Per Acre (Killa) vs Per Hectare */}
           <div
             className="flex items-center rounded-lg border border-line p-0.5 bg-surface text-xs font-mono shrink-0"
-            title="Switch between Indian farm unit (Per Acre / Killa) and metric (Per Hectare)"
+            title={t("nav.unitSwitchTitle")}
           >
             <button
               type="button"
@@ -303,7 +297,7 @@ export function Navbar() {
                   : "text-muted hover:text-foreground"
               }`}
             >
-              /Acre
+              /{t("unit.acreShort")}
             </button>
             <button
               type="button"
@@ -314,7 +308,7 @@ export function Navbar() {
                   : "text-muted hover:text-foreground"
               }`}
             >
-              /Ha
+              /{t("unit.haShort")}
             </button>
           </div>
 
@@ -421,7 +415,7 @@ export function Navbar() {
                     <span>{gf.name}</span>
                     {isHero && (
                       <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/40">
-                        Hero
+                        {t("nav.heroTag")}
                       </span>
                     )}
                   </button>
@@ -453,7 +447,7 @@ export function Navbar() {
               }`}
             >
               {showLocator ? <X className="w-3.5 h-3.5" /> : <Search className="w-3.5 h-3.5" />}
-              <span>{showLocator ? "Close Locator" : "Search Any Parcel"}</span>
+              <span>{showLocator ? t("nav.closeLocator") : t("nav.searchParcelBtn")}</span>
             </button>
           </div>
         </div>
@@ -472,7 +466,7 @@ export function Navbar() {
                   required
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search any village, district, coordinates (30.2, 75.9), or paste a Google Maps URL…"
+                  placeholder={t("nav.searchParcelPlaceholder")}
                   className="w-full bg-transparent text-xs font-mono text-foreground placeholder:text-muted outline-none"
                 />
               </div>
@@ -481,7 +475,7 @@ export function Navbar() {
                 disabled={searchLoading || !searchQuery.trim()}
                 className="px-4 py-2 rounded-xl bg-emerald-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
               >
-                {searchLoading ? "Locating Satellite Swath…" : "Lock Parcel Coordinates"}
+                {searchLoading ? t("nav.locatingSwath") : t("nav.lockCoords")}
               </button>
             </form>
             {searchError && (

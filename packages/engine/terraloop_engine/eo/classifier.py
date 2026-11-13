@@ -52,8 +52,13 @@ class PhenologyCropClassifier:
             for c in self.classes:
                 mean = self.means_[c]
                 var = self.vars_[c]
+                diff = row - mean
+                # Wrap circular DOY coordinates [peak_doy, greenup_doy] across year-end boundaries
+                diff = diff.copy()
+                doy_diff = np.abs(diff[:2]) % 365.0
+                diff[:2] = np.minimum(doy_diff, 365.0 - doy_diff)
                 # Log likelihood of Gaussian
-                log_prob = -0.5 * np.sum(np.log(2 * np.pi * var) + ((row - mean) ** 2) / var)
+                log_prob = -0.5 * np.sum(np.log(2 * np.pi * var) + (diff ** 2) / var)
                 total_ll = np.log(self.priors_[c]) + log_prob
                 if total_ll > best_ll:
                     best_ll = total_ll

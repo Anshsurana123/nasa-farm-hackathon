@@ -5,34 +5,34 @@ Agents: add a section whenever you implement a model (TASK-M05/M06/M07 etc.).
 
 ## Climate indicators (implemented: `models/agroclimate.py`, `profiler.py`)
 - **Periods:** baseline 1985–2004 vs recent 2005–2024 (NASA POWER daily).
-- **ET0:** Hargreaves-Samani (FAO-56 eq. 52) with extraterrestrial radiation (FAO-56 eq. 21). *Upgrade path:* FAO-56 Penman-Monteith using POWER radiation, RH, wind.
+- **ET0:** FAO-56 Penman–Monteith (`et0_penman_monteith_series`) using NASA POWER radiation, RH, and 2m wind when available (>50% coverage), with Hargreaves–Samani (FAO-56 eq. 52) fallback.
 - **GDD:** base 10 °C, daily Tmax/Tmin capped at 30 °C.
 - **Heat day:** Tmax > 35 °C. **Frost day:** Tmin < 0 °C. **Extreme rain day:** > 50 mm.
-- **Rainy-season dry spell:** longest run of days < 1 mm within the wettest consecutive 4 months, averaged across years.
-- **Drought frequency:** fraction of years with annual rain < 80% of mean (*placeholder until SMAP/SPI-based index*).
+- **Rainy-season dry spell:** longest run of days < 1 mm within the wettest consecutive 4 months, averaged across years (augmented by SMAP L4 root-zone soil moisture percentiles when live).
+- **Drought frequency:** fraction of years with annual rain < 80% of mean (combined with SMAP L4 root-zone moisture adjustments in suitability).
 - **Heat-stress probability:** fraction of years with ≥ 10 heat days.
 
 ## Soil (implemented: `models/soil.py`)
-- SoilGrids 0–30 cm depth-weighted mean (0–5, 5–15, 15–30 cm). Masked (urban/water) pixels → nearest valid pixel within ~3 km.
+- SoilGrids 0–30 cm depth-weighted mean (0–5, 5–15, 15–30 cm), with Government of India Soil Health Card (`pH`, `OC %`, `Available N/P/K`) lab override support. Masked (urban/water) pixels → nearest valid pixel within ~3 km.
 - USDA texture triangle classification.
 - Field capacity / wilting point: Saxton & Rawls (2006), OM = SOC × 1.724 (capped at 8%).
 
 ## Erosion (implemented: `models/rusle.py`)
 - RUSLE A = R·K·LS·C·P.
-- R: Renard & Freimund (1994) from annual rain (*to be replaced by IMERG intensity-based R, TASK-M04*).
+- R: Renard & Freimund (1994) from 2001+ homogeneous precipitation (GPM IMERG V07 / POWER).
 - K: Williams (1995) EPIC equation.
-- LS: Wischmeier & Smith (1978), slope length 50 m; slope default 1% until NASADEM (TASK-D06).
+- LS: Wischmeier & Smith (1978), slope length 50 m using 30 m NASADEM slope (%) where available (1% fallback when unavailable).
 - C: 0.3 placeholder in the profiler; rotation-specific C from crop cover calendar in O02.
 - Classes: < 2 low, 2–10 moderate, 10–20 high, > 20 very high (t/ha/yr).
 
 ## Crop suitability pre-filter (implemented: `suitability.py`)
-Heuristic only, used to prune candidates before simulation. Thermal fit = a sowing window exists where heat units ≥ 85% of requirement, no month below crop min temperature or above max+3 °C. The score rises with the share of months inside the optimal range. Water fit = season rain / minimum requirement, relaxed by irrigation availability and drought tolerance.
+Heuristic only, used to prune candidates before simulation. Thermal fit = a sowing window exists where heat units ≥ 85% of requirement, no month below crop min temperature or above max+4 °C. The score rises with the share of months inside the optimal range. Water fit combines season rain, post-monsoon SMAP L4-modulated residual soil moisture, irrigation cap, and drought tolerance, adjusted for aquifer overdraft (`groundwater_trend_cm_per_year`), drought/heat hazards, and SoilGrids/SHC soil pH, P, and K.
 
 ## Rotation constraints (implemented: `optimize/rotations.py`)
-Season templates (Punjab: kharif Jun–Jul sowing ≤160 d, rabi Oct–Nov ≤175 d, zaid Apr ≤75 d, fallow allowed). No same crop in consecutive slots; respect bad predecessors; must-grow and exclude lists.
+Season templates (IGP Kharif Jun–Jul ≤165 d, Rabi Oct–Nov ≤175 d, Zaid Apr ≤75 d; Southern Delta Kuruvai/Samba/Navarai; Southern Hemisphere shifted seasons). No same crop in consecutive slots; respect bad predecessors; must-grow, exclude, livestock, and irrigation-cap constraints.
 
 ## Priority selection (implemented: `optimize/selection.py`)
-Pareto filter on objectives (higher = better), min-max normalisation, weighted sum by farmer priorities, top-k distinct.
+Hard agronomic screening (turnaround days, duration, irrigation cap, excluded crops) followed by NSGA-II non-dominated Pareto sorting and priority-weighted normalized ranking across 6 objectives (`profit`, `water_savings`, `soil_health`, `low_risk`, `low_labour`, `food_security`), returning top-k diverse strategies.
 
 ## Soil Carbon Model: RothC-lite (implemented: `models/soil_health.py`, TASK-M05)
 Based on the Rothamsted Carbon Model (RothC-26.3; Coleman & Jenkinson, 1996) implemented at monthly time-step:
@@ -55,14 +55,16 @@ Seasonal N mass balance (kg N/ha):
 
 ## Soil Health Score (implemented: `models/soil_health.py`, TASK-M07)
 Composite 0–100 index mapping rotation outputs directly onto the **5 USDA-NRCS Soil Health Principles**:
-1. **Minimise Disturbance (0–15 pts):** Tillage intensity penalty from management practices (`no_till` = 15, `reduced_till`/`direct_seeded` = 11, `conventional` = 7, puddling = 4, residue burning = 2).
-2. **Maximise Soil Cover (0–15 pts):** Proportion of days with living canopy or retained residue cover ($15 \times \text{cover fraction}$).
-3. **Maximise Living Roots (0–15 pts):** Days with active growing crops divided by $365 \times \text{years}$ ($15 \times \text{living root fraction}$).
-4. **Maximise Biodiversity (0–15 pts):** Shannon diversity index $H$ across botanical families represented in rotation ($15 \times \min(1.0, H / 1.0)$).
-5. **Integrate Livestock / Organic (0–15 pts):** Fodder crops or livestock presence = 15 pts, green manure/cover crop = 12 pts, grain legume = 10 pts, monoculture cereal = 4 pts.
-- **Modifiers ($\pm 25$ pts):**
-  - **10-year SOC Trajectory:** Up to $+15$ pts for positive SOC accretion; up to $-10$ pts for SOC depletion.
-  - **RUSLE Erosion:** $+10$ pts for soil loss $\le 3$ t/ha/yr; $0$ to $-10$ pts for loss $> 12$ t/ha/yr.
+1. **Minimise Disturbance (0–15 pts):** Tillage intensity penalty from management practices (`no_till`/`zero_till`/`happy_seeder` = 15, `reduced_till`/`strip_till`/`direct_seeded` = 12, `conventional` = 8, puddling = 5.5, residue burning = 3.5).
+2. **Maximise Soil Cover (0–15 pts):** Proportion of days with living canopy or retained residue cover (`0.96` with retained residue/Happy Seeder, `0.72` conventional, `0.42` burned, `0.15–0.30` fallow).
+3. **Maximise Living Roots (0–15 pts):** Annual growing-root duration normalized against 330 days/yr ($15 \times \text{living root fraction}$).
+4. **Maximise Biodiversity (0–15 pts):** Shannon diversity index $H$ across botanical families represented in rotation ($15 \times \min(1.0, H / 0.95)$).
+5. **Integrate Livestock / Organic (0–15 pts):** Livestock + fodder/legume = 15 pts, legume/green-manure = 12.5 pts, livestock only = 9.0 pts, monoculture cereal = 4.5 pts.
+- **Modifiers & Penalties:**
+  - **10-year SOC Trajectory (-10 to +15 pts):** Up to $+15$ pts for positive SOC accretion ($\ge +2.2\text{ t C/ha}$); down to $-10$ pts for SOC depletion.
+  - **RUSLE Erosion (-10 to +3 pts):** Up to $+3$ pts when annual soil loss $\le 5.0\text{ t/ha/yr}$ ($T$-value); down to $-10$ pts for accelerated erosion above $5.0\text{ t/ha/yr}$.
+  - **Baseline Soil Condition (-5 to +5 pts):** Topsoil SOC, pH acidity/alkalinity, and available P/K adjustment from SoilGrids / SHC.
+  - **Residue Burning Penalty (-5 pts):** Direct penalty whenever residue burning practices occur.
 - **Scale:** Clamped to $[0, 100]$.
 
 ## Terminal Heat & Climate Data Quality Safeguards (implemented: `profiler.py`, TASK-D11)
@@ -89,16 +91,18 @@ Composite 0–100 index mapping rotation outputs directly onto the **5 USDA-NRCS
 ## Multi-Objective Risk Evaluation & Economics (implemented: `optimize/evaluate.py`, `models/economics.py`, TASK-O02, M08)
 - **Historical Climate Ensemble:** Multi-year moving blocks from 40-year daily weather records ($N \ge 30$ members).
 - **Objectives:**
-  - P50 Profit (₹/ha/yr) from official CACP/PAU Minimum Support Prices (MSP) and comprehensive cultivation costs ($A_2 + FL$).
+  - P50 Profit from state CACP Minimum Support Prices / market realization and comprehensive cultivation costs ($A_2 + FL$).
   - Downside Risk (CVaR-10): Conditional Value at Risk representing average profit in the worst 10% climate years.
-  - Irrigation Demand (mm/yr): P50 annual net irrigation requirement across ensemble members.
-  - Soil Health Score (0–100): Composite index covering the 5 NRCS soil health principles.
-  - 10-year SOC Trajectory ($\Delta$ t C/ha/decade) from RothC-lite.
-  - RUSLE Soil Loss (t/ha/yr).
+  - Water Savings / Irrigation Demand (mm/yr): P50 annual net irrigation requirement across ensemble members, modulated by NASA GRACE groundwater depletion urgency.
+  - Soil Health Score (0–100): Composite index covering the 5 NRCS soil health principles + RothC SOC, RUSLE erosion, and topsoil condition modifiers.
+  - Low Labour Cost: Inverse cultivation labor demand across the rotation.
+  - Food Security: Nutritional energy/protein score adjusted by state procurement assurance (`models/nutrition.py`).
+- **Additional Diagnostics:** 10-year SOC Trajectory ($\Delta$ t C/ha/decade) from RothC-lite and RUSLE Soil Loss (t/ha/yr).
 
 ## Known limitations (state these openly on the project page)
 - NASA POWER is ~50 km resolution; field-level microclimate is not captured.
-- SMAP (9 km) and GRACE (~300 km native) give regional context, not field-scale values.
-- SoilGrids is modelled; farmer soil tests override it when provided.
+- SMAP (9 km) and GRACE (~300 km native) give regional context and macro-scale urgency/moisture signals, not parcel-scale measurements.
+- SoilGrids is modelled; farmer soil tests (Soil Health Card) override it when provided.
+- Calibrated and validated for Indian agro-climatic zones; coordinates outside India are explicitly flagged as `unvalidated_global` with proxy benchmark economics.
 - Crop parameters are calibrated against PAU/ICRISAT benchmarks and literature defaults.
 

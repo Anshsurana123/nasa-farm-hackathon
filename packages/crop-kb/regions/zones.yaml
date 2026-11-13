@@ -77,6 +77,34 @@ zones:
     currency_symbol: "₹"
     is_validated: true
 
+  western_maharashtra:
+    name: "Western Maharashtra & Konkan (Deccan Plateau / Sahyadri Zone)"
+    agro_zone: "Western Plateau & Hills (Western Maharashtra / Deccan Belt)"
+    states: ["Maharashtra"]
+    baseline_rotation: ["sorghum", "chickpea", "fallow"]
+    baseline_slope_pct: 2.2
+    grace_trend_cm_yr: -0.45
+    grace_citation: "Asoka et al. (2017 Nature Geosci.); CGWB 2023"
+    igp_merra2_bias_correction: false
+    economics_table: "maharashtra"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
+  western_up:
+    name: "Upper Gangetic Plains (Western Uttar Pradesh Intensive Belt)"
+    agro_zone: "Upper Gangetic Plains (Western & Central UP Intensive Belt)"
+    states: ["Uttar Pradesh"]
+    baseline_rotation: ["rice_puddled", "wheat", "fallow"]
+    baseline_slope_pct: 0.7
+    grace_trend_cm_yr: -2.10
+    grace_citation: "Asoka et al. (2017 Nature Geosci.); CGWB 2023"
+    igp_merra2_bias_correction: true
+    economics_table: "uttar_pradesh"
+    currency: "INR"
+    currency_symbol: "₹"
+    is_validated: true
+
   cauvery:
     name: "East Coast Plains & Deltas (Cauvery / Coastal Alluvial Zone)"
     agro_zone: "East Coast Plains & Deltas (Cauvery / Coastal Alluvial Zone)"

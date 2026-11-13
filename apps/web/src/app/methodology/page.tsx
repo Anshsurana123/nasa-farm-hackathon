@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { useI18n } from "@/i18n";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -11,19 +12,20 @@ import {
 } from "lucide-react";
 
 export default function MethodologyPage() {
+  const { t } = useI18n();
   return (
     <AppShell
       pageStep="REF"
       pageBadge="TECHNICAL SPECIFICATION // REV 2026.10 · NASA EARTH OBSERVATION & PROCESS MODELS"
-      pageTitle="Methodology, Equations & Data Provenance"
-      pageDescription="TerraLoop couples NASA satellite Earth observations with peer-reviewed process-based biophysical and soil health models. Every recommendation is grounded in open science and reproducible DOIs."
+      pageTitle={t("methodology.pageTitle")}
+      pageDescription={t("methodology.pageDesc")}
       headerActions={
         <Link
           href="/"
           className="px-4 py-2.5 rounded-xl bg-surface-2 hover:bg-surface border border-line text-foreground font-mono text-xs font-bold flex items-center gap-2 transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Return to Mission Control</span>
+          <span>{t("methodology.returnBtn")}</span>
         </Link>
       }
     >
@@ -33,7 +35,7 @@ export default function MethodologyPage() {
           <div className="instrument-header px-6 py-3.5 flex items-center justify-between">
             <h2 className="font-display text-sm font-bold uppercase tracking-wider flex items-center gap-2">
               <Satellite className="w-4 h-4 text-emerald-400" />
-              <span>SEC 01 // NASA Earth Observation Data Registry</span>
+              <span>{t("methodology.sec01")}</span>
             </h2>
             <span className="text-[10px] font-mono text-muted">GEE · NASA POWER · EARTHDATA</span>
           </div>
@@ -70,10 +72,10 @@ export default function MethodologyPage() {
                 </tr>
                 <tr>
                   <td className="py-3 pr-4 font-sans font-semibold text-foreground">NASA SMAP</td>
-                  <td className="py-3 pr-4 text-muted">SPL4SMGP (L4 Root-Zone)</td>
-                  <td className="py-3 pr-4">9 km, Daily (2015–2024)</td>
+                  <td className="py-3 pr-4 text-muted">SPL4SMGP V008 (L4 Root-Zone)</td>
+                  <td className="py-3 pr-4">9 km, Daily (2015–present)</td>
                   <td className="py-3 pr-4 font-sans">
-                    12 monthly root-zone soil moisture percentiles vs climatology
+                    12 monthly root-zone soil moisture percentiles (drought suitability modifier &amp; live dry-spell diagnostics; daily depletion modeled via FAO-56)
                   </td>
                   <td className="py-3">10.5067/K2VT90DE20GV</td>
                 </tr>
@@ -84,7 +86,7 @@ export default function MethodologyPage() {
                   <td className="py-3 pr-4 text-muted">JPL Tellus Mascon RL06 V04 CRI</td>
                   <td className="py-3 pr-4">0.5° (native 3°), Monthly</td>
                   <td className="py-3 pr-4 font-sans">
-                    Regional groundwater decline rate (cm/yr) across NW India / Punjab
+                    Regional groundwater decline rate (cm/yr) weighted into irrigation &amp; water-stress penalties
                   </td>
                   <td className="py-3">10.5067/TEMSC-3MJ62</td>
                 </tr>
@@ -102,7 +104,7 @@ export default function MethodologyPage() {
                   <td className="py-3 pr-4 text-muted">MODIS / VIIRS Active Fire</td>
                   <td className="py-3 pr-4">375 m / 1 km</td>
                   <td className="py-3 pr-4 font-sans">
-                    Detection of Oct–Nov crop residue (paddy stubble) burning
+                    Detection of Oct–Nov crop residue burning to flag status-quo residue management baseline
                   </td>
                   <td className="py-3">10.5067/FIRMS/MODIS</td>
                 </tr>
@@ -111,7 +113,7 @@ export default function MethodologyPage() {
                   <td className="py-3 pr-4 text-muted">HLSL30 / HLSS30 (Landsat + S2)</td>
                   <td className="py-3 pr-4">30 m, 2–3 day</td>
                   <td className="py-3 pr-4 font-sans">
-                    Savitzky-Golay smoothed NDVI → season peak detection &amp; crop history
+                    Savitzky-Golay smoothed NDVI → baseline seasonal crop classification &amp; context history
                   </td>
                   <td className="py-3">10.5067/HLS/HLSL30.002</td>
                 </tr>
@@ -125,7 +127,7 @@ export default function MethodologyPage() {
           <div className="instrument-header px-6 py-3.5 flex items-center justify-between">
             <h2 className="font-display text-sm font-bold uppercase tracking-wider flex items-center gap-2">
               <FlaskConical className="w-4 h-4 text-amber-400" />
-              <span>SEC 02 // Biophysical &amp; Economic Process Models</span>
+              <span>{t("methodology.sec02")}</span>
             </h2>
           </div>
 
@@ -138,8 +140,8 @@ export default function MethodologyPage() {
                 Daily root-zone moisture depletion (TAW, RAW, Ks), evapotranspiration (ETc / ETa),
                 and thermal heat stress simulation. Calibrated against PAU trials: puddled paddy
                 rice requires 175 mm land-soaking and 3.5 mm/day plough-pan percolation; Direct-Seeded
-                Rice (DSR) + AWD uses 75 mm pre-sowing wetting and 2.85 mm/day percolation on loam,
-                saving ~25% irrigation water.
+                Rice (DSR) + AWD uses 75 mm pre-sowing wetting and 2.55 mm/day percolation on loam,
+                saving 24–28% irrigation water.
               </p>
             </div>
 
@@ -208,16 +210,15 @@ export default function MethodologyPage() {
           <div className="instrument-header px-6 py-3.5">
             <h2 className="font-display text-sm font-bold uppercase tracking-wider flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>SEC 03 // Data Quality &amp; Climate Safeguards (TASK-D11)</span>
+              <span>{t("methodology.sec03")}</span>
             </h2>
           </div>
           <div className="p-6 space-y-3 text-xs text-muted leading-relaxed prose-measure">
             <p>
               <strong className="text-foreground">Wheat Terminal Heat Stress:</strong> High
               temperatures (&gt;32 °C) during wheat grain-fill (1 March to 15 April) deactivate
-              starch synthase and shorten duration, reducing yields by 4–8% per degree. TerraLoop
-              explicitly tracks average days exceeding this threshold to recommend early-maturing or
-              heat-tolerant cultivars.
+              starch synthase and shorten duration, reducing yields by ~1.8% per degree-day above 32 °C. TerraLoop
+              explicitly tracks average days exceeding this threshold and models -1.0 °C canopy cooling from Happy Seeder mulch.
             </p>
             <p>
               <strong className="text-foreground">Precipitation Trend Safeguard:</strong> Satellite
@@ -232,7 +233,7 @@ export default function MethodologyPage() {
         <section className="rounded-2xl p-6 border border-amber-500/35 bg-amber-500/10 space-y-3">
           <h2 className="font-mono text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-400" />
-            <span>SEC 04 // Known Limitations &amp; Assumptions</span>
+            <span>{t("methodology.sec04")}</span>
           </h2>
           <ul className="list-disc list-inside space-y-1.5 text-xs text-foreground/85 prose-measure">
             <li>

@@ -27,7 +27,7 @@ import {
   type UnitSystem,
 } from "@/lib/ui";
 import { getFallbackStrategies } from "@/lib/fallbackStrategies";
-import { api, recommendWithProgress } from "@/lib/api";
+import { api, recommendWithProgress, type ProgressStage } from "@/lib/api";
 import {
   Printer,
   Sliders,
@@ -71,6 +71,7 @@ export function RotationExplorer({
 }: Props) {
   const { t, lang } = useI18n();
   const {
+    crops,
     priorities,
     setPriorities,
     constraints,
@@ -83,19 +84,49 @@ export function RotationExplorer({
     setBaselineOverride,
   } = useField();
 
+  const availableCropIds =
+    crops.length > 0
+      ? crops.map((c) => c.id).filter((id) => id !== "fallow")
+      : [
+          "rice_puddled",
+          "rice_dsr",
+          "rice_short",
+          "basmati",
+          "wheat",
+          "maize",
+          "moong",
+          "chickpea",
+          "mustard",
+          "cotton",
+          "soybean",
+          "groundnut",
+          "pearl_millet",
+          "sorghum",
+          "pigeonpea",
+          "lentil",
+          "barley",
+          "potato",
+          "onion",
+          "sunflower",
+          "sesame",
+          "urad",
+          "dhaincha",
+        ];
+
   const [isBaselineConfirmed, setIsBaselineConfirmed] = useState<boolean>(false);
   const [showBaselineSelector, setShowBaselineSelector] = useState<boolean>(false);
   const [customKharif, setCustomKharif] = useState<string>("rice_puddled");
   const [customRabi, setCustomRabi] = useState<string>("wheat");
   const [customZaid, setCustomZaid] = useState<string>("fallow");
   const [simProgress, setSimProgress] = useState<{
-    stage: "profile" | "weather" | "simulating" | "ranking" | "done" | "failed";
+    stage: ProgressStage;
     progressPct: number;
     message?: string;
   } | null>(null);
 
   const isSA = isSouthAsia(field.lat, field.lon);
-  const currencySymbol = profile?.currency_symbol ?? "₹";
+  const isSH = field.lat < 0;
+  const currencySymbol = profile?.currency_symbol ?? (isSA ? "₹" : "$");
   const gwTrend = profile?.water?.groundwater_trend_cm_per_year ?? 0;
   const graceMult = gwTrend < -1.0 ? Math.min(1.5, 1.0 + 0.1 * (Math.abs(gwTrend) - 1.0)) : 1.0;
   const fieldKey = `${field.lat},${field.lon}`;
@@ -110,6 +141,7 @@ export function RotationExplorer({
     setInternalData({ key: fieldKey, list });
 
   const [internalLoading, setInternalLoading] = useState(false);
+  const autoFetchInFlightRef = useRef<string | null>(null);
   const [tabState, setTabState] = useState<{
     propTab?: "cards" | "pareto" | "whatif";
     tab: "cards" | "pareto" | "whatif";
@@ -133,6 +165,7 @@ export function RotationExplorer({
   const setStressedStrategies = (list: StrategyRecommendation[] | null) =>
     setStressedData({ key: fieldKey, list });
   const [stressLoading, setStressLoading] = useState<boolean>(false);
+  const [stressError, setStressError] = useState<string | null>(null);
 
   const strategies = internalStrategies.length > 0 ? internalStrategies : (externalStrategies ?? []);
   const loading = Boolean(externalLoading || internalLoading);
@@ -146,6 +179,7 @@ export function RotationExplorer({
     setSuccessBanner(null);
     setErrorBanner(null);
     setSimProgress({ stage: "profile", progressPct: 15, message: t("async.stage.profile") });
+    autoFetchInFlightRef.current = fieldKey;
     try {
       const recs = await recommendWithProgress(
         {
@@ -162,18 +196,19 @@ export function RotationExplorer({
       if (recs && recs.length > 0) {
         setInternalStrategies(recs);
         onStrategiesLoaded?.(recs);
-        const yrLabel =
-          cToUse.rotation_years > 1
-            ? `${cToUse.rotation_years}-Year Multi-Year Sequence`
-            : "1-Year Annual Cycle";
-        setSuccessBanner(`✓ Generated ${recs.length - 1} Resilient Strategies for ${yrLabel}`);
+        setSuccessBanner(t("priorities.generatedSuccess", { count: String(Math.max(1, recs.length - 1)) }));
         setTimeout(() => setSuccessBanner(null), 4000);
       }
     } catch (err) {
       console.warn("Backend /recommend failed", err);
       const isGolden = field?.id && GOLDEN_IDS.has(field.id);
       if (isGolden) {
-        const fallback = getFallbackStrategies(field, currencySymbol, cToUse.rotation_years);
+        const fallback = getFallbackStrategies(
+          field,
+          currencySymbol,
+          cToUse.rotation_years,
+          (lang as "en" | "pa" | "hi") || "en"
+        );
         setInternalStrategies(fallback);
         onStrategiesLoaded?.(fallback);
         setErrorBanner(t("error.recommendFailedDemo"));
@@ -191,6 +226,7 @@ export function RotationExplorer({
   const runStressSimulation = async (overrideScenario?: ClimateScenarioId) => {
     const scen = overrideScenario ?? climateScenario;
     setStressLoading(true);
+    setStressError(null);
     try {
       const recs = await api.recommend({
         field,
@@ -208,60 +244,78 @@ export function RotationExplorer({
         setStressedStrategies(recs);
       }
     } catch (err) {
-      console.warn("Stress simulation fallback to client sensitivity model", err);
+      console.warn("Stress simulation failed; showing sensitivity estimate", err);
+      setStressError(t("whatif.engineFallbackNotice"));
     } finally {
       setStressLoading(false);
     }
   };
 
   useEffect(() => {
+    let cancelled = false;
     if (typeof window !== "undefined" && window.sessionStorage) {
       const activeJobId = sessionStorage.getItem("terraloop_active_job_id");
       if (activeJobId && !externalStrategies) {
+        autoFetchInFlightRef.current = fieldKey;
         setInternalLoading(true);
-        api
-          .getRecommendJob(activeJobId)
-          .then(async (poll) => {
-            if (poll.status === "completed" && poll.result) {
-              sessionStorage.removeItem("terraloop_active_job_id");
-              setInternalStrategies(poll.result);
-              onStrategiesLoaded?.(poll.result);
-              setInternalLoading(false);
-            } else if (poll.status === "running") {
-              try {
-                const recs = await recommendWithProgress(
-                  {
-                    field,
-                    priorities,
-                    constraints,
-                    language: (lang as "en" | "pa" | "hi") || "en",
-                    soil_health_card: soilHealthCard,
-                    baseline_override: baselineOverride,
-                    climate_scenario: climateScenario,
-                  },
-                  (status) => setSimProgress(status)
-                );
-                setInternalStrategies(recs);
-                onStrategiesLoaded?.(recs);
-              } catch (err) {
-                console.warn("Resumed recommendation failed", err);
-              } finally {
+        const resumeExistingJob = async () => {
+          try {
+            const started = Date.now();
+            while (!cancelled && Date.now() - started < 60000) {
+              const poll = await api.getRecommendJob(activeJobId);
+              if (cancelled) return;
+              if (poll.status === "completed" && poll.result) {
+                sessionStorage.removeItem("terraloop_active_job_id");
+                setInternalStrategies(poll.result);
+                onStrategiesLoaded?.(poll.result);
                 setInternalLoading(false);
                 setSimProgress(null);
+                return;
               }
+              if (poll.status === "failed") {
+                sessionStorage.removeItem("terraloop_active_job_id");
+                break;
+              }
+              if (poll.status === "running") {
+                setSimProgress({
+                  stage: (poll.stage || poll.step || "simulating") as
+                    | "profile"
+                    | "weather"
+                    | "simulating"
+                    | "ranking"
+                    | "done",
+                  progressPct: Math.round(poll.progress_pct ?? (poll.progress ? poll.progress * 100 : 40)),
+                  message: poll.message ?? undefined,
+                });
+                await new Promise((r) => setTimeout(r, 900));
+                continue;
+              }
+              break;
             }
-          })
-          .catch(() => {
-            sessionStorage.removeItem("terraloop_active_job_id");
-            setInternalLoading(false);
-          });
+          } catch {
+            try {
+              sessionStorage.removeItem("terraloop_active_job_id");
+            } catch {}
+          } finally {
+            if (!cancelled) {
+              setInternalLoading(false);
+              setSimProgress(null);
+            }
+          }
+        };
+        void resumeExistingJob();
       }
     }
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (externalStrategies || !field) return;
+    if (autoFetchInFlightRef.current === fieldKey) return;
+    autoFetchInFlightRef.current = fieldKey;
     let isCancelled = false;
     api
       .recommend({
@@ -285,7 +339,12 @@ export function RotationExplorer({
           console.warn("Backend /recommend failed", err);
           const isGolden = field?.id && GOLDEN_IDS.has(field.id);
           if (isGolden) {
-            const fallback = getFallbackStrategies(field, currencySymbol);
+            const fallback = getFallbackStrategies(
+              field,
+              currencySymbol,
+              constraints.rotation_years,
+              (lang as "en" | "pa" | "hi") || "en"
+            );
             setInternalData({ key: fieldKey, list: fallback });
             onStrategiesLoaded?.(fallback);
             setErrorBanner(t("error.recommendFailedDemo"));
@@ -380,7 +439,7 @@ export function RotationExplorer({
             className="px-3 py-1.5 rounded-lg text-xs font-mono font-semibold bg-surface hover:bg-foreground/10 text-foreground border border-line flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Print</span>
+            <span>{t("common.print")}</span>
           </button>
 
           {!hideModeTabs && (
@@ -419,7 +478,7 @@ export function RotationExplorer({
                 }`}
               >
                 <FlaskConical className="w-3.5 h-3.5" />
-                <span>Shock Lab</span>
+                <span>{t("tab.shockLab")}</span>
               </button>
             </div>
           )}
@@ -445,35 +504,35 @@ export function RotationExplorer({
                 onClick={() => applyPreset("water")}
                 className="px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-600 dark:text-cyan-300 font-semibold transition-colors cursor-pointer"
               >
-                Aquifer Rescue
+                {t("persona.water")}
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset("profit")}
                 className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-600 dark:text-emerald-300 font-semibold transition-colors cursor-pointer"
               >
-                Max Net Margin
+                {t("persona.profit")}
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset("soil")}
                 className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-600 dark:text-amber-300 font-semibold transition-colors cursor-pointer"
               >
-                Carbon Builder
+                {t("persona.soil")}
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset("resilient")}
                 className="px-2.5 py-1 rounded-lg bg-stone-500/15 hover:bg-stone-500/25 border border-stone-500/40 text-stone-600 dark:text-stone-300 font-semibold transition-colors cursor-pointer"
               >
-                Drought Shield
+                {t("persona.resilient")}
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset("balanced")}
                 className="px-2.5 py-1 rounded-lg bg-surface hover:bg-foreground/10 border border-line text-foreground transition-colors cursor-pointer"
               >
-                Balanced
+                {t("persona.balanced")}
               </button>
             </div>
           </div>
@@ -483,39 +542,39 @@ export function RotationExplorer({
             <div className="flex items-center justify-between text-[10px] font-mono text-muted">
               <span>{t("label.weightAllocation")}</span>
               <span>
-                Water {wWater}% · Profit {wProfit}% · Soil {wSoil}% · Resilience {wRisk}% · Labour {wLabour}% · Food {wFood}%
+                {t("priorities.waterShort")} {wWater}% · {t("priorities.profitShort")} {wProfit}% · {t("priorities.soilShort")} {wSoil}% · {t("priorities.riskShort")} {wRisk}% · {t("priorities.labourShort")} {wLabour}% · {t("priorities.foodShort")} {wFood}%
               </span>
             </div>
             <div className="h-2.5 w-full rounded-full overflow-hidden flex bg-surface border border-line">
               <div
                 style={{ width: `${wWater}%` }}
                 className="bg-cyan-400 transition-all duration-300"
-                title={`Water Conservation: ${wWater}%`}
+                title={`${t("priorities.water")}: ${wWater}%`}
               />
               <div
                 style={{ width: `${wProfit}%` }}
                 className="bg-emerald-400 transition-all duration-300"
-                title={`Profit Maximization: ${wProfit}%`}
+                title={`${t("priorities.profit")}: ${wProfit}%`}
               />
               <div
                 style={{ width: `${wSoil}%` }}
                 className="bg-amber-400 transition-all duration-300"
-                title={`Soil Carbon & Health: ${wSoil}%`}
+                title={`${t("priorities.soil")}: ${wSoil}%`}
               />
               <div
                 style={{ width: `${wRisk}%` }}
                 className="bg-stone-400 transition-all duration-300"
-                title={`Climate Resilience: ${wRisk}%`}
+                title={`${t("priorities.risk")}: ${wRisk}%`}
               />
               <div
                 style={{ width: `${wLabour}%` }}
                 className="bg-rose-400 transition-all duration-300"
-                title={`Labour & Cost Savings: ${wLabour}%`}
+                title={`${t("priorities.labour")}: ${wLabour}%`}
               />
               <div
                 style={{ width: `${wFood}%` }}
                 className="bg-lime-400 transition-all duration-300"
-                title={`Food & Nutrition Security: ${wFood}%`}
+                title={`${t("priorities.food")}: ${wFood}%`}
               />
             </div>
           </div>
@@ -668,70 +727,229 @@ export function RotationExplorer({
           </div>
 
           {/* Constraint Bar & Re-simulate Action */}
-          <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-line text-xs">
-            <div className="flex flex-wrap items-center gap-4 font-mono text-[11px]">
-              <label className="flex items-center gap-2 cursor-pointer text-foreground/90">
-                <input
-                  type="checkbox"
-                  checked={constraints.has_livestock}
-                  onChange={(e) =>
-                    setConstraints({ ...constraints, has_livestock: e.target.checked })
-                  }
-                  className="w-4 h-4 rounded accent-emerald-500 cursor-pointer"
-                />
-                <span>{t("label.integrateLivestock")}</span>
-              </label>
+          <div className="space-y-3 pt-3 border-t border-line text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-4 font-mono text-[11px]">
+                <label className="flex items-center gap-2 cursor-pointer text-foreground/90">
+                  <input
+                    type="checkbox"
+                    checked={constraints.has_livestock}
+                    onChange={(e) =>
+                      setConstraints({ ...constraints, has_livestock: e.target.checked })
+                    }
+                    className="w-4 h-4 rounded accent-emerald-500 cursor-pointer"
+                  />
+                  <span>{t("label.integrateLivestock")}</span>
+                </label>
 
-              <div className="flex items-center gap-2">
-                <span className="text-muted">{t("label.waterSupply")}</span>
-                <select
-                  value={constraints.irrigation}
-                  onChange={(e) =>
-                    setConstraints({
-                      ...constraints,
-                      irrigation: e.target.value as "none" | "limited" | "full",
-                    })
-                  }
-                  className="px-2.5 py-1 rounded-lg border border-line-strong bg-surface text-foreground text-[11px] font-mono outline-none cursor-pointer"
-                >
-                  <option value="limited">{t("label.tubewellRestricted")}</option>
-                  <option value="full">{t("label.tubewellUnrestricted")}</option>
-                  <option value="none">Rainfed Only</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="farm-area-input" className="text-muted">
+                    {t("constraints.farmSize")}
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      id="farm-area-input"
+                      type="number"
+                      min="0.2"
+                      max="500"
+                      step="0.5"
+                      value={
+                        unitSystem === "acre"
+                          ? Number(((constraints.area_ha ?? 2.0) * 2.47105).toFixed(1))
+                          : Number((constraints.area_ha ?? 2.0).toFixed(2))
+                      }
+                      onChange={(e) => {
+                        const raw = parseFloat(e.target.value);
+                        if (!Number.isFinite(raw) || raw <= 0) return;
+                        const ha = unitSystem === "acre" ? raw / 2.47105 : raw;
+                        setConstraints({
+                          ...constraints,
+                          area_ha: Math.max(0.1, Math.min(500, Number(ha.toFixed(2)))),
+                        });
+                      }}
+                      className="w-16 px-2 py-1 rounded-lg border border-line-strong bg-surface text-foreground text-[11px] font-mono outline-none tabular-nums"
+                    />
+                    <span className="text-muted">{unitSystem === "acre" ? t("unit.acreShort") : t("unit.haShort")}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-muted">{t("label.waterSupply")}</span>
+                  <select
+                    value={constraints.irrigation}
+                    onChange={(e) => {
+                      const nextMode = e.target.value as "none" | "limited" | "full";
+                      setConstraints({
+                        ...constraints,
+                        irrigation: nextMode,
+                        irrigation_cap_mm: nextMode === "limited" ? constraints.irrigation_cap_mm : null,
+                      });
+                    }}
+                    className="px-2.5 py-1 rounded-lg border border-line-strong bg-surface text-foreground text-[11px] font-mono outline-none cursor-pointer"
+                  >
+                    <option value="limited">{t("label.tubewellRestricted")}</option>
+                    <option value="full">{t("label.tubewellUnrestricted")}</option>
+                    <option value="none">{t("constraints.rainfedOnly")}</option>
+                  </select>
+                </div>
+
+                {constraints.irrigation === "limited" && (
+                  <div className="flex items-center gap-1.5">
+                    <label htmlFor="irrigation-cap-input" className="text-muted">
+                      {t("constraints.irrigationCap")}
+                    </label>
+                    <input
+                      id="irrigation-cap-input"
+                      type="number"
+                      min="50"
+                      max="3000"
+                      step="50"
+                      placeholder={t("constraints.auto")}
+                      value={constraints.irrigation_cap_mm ?? ""}
+                      onChange={(e) => {
+                        const raw = e.target.value.trim();
+                        if (!raw) {
+                          setConstraints({ ...constraints, irrigation_cap_mm: null });
+                          return;
+                        }
+                        const mm = parseFloat(raw);
+                        if (Number.isFinite(mm) && mm >= 0) {
+                          setConstraints({
+                            ...constraints,
+                            irrigation_cap_mm: Math.min(3000, Math.round(mm)),
+                          });
+                        }
+                      }}
+                      className="w-20 px-2 py-1 rounded-lg border border-line-strong bg-surface text-foreground text-[11px] font-mono outline-none tabular-nums"
+                    />
+                    <span className="text-muted">mm/yr</span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <span className="text-muted">{t("label.rotationHorizon")}</span>
+                  <select
+                    value={constraints.rotation_years}
+                    onChange={(e) => {
+                      const nextYrs = parseInt(e.target.value, 10) || 1;
+                      const nextC = { ...constraints, rotation_years: nextYrs };
+                      setConstraints(nextC);
+                      fetchRecommendations(priorities, nextC);
+                    }}
+                    className="px-2.5 py-1 rounded-lg border border-line-strong bg-surface text-foreground text-[11px] font-mono outline-none cursor-pointer"
+                  >
+                    <option value={1}>{t("horizon.1year")}</option>
+                    <option value={2}>{t("horizon.2year")}</option>
+                    <option value={3}>{t("horizon.3year")}</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-muted">{t("label.rotationHorizon")}</span>
-                <select
-                  value={constraints.rotation_years}
-                  onChange={(e) => {
-                    const nextYrs = parseInt(e.target.value, 10) || 1;
-                    const nextC = { ...constraints, rotation_years: nextYrs };
-                    setConstraints(nextC);
-                    fetchRecommendations(priorities, nextC);
-                  }}
-                  className="px-2.5 py-1 rounded-lg border border-line-strong bg-surface text-foreground text-[11px] font-mono outline-none cursor-pointer"
-                >
-                  <option value={1}>{t("horizon.1year")}</option>
-                  <option value={2}>{t("horizon.2year")}</option>
-                  <option value={3}>{t("horizon.3year")}</option>
-                </select>
-              </div>
+              <button
+                type="button"
+                onClick={() => fetchRecommendations(priorities, constraints)}
+                disabled={loading}
+                className={`px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all flex items-center gap-2 shadow-sm ${
+                  loading
+                    ? "bg-emerald-500/60 text-slate-900 cursor-not-allowed opacity-80"
+                    : "bg-emerald-500 hover:bg-emerald-400 text-slate-950 cursor-pointer hover:shadow-md active:scale-95"
+                }`}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+                <span>{loading ? t("priorities.optimizing") : t("priorities.optimize")}</span>
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => fetchRecommendations(priorities, constraints)}
-              disabled={loading}
-              className={`px-5 py-2.5 rounded-xl text-xs font-mono font-bold transition-all flex items-center gap-2 shadow-sm ${
-                loading
-                  ? "bg-emerald-500/60 text-slate-900 cursor-not-allowed opacity-80"
-                  : "bg-emerald-500 hover:bg-emerald-400 text-slate-950 cursor-pointer hover:shadow-md active:scale-95"
-              }`}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span>{loading ? t("priorities.optimizing") : t("priorities.optimize")}</span>
-            </button>
+            {/* Crop Inclusion / Exclusion Preference Constraints */}
+            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-line/60 text-[11px] font-mono">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <label htmlFor="must-grow-select" className="text-muted">
+                  {t("constraints.mustInclude")}
+                </label>
+                <select
+                  id="must-grow-select"
+                  value=""
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    if (!id) return;
+                    const nextMust = Array.from(new Set([...(constraints.must_grow ?? []), id]));
+                    const nextExcl = (constraints.exclude ?? []).filter((c) => c !== id);
+                    setConstraints({ ...constraints, must_grow: nextMust, exclude: nextExcl });
+                  }}
+                  className="px-2 py-1 rounded-lg border border-line bg-surface text-foreground text-[11px] outline-none cursor-pointer"
+                >
+                  <option value="">{t("constraints.addCrop")}</option>
+                  {availableCropIds
+                    .filter((id) => !(constraints.must_grow ?? []).includes(id))
+                    .map((id) => (
+                      <option key={id} value={id}>
+                        {cropName(id)}
+                      </option>
+                    ))}
+                </select>
+                {(constraints.must_grow ?? []).map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() =>
+                      setConstraints({
+                        ...constraints,
+                        must_grow: (constraints.must_grow ?? []).filter((c) => c !== id),
+                      })
+                    }
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/35 hover:bg-rose-500/20 hover:text-rose-400 cursor-pointer"
+                    title={t("constraints.removeTag")}
+                  >
+                    <span>+{cropName(id)}</span>
+                    <span aria-hidden="true">×</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <label htmlFor="exclude-crop-select" className="text-muted">
+                  {t("constraints.excludeCrops")}
+                </label>
+                <select
+                  id="exclude-crop-select"
+                  value=""
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    if (!id) return;
+                    const nextExcl = Array.from(new Set([...(constraints.exclude ?? []), id]));
+                    const nextMust = (constraints.must_grow ?? []).filter((c) => c !== id);
+                    setConstraints({ ...constraints, must_grow: nextMust, exclude: nextExcl });
+                  }}
+                  className="px-2 py-1 rounded-lg border border-line bg-surface text-foreground text-[11px] outline-none cursor-pointer"
+                >
+                  <option value="">{t("constraints.addCrop")}</option>
+                  {availableCropIds
+                    .filter((id) => !(constraints.exclude ?? []).includes(id))
+                    .map((id) => (
+                      <option key={id} value={id}>
+                        {cropName(id)}
+                      </option>
+                    ))}
+                </select>
+                {(constraints.exclude ?? []).map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() =>
+                      setConstraints({
+                        ...constraints,
+                        exclude: (constraints.exclude ?? []).filter((c) => c !== id),
+                      })
+                    }
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-500 border border-rose-500/35 hover:bg-rose-500/25 cursor-pointer"
+                    title={t("constraints.removeTag")}
+                  >
+                    <span>−{cropName(id)}</span>
+                    <span aria-hidden="true">×</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -754,20 +972,21 @@ export function RotationExplorer({
                           ? t("async.stage.simulating")
                           : simProgress?.stage === "ranking"
                           ? t("async.stage.ranking")
-                          : `Simulating ${constraints.rotation_years}-Year Rotations across 30-Year Climate Ensemble…`}
+                          : t("async.stage.simulatingDefault", {
+                              years: String(constraints.rotation_years),
+                            })}
                       </div>
                       <div className="text-[11px] text-muted">
-                        {simProgress?.message ||
-                          "Solving FAO-56 daily water balance · RothC-26.3 soil organic carbon · USDA-NRCS multi-objective Pareto trade-offs"}
+                        {simProgress?.message || t("async.stage.subtext")}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-emerald-500 text-sm">
-                      {simProgress?.progressPct ? `${simProgress.progressPct}%` : "In Progress"}
+                      {simProgress?.progressPct ? `${simProgress.progressPct}%` : t("async.inProgress")}
                     </span>
                     <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 text-[10px] font-bold uppercase tracking-wider shrink-0 self-start sm:self-auto">
-                      {constraints.rotation_years}-Year Horizon Active
+                      {t("async.horizonActive", { years: String(constraints.rotation_years) })}
                     </span>
                   </div>
                 </div>
@@ -791,20 +1010,30 @@ export function RotationExplorer({
               </div>
             )}
 
-            {/* Offline Fallback Warning Banner */}
+            {/* Offline Fallback / Failure Banner with Retry */}
             {errorBanner && !loading && (
-              <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-between gap-2 text-xs font-mono text-amber-700 dark:text-amber-300 transition-opacity">
-                <div className="flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-amber-700 dark:text-amber-300 transition-opacity">
+                <div className="flex items-center gap-2 min-w-0">
                   <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
                   <span className="font-medium">{errorBanner}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setErrorBanner(null)}
-                  className="text-xs text-amber-600 dark:text-amber-400 underline hover:opacity-80 shrink-0"
-                >
-                  Dismiss
-                </button>
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => fetchRecommendations(priorities, constraints)}
+                    className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-700 dark:text-amber-200 font-bold cursor-pointer flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>{t("common.retry")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setErrorBanner(null)}
+                    className="text-xs text-amber-600 dark:text-amber-400 underline hover:opacity-80 cursor-pointer"
+                  >
+                    {t("common.dismiss")}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -960,7 +1189,7 @@ export function RotationExplorer({
                         }}
                         className="px-2 py-1.5 text-xs text-rose-500 hover:underline font-mono cursor-pointer"
                       >
-                        Reset
+                        {t("common.reset")}
                       </button>
                     )}
                   </div>
@@ -1038,8 +1267,8 @@ export function RotationExplorer({
                           className="w-full px-2.5 py-1.5 rounded-lg bg-surface border border-line text-foreground"
                         >
                           <option value="fallow">{cropName("fallow")}</option>
-                          <option value="summer_moong">{cropName("summer_moong")}</option>
-                          <option value="fodder_sorghum">{cropName("fodder_sorghum")}</option>
+                          <option value="moong">{cropName("moong")}</option>
+                          <option value="sorghum">{cropName("sorghum")}</option>
                           <option value="urad">{cropName("urad")}</option>
                         </select>
                       </div>
@@ -1067,10 +1296,10 @@ export function RotationExplorer({
 
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h4 className="font-display font-bold text-xs uppercase tracking-wider text-foreground">
-                Comparative Performance vs Current Farm Baseline
+                {t("rotations.comparativeHeading")}
               </h4>
               <span className="text-[11px] font-mono text-emerald-500 font-semibold">
-                Click any strategy card below to inspect its 12-Month Gantt Calendar &amp; Soil Health Radar
+                {t("rotations.clickCardHint")}
               </span>
             </div>
 
@@ -1112,14 +1341,27 @@ export function RotationExplorer({
                   <div className="flex items-center gap-2 text-xs font-mono font-bold text-emerald-600 dark:text-emerald-300 uppercase tracking-wider">
                     <Sparkles className="w-4 h-4 text-emerald-400" />
                     <span>
-                      Grounded Advisory &amp; Government Scheme Eligibility — {focusedStrategy.rotation.label}
+                      {t("rotations.groundedAdvisory")} — {focusedStrategy.rotation.label}
                     </span>
                   </div>
-                  {focusedStrategy.practical_metrics?.msp_assurance_level && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/40">
-                      {focusedStrategy.practical_metrics.msp_assurance_level}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {focusedStrategy.practical_metrics?.total_farm_profit_p50 != null && (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40">
+                        {t("rotations.wholeFarmNet", {
+                          area:
+                            unitSystem === "acre"
+                              ? `${((focusedStrategy.practical_metrics.area_ha ?? constraints.area_ha) * 2.47105).toFixed(1)} ${t("unit.acreShort")}`
+                              : `${(focusedStrategy.practical_metrics.area_ha ?? constraints.area_ha).toFixed(1)} ${t("unit.haShort")}`,
+                          amount: fmtMoney(focusedStrategy.practical_metrics.total_farm_profit_p50, currencySymbol),
+                        })}
+                      </span>
+                    )}
+                    {focusedStrategy.practical_metrics?.msp_assurance_level && (
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/40">
+                        {focusedStrategy.practical_metrics.msp_assurance_level}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {focusedStrategy.narrative_summary && (
@@ -1139,23 +1381,24 @@ export function RotationExplorer({
                             : "text-rose-400"
                         }`}
                       >
-                        {focusedStrategy.practical_metrics.turnaround_days_kharif_rabi} Days{" "}
+                        {focusedStrategy.practical_metrics.turnaround_days_kharif_rabi} {t("unit.days")}{" "}
                         {focusedStrategy.practical_metrics.turnaround_days_kharif_rabi >= 20
-                          ? "(Burn-Free)"
-                          : "(Crunch)"}
+                          ? `(${t("rotations.burnFree")})`
+                          : `(${t("rotations.crunch")})`}
                       </span>
                     </div>
                     <div className="p-3 rounded-xl bg-background/75 border border-line">
                       <span className="text-[10px] text-muted uppercase block">{t("brief.irrigationsSaved")}</span>
                       <span className="text-sm font-bold text-cyan-400">
-                        {focusedStrategy.practical_metrics.irrigations_saved_per_yr} Irrigations (
+                        {focusedStrategy.practical_metrics.irrigations_saved_per_yr} {t("unit.irrigations")} (
                         {Math.round(
                           scaleByUnit(
                             focusedStrategy.practical_metrics.pumping_hours_saved_per_ha,
                             unitSystem
                           )
                         )}{" "}
-                        hrs{fmtAreaUnit(unitSystem)})
+                        {t("unit.hrs")}
+                        {fmtAreaUnit(unitSystem)})
                       </span>
                     </div>
                     <div className="p-3 rounded-xl bg-background/75 border border-line">
@@ -1165,7 +1408,8 @@ export function RotationExplorer({
                           focusedStrategy.practical_metrics.urea_bags_saved_per_ha,
                           unitSystem
                         ).toFixed(1)}{" "}
-                        Bags{fmtAreaUnit(unitSystem)}
+                        {t("unit.bags")}
+                        {fmtAreaUnit(unitSystem)}
                       </span>
                     </div>
                     <div className="p-3 rounded-xl bg-background/75 border border-line">
@@ -1243,11 +1487,13 @@ export function RotationExplorer({
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-emerald-400" />
                       <h4 className="font-display font-bold text-sm text-foreground">
-                        12-Month Agronomic Rotation Calendar — {focusedStrategy.rotation.label}
+                        {t("gantt.title")} — {focusedStrategy.rotation.label}
                       </h4>
                     </div>
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 font-bold">
-                      {focusedStrategy.rank === 0 ? "BASELINE REGIME" : `STRATEGY #0${focusedStrategy.rank}`}
+                      {focusedStrategy.rank === 0
+                        ? t("gantt.baselineRegime")
+                        : t("gantt.strategyRank", { rank: `0${focusedStrategy.rank}` })}
                     </span>
                   </div>
 
@@ -1262,19 +1508,30 @@ export function RotationExplorer({
                     {focusedStrategy.rotation.steps.map((step, sIdx) => {
                       const meta = cropMeta(step.crop_id);
                       const sLabel = seasonName(field.lat, field.lon, step.season_index);
-                      const isDelta = field.lat < 16.5;
-                      // Map season_index to regional month span for visual Gantt bar
-                      const spanCols = isDelta
+                      const isDelta = isSA && field.lat < 16.5;
+                      const spanCols = isSH
                         ? step.season_index === 0
-                          ? { start: 6, len: 4, window: "Jun – Sep" }
+                          ? { start: 12, len: 5, window: t("gantt.shMain") }
                           : step.season_index === 1
-                          ? { start: 10, len: 4, window: "Oct – Jan" }
-                          : { start: 2, len: 3, window: "Feb – Apr" }
+                          ? { start: 5, len: 5, window: t("gantt.shCool") }
+                          : { start: 10, len: 2, window: t("gantt.shCatch") }
+                        : !isSA
+                        ? step.season_index === 0
+                          ? { start: 5, len: 5, window: t("gantt.nhMain") }
+                          : step.season_index === 1
+                          ? { start: 10, len: 5, window: t("gantt.nhCool") }
+                          : { start: 3, len: 2, window: t("gantt.nhCatch") }
+                        : isDelta
+                        ? step.season_index === 0
+                          ? { start: 6, len: 4, window: t("gantt.deltaKharif") }
+                          : step.season_index === 1
+                          ? { start: 10, len: 4, window: t("gantt.deltaRabi") }
+                          : { start: 2, len: 3, window: t("gantt.deltaZaid") }
                         : step.season_index === 0
-                        ? { start: 6, len: 5, window: "Jun – Oct" }
+                        ? { start: 6, len: 5, window: t("gantt.igpKharif") }
                         : step.season_index === 1
-                        ? { start: 11, len: 5, window: "Nov – Mar" }
-                        : { start: 4, len: 2, window: "Apr – May" };
+                        ? { start: 11, len: 5, window: t("gantt.igpRabi") }
+                        : { start: 4, len: 2, window: t("gantt.igpZaid") };
 
                       return (
                         <div
@@ -1285,7 +1542,7 @@ export function RotationExplorer({
                             <div className="flex items-center gap-2">
                               {constraints.rotation_years > 1 && (
                                 <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-500 border border-cyan-500/40">
-                                  Yr {step.year_index + 1}
+                                  {t("unit.yrShort")} {step.year_index + 1}
                                 </span>
                               )}
                               <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-foreground/10 text-foreground">
@@ -1312,7 +1569,19 @@ export function RotationExplorer({
                           <div className="grid grid-cols-12 gap-1 h-3">
                             {MONTHS.map((m, mIdx) => {
                               const mNum = mIdx + 1;
-                              const isActive = isDelta
+                              const isActive = isSH
+                                ? step.season_index === 0
+                                  ? mNum >= 12 || mNum <= 4
+                                  : step.season_index === 1
+                                  ? mNum >= 5 && mNum <= 9
+                                  : mNum >= 10 && mNum <= 11
+                                : !isSA
+                                ? step.season_index === 0
+                                  ? mNum >= 5 && mNum <= 9
+                                  : step.season_index === 1
+                                  ? mNum >= 10 || mNum <= 2
+                                  : mNum >= 3 && mNum <= 4
+                                : isDelta
                                 ? step.season_index === 0
                                   ? mNum >= 6 && mNum <= 9
                                   : step.season_index === 1
@@ -1347,10 +1616,10 @@ export function RotationExplorer({
                     <div className="flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-amber-400" />
                       <h4 className="font-display font-bold text-sm text-foreground">
-                        5-Axis USDA-NRCS Soil Health Radar
+                        {t("radar.usdaTitle")}
                       </h4>
                     </div>
-                    <span className="text-[10px] font-mono text-muted">vs. Baseline</span>
+                    <span className="text-[10px] font-mono text-muted">{t("radar.vsBaseline")}</span>
                   </div>
 
                   <SoilHealthRadar
@@ -1380,46 +1649,44 @@ export function RotationExplorer({
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-cyan-400" />
                       <h4 className="font-display font-bold text-sm text-foreground">
-                        Seasonal Field Operations, Irrigation &amp; Budget Ledger —{" "}
-                        {focusedStrategy.rotation.label}
+                        {t("rotations.ledgerTitle")} — {focusedStrategy.rotation.label}
                       </h4>
                     </div>
                     <span className="text-[10px] font-mono text-muted">
-                      PAU / ICAR Package of Practices · FAO-56 Irrigation Schedule · CACP 2024–25 Budget
+                      {isSA ? t("rotations.ledgerSubtitleIndia") : t("rotations.ledgerSubtitleGlobal")}
                     </span>
                   </div>
 
                   <div className="overflow-x-auto rounded-xl border border-line">
                     <table className="w-full text-left text-xs tabular-nums">
                       <caption className="sr-only">
-                        Seasonal operations, irrigation schedule, input costs, and net margins for{" "}
-                        {focusedStrategy.rotation.label}
+                        {t("rotations.ledgerTitle")} — {focusedStrategy.rotation.label}
                       </caption>
                       <thead className="bg-foreground/[0.05] text-foreground font-mono text-[10px] uppercase tracking-wider border-b border-line">
                         <tr>
                           <th scope="col" className="py-3 px-3.5">
-                            Season &amp; Crop
+                            {t("rotations.colSeasonCrop")}
                           </th>
                           <th scope="col" className="py-3 px-3">
-                            Sowing → Harvest Window
+                            {t("rotations.colWindow")}
                           </th>
                           <th scope="col" className="py-3 px-3">
-                            Target Yield
+                            {t("rotations.colYield")}
                           </th>
                           <th scope="col" className="py-3 px-3">
-                            Irrigation Schedule
+                            {t("rotations.colIrrigation")}
                           </th>
                           <th scope="col" className="py-3 px-3">
-                            BNF &amp; Urea Credit
+                            {t("rotations.colNBalance")}
                           </th>
                           <th scope="col" className="py-3 px-3">
-                            Input / Labour Outlay
+                            {t("rotations.colOutlay")}
                           </th>
                           <th scope="col" className="py-3 px-3">
-                            Seasonal Net Margin
+                            {t("rotations.colMargin")}
                           </th>
                           <th scope="col" className="py-3 px-3.5">
-                            Agronomic Field Guidance
+                            {t("rotations.colGuidance")}
                           </th>
                         </tr>
                       </thead>
@@ -1434,7 +1701,7 @@ export function RotationExplorer({
                               <th scope="row" className="py-3 px-3.5 font-sans font-bold">
                                 <div className="flex flex-col gap-0.5">
                                   <span className="text-[10px] font-mono text-muted">
-                                    {constraints.rotation_years > 1 ? `Yr ${op.year_index + 1} · ` : ""}
+                                    {constraints.rotation_years > 1 ? `${t("unit.yrShort")} ${op.year_index + 1} · ` : ""}
                                     {op.season_name}
                                   </span>
                                   <span className="text-foreground">{op.crop_name}</span>
@@ -1445,7 +1712,9 @@ export function RotationExplorer({
                                   <span>
                                     {op.sowing_window} → {op.harvest_window}
                                   </span>
-                                  <span className="text-[10px] text-muted">{op.duration_days} field days</span>
+                                  <span className="text-[10px] text-muted">
+                                    {op.duration_days} {t("rotations.fieldDays")}
+                                  </span>
                                 </div>
                               </td>
                               <td className="py-3 px-3 font-mono font-bold text-foreground">
@@ -1457,12 +1726,12 @@ export function RotationExplorer({
                               </td>
                               <td className="py-3 px-3 font-mono">
                                 {isFallow ? (
-                                  <span className="text-muted">0 mm (Rainfed Mulch)</span>
+                                  <span className="text-muted">{t("rotations.rainfedMulch")}</span>
                                 ) : (
                                   <div className="flex flex-col">
                                     <span className="font-bold text-cyan-400">{op.irrigation_mm} mm</span>
                                     <span className="text-[10px] text-muted">
-                                      ~{op.irrigations_count} irrigations
+                                      ~{op.irrigations_count} {t("unit.irrigations")}
                                     </span>
                                   </div>
                                 )}
@@ -1475,13 +1744,15 @@ export function RotationExplorer({
                                     )}
                                     {op.urea_saved_kg_ha > 0 && (
                                       <span className="text-[10px]">
-                                        Saves {Math.round(scaleByUnit(op.urea_saved_kg_ha, unitSystem))} kg Urea
-                                        {fmtAreaUnit(unitSystem)}
+                                        {t("rotations.savesUrea", {
+                                          kg: String(Math.round(scaleByUnit(op.urea_saved_kg_ha, unitSystem))),
+                                          unit: fmtAreaUnit(unitSystem),
+                                        })}
                                       </span>
                                     )}
                                   </div>
                                 ) : (
-                                  <span className="text-muted">Standard N</span>
+                                  <span className="text-muted">{t("rotations.standardN")}</span>
                                 )}
                               </td>
                               <td className="py-3 px-3 font-mono text-[11px]">
@@ -1499,7 +1770,7 @@ export function RotationExplorer({
                                       {fmtAreaUnit(unitSystem)}
                                     </span>
                                     <span className="text-[10px] text-muted">
-                                      Labour:{" "}
+                                      {t("rotations.labourLabel")}{" "}
                                       {fmtAreaMoney(
                                         op.labor_cost_inr_ha,
                                         currencySymbol,
@@ -1544,8 +1815,7 @@ export function RotationExplorer({
                   <span>{t("pareto.frontierTitle")}</span>
                 </h4>
                 <p className="text-[11px] font-mono text-muted mt-0.5">
-                  Simultaneous optimization across Irrigation Demand [mm/yr], Net Margin [
-                  {currencySymbol}/ha], and Soil Health [0–100]
+                  {t("pareto.subtitle", { currency: currencySymbol, unit: fmtAreaUnit(unitSystem) })}
                 </p>
               </div>
 
@@ -1559,7 +1829,7 @@ export function RotationExplorer({
                       : "text-muted hover:text-foreground"
                   }`}
                 >
-                  3D Decision Cube
+                  {t("pareto.view3d")}
                 </button>
                 <button
                   type="button"
@@ -1570,7 +1840,7 @@ export function RotationExplorer({
                       : "text-muted hover:text-foreground"
                   }`}
                 >
-                  2D Engineering Plot
+                  {t("pareto.view2d")}
                 </button>
               </div>
             </div>
@@ -1631,12 +1901,23 @@ export function RotationExplorer({
           <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h4 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
-                  <FlaskConical className="w-4 h-4 text-amber-400" />
-                  <span>{t("whatif.title")}</span>
-                </h4>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
+                    <FlaskConical className="w-4 h-4 text-amber-400" />
+                    <span>{t("whatif.title")}</span>
+                  </h4>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                      stressedStrategies
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/40"
+                        : "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40"
+                    }`}
+                  >
+                    {stressedStrategies ? t("whatif.badgeSimulated") : t("whatif.badgePreview")}
+                  </span>
+                </div>
                 <p className="text-[11px] font-mono text-muted mt-0.5">
-                  Perturb NASA NEX-GDDP-CMIP6 future climate ensembles, ET₀ drought anomaly, MSP/market price, and synthetic N-fertilizer cost
+                  {t("whatif.subtitle")}
                 </p>
               </div>
 
@@ -1667,10 +1948,26 @@ export function RotationExplorer({
                   className="px-3.5 py-1.5 rounded-lg text-[11px] font-mono font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${stressLoading ? "animate-spin" : ""}`} />
-                  <span>{stressLoading ? "Simulating CMIP6..." : "Run FAO-56 Stress Sim"}</span>
+                  <span>{stressLoading ? t("whatif.simulatingCmip6") : t("whatif.runStressSim")}</span>
                 </button>
               </div>
             </div>
+
+            {stressError && (
+              <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-amber-700 dark:text-amber-300">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>{stressError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => runStressSimulation()}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 font-bold cursor-pointer"
+                >
+                  {t("common.retry")}
+                </button>
+              </div>
+            )}
 
             {/* Shock Sliders */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5 rounded-2xl bg-amber-500/[0.07] border border-amber-500/35">
@@ -1692,7 +1989,7 @@ export function RotationExplorer({
                   className="w-full accent-amber-500 cursor-pointer"
                 />
                 <span className="text-[10px] font-mono text-muted block">
-                  Increases atmospheric water demand &amp; groundwater pumping cost
+                  {t("whatif.droughtDesc")}
                 </span>
               </div>
 
@@ -1716,7 +2013,7 @@ export function RotationExplorer({
                   className="w-full accent-cyan-400 cursor-pointer"
                 />
                 <span className="text-[10px] font-mono text-muted block">
-                  Simulates market price deviation vs baseline MSP
+                  {t("whatif.priceDesc")}
                 </span>
               </div>
 
@@ -1738,7 +2035,7 @@ export function RotationExplorer({
                   className="w-full accent-rose-500 cursor-pointer"
                 />
                 <span className="text-[10px] font-mono text-muted block">
-                  Legume rotations buffer cost via 25 kg N/ha biological fixation credit
+                  {t("whatif.ureaDesc")}
                 </span>
               </div>
             </div>
@@ -1747,7 +2044,7 @@ export function RotationExplorer({
             <div className="overflow-x-auto rounded-2xl border border-line">
               <table className="w-full text-left text-xs tabular-nums">
                 <caption className="sr-only">
-                  Hydro-climatic, CMIP6, and market stress test results across candidate rotation strategies
+                  {t("whatif.tableCaption")}
                 </caption>
                 <thead className="bg-foreground/[0.05] text-foreground font-mono text-[11px] uppercase tracking-wider border-b border-line">
                   <tr>
@@ -1769,7 +2066,7 @@ export function RotationExplorer({
                       : 1200;
 
                     const matchedEngineStress = stressedStrategies?.find(
-                      (s) => s.rotation.id === strat.rotation.id || s.rank === strat.rank
+                      (s) => s.rotation.id === strat.rotation.id || (strat.rank === 0 && s.rank === 0)
                     )?.results?.[0];
 
                     const cmipTempPen =
@@ -1795,17 +2092,38 @@ export function RotationExplorer({
                     const fertLegumeUnitCost = isSA ? 25 : 0.35;
                     const pumpPenalty = extraIrr * pumpUnitCost;
                     const revMult = (1 + priceShockPct / 100) * cmipTempPen;
+                    const hasLegume = strat.rotation.steps.some((st) => {
+                      const matched = crops.find((c) => c.id === st.crop_id);
+                      if (matched) return matched.group === "legume";
+                      return [
+                        "moong",
+                        "summer_moong",
+                        "chickpea",
+                        "pigeonpea",
+                        "lentil",
+                        "urad",
+                        "dhaincha",
+                        "berseem",
+                        "soybean",
+                        "groundnut",
+                      ].includes(st.crop_id);
+                    });
+                    const baseInputCost = strat.practical_metrics?.input_cost_inr_per_ha;
                     const fertPenalty =
-                      (res?.n_balance_kg_ha_yr ?? 30) > 15
-                        ? fertilizerShockPct * fertUnitCost
-                        : fertilizerShockPct * fertLegumeUnitCost;
+                      baseInputCost && baseInputCost > 0
+                        ? baseInputCost * (hasLegume ? 0.06 : 0.16) * (fertilizerShockPct / 100)
+                        : fertilizerShockPct * (hasLegume ? fertLegumeUnitCost : fertUnitCost);
 
                     const stressedP = matchedEngineStress
                       ? Math.round(matchedEngineStress.profit_p50)
                       : Math.round(normP * revMult - pumpPenalty - fertPenalty);
+                    const cvarRatio =
+                      normP !== 0 && res?.cvar_profit_10 !== undefined && res?.cvar_profit_10 !== null
+                        ? res.cvar_profit_10 / normP
+                        : 1;
                     const stressedCvar = matchedEngineStress
                       ? Math.round(matchedEngineStress.cvar_profit_10)
-                      : Math.round(stressedP * 0.84);
+                      : Math.round(stressedP * cvarRatio - (droughtShockPct > 0 ? Math.abs(stressedP) * 0.08 * (droughtShockPct / 100) : 0));
                     const drop = Math.max(0, Math.round(normP - stressedP));
                     const isBase = strat.rank === 0;
                     const dropThreshold = isSA ? 18000 : 250;
@@ -1856,7 +2174,7 @@ export function RotationExplorer({
                                 : "bg-rose-500/20 text-rose-500 border border-rose-500/40"
                             }`}
                           >
-                            {drop < dropThreshold ? "Buffered" : "Vulnerable"}
+                            {drop < dropThreshold ? t("whatif.buffered") : t("whatif.vulnerable")}
                           </span>
                         </td>
                       </tr>
@@ -1906,7 +2224,7 @@ function SoilHealthRadar({
 
     const armor = hasMulch ? 88 : hasBurn ? 18 : 52;
     const minDisturb = hasZeroTill ? 85 : 35;
-    const livingRoots = Math.min(95, Math.round((r?.living_root_days_pct ?? 0.65) * 100));
+    const livingRoots = Math.min(95, Math.round(r?.living_root_days_pct ?? 65));
     const diversity = Math.min(95, Math.round(35 + (r?.family_diversity_index ?? 0.2) * 80));
     const carbon = Math.min(
       95,
@@ -1915,7 +2233,13 @@ function SoilHealthRadar({
     return [armor, minDisturb, livingRoots, diversity, carbon];
   };
 
-  const axesLabels = ["Soil Armor", "Min Till", "Living Roots", "Biodiversity", "SOC Gain"];
+  const axesLabels = [
+    t("radar.soilArmor"),
+    t("radar.minTill"),
+    t("radar.livingRoots"),
+    t("radar.biodiversity"),
+    t("radar.socGain"),
+  ];
   const fVals = computeAxes(focused, fRes);
   const bVals = computeAxes(baseline, bRes);
 
@@ -2017,14 +2341,14 @@ function SoilHealthRadar({
             <span>{t("radar.selectedVsBase")}</span>
           </div>
           {[
-            { key: "disturbance_minimization", label: "1. Min Disturbance (/15)" },
-            { key: "soil_armor_cover", label: "2. Soil Armor (/15)" },
-            { key: "living_roots", label: "3. Living Roots (/15)" },
-            { key: "biodiversity", label: "4. Biodiversity (/15)" },
-            { key: "biological_n_livestock", label: "5. Bio-N / Fodder (/15)" },
-            { key: "soc_modifier", label: "+ SOC 10yr Mod (-15..+18)" },
-            { key: "erosion_modifier", label: "+ RUSLE Mod (-10..+10)" },
-            { key: "burning_penalty", label: "+ Burn Penalty (-8..0)" },
+            { key: "disturbance_minimization", label: t("radar.bdDisturbance") },
+            { key: "soil_armor_cover", label: t("radar.bdArmor") },
+            { key: "living_roots", label: t("radar.bdLivingRoots") },
+            { key: "biodiversity", label: t("radar.bdBiodiversity") },
+            { key: "biological_n_livestock", label: t("radar.bdBioN") },
+            { key: "soc_modifier", label: t("radar.bdSocMod") },
+            { key: "erosion_modifier", label: t("radar.bdErosionMod") },
+            { key: "burning_penalty", label: t("radar.bdBurnPenalty") },
           ].map((item) => {
             const fVal = fRes.soil_health_breakdown?.[item.key] ?? 0;
             const bVal = bRes?.soil_health_breakdown?.[item.key] ?? 0;
@@ -2033,7 +2357,7 @@ function SoilHealthRadar({
                 <span className="text-muted">{item.label}</span>
                 <span>
                   <strong className="text-emerald-400">{fVal > 0 && item.key.includes("mod") ? `+${fVal}` : fVal}</strong>
-                  <span className="text-muted"> vs {bVal > 0 && item.key.includes("mod") ? `+${bVal}` : bVal}</span>
+                  <span className="text-muted"> {t("common.vs")} {bVal > 0 && item.key.includes("mod") ? `+${bVal}` : bVal}</span>
                 </span>
               </div>
             );
@@ -2046,7 +2370,7 @@ function SoilHealthRadar({
         <caption>{t("radar.usdaTitle")}</caption>
         <thead>
           <tr>
-            <th>Principle</th>
+            <th>{t("radar.principleCol")}</th>
             <th>{t("radar.selectedStrategy")}</th>
             <th>{t("strategy.baseline")}</th>
           </tr>
@@ -2136,7 +2460,7 @@ function StrategyCard({
           >
             {isBaseline
               ? `REF // ${t("strategy.baseline")}`
-              : `OPT 0${strategy.rank} // RECOMMENDED`}
+              : `OPT 0${strategy.rank} // ${t("strategy.recommended")}`}
           </span>
 
           <div className="flex items-center gap-1.5">
@@ -2155,7 +2479,7 @@ function StrategyCard({
             )}
             {!isBaseline && isRainfedBase && waterChangeMm !== undefined && waterChangeMm > 0 && (
               <span className="text-[10px] font-bold text-amber-600 dark:text-amber-300 bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/35">
-                +{Math.round(waterChangeMm)} mm H₂O (vs Rainfed)
+                +{Math.round(waterChangeMm)} mm H₂O ({t("strategy.vsRainfed")})
               </span>
             )}
             {!isBaseline && (!isRainfedBase || waterChangeMm === undefined || waterChangeMm <= 0) && waterSaved > 0 && (
@@ -2166,7 +2490,7 @@ function StrategyCard({
             {resilienceScore !== undefined && (
               <span
                 className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-stone-500/15 text-stone-600 dark:text-stone-300 border border-stone-500/35"
-                title="Climate Resilience Index"
+                title={t("strategy.climateResilienceTitle")}
               >
                 RES {Math.round(resilienceScore)}
               </span>
@@ -2191,7 +2515,7 @@ function StrategyCard({
                   return (
                     <div key={yr} className="flex flex-wrap items-center gap-1">
                       <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 border border-cyan-500/40 shrink-0">
-                        Yr {yr + 1}
+                        {t("unit.yrShort")} {yr + 1}
                       </span>
                       {yrSteps.map((step, idx) => {
                         const meta = cropMeta(step.crop_id);
@@ -2204,7 +2528,7 @@ function StrategyCard({
                             <span className="capitalize">{cropName(step.crop_id)}</span>
                             {step.practices.includes("residue_retained") && (
                               <span className="text-[8px] font-mono uppercase px-1 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">
-                                Mulch
+                                {t("strategy.mulchTag")}
                               </span>
                             )}
                           </span>
@@ -2227,7 +2551,7 @@ function StrategyCard({
                       <span className="capitalize">{cropName(step.crop_id)}</span>
                       {step.practices.includes("residue_retained") && (
                         <span className="text-[9px] font-mono uppercase px-1 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">
-                          Mulch
+                          {t("strategy.mulchTag")}
                         </span>
                       )}
                     </span>
@@ -2240,7 +2564,7 @@ function StrategyCard({
           <ProgressRing
             value={shScore}
             max={100}
-            label="Soil Health Score"
+            label={t("strategy.soilHealthScore")}
             size="2.75rem"
             thickness="4px"
             color={shScore >= 60 ? "var(--accent-canopy)" : "var(--accent-soil)"}
@@ -2273,12 +2597,24 @@ function StrategyCard({
               </span>
             </span>
           </div>
+          {pm?.total_farm_profit_p50 != null && (
+            <div className="flex justify-between items-center text-[10px] text-emerald-600 dark:text-emerald-300">
+              <span className="font-sans">
+                {t("strategy.wholeFarmLabel")} (
+                {unitSystem === "acre"
+                  ? `${((pm.area_ha ?? 2.0) * 2.47105).toFixed(1)} ${t("unit.acreShort")}`
+                  : `${(pm.area_ha ?? 2.0).toFixed(1)} ${t("unit.haShort")}`}
+                )
+              </span>
+              <span className="font-bold">{fmtMoney(pm.total_farm_profit_p50, currSym)}</span>
+            </div>
+          )}
           <div className="text-[9px] text-muted font-sans text-right -mt-1">
             {t("label.netOperatingIncomeNote")}
           </div>
-          {res?.cvar_ci_low !== undefined && res?.cvar_ci_high !== undefined && (
+          {res?.cvar_ci_low != null && res?.cvar_ci_high != null && (
             <div className="flex justify-between items-center text-[10px] text-muted">
-              <span>{"CVaR₁₀ 90% CI"}</span>
+              <span>{t("strategy.droughtCi")}</span>
               <span>
                 [{fmtAreaMoney(res.cvar_ci_low, currSym, unitSystem)}–{fmtAreaMoney(res.cvar_ci_high, currSym, unitSystem)}]
               </span>
@@ -2308,16 +2644,17 @@ function StrategyCard({
                     : "bg-amber-500/10 text-amber-400 border-amber-500/30"
                 }`}
               >
-                Window: {pm.turnaround_days_kharif_rabi}d
+                {t("strategy.windowTag")}: {pm.turnaround_days_kharif_rabi}d
               </span>
               {!isBaseline && pm.urea_bags_saved_per_ha > 0 && (
                 <span className="px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-                  −{scaleByUnit(pm.urea_bags_saved_per_ha, unitSystem).toFixed(1)} Urea bags{fmtAreaUnit(unitSystem)}
+                  −{scaleByUnit(pm.urea_bags_saved_per_ha, unitSystem).toFixed(1)} {t("unit.ureaBags")}
+                  {fmtAreaUnit(unitSystem)}
                 </span>
               )}
               {!isBaseline && pm.irrigations_saved_per_yr > 0 && (
                 <span className="px-1.5 py-0.5 rounded bg-stone-500/10 text-stone-300 border border-stone-500/30">
-                  −{pm.irrigations_saved_per_yr.toFixed(0)} Irrigations
+                  −{pm.irrigations_saved_per_yr.toFixed(0)} {t("unit.irrigations")}
                 </span>
               )}
             </div>
@@ -2365,9 +2702,11 @@ function ParetoCube3D({
   currencySymbol?: string;
   unitSystem?: UnitSystem;
 }) {
+  const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [yaw, setYaw] = useState<number>(-0.62);
   const [pitch, setPitch] = useState<number>(0.42);
+  const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const isDraggingRef = useRef<boolean>(false);
   const lastPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const hitTargetsRef = useRef<Array<{ rank: number; x: number; y: number; r: number }>>([]);
@@ -2380,8 +2719,13 @@ function ParetoCube3D({
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return;
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.max(1, Math.round(entry.contentRect.width * dpr));
-      canvas.height = Math.max(1, Math.round(entry.contentRect.height * dpr));
+      const nw = Math.max(1, Math.round(entry.contentRect.width * dpr));
+      const nh = Math.max(1, Math.round(entry.contentRect.height * dpr));
+      if (canvas.width !== nw || canvas.height !== nh) {
+        canvas.width = nw;
+        canvas.height = nh;
+      }
+      setCanvasSize((prev) => (prev.w === nw && prev.h === nh ? prev : { w: nw, h: nh }));
     });
     observer.observe(canvas);
     return () => observer.disconnect();
@@ -2469,11 +2813,11 @@ function ParetoCube3D({
 
     ctx.font = `700 ${Math.round(10 * dpr)}px var(--font-geist-mono), monospace`;
     ctx.fillStyle = "#5f9bbd";
-    ctx.fillText("X // WATER SAVED (mm/yr)", xEnd.x - 40 * dpr, xEnd.y + 14 * dpr);
+    ctx.fillText(t("pareto.axisWater"), xEnd.x - 40 * dpr, xEnd.y + 14 * dpr);
     ctx.fillStyle = "#5fae7b";
-    ctx.fillText("Y // NET MARGIN (" + currSym + fmtAreaUnit(unitSystem) + ")", yEnd.x - 10 * dpr, yEnd.y - 8 * dpr);
+    ctx.fillText(`${t("pareto.axisMargin")} (${currSym}${fmtAreaUnit(unitSystem)})`, yEnd.x - 10 * dpr, yEnd.y - 8 * dpr);
     ctx.fillStyle = "#f59e0b";
-    ctx.fillText("Z // SOIL HEALTH [0-100]", zEnd.x - 30 * dpr, zEnd.y + 14 * dpr);
+    ctx.fillText(t("pareto.axisSoil"), zEnd.x - 30 * dpr, zEnd.y + 14 * dpr);
     ctx.restore();
 
     const irrs = strategies.map((s) => {
@@ -2580,7 +2924,7 @@ function ParetoCube3D({
       ctx.arc(item.pt.x, item.pt.y, radius, 0, Math.PI * 2);
       ctx.fill();
 
-      const tag = isBase ? "REF (Baseline)" : `OPT #${item.strat.rank}`;
+      const tag = isBase ? t("pareto.refBaseline") : `OPT #${item.strat.rank}`;
       ctx.font = `700 ${Math.round(10.5 * dpr)}px var(--font-geist-mono), monospace`;
       ctx.fillStyle = isDark ? "#f1f5f9" : "#0b1324";
       ctx.textAlign = "center";
@@ -2602,7 +2946,7 @@ function ParetoCube3D({
         r: 22,
       });
     }
-  }, [strategies, yaw, pitch, selectedRank, currSym, unitSystem]);
+  }, [strategies, yaw, pitch, selectedRank, currSym, unitSystem, canvasSize, t]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     isDraggingRef.current = true;
@@ -2630,10 +2974,10 @@ function ParetoCube3D({
     const rect = e.currentTarget.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    for (const t of hitTargetsRef.current) {
-      const dist = Math.hypot(mx - t.x, my - t.y);
-      if (dist <= t.r) {
-        onSelectRank(t.rank);
+    for (const hit of hitTargetsRef.current) {
+      const dist = Math.hypot(mx - hit.x, my - hit.y);
+      if (dist <= hit.r) {
+        onSelectRank(hit.rank);
         break;
       }
     }
@@ -2650,7 +2994,7 @@ function ParetoCube3D({
         className="w-full h-full cursor-grab active:cursor-grabbing block touch-none"
       />
       <div className="absolute top-3 left-3.5 pointer-events-none glass-strong px-3 py-1 rounded-lg border border-line text-[10px] font-mono text-muted">
-        Drag to rotate 3D objective space · Click node to inspect rotation
+        {t("pareto.dragHint")}
       </div>
       <button
         type="button"
@@ -2659,7 +3003,7 @@ function ParetoCube3D({
           setPitch(0.42);
         }}
         className="absolute top-3 right-3.5 p-1.5 rounded-lg glass-strong border border-line text-muted hover:text-foreground cursor-pointer"
-        title="Reset 3D orientation"
+        title={t("pareto.resetTitle")}
       >
         <RotateCcw className="w-3.5 h-3.5" />
       </button>
@@ -2680,6 +3024,7 @@ function ParetoScatterPlot({
   currencySymbol?: string;
   unitSystem?: UnitSystem;
 }) {
+  const { t } = useI18n();
   if (!strategies || strategies.length === 0) return null;
 
   const currSym = strategies[0]?.currency_symbol || currencySymbol;
@@ -2805,7 +3150,7 @@ function ParetoScatterPlot({
         </text>
 
         <text x={w / 2} y={h - 6} textAnchor="middle" fontSize="10" fontWeight="bold" fill="currentColor" opacity="0.85">
-          Net Irrigation Demand [mm/yr]
+          {t("pareto.scatterXAxis")}
         </text>
 
         {points.filter((pt) => !pt.isBase).length > 1 && (
@@ -2849,7 +3194,7 @@ function ParetoScatterPlot({
                 fontWeight="bold"
                 fill={pt.isBase ? "#d06b5c" : "#5fae7b"}
               >
-                {pt.isBase ? "REF" : `OPT 0${pt.rank}`}
+                {pt.isBase ? t("pareto.refTag") : `OPT 0${pt.rank}`}
               </text>
             </g>
           );

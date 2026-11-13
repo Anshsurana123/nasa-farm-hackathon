@@ -5,24 +5,26 @@ import { AppShell } from "@/components/AppShell";
 import { ReportCard } from "@/components/ReportCard";
 import { FieldMap } from "@/components/FieldMap";
 import { useField } from "@/context/FieldContext";
+import { useI18n } from "@/i18n";
 import { ArrowRight, Layers, Satellite } from "lucide-react";
 
 export default function DiagnosticsPage() {
-  const { selectedField, goldenFields, profile, strategies, selectLocation } = useField();
+  const { t } = useI18n();
+  const { selectedField, goldenFields, profile, strategies, selectGolden, selectLocation } = useField();
 
   return (
     <AppShell
       pageStep="02"
       pageBadge="NASA POWER · SMAP L4 · GRACE-FO · ISRIC 250m · HLS 30m"
-      pageTitle="Deep Field Diagnostics & Satellite Telemetry Atlas"
-      pageDescription="Explore 24-year daily agroclimatology, monthly rainfall vs. thermal envelopes, USDA soil particle fractions, Saxton-Rawls hydraulic limits, and satellite-reconstructed crop history."
+      pageTitle={t("diagnostics.pageTitle")}
+      pageDescription={t("diagnostics.pageDesc")}
       headerActions={
         <Link
           href="/rotations"
           className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
         >
           <Layers className="w-4 h-4" />
-          <span>Optimize Rotations for This Parcel</span>
+          <span>{t("diagnostics.optimizeBtn")}</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       }
@@ -38,18 +40,22 @@ export default function DiagnosticsPage() {
               <div className="flex items-center gap-2">
                 <Satellite className="w-4 h-4 text-emerald-400" />
                 <h3 className="font-display font-bold text-sm uppercase tracking-wider text-foreground">
-                  Interactive Satellite Swath &amp; Terrain Reference
+                  {t("diagnostics.mapTitle")}
                 </h3>
               </div>
               <span className="text-xs font-mono text-muted">
-                Click any neighboring parcel on the map to compare diagnostics live
+                {t("diagnostics.mapHint")}
               </span>
             </div>
 
             <FieldMap
               selectedField={selectedField}
               goldenFields={goldenFields}
-              onSelect={selectLocation}
+              onSelect={(pt) => {
+                const matched = pt.id ? goldenFields.find((g) => g.id === pt.id) : undefined;
+                if (matched) selectGolden(matched);
+                else selectLocation(pt);
+              }}
             />
           </div>
         </div>

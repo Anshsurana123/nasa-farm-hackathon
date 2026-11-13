@@ -75,7 +75,7 @@
       32.0
     ],
     "max_temp_c": 40.0,
-    "min_temp_c": 15.0,
+    "min_temp_c": 10.0,
     "duration_days": [
       130,
       155
@@ -361,7 +361,7 @@
       35.0
     ],
     "max_temp_c": 42.0,
-    "min_temp_c": 15.0,
+    "min_temp_c": 12.0,
     "duration_days": [
       45,
       60
@@ -416,7 +416,7 @@
       33.0
     ],
     "max_temp_c": 41.0,
-    "min_temp_c": 14.0,
+    "min_temp_c": 10.0,
     "duration_days": [
       105,
       125
@@ -592,7 +592,7 @@
       35.0
     ],
     "max_temp_c": 42.0,
-    "min_temp_c": 15.0,
+    "min_temp_c": 10.0,
     "duration_days": [
       60,
       75
@@ -707,7 +707,7 @@
       35.0
     ],
     "max_temp_c": 44.0,
-    "min_temp_c": 15.0,
+    "min_temp_c": 12.0,
     "duration_days": [
       75,
       95
@@ -882,7 +882,7 @@
       32.0
     ],
     "max_temp_c": 40.0,
-    "min_temp_c": 15.0,
+    "min_temp_c": 10.0,
     "duration_days": [
       110,
       145
@@ -935,7 +935,7 @@
       32.0
     ],
     "max_temp_c": 40.0,
-    "min_temp_c": 15.0,
+    "min_temp_c": 10.0,
     "duration_days": [
       110,
       150
@@ -989,7 +989,7 @@
       32.0
     ],
     "max_temp_c": 40.0,
-    "min_temp_c": 15.0,
+    "min_temp_c": 10.0,
     "duration_days": [
       93,
       123
@@ -1012,8 +1012,8 @@
     "residue_t_ha": 4.8,
     "residue_cn_ratio": 58.0,
     "typical_yield_t_ha": [
-      6.2,
-      7.5
+      5.5,
+      6.8
     ],
     "aquacrop_name": "PaddyRice",
     "good_predecessors": [
@@ -1044,7 +1044,7 @@
       32.0
     ],
     "max_temp_c": 42.0,
-    "min_temp_c": 12.0,
+    "min_temp_c": 10.0,
     "duration_days": [
       100,
       130
@@ -1152,7 +1152,8 @@
     "family": "asteraceae",
     "group": "oilseed",
     "season_type": [
-      "cool"
+      "cool",
+      "warm"
     ],
     "gdd_to_maturity": 1500.0,
     "base_temp_c": 7.0,
@@ -1223,7 +1224,7 @@
       35.0
     ],
     "max_temp_c": 42.0,
-    "min_temp_c": 15.0,
+    "min_temp_c": 10.0,
     "duration_days": [
       65,
       80

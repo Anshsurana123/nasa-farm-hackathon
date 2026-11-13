@@ -15,11 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Install only when working on that workstream (heavy deps).
-gee = ["earthengine-api>=1.0"]
-earthdata = ["earthaccess>=0.10", "xarray>=2024.1", "rioxarray>=0.15", "netCDF4>=1.6"]
-sim = ["aquacrop>=3.0"]
-opt = ["pymoo>=0.6.1", "scikit-learn>=1.4", "lightgbm>=4.3"]
+# Install only when running developer test/lint tooling.
 dev = ["pytest>=8.0", "ruff>=0.5"]
 
 [build-system]

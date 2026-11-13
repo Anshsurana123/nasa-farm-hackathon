@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FieldProfile, StrategyRecommendation } from "@/types/api";
 import { useI18n } from "@/i18n";
 import { useField } from "@/context/FieldContext";
 import { ProvenanceChip } from "./ProvenanceChip";
 import { SoilColumn3D } from "./SoilColumn3D";
 import { ProgressRing } from "./ProgressRing";
-import { cropMeta, cropName, fmtDMS, seasonName } from "@/lib/ui";
+import { MONTHS, cropMeta, cropName, fmtDMS, seasonName } from "@/lib/ui";
 import {
   CloudSun,
   Sprout,
@@ -24,8 +24,6 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
 interface ReportCardProps {
   profile: FieldProfile;
   strategies?: StrategyRecommendation[];
@@ -41,11 +39,38 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
     climate.wettest_months?.[0] ? climate.wettest_months[0] - 1 : 6
   );
   const [showShcForm, setShowShcForm] = useState<boolean>(false);
+  const defaultAvailN =
+    soil.source === "farmer_test" && soil.nitrogen_g_kg != null ? soil.nitrogen_g_kg * 2240 : 210;
   const [shcPh, setShcPh] = useState<string>(String(soil.ph ?? 7.6));
   const [shcSocPct, setShcSocPct] = useState<string>(
     soil.soc_g_per_kg ? (soil.soc_g_per_kg / 10).toFixed(2) : "0.52"
   );
-  const [shcN, setShcN] = useState<string>("210");
+  const [shcN, setShcN] = useState<string>(String(Math.round(soilHealthCard?.available_n_kg_ha ?? defaultAvailN)));
+  const [shcP, setShcP] = useState<string>(String(Math.round(soil.available_p_kg_ha ?? 18)));
+  const [shcK, setShcK] = useState<string>(String(Math.round(soil.available_k_kg_ha ?? 240)));
+
+  useEffect(() => {
+    if (soilHealthCard) return;
+    setShcPh(String(soil.ph ?? 7.5));
+    setShcSocPct(soil.soc_g_per_kg ? (soil.soc_g_per_kg / 10).toFixed(2) : "0.52");
+    setShcN(
+      String(
+        Math.round(
+          soil.source === "farmer_test" && soil.nitrogen_g_kg != null ? soil.nitrogen_g_kg * 2240 : 210
+        )
+      )
+    );
+    setShcP(String(Math.round(soil.available_p_kg_ha ?? 18)));
+    setShcK(String(Math.round(soil.available_k_kg_ha ?? 240)));
+  }, [
+    soilHealthCard,
+    soil.source,
+    soil.ph,
+    soil.soc_g_per_kg,
+    soil.nitrogen_g_kg,
+    soil.available_p_kg_ha,
+    soil.available_k_kg_ha,
+  ]);
 
   const maxMonthlyRain = Math.max(...(climate?.monthly_precip_mm ?? [100]), 10);
 
@@ -69,7 +94,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
         <div className="instrument-header px-5 py-3 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
           <div className="flex items-center gap-2">
             <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-wider">
-              FIELD PROFILE & SATELLITE SURVEY
+              {t("report.surveyBadge")}
             </span>
             <span className="text-muted">
               {fmtDMS(field.lat, true)} · {fmtDMS(field.lon, false)}
@@ -78,8 +103,8 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
           {seasons_per_year && (
             <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border border-cyan-500/35 font-bold">
               {seasons_per_year === 2
-                ? "Double-Cropped Regime (2 Seasons/Yr)"
-                : `${seasons_per_year} Seasons/Yr`}
+                ? t("report.doubleCropped")
+                : `${seasons_per_year} ${t("telemetry.seasonsPerYr")}`}
             </span>
           )}
         </div>
@@ -89,7 +114,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground tracking-tight">
-                  {field.name ?? "Selected Field"}
+                  {field.name ?? t("report.selectedField")}
                 </h2>
                 {profile.agro_zone && (
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/35">
@@ -98,13 +123,14 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                 )}
               </div>
               <p className="text-xs font-mono text-muted mt-0.5">
-                Baseline Climatology: {climate.baseline_period} · Recent Window: {climate.recent_period}
+                {t("report.baselineClimatology")}: {climate.baseline_period} · {t("report.recentWindow")}:{" "}
+                {climate.recent_period}
               </p>
             </div>
 
             <div className="flex items-center gap-3">
               <div className="text-right font-mono">
-                <span className="text-[10px] text-muted uppercase block">Crop Heat Units (GDD Base 10°C)</span>
+                <span className="text-[10px] text-muted uppercase block">{t("report.cropHeatUnits")}</span>
                 <span className="text-base font-bold text-amber-500">
                   {Math.round(climate.gdd_base10_per_year).toLocaleString()} °C·d
                 </span>
@@ -117,7 +143,9 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
             <div className="p-4 rounded-xl bg-amber-500/12 border border-amber-500/35 text-xs space-y-2.5">
               <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-300 flex items-center gap-2">
                 <Activity className="w-3.5 h-3.5 text-amber-400" />
-                <span>{t("section.insights")} — Automated Satellite Anomaly Screen</span>
+                <span>
+                  {t("section.insights")} — {t("report.anomalyScreen")}
+                </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                 {agro_climatic_notes.map((note, idx) => (
@@ -142,11 +170,11 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
         <div className="instrument-header px-5 py-3.5 flex items-center justify-between flex-wrap gap-2">
           <h3 className="font-display font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-cyan-400" />
-            <span>FIG. 01 // Interactive 12-Month Hyetograph &amp; Thermal Envelope</span>
+            <span>FIG. 01 // {t("report.hyetographTitle")}</span>
           </h3>
           <div className="flex items-center gap-4 text-[10px] font-mono">
             <span className="flex items-center gap-1.5 text-cyan-500 dark:text-cyan-300 font-semibold">
-              <span className="w-2.5 h-2.5 rounded-xs bg-cyan-400 inline-block" /> Peak Wet Season
+              <span className="w-2.5 h-2.5 rounded-xs bg-cyan-400 inline-block" /> {t("report.peakWetSeason")}
             </span>
             <span className="flex items-center gap-1.5 text-amber-500 dark:text-amber-300 font-semibold">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> Tmax / Tmin (°C)
@@ -158,24 +186,27 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
           {/* Interactive Selected Month Spotlight Bar */}
           <div className="p-4 rounded-xl bg-background/75 border border-line-strong grid grid-cols-2 sm:grid-cols-4 gap-4 items-center font-mono text-xs">
             <div>
-              <span className="text-[10px] text-muted uppercase block">Selected Month</span>
+              <span className="text-[10px] text-muted uppercase block">{t("report.selectedMonth")}</span>
               <span className="text-base font-bold text-emerald-400">
-                {MONTH_NAMES[selectedMonth]} {climate.wettest_months.includes(selectedMonth + 1) ? "· Wet Season" : "· Dry / Base"}
+                {MONTHS[selectedMonth]}{" "}
+                {climate.wettest_months.includes(selectedMonth + 1)
+                  ? `· ${t("report.wetSeason")}`
+                  : `· ${t("report.dryBase")}`}
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-muted uppercase block">Monthly Rainfall</span>
+              <span className="text-[10px] text-muted uppercase block">{t("report.monthlyRain")}</span>
               <span className="text-base font-bold text-cyan-400">{activeRain.toFixed(1)} mm</span>
             </div>
             <div>
-              <span className="text-[10px] text-muted uppercase block">Thermal Envelope</span>
+              <span className="text-[10px] text-muted uppercase block">{t("report.thermalEnvelope")}</span>
               <span className="text-base font-bold text-amber-400">
                 {activeTmin.toFixed(1)}°C – {activeTmax.toFixed(1)}°C
               </span>
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-muted uppercase block">Root Soil Moisture</span>
+                <span className="text-[10px] text-muted uppercase block">{t("report.rootSoilMoisture")}</span>
                 <span className="text-[8px] px-1 py-0.2 rounded bg-foreground/10 text-muted font-mono uppercase tracking-wider">
                   {t("badge.contextOnly")}
                 </span>
@@ -204,7 +235,6 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                     isSelected ? "bg-foreground/[0.07] ring-1 ring-cyan-400/50" : "hover:bg-foreground/[0.04]"
                   }`}
                 >
-                  {/* Temperature Pill at top of column */}
                   <span
                     className={`text-[9px] font-mono font-bold px-1 rounded ${
                       tmax >= 35
@@ -239,14 +269,13 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                         : "text-muted"
                     }`}
                   >
-                    {MONTH_NAMES[idx]}
+                    {MONTHS[idx]}
                   </span>
                 </button>
               );
             })}
           </div>
 
-          {/* Accessible Data Table for Screen Readers (mandatory per visual-effects guide) */}
           <table className="sr-only">
             <caption>Monthly Precipitation and Temperature for {field.name ?? "Parcel"}</caption>
             <thead>
@@ -259,8 +288,8 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
             </thead>
             <tbody>
               {climate.monthly_precip_mm.map((val, idx) => (
-                <tr key={MONTH_NAMES[idx]}>
-                  <td>{MONTH_NAMES[idx]}</td>
+                <tr key={MONTHS[idx]}>
+                  <td>{MONTHS[idx]}</td>
                   <td>{val.toFixed(1)}</td>
                   <td>{climate.monthly_tmax_c?.[idx]?.toFixed(1) ?? "—"}</td>
                   <td>{climate.monthly_tmin_c?.[idx]?.toFixed(1) ?? "—"}</td>
@@ -297,7 +326,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                 </p>
                 <p className="text-[10px] font-mono text-emerald-500 mt-1 font-semibold">
                   Δ {climate.precip_change_pct > 0 ? "+" : ""}
-                  {climate.precip_change_pct.toFixed(0)}% vs baseline
+                  {climate.precip_change_pct.toFixed(0)}% {t("report.vsBaseline")}
                 </p>
               </div>
 
@@ -310,7 +339,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                   <span className="text-xs font-normal text-muted">{t("unit.days")}</span>
                 </p>
                 <p className="text-[10px] text-muted mt-1 font-mono">
-                  Baseline: {climate.heat_days_per_year.toFixed(0)} d/yr
+                  {t("report.baselineShort")}: {climate.heat_days_per_year.toFixed(0)} d/yr
                 </p>
               </div>
 
@@ -333,7 +362,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                   {climate.longest_dry_spell_days_mean.toFixed(0)}{" "}
                   <span className="text-xs font-normal text-muted">{t("unit.days")}</span>
                 </p>
-                <p className="text-[10px] text-muted mt-1 font-mono">Max monsoon gap</p>
+                <p className="text-[10px] text-muted mt-1 font-mono">{t("report.maxDryGap")}</p>
               </div>
             </div>
           </div>
@@ -349,7 +378,9 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
             <div className="instrument-header px-5 py-3 flex items-center justify-between">
               <h3 className="font-display font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-2">
                 <Sprout className="w-4 h-4 text-emerald-400" />
-                <span>FIG. 03 // {t("section.soil")} &amp; Hydraulics</span>
+                <span>
+                  FIG. 03 // {t("section.soil")} &amp; {t("report.hydraulics")}
+                </span>
               </h3>
               <div className="flex items-center gap-1.5 font-mono text-[10px]">
                 {soil.texture_class && (
@@ -359,7 +390,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                 )}
                 {soil.slope_pct !== undefined && soil.slope_pct !== null && (
                   <span className="px-2 py-0.5 rounded text-muted bg-background/60 border border-line">
-                    {soil.slope_pct}% grade
+                    {soil.slope_pct}% {t("report.grade")}
                   </span>
                 )}
               </div>
@@ -380,7 +411,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                 <ProgressRing
                   value={Math.min(100, Math.round(((soil.soc_g_per_kg ?? 8) / 16) * 100))}
                   max={100}
-                  label="Topsoil SOC saturation"
+                  label={t("soil.soc")}
                   size="2.8rem"
                   thickness="4px"
                   color="var(--accent-canopy)"
@@ -391,17 +422,17 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
 
               <div className="p-3.5 rounded-xl bg-background/60 border border-line">
                 <p className="text-[10px] font-mono uppercase tracking-wider text-muted">
-                  {t("soil.ph")} &amp; Bulk Density
+                  {t("soil.ph")} &amp; {t("report.bulkDensity")}
                 </p>
                 <p className="text-xl font-bold font-mono text-foreground mt-1">
                   pH {soil.ph ? soil.ph.toFixed(1) : "—"}
                 </p>
                 <p className="text-[10px] font-mono text-cyan-500 dark:text-cyan-300 mt-1">
                   {soil.ph && soil.ph > 7.5
-                    ? "Slightly Alkaline"
+                    ? t("report.phAlkaline")
                     : soil.ph && soil.ph < 6
-                    ? "Acidic"
-                    : "Neutral Optimal"}{" "}
+                    ? t("report.phAcidic")
+                    : t("report.phNeutral")}{" "}
                   · BD {soil.bulk_density_g_cm3?.toFixed(2) ?? "1.40"}
                 </p>
               </div>
@@ -409,45 +440,42 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
               {/* Sand / Silt / Clay Granulometry + Saxton-Rawls Available Water */}
               <div className="col-span-2 p-3.5 rounded-xl bg-background/60 border border-line space-y-2.5">
                 <div className="flex items-center justify-between text-[11px] font-mono">
-                  <span className="text-muted uppercase tracking-wider">USDA Particle Fraction</span>
+                  <span className="text-muted uppercase tracking-wider">{t("report.particleFraction")}</span>
                   <span className="text-foreground font-bold">
-                    {sand}% Sand · {silt}% Silt · {clay}% Clay
+                    {sand}% {t("soil3d.sand")} · {silt}% {t("soil3d.silt")} · {clay}% {t("soil3d.clay")}
                   </span>
                 </div>
                 <div className="h-3.5 w-full rounded-full overflow-hidden flex bg-background border border-line">
-                  <div
-                    style={{ width: `${sand}%` }}
-                    className="bg-amber-400"
-                    title={`Sand: ${sand}%`}
-                  />
-                  <div
-                    style={{ width: `${silt}%` }}
-                    className="bg-cyan-400"
-                    title={`Silt: ${silt}%`}
-                  />
-                  <div
-                    style={{ width: `${clay}%` }}
-                    className="bg-orange-500"
-                    title={`Clay: ${clay}%`}
-                  />
+                  <div style={{ width: `${sand}%` }} className="bg-amber-400" title={`${t("soil3d.sand")}: ${sand}%`} />
+                  <div style={{ width: `${silt}%` }} className="bg-cyan-400" title={`${t("soil3d.silt")}: ${silt}%`} />
+                  <div style={{ width: `${clay}%` }} className="bg-orange-500" title={`${t("soil3d.clay")}: ${clay}%`} />
                 </div>
-                <div className="flex items-center justify-between text-[10px] font-mono text-muted pt-0.5">
-                  <span>Saxton-Rawls Plant Available Water: {pawPct}% vol</span>
+                <div className="flex items-center justify-between flex-wrap gap-1 text-[10px] font-mono text-muted pt-0.5">
+                  <span>
+                    {t("report.pawLabel")}: {pawPct}% vol
+                  </span>
                   <span className="text-foreground font-semibold">
                     FC {fcPct}% · WP {wpPct}%
+                    {soilHealthCard?.available_n_kg_ha != null
+                      ? ` · N ${Math.round(soilHealthCard.available_n_kg_ha)}`
+                      : soil.source === "farmer_test" && soil.nitrogen_g_kg != null
+                      ? ` · N ${Math.round(soil.nitrogen_g_kg * 2240)}`
+                      : ""}
+                    {soil.available_p_kg_ha ? ` · P ${Math.round(soil.available_p_kg_ha)}` : ""}
+                    {soil.available_k_kg_ha ? ` · K ${Math.round(soil.available_k_kg_ha)}` : ""}
                   </span>
                 </div>
               </div>
 
-              {/* Indian Govt Soil Health Card (SHC) Lab Override */}
+              {/* Soil Health Card (SHC) Lab Override with N, P, K */}
               <div className="col-span-2 p-3 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/30 space-y-2.5">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-300">
                     <FlaskConical className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Govt Soil Health Card (SHC) Lab Override</span>
+                    <span>{t("report.shcTitle")}</span>
                     {soil.source === "farmer_test" && (
                       <span className="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500 text-slate-950 font-bold uppercase">
-                        Active Lab Values
+                        {t("report.shcActiveLab")}
                       </span>
                     )}
                   </div>
@@ -458,7 +486,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                         onClick={() => setSoilHealthCard(null)}
                         className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/15 text-rose-400 border border-rose-500/30 cursor-pointer"
                       >
-                        Reset
+                        {t("report.resetBtn")}
                       </button>
                     )}
                     <button
@@ -466,15 +494,15 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                       onClick={() => setShowShcForm((v) => !v)}
                       className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-500 border border-emerald-500/40 cursor-pointer hover:bg-emerald-500/30"
                     >
-                      {showShcForm ? "Hide Form" : "Enter SHC Values"}
+                      {showShcForm ? t("report.hideForm") : t("report.enterShcValues")}
                     </button>
                   </div>
                 </div>
 
                 {showShcForm && (
-                  <div className="grid grid-cols-3 gap-2 pt-1 text-[11px] font-mono">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 text-[11px] font-mono">
                     <label className="space-y-1">
-                      <span className="text-[10px] text-muted block">Soil pH (4.0–10.0)</span>
+                      <span className="text-[10px] text-muted block">{t("report.shcPhLabel")}</span>
                       <input
                         type="number"
                         step="0.1"
@@ -486,7 +514,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                       />
                     </label>
                     <label className="space-y-1">
-                      <span className="text-[10px] text-muted block">Organic Carbon (%)</span>
+                      <span className="text-[10px] text-muted block">{t("report.shcSocLabel")}</span>
                       <input
                         type="number"
                         step="0.05"
@@ -498,7 +526,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                       />
                     </label>
                     <label className="space-y-1">
-                      <span className="text-[10px] text-muted block">Avail. N (kg/ha)</span>
+                      <span className="text-[10px] text-muted block">{t("report.shcNLabel")}</span>
                       <input
                         type="number"
                         step="10"
@@ -509,20 +537,46 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                         className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
                       />
                     </label>
-                    <div className="col-span-3 flex justify-end pt-1">
+                    <label className="space-y-1">
+                      <span className="text-[10px] text-muted block">{t("report.shcPLabel")}</span>
+                      <input
+                        type="number"
+                        step="1"
+                        min="1"
+                        max="200"
+                        value={shcP}
+                        onChange={(e) => setShcP(e.target.value)}
+                        className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-[10px] text-muted block">{t("report.shcKLabel")}</span>
+                      <input
+                        type="number"
+                        step="5"
+                        min="10"
+                        max="1000"
+                        value={shcK}
+                        onChange={(e) => setShcK(e.target.value)}
+                        className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
+                      />
+                    </label>
+                    <div className="col-span-2 sm:col-span-5 flex justify-end pt-1">
                       <button
                         type="button"
                         onClick={() => {
                           setSoilHealthCard({
-                            ph: parseFloat(shcPh) || 7.5,
-                            soc_pct: parseFloat(shcSocPct) || 0.52,
-                            available_n_kg_ha: parseFloat(shcN) || 210,
+                            ph: Number.isFinite(parseFloat(shcPh)) ? parseFloat(shcPh) : 7.5,
+                            soc_pct: Number.isFinite(parseFloat(shcSocPct)) ? parseFloat(shcSocPct) : 0.52,
+                            available_n_kg_ha: Number.isFinite(parseFloat(shcN)) ? parseFloat(shcN) : 210,
+                            available_p_kg_ha: Number.isFinite(parseFloat(shcP)) ? parseFloat(shcP) : 18,
+                            available_k_kg_ha: Number.isFinite(parseFloat(shcK)) ? parseFloat(shcK) : 240,
                           });
                           setShowShcForm(false);
                         }}
                         className="px-3 py-1 rounded-lg bg-emerald-500 text-slate-950 font-bold text-[11px] cursor-pointer hover:opacity-95"
                       >
-                        Apply Lab Values &amp; Re-Simulate
+                        {t("report.applyShcBtn")}
                       </button>
                     </div>
                   </div>
@@ -542,7 +596,9 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
             <div className="instrument-header px-5 py-3 flex items-center justify-between">
               <h3 className="font-display font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-2">
                 <Droplets className="w-4 h-4 text-cyan-400" />
-                <span>FIG. 04 // {t("section.water")} &amp; Aquifer</span>
+                <span>
+                  FIG. 04 // {t("section.water")} &amp; {t("report.aquifer")}
+                </span>
               </h3>
               <span className="text-[10px] font-mono text-muted">SMAP L4 · GRACE-FO</span>
             </div>
@@ -554,16 +610,18 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                 </p>
                 <p
                   className={`text-xl font-bold font-mono mt-1 ${
-                    water.climatic_water_balance_mm && water.climatic_water_balance_mm < 0
+                    water.climatic_water_balance_mm !== undefined &&
+                    water.climatic_water_balance_mm !== null &&
+                    water.climatic_water_balance_mm < 0
                       ? "text-amber-500 dark:text-amber-400"
                       : "text-emerald-500"
                   }`}
                 >
-                  {water.climatic_water_balance_mm
+                  {water.climatic_water_balance_mm !== undefined && water.climatic_water_balance_mm !== null
                     ? `${water.climatic_water_balance_mm.toFixed(0)} mm`
                     : "—"}
                 </p>
-                <p className="text-[10px] text-muted mt-1 font-mono">P − ET₀ Annual Net</p>
+                <p className="text-[10px] text-muted mt-1 font-mono">{t("report.annualNetBalance")}</p>
               </div>
 
               <div className="p-3.5 rounded-xl bg-background/60 border border-line">
@@ -572,23 +630,25 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                 </p>
                 <p
                   className={`text-xl font-bold font-mono mt-1 ${
-                    water.groundwater_trend_cm_per_year && water.groundwater_trend_cm_per_year < 0
+                    water.groundwater_trend_cm_per_year !== undefined &&
+                    water.groundwater_trend_cm_per_year !== null &&
+                    water.groundwater_trend_cm_per_year < 0
                       ? "text-rose-500 dark:text-rose-400"
                       : "text-emerald-400"
                   }`}
                 >
-                  {water.groundwater_trend_cm_per_year
+                  {water.groundwater_trend_cm_per_year !== undefined &&
+                  water.groundwater_trend_cm_per_year !== null
                     ? `${water.groundwater_trend_cm_per_year > 0 ? "+" : ""}${water.groundwater_trend_cm_per_year} cm/yr`
                     : "—"}
                 </p>
                 <p className="text-[10px] font-mono text-muted mt-1 truncate">
                   {water.groundwater_trend_cm_per_year && water.groundwater_trend_cm_per_year < -2.0
-                    ? "JPL Mascon Depletion"
-                    : "Aquifer Storage Trend"}
+                    ? t("report.jplMasconDepletion")
+                    : t("report.aquiferStorageTrend")}
                 </p>
               </div>
 
-              {/* SMAP Root-zone percentiles sparkline */}
               {water.root_zone_moisture_percentile && (
                 <div className="col-span-2 p-3.5 rounded-xl bg-background/60 border border-line space-y-2">
                   <div className="flex items-center justify-between text-[10px] font-mono">
@@ -599,17 +659,13 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                         {t("badge.contextOnly")}
                       </span>
                     </span>
-                    <span className="text-muted">Climatological %ile</span>
+                    <span className="text-muted">{t("report.climatologicalPct")}</span>
                   </div>
 
                   <div className="grid grid-cols-12 gap-1.5 items-end h-12 pt-1">
                     {water.root_zone_moisture_percentile.map((pct, idx) => {
                       const color =
-                        pct < 30
-                          ? "bg-rose-500"
-                          : pct < 60
-                          ? "bg-amber-400"
-                          : "bg-cyan-400";
+                        pct < 30 ? "bg-rose-500" : pct < 60 ? "bg-amber-400" : "bg-cyan-400";
                       return (
                         <button
                           key={idx}
@@ -622,7 +678,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                             className={`w-full rounded-t-xs transition-all ${color} group-hover:brightness-125`}
                           />
                           <span className="text-[8px] font-mono text-muted mt-1 group-hover:text-foreground">
-                            {MONTH_NAMES[idx][0]}
+                            {MONTHS[idx][0]}
                           </span>
                         </button>
                       );
@@ -646,13 +702,17 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                 <AlertTriangle className="w-4 h-4 text-amber-400" />
                 <span>FIG. 05 // {t("section.hazards")}</span>
               </h3>
-              {hazards.residue_burning_detected ? (
+              {hazards.residue_burning_detected === true ? (
                 <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/20 text-rose-500 dark:text-rose-300 border border-rose-500/40 flex items-center gap-1">
-                  <Flame className="w-3 h-3" /> FIRMS Anomaly
+                  <Flame className="w-3 h-3" /> {t("telemetry.firmsAnomaly")}
+                </span>
+              ) : hazards.residue_burning_detected === false ? (
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" /> {t("telemetry.clearSwath")}
                 </span>
               ) : (
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3" /> Clear Swath
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> {t("telemetry.firmsUnverified")}
                 </span>
               )}
             </div>
@@ -673,9 +733,11 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                   {t("hazards.drought")}
                 </p>
                 <p className="text-xl font-bold font-mono text-amber-400 mt-1">
-                  {hazards.drought_frequency ? `${(hazards.drought_frequency * 100).toFixed(0)}%` : "—"}
+                  {hazards.drought_frequency !== undefined && hazards.drought_frequency !== null
+                    ? `${(hazards.drought_frequency * 100).toFixed(0)}%`
+                    : "—"}
                 </p>
-                <p className="text-[10px] text-muted mt-1 font-mono">Historical recurrence</p>
+                <p className="text-[10px] text-muted mt-1 font-mono">{t("report.historicalRecurrence")}</p>
               </div>
 
               {hazards.terminal_heat_days_per_year !== undefined &&
@@ -691,7 +753,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                       </span>
                     </div>
                     <p className="text-[10px] text-muted font-mono">
-                      Grain-fill window (1 Mar–15 Apr) exceeding 32 °C threshold
+                      {t("report.grainFillHeatDesc")}
                     </p>
                   </div>
                 )}
@@ -714,24 +776,24 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
               <span>FIG. 06 // {t("section.cropHistory")}</span>
             </h3>
             <span className="text-[10px] font-mono text-emerald-500 font-bold px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/35">
-              NASA HLS L30/S30 · MOD13Q1
+              NASA HLS L30/S30 · MOD13Q1 ({t("badge.contextOnly")})
             </span>
           </div>
 
           <div className="px-4 pt-3 pb-1 border-b border-line bg-surface/50 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
             <div className="flex items-center gap-1.5 text-foreground/90">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="font-bold">1-Tap Baseline Confirmation:</span>
-              <span className="text-muted">Confirm or override satellite-inferred rotation:</span>
+              <span className="font-bold">{t("report.baselineConfirmTitle")}:</span>
+              <span className="text-muted">{t("report.baselineConfirmDesc")}</span>
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">
               {[
-                { label: "Satellite Auto", value: null },
-                { label: "Puddled Rice → Wheat", value: ["rice_puddled", "wheat", "fallow"] },
-                { label: "Cotton → Wheat", value: ["cotton", "wheat", "fallow"] },
-                { label: "Cotton → Chickpea", value: ["cotton", "chickpea", "fallow"] },
-                { label: "Sorghum → Wheat", value: ["sorghum", "wheat", "fallow"] },
-                { label: "Rice → Rice", value: ["rice_puddled", "rice_puddled", "fallow"] },
+                { label: t("report.satelliteAuto"), value: null },
+                { label: `${cropName("rice_puddled")} → ${cropName("wheat")}`, value: ["rice_puddled", "wheat", "fallow"] },
+                { label: `${cropName("cotton")} → ${cropName("wheat")}`, value: ["cotton", "wheat", "fallow"] },
+                { label: `${cropName("cotton")} → ${cropName("chickpea")}`, value: ["cotton", "chickpea", "fallow"] },
+                { label: `${cropName("sorghum")} → ${cropName("wheat")}`, value: ["sorghum", "wheat", "fallow"] },
+                { label: `${cropName("rice_puddled")} → ${cropName("rice_puddled")}`, value: ["rice_puddled", "rice_puddled", "fallow"] },
               ].map((opt) => {
                 const isActive =
                   (opt.value === null && baselineOverride === null) ||
@@ -788,7 +850,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
 
                   {season.peak && (
                     <div className="text-[10px] text-muted mt-2.5 font-mono flex items-center justify-between border-t border-line pt-1.5">
-                      <span>NDVI Peak</span>
+                      <span>{t("report.ndviPeak")}</span>
                       <span className="font-semibold text-foreground/90">{season.peak}</span>
                     </div>
                   )}

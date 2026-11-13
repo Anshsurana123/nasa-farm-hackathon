@@ -68,14 +68,14 @@ crops:
     sources: ["CACP Kharif 2024-25 (Maize MSP Rs 2,225/q)"]
 
   mustard:
-    price_per_tonne: 56500
-    price_usd_per_tonne: 676.6
+    price_per_tonne: 59500
+    price_usd_per_tonne: 712.6
     cost_per_ha: 31500
     labor_cost_per_ha: 10500
     cost_usd_per_ha: 377.2
     market_risk: 0.10
     procurement_type: "nafed_pss"
-    sources: ["CACP Rabi 2024-25 (Mustard MSP Rs 5,650/q; Haryana A2+FL cost Rs 31,500/ha)"]
+    sources: ["CACP Rabi 2024-25 (Mustard MSP Rs 5,950/q; Haryana A2+FL cost Rs 31,500/ha)"]
 
   moong:
     price_per_tonne: 86820
@@ -108,14 +108,14 @@ crops:
     sources: ["CACP Kharif 2024-25 (Bajra MSP Rs 2,625/q; Haryana state procurement)"]
 
   chickpea:
-    price_per_tonne: 54400
-    price_usd_per_tonne: 651.5
+    price_per_tonne: 56500
+    price_usd_per_tonne: 676.6
     cost_per_ha: 31000
     labor_cost_per_ha: 10500
     cost_usd_per_ha: 371.3
     market_risk: 0.10
     procurement_type: "nafed_pss"
-    sources: ["CACP Rabi 2024-25 (Gram MSP Rs 5,440/q)"]
+    sources: ["CACP Rabi 2024-25 (Gram MSP Rs 5,650/q)"]
 
   urad:
     price_per_tonne: 74000
@@ -126,3 +126,113 @@ crops:
     market_risk: 0.12
     procurement_type: "nafed_pss"
     sources: ["CACP Kharif 2024-25 (Urad MSP Rs 7,400/q)"]
+
+  barley:
+    price_per_tonne: 19800
+    price_usd_per_tonne: 237.1
+    cost_per_ha: 32500
+    labor_cost_per_ha: 9000
+    cost_usd_per_ha: 389.2
+    market_risk: 0.15
+    procurement_type: "mandi_linked"
+    sources: ["CACP Rabi 2024-25 (Barley MSP Rs 1,980/q; HAU Hisar Haryana budget)"]
+
+  berseem:
+    price_per_tonne: 2200
+    price_usd_per_tonne: 26.3
+    cost_per_ha: 40000
+    labor_cost_per_ha: 14500
+    cost_usd_per_ha: 479.0
+    market_risk: 0.10
+    procurement_type: "mandi_linked"
+    sources: ["HAU Hisar / NDRI Karnal Green Fodder Enterprise Budget"]
+
+  common_bean:
+    price_per_tonne: 68000
+    price_usd_per_tonne: 814.4
+    cost_per_ha: 36000
+    labor_cost_per_ha: 11500
+    cost_usd_per_ha: 431.1
+    market_risk: 0.22
+    procurement_type: "mandi_linked"
+    sources: ["Agmarknet Haryana Wholesale Mandi Benchmark (Rajma / Dry Bean)"]
+
+  dhaincha:
+    price_per_tonne: 0
+    price_usd_per_tonne: 0.0
+    cost_per_ha: 9000
+    labor_cost_per_ha: 2600
+    cost_usd_per_ha: 107.8
+    market_risk: 0.0
+    procurement_type: "msp_assured"
+    sources: ["HAU Hisar Package of Practices (In-situ Green Manuring Cost)"]
+
+  groundnut:
+    price_per_tonne: 67830
+    price_usd_per_tonne: 812.3
+    cost_per_ha: 51000
+    labor_cost_per_ha: 17500
+    cost_usd_per_ha: 610.8
+    market_risk: 0.14
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Groundnut MSP Rs 6,783/q)"]
+
+  lentil:
+    price_per_tonne: 67000
+    price_usd_per_tonne: 802.4
+    cost_per_ha: 32000
+    labor_cost_per_ha: 9500
+    cost_usd_per_ha: 383.2
+    market_risk: 0.12
+    procurement_type: "nafed_pss"
+    sources: ["CACP Rabi 2024-25 (Masur MSP Rs 6,700/q)"]
+
+  pigeon_pea:
+    price_per_tonne: 75500
+    price_usd_per_tonne: 904.2
+    cost_per_ha: 36500
+    labor_cost_per_ha: 11000
+    cost_usd_per_ha: 437.1
+    market_risk: 0.12
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Tur/Arhar MSP Rs 7,550/q)"]
+
+  potato:
+    price_per_tonne: 11500
+    price_usd_per_tonne: 137.7
+    cost_per_ha: 108000
+    labor_cost_per_ha: 30000
+    cost_usd_per_ha: 1293.4
+    market_risk: 0.36
+    procurement_type: "mandi_linked"
+    sources: ["Haryana Horticulture Board Kurukshetra/Karnal Potato Belt Study"]
+
+  sorghum:
+    price_per_tonne: 33710
+    price_usd_per_tonne: 403.7
+    cost_per_ha: 31500
+    labor_cost_per_ha: 10000
+    cost_usd_per_ha: 377.2
+    market_risk: 0.20
+    procurement_type: "mandi_linked"
+    sources: ["CACP Kharif 2024-25 (Jowar Hybrid MSP Rs 3,371/q)"]
+
+  soybean:
+    price_per_tonne: 48920
+    price_usd_per_tonne: 585.9
+    cost_per_ha: 39000
+    labor_cost_per_ha: 12000
+    cost_usd_per_ha: 467.1
+    market_risk: 0.14
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Soybean MSP Rs 4,892/q)"]
+
+  sunflower:
+    price_per_tonne: 72800
+    price_usd_per_tonne: 871.9
+    cost_per_ha: 37000
+    labor_cost_per_ha: 11000
+    cost_usd_per_ha: 443.1
+    market_risk: 0.15
+    procurement_type: "nafed_pss"
+    sources: ["CACP Price Policy 2024-25 (Sunflower MSP Rs 7,280/q; Haryana Bhavantar/NAFED)"]

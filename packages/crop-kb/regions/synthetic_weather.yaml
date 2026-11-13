@@ -57,6 +57,138 @@ punjab_central:
   gamma_dry: [0.08, 3.0]
   citation: "IMD Climatological Normals 1981-2010 (Station 42099 Ludhiana PAU)"
 
+haryana:
+  t_base: 25.0
+  amplitude: 10.8
+  peak_doy: 158
+  trange_c: 13.0
+  wet_start_month: 7
+  wet_end_month: 9
+  gamma_wet: [0.48, 10.5]
+  gamma_dry: [0.07, 2.8]
+  citation: "IMD Climatological Normals 1981-2010 (Station 42131 Hisar / Karnal)"
+
+western_up:
+  t_base: 25.2
+  amplitude: 10.2
+  peak_doy: 155
+  trange_c: 12.8
+  wet_start_month: 7
+  wet_end_month: 9
+  gamma_wet: [0.52, 12.0]
+  gamma_dry: [0.08, 2.8]
+  citation: "IMD Climatological Normals 1981-2010 (Station 42139 Meerut / Bareilly)"
+
+eastern_gangetic:
+  t_base: 25.8
+  amplitude: 8.2
+  peak_doy: 150
+  trange_c: 10.8
+  wet_start_month: 6
+  wet_end_month: 9
+  gamma_wet: [0.62, 14.5]
+  gamma_dry: [0.09, 3.2]
+  citation: "IMD Climatological Normals 1981-2010 (Station 42492 Patna / Varanasi)"
+
+rajasthan_arid:
+  t_base: 27.2
+  amplitude: 10.5
+  peak_doy: 152
+  trange_c: 14.0
+  wet_start_month: 7
+  wet_end_month: 9
+  gamma_wet: [0.32, 7.5]
+  gamma_dry: [0.04, 1.8]
+  citation: "IMD Climatological Normals 1981-2010 (Station 42339 Jodhpur)"
+
+gujarat:
+  t_base: 27.4
+  amplitude: 6.8
+  peak_doy: 140
+  trange_c: 12.2
+  wet_start_month: 6
+  wet_end_month: 9
+  gamma_wet: [0.52, 12.0]
+  gamma_dry: [0.05, 2.2]
+  citation: "IMD Climatological Normals 1981-2010 (Station 42647 Ahmedabad / Anand)"
+
+western_maharashtra:
+  t_base: 25.4
+  amplitude: 4.8
+  peak_doy: 125
+  trange_c: 11.8
+  wet_start_month: 6
+  wet_end_month: 9
+  gamma_wet: [0.60, 14.0]
+  gamma_dry: [0.08, 3.0]
+  citation: "IMD Climatological Normals 1981-2010 (Station 43063 Pune)"
+
+central_malwa:
+  t_base: 25.8
+  amplitude: 7.5
+  peak_doy: 140
+  trange_c: 12.5
+  wet_start_month: 6
+  wet_end_month: 9
+  gamma_wet: [0.58, 13.5]
+  gamma_dry: [0.07, 2.8]
+  citation: "IMD Climatological Normals 1981-2010 (Station 42754 Indore)"
+
+southern_hills:
+  t_base: 26.2
+  amplitude: 4.5
+  peak_doy: 120
+  trange_c: 10.8
+  wet_start_month: 6
+  wet_end_month: 10
+  gamma_wet: [0.55, 11.5]
+  gamma_dry: [0.10, 3.2]
+  citation: "IMD Climatological Normals 1981-2010 (Station 43128 Hyderabad / Bengaluru)"
+
+west_coast:
+  t_base: 27.6
+  amplitude: 2.2
+  peak_doy: 105
+  trange_c: 7.5
+  wet_start_month: 6
+  wet_end_month: 10
+  gamma_wet: [0.82, 24.0]
+  gamma_dry: [0.14, 4.5]
+  citation: "IMD Climatological Normals 1981-2010 (Station 43353 Kochi)"
+
+himalayan:
+  t_base: 15.8
+  amplitude: 8.5
+  peak_doy: 165
+  trange_c: 10.5
+  wet_start_month: 7
+  wet_end_month: 9
+  gamma_wet: [0.65, 16.0]
+  gamma_dry: [0.16, 4.8]
+  citation: "IMD Climatological Normals 1981-2010 (Station 42083 Shimla / Solan)"
+
+eastern_himalayan:
+  t_base: 23.8
+  amplitude: 5.5
+  peak_doy: 185
+  trange_c: 9.0
+  wet_start_month: 5
+  wet_end_month: 9
+  gamma_wet: [0.78, 22.0]
+  gamma_dry: [0.15, 4.0]
+  citation: "IMD Climatological Normals 1981-2010 (Station 42410 Guwahati)"
+
+islands:
+  t_base: 27.8
+  amplitude: 1.8
+  peak_doy: 100
+  trange_c: 6.5
+  wet_start_month: 5
+  wet_end_month: 11
+  gamma_wet: [0.78, 22.0]
+  gamma_dry: [0.18, 5.0]
+  citation: "IMD Climatological Normals 1981-2010 (Station 43333 Port Blair)"
+
 default_weather:
   t_base: 25.0
   amplitude: 9.0

@@ -8,6 +8,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import time
 import urllib.error
 import urllib.request
@@ -140,15 +141,19 @@ def main() -> None:
             None,
             5.0,
         ),
-        # 6. Remote Vercel Production Deployment
-        (
-            "Vercel Production Deployment",
-            "https://terraloop-five.vercel.app",
-            "GET",
-            None,
-            10.0,
-        ),
+        # 6. Remote Vercel Production Deployment (only if TERRALOOP_PROD_URL is set)
     ]
+    prod_url = os.environ.get("TERRALOOP_PROD_URL", "").strip().rstrip("/")
+    if prod_url:
+        endpoints.append(
+            (
+                "Remote Deployment Health",
+                f"{prod_url}/api/health",
+                "GET",
+                None,
+                10.0,
+            )
+        )
 
     for name, url, method, body, timeout in endpoints:
         print(f"Testing: {name} ...", end=" ", flush=True)
@@ -162,12 +167,15 @@ def main() -> None:
         else:
             print(f"❌ {res['error']} ({res['elapsed']}s)")
 
+    if not prod_url:
+        print("Remote Prod Check [SKIPPED] — set TERRALOOP_PROD_URL=https://your-app.vercel.app to probe deployed API.")
+
     print("\n" + "=" * 80)
     print("HOW TO INTERPRET THESE RESULTS:")
     print("  1. If NASA POWER is ✅ [200], satellite climate telemetry is 100% active.")
-    print("  2. If SoilGrids times out, TerraLoop's hybrid engine automatically applies")
-    print("     calibrated regional soil parameters (Alluvial/Vertisol/Red soil) with")
-    print("     no loss of simulation fidelity, and data_mode becomes 'hybrid_regional'.")
+    print("  2. If SoilGrids times out, TerraLoop falls back to calibrated regional")
+    print("     soil parameters and explicitly marks data_mode='hybrid_regional' or")
+    print("     'regional_climatology' with is_fallback labels.")
     print("  3. If Local Backend /profile is ✅, localhost:3000 has full real-time access.")
     print("=" * 80 + "\n")
 

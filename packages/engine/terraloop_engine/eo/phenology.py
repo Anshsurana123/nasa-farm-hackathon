@@ -203,8 +203,12 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
             crop_id = "wheat"
     else:
         season_index = 2
-        crop_group = "moong"
-        crop_id = "moong"
+        if is_cauvery_delta:
+            crop_group = "urad"
+            crop_id = "urad"
+        else:
+            crop_group = "moong"
+            crop_id = "moong"
 
     amplitude = float(season.get("amplitude", 0.35))
     dur_days = max(30, (e_date - s_date).days)
@@ -214,7 +218,7 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
         dtype=float,
     )
     ml_pred = clf.predict(feat)[0]
-    ml_match = (ml_pred == crop_group) or (ml_pred == "mungbean" and crop_group == "moong")
+    ml_match = (ml_pred == crop_group) or (ml_pred == "mungbean" and crop_group in ("moong", "urad"))
     base_conf = 0.57 + 0.65 * amplitude + (0.04 if ml_match else 0.0)
     confidence = round(float(np.clip(base_conf, 0.60, 0.96)), 2)
 

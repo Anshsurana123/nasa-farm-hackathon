@@ -8,6 +8,7 @@ import { useField } from "@/context/FieldContext";
 import { api } from "@/lib/api";
 import type { CropSpec, FieldProfile, SuitabilityItem } from "@/types/api";
 import { cropMeta, cropName } from "@/lib/ui";
+import { useI18n } from "@/i18n";
 import {
   ArrowRight,
   BookOpen,
@@ -23,54 +24,54 @@ import {
   XCircle,
 } from "lucide-react";
 
-const GROUP_COLORS: Record<string, { badge: string; border: string; text: string; label: string }> = {
+const GROUP_COLORS: Record<string, { badge: string; border: string; text: string; key: string }> = {
   legume: {
     badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/35",
     border: "border-emerald-500/40",
     text: "text-emerald-400",
-    label: "Legume (N-Fixing)",
+    key: "crops.groupLegumeShort",
   },
   cereal: {
     badge: "bg-amber-500/15 text-amber-400 border-amber-500/35",
     border: "border-amber-500/40",
     text: "text-amber-400",
-    label: "Cereal Grain",
+    key: "crops.groupCerealShort",
   },
   oilseed: {
     badge: "bg-cyan-500/15 text-cyan-400 border-cyan-500/35",
     border: "border-cyan-500/40",
     text: "text-cyan-400",
-    label: "Oilseed",
+    key: "crops.groupOilseed",
   },
   fibre: {
     badge: "bg-stone-500/15 text-stone-400 border-stone-500/35",
     border: "border-stone-500/40",
     text: "text-stone-400",
-    label: "Fibre Crop",
+    key: "crops.groupFibreShort",
   },
   fodder: {
     badge: "bg-teal-500/15 text-teal-400 border-teal-500/35",
     border: "border-teal-500/40",
     text: "text-teal-400",
-    label: "Forage / Fodder",
+    key: "crops.groupFodder",
   },
   cover: {
     badge: "bg-lime-500/15 text-lime-400 border-lime-500/35",
     border: "border-lime-500/40",
     text: "text-lime-400",
-    label: "Green Manure / Cover",
+    key: "crops.groupCoverShort",
   },
   vegetable: {
     badge: "bg-rose-500/15 text-rose-400 border-rose-500/35",
     border: "border-rose-500/40",
     text: "text-rose-400",
-    label: "Vegetable",
+    key: "crops.groupVeg",
   },
   tuber: {
     badge: "bg-orange-500/15 text-orange-400 border-orange-500/35",
     border: "border-orange-500/40",
     text: "text-orange-400",
-    label: "Root / Tuber",
+    key: "crops.groupTuberShort",
   },
 };
 
@@ -87,15 +88,14 @@ function computeParcelSuitability(
     return { score: 84, thermalScore: 86, waterScore: 82, droughtAligned: true };
   }
 
-  // Seasonal thermal score: compare crop optimal temperature against its actual growing season
-  // ("cool" Rabi Nov-Mar vs "warm" Kharif Jun-Oct) rather than annual mean Tmax.
+  const isSH = profile.field.lat < 0;
   const monthlyTmax = profile.climate.monthly_tmax_c;
   const isCoolOnly = crop.season_type.includes("cool") && !crop.season_type.includes("warm");
   let seasonalTemp = profile.climate.mean_tmax_c;
   if (monthlyTmax && monthlyTmax.length === 12) {
-    const rabiMonths = [10, 11, 0, 1, 2]; // Nov, Dec, Jan, Feb, Mar
-    const kharifMonths = [5, 6, 7, 8, 9]; // Jun, Jul, Aug, Sep, Oct
-    const indices = isCoolOnly ? rabiMonths : kharifMonths;
+    const coolMonths = isSH ? [4, 5, 6, 7, 8] : [10, 11, 0, 1, 2];
+    const warmMonths = isSH ? [10, 11, 0, 1, 2] : [5, 6, 7, 8, 9];
+    const indices = isCoolOnly ? coolMonths : warmMonths;
     seasonalTemp = indices.reduce((acc, idx) => acc + monthlyTmax[idx], 0) / indices.length;
   } else if (isCoolOnly) {
     seasonalTemp = profile.climate.mean_tmin_c + 8.0;
@@ -111,14 +111,12 @@ function computeParcelSuitability(
     thermalScore = Math.max(40, Math.round(96 - (excess / headroom) * 35));
   }
 
-  // Water efficiency score given parcel rainfall and crop drought tolerance (1..5)
   const midWater = (crop.water_requirement_mm[0] + crop.water_requirement_mm[1]) / 2;
   const waterEfficiency = Math.max(
     30,
     Math.min(99, Math.round(105 - midWater / 22 + crop.drought_tolerance * 6))
   );
 
-  // Bonus for biological N fixation in low-SOC soils
   const socBonus =
     (profile.soil.soc_g_per_kg ?? 8) < 10 && crop.n_fixation_kg_ha > 0 ? 8 : 0;
 
@@ -126,7 +124,7 @@ function computeParcelSuitability(
   const droughtAligned = crop.drought_tolerance >= 3 || midWater <= 650;
 
   return {
-    score: Math.max(38, Math.min(99, Math.round(rawScore))),
+    score: Math.max(20, Math.min(99, Math.round(rawScore))),
     thermalScore,
     waterScore: waterEfficiency,
     droughtAligned,
@@ -134,7 +132,8 @@ function computeParcelSuitability(
 }
 
 export default function CropsPage() {
-  const { crops, profile, selectedField, constraints } = useField();
+  const { t } = useI18n();
+  const { crops, profile, selectedField, constraints, soilHealthCard } = useField();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<string>("all");
@@ -151,6 +150,8 @@ export default function CropsPage() {
       .suitability({
         field: { lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name },
         constraints,
+        profile,
+        soil_health_card: soilHealthCard,
       })
       .then((items) => {
         if (cancelled || !items) return;
@@ -166,20 +167,22 @@ export default function CropsPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedField.lat, selectedField.lon, selectedField.name, constraints]);
+  }, [selectedField.lat, selectedField.lon, selectedField.name, constraints, profile, soilHealthCard]);
 
   const enrichedCrops = useMemo(() => {
     return crops.map((crop) => {
       const localSuit = computeParcelSuitability(crop, profile);
       const apiItem = apiSuitability[crop.id];
       const mergedScore = apiItem
-        ? Math.max(35, Math.min(99, Math.round(apiItem.score * 100)))
+        ? Math.max(0, Math.min(100, Math.round(apiItem.score * 100)))
         : localSuit.score;
       return {
         crop,
         suitability: {
           ...localSuit,
           score: mergedScore,
+          reasons: apiItem?.reasons ?? [],
+          fromEngine: Boolean(apiItem),
         },
         midWaterMm: Math.round(
           (crop.water_requirement_mm[0] + crop.water_requirement_mm[1]) / 2
@@ -234,15 +237,15 @@ export default function CropsPage() {
     <AppShell
       pageStep="05"
       pageBadge="FAO-56 KC PARAMETERS · ICRISAT · PAU LUDHIANA · USDA-NRCS"
-      pageTitle="NASA Botanical & 23-Crop Indian Agronomic Knowledge Base"
-      pageDescription="Explore parameterized biophysical profiles for all 23 Indian crops—including FAO-56 evapotranspiration curves, biological nitrogen fixation credits, RothC biomass residues, CACP MSP economics, and seasonal compatibility scoring for your active parcel."
+      pageTitle={t("crops.pageTitle", { count: String(crops.length || 23) })}
+      pageDescription={t("crops.pageDesc", { count: String(crops.length || 23) })}
       headerActions={
         <Link
           href="/rotations"
           className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:opacity-95 text-slate-950 font-mono text-xs font-bold flex items-center gap-2 shadow-md transition-opacity"
         >
           <Layers className="w-4 h-4" />
-          <span>Build Rotation with These Crops</span>
+          <span>{t("crops.buildRotationBtn")}</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       }
@@ -258,8 +261,8 @@ export default function CropsPage() {
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by crop name, botanical family (fabaceae, poaceae)..."
-                aria-label="Search crops"
+                placeholder={t("crops.searchPlaceholder")}
+                aria-label={t("crops.searchAria")}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-surface-2 border border-line text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-emerald-400"
               />
             </div>
@@ -269,7 +272,7 @@ export default function CropsPage() {
               <div className="flex items-center gap-2">
                 <Filter className="w-3.5 h-3.5 text-cyan-400" />
                 <label htmlFor="season-select" className="text-xs font-mono text-muted">
-                  Thermal Regime:
+                  {t("crops.thermalRegime")}:
                 </label>
                 <select
                   id="season-select"
@@ -277,16 +280,16 @@ export default function CropsPage() {
                   onChange={(e) => setSelectedSeason(e.target.value)}
                   className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:border-cyan-400"
                 >
-                  <option value="all">All Regimes</option>
-                  <option value="warm">Warm Season (Kharif / Zaid)</option>
-                  <option value="cool">Cool Season (Rabi / Winter)</option>
+                  <option value="all">{t("crops.allRegimes")}</option>
+                  <option value="warm">{t("crops.warmRegime")}</option>
+                  <option value="cool">{t("crops.coolRegime")}</option>
                 </select>
               </div>
 
               <div className="flex items-center gap-2">
                 <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
                 <label htmlFor="sort-select" className="text-xs font-mono text-muted">
-                  Sort by:
+                  {t("crops.sortBy")}:
                 </label>
                 <select
                   id="sort-select"
@@ -299,11 +302,11 @@ export default function CropsPage() {
                   className="bg-surface-2 border border-line rounded-xl px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:border-emerald-400"
                 >
                   <option value="suitability">
-                    Parcel Match ({selectedField.name.split(",")[0]})
+                    {t("crops.sortParcelMatch")} ({selectedField.name.split(",")[0]})
                   </option>
-                  <option value="water">Lowest Water Requirement (mm)</option>
-                  <option value="nfix">Highest N-Fixation (kg N/ha)</option>
-                  <option value="residue">Highest Biomass Residue (t/ha)</option>
+                  <option value="water">{t("crops.sortLowestWater")}</option>
+                  <option value="nfix">{t("crops.sortHighestNfix")}</option>
+                  <option value="residue">{t("crops.sortHighestResidue")}</option>
                 </select>
               </div>
             </div>
@@ -312,15 +315,15 @@ export default function CropsPage() {
           {/* Botanical Group Pills */}
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-line">
             {[
-              { id: "all", label: "All Botanical Families" },
-              { id: "legume", label: "Legumes (N-Fixers)" },
-              { id: "cereal", label: "Cereals & Millets" },
-              { id: "oilseed", label: "Oilseeds" },
-              { id: "fibre", label: "Fibre" },
-              { id: "fodder", label: "Forage / Fodder" },
-              { id: "cover", label: "Green Manure" },
-              { id: "vegetable", label: "Vegetables" },
-              { id: "tuber", label: "Tubers" },
+              { id: "all", label: t("crops.filterAll") },
+              { id: "legume", label: t("crops.filterLegumes") },
+              { id: "cereal", label: t("crops.filterCereals") },
+              { id: "oilseed", label: t("crops.filterOilseeds") },
+              { id: "fibre", label: t("crops.filterFibre") },
+              { id: "fodder", label: t("crops.filterFodder") },
+              { id: "cover", label: t("crops.filterCover") },
+              { id: "vegetable", label: t("crops.filterVeg") },
+              { id: "tuber", label: t("crops.filterTuber") },
             ].map((grp) => {
               const count = groupCounts[grp.id] ?? 0;
               if (grp.id !== "all" && count === 0) return null;
@@ -348,7 +351,7 @@ export default function CropsPage() {
 
         {/* Main 2-Column Interactive Layout: Crop Grid + Sticky Botanical Inspector */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-          {/* Left 7 Columns: 21-Crop Cards Grid */}
+          {/* Left 7 Columns: Crop Cards Grid */}
           <div className="xl:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {filteredCrops.map(({ crop, suitability }) => {
               const meta = cropMeta(crop.id);
@@ -379,11 +382,11 @@ export default function CropsPage() {
                           <span
                             className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${grpStyle.badge}`}
                           >
-                            {grpStyle.label}
+                            {t(grpStyle.key)}
                           </span>
                         </div>
                         <p className="text-xs italic text-muted font-serif mt-0.5 capitalize">
-                          Family: {crop.family}
+                          {t("crops.family")}: {crop.family}
                         </p>
                       </div>
                     </div>
@@ -398,30 +401,32 @@ export default function CropsPage() {
                         color={
                           suitability.score >= 80
                             ? "#5fae7b"
-                            : suitability.score >= 65
+                            : suitability.score >= 60
                             ? "#5f9bbd"
-                            : "#f59e0b"
+                            : suitability.score >= 30
+                            ? "#f59e0b"
+                            : "#e11d48"
                         }
-                        label={`${crop.name} compatibility score`}
+                        label={`${crop.name} ${t("crops.match")}`}
                       >
                         <span className="text-[10px] font-mono font-bold text-foreground">
                           {suitability.score}%
                         </span>
                       </ProgressRing>
-                      <span className="text-[9px] font-mono text-muted mt-0.5">Match</span>
+                      <span className="text-[9px] font-mono text-muted mt-0.5">{t("crops.match")}</span>
                     </div>
                   </div>
 
                   {/* Key Biophysical Telemetry Strip */}
                   <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-line text-xs font-mono">
                     <div>
-                      <span className="text-[10px] text-muted block">Water Need</span>
+                      <span className="text-[10px] text-muted block">{t("crops.waterNeed")}</span>
                       <span className="font-bold text-cyan-400">
                         {crop.water_requirement_mm[0]}–{crop.water_requirement_mm[1]} mm
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-muted block">N-Fixation</span>
+                      <span className="text-[10px] text-muted block">{t("crops.nFixation")}</span>
                       <span
                         className={`font-bold ${
                           crop.n_fixation_kg_ha > 0 ? "text-emerald-400" : "text-muted"
@@ -433,7 +438,7 @@ export default function CropsPage() {
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-muted block">Duration</span>
+                      <span className="text-[10px] text-muted block">{t("crops.duration")}</span>
                       <span className="font-bold text-foreground">
                         {crop.duration_days[0]}–{crop.duration_days[1]} d
                       </span>
@@ -448,7 +453,7 @@ export default function CropsPage() {
                           key={s}
                           className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-surface-2 text-muted border border-line"
                         >
-                          {s} season
+                          {s === "warm" ? t("crops.seasonWarm") : t("crops.seasonCool")}
                         </span>
                       ))}
                     </div>
@@ -462,7 +467,7 @@ export default function CropsPage() {
                       ) : (
                         <Sprout className="w-3 h-3" />
                       )}
-                      <span>Drought tol: {crop.drought_tolerance}/5</span>
+                      <span>{t("crops.droughtTol")}: {crop.drought_tolerance}/5</span>
                     </span>
                   </div>
                 </button>
@@ -480,13 +485,13 @@ export default function CropsPage() {
                   </div>
                   <div>
                     <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 font-bold">
-                      Botanical Spec · ID: {activeEntry.crop.id}
+                      {t("crops.botanicalSpec")} · ID: {activeEntry.crop.id}
                     </span>
                     <h2 className="text-xl font-display font-bold text-foreground">
                       {cropName(activeEntry.crop.id)}
                     </h2>
                     <p className="text-xs italic text-muted font-serif capitalize">
-                      Botanical Family: {activeEntry.crop.family} · GDD:{" "}
+                      {t("crops.botanicalFamily")}: {activeEntry.crop.family} · GDD:{" "}
                       {activeEntry.crop.gdd_to_maturity} °C·d
                     </p>
                   </div>
@@ -494,13 +499,35 @@ export default function CropsPage() {
 
                 <div className="text-right">
                   <span className="text-[10px] font-mono uppercase text-muted block">
-                    Parcel Fit
+                    {t("crops.parcelFit")}
                   </span>
-                  <span className="text-2xl font-display font-extrabold text-emerald-400">
+                  <span
+                    className={`text-2xl font-display font-extrabold ${
+                      activeEntry.suitability.score >= 60
+                        ? "text-emerald-400"
+                        : activeEntry.suitability.score >= 30
+                        ? "text-amber-400"
+                        : "text-rose-500"
+                    }`}
+                  >
                     {activeEntry.suitability.score}%
                   </span>
                 </div>
               </div>
+
+              {/* Engine Suitability Reasons */}
+              {activeEntry.suitability.reasons.length > 0 && (
+                <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 space-y-1 text-xs font-mono">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-500 block">
+                    {t("crops.engineReasons")}
+                  </span>
+                  <ul className="space-y-0.5 text-foreground/90">
+                    {activeEntry.suitability.reasons.map((r, i) => (
+                      <li key={i}>• {r}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Agronomic Field Note */}
               {activeEntry.crop.notes && (
@@ -514,7 +541,7 @@ export default function CropsPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
                     <Droplets className="w-3.5 h-3.5" />
-                    <span>FAO-56 Crop Coefficient (Kc) Curve</span>
+                    <span>{t("crops.kcCurveTitle")}</span>
                   </span>
                   <span className="text-[11px] font-mono text-muted">
                     ini: {activeEntry.crop.kc[0]} → mid: {activeEntry.crop.kc[1]} → end:{" "}
@@ -596,7 +623,7 @@ export default function CropsPage() {
                       );
                     })()}
                     <text x="25" y="94" className="fill-muted text-[9px] font-mono">
-                      Day 1
+                      {t("crops.day1")}
                     </text>
                     <text
                       x="160"
@@ -604,7 +631,7 @@ export default function CropsPage() {
                       textAnchor="middle"
                       className="fill-muted text-[9px] font-mono"
                     >
-                      Peak Canopy
+                      {t("crops.peakCanopy")}
                     </text>
                     <text
                       x="295"
@@ -612,7 +639,7 @@ export default function CropsPage() {
                       textAnchor="end"
                       className="fill-muted text-[9px] font-mono"
                     >
-                      Harvest ({activeEntry.crop.duration_days[1]}d)
+                      {t("crops.harvestLabel")} ({activeEntry.crop.duration_days[1]}d)
                     </text>
                   </svg>
                 </div>
@@ -623,7 +650,7 @@ export default function CropsPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                     <Thermometer className="w-3.5 h-3.5" />
-                    <span>Cardinal Thermal Envelope (°C)</span>
+                    <span>{t("crops.thermalTitle")}</span>
                   </span>
                   <span className="text-[11px] font-mono text-muted">
                     Base {activeEntry.crop.base_temp_c}°C · Opt{" "}
@@ -662,10 +689,10 @@ export default function CropsPage() {
                   <div className="flex justify-between text-[10px] font-mono text-muted">
                     <span>Tbase: {activeEntry.crop.base_temp_c}°C</span>
                     <span className="text-emerald-400 font-bold">
-                      Optimal: {activeEntry.crop.optimal_temp_c[0]}–
+                      {t("crops.optimal")}: {activeEntry.crop.optimal_temp_c[0]}–
                       {activeEntry.crop.optimal_temp_c[1]}°C
                     </span>
-                    <span>Heat ceiling: {activeEntry.crop.max_temp_c}°C</span>
+                    <span>{t("crops.heatCeiling")}: {activeEntry.crop.max_temp_c}°C</span>
                   </div>
                 </div>
               </div>
@@ -673,26 +700,26 @@ export default function CropsPage() {
               {/* 3. Soil & Root Biophysical Grid */}
               <div className="grid grid-cols-2 gap-3 text-xs font-mono">
                 <div className="p-3 rounded-xl bg-surface-2/60 border border-line">
-                  <span className="text-[10px] text-muted block">Effective Root Depth</span>
+                  <span className="text-[10px] text-muted block">{t("crops.rootDepth")}</span>
                   <span className="text-sm font-bold text-foreground">
                     {activeEntry.crop.root_depth_m.toFixed(1)} m
                   </span>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-2/60 border border-line">
-                  <span className="text-[10px] text-muted block">Biomass Residue Input</span>
+                  <span className="text-[10px] text-muted block">{t("crops.residueInput")}</span>
                   <span className="text-sm font-bold text-emerald-400">
                     +{activeEntry.crop.residue_t_ha.toFixed(1)} t/ha (C:N{" "}
                     {activeEntry.crop.residue_cn_ratio ?? 40})
                   </span>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-2/60 border border-line">
-                  <span className="text-[10px] text-muted block">Nitrogen Demand vs Fix</span>
+                  <span className="text-[10px] text-muted block">{t("crops.nDemandVsFix")}</span>
                   <span className="text-sm font-bold text-cyan-400">
                     {activeEntry.crop.n_demand_kg_ha} / +{activeEntry.crop.n_fixation_kg_ha} kg/ha
                   </span>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-2/60 border border-line">
-                  <span className="text-[10px] text-muted block">Typical Yield Envelope</span>
+                  <span className="text-[10px] text-muted block">{t("crops.typicalYield")}</span>
                   <span className="text-sm font-bold text-amber-400">
                     {activeEntry.crop.typical_yield_t_ha[0]}–
                     {activeEntry.crop.typical_yield_t_ha[1]} t/ha
@@ -704,13 +731,13 @@ export default function CropsPage() {
               <div className="space-y-2.5 pt-2 border-t border-line">
                 <span className="text-xs font-mono font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                   <Leaf className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Agronomic Rotation Sequence Rules</span>
+                  <span>{t("crops.seqRulesTitle")}</span>
                 </span>
 
                 <div className="space-y-2">
                   <div>
                     <span className="text-[10px] font-mono text-emerald-400 block mb-1">
-                      Synergistic Predecessors (Click to inspect):
+                      {t("crops.goodPredecessors")}:
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {activeEntry.crop.good_predecessors.length > 0 ? (
@@ -727,14 +754,14 @@ export default function CropsPage() {
                           </button>
                         ))
                       ) : (
-                        <span className="text-xs text-muted font-mono">Flexible sequence</span>
+                        <span className="text-xs text-muted font-mono">{t("crops.flexibleSeq")}</span>
                       )}
                     </div>
                   </div>
 
                   <div>
                     <span className="text-[10px] font-mono text-rose-400 block mb-1">
-                      Incompatible / Pest-Carryover Predecessors:
+                      {t("crops.badPredecessors")}:
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {activeEntry.crop.bad_predecessors.length > 0 ? (
@@ -751,7 +778,7 @@ export default function CropsPage() {
                           </button>
                         ))
                       ) : (
-                        <span className="text-xs text-muted font-mono">None flagged</span>
+                        <span className="text-xs text-muted font-mono">{t("crops.noneFlagged")}</span>
                       )}
                     </div>
                   </div>
@@ -763,7 +790,7 @@ export default function CropsPage() {
                 <div className="pt-3 border-t border-line space-y-1.5">
                   <span className="text-[10px] font-mono uppercase tracking-wider text-muted flex items-center gap-1">
                     <BookOpen className="w-3 h-3 text-cyan-400" />
-                    <span>Peer-Reviewed Parameter Citations</span>
+                    <span>{t("crops.citationsTitle")}</span>
                   </span>
                   <ul className="space-y-1 text-[11px] font-mono text-muted list-disc list-inside">
                     {activeEntry.crop.sources.map((citation, idx) => (

@@ -86,7 +86,8 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
             <span>{t("brief.exportPdf")}</span>
           </button>
           <p className="text-[10px] text-muted font-mono">
-            ISSUED: {new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+            {t("brief.issued")}:{" "}
+            {new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
           </p>
         </div>
       </div>
@@ -95,7 +96,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
       <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-line rounded-xl bg-surface border border-line text-xs">
         <div className="p-4 space-y-1">
           <span className="text-muted block text-[10px] font-mono uppercase tracking-wider">{t("brief.parcelCoords")}</span>
-          <span className="font-bold text-sm text-foreground block">{field.name ?? "Target Field"}</span>
+          <span className="font-bold text-sm text-foreground block">{field.name ?? t("brief.targetField")}</span>
           <span className="block text-[11px] font-mono text-muted">
             {fmtDMS(field.lat, true)} · {fmtDMS(field.lon, false)}
           </span>
@@ -105,20 +106,19 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
           <span className="text-muted block text-[10px] font-mono uppercase tracking-wider">{t("brief.twsTrend")}</span>
           <span
             className={`font-bold text-sm font-mono block ${
-              water.groundwater_trend_cm_per_year && water.groundwater_trend_cm_per_year < -2
+              water.groundwater_trend_cm_per_year != null && water.groundwater_trend_cm_per_year < -2
                 ? "text-rose-500"
                 : "text-foreground"
             }`}
           >
-            {water.groundwater_trend_cm_per_year
+            {water.groundwater_trend_cm_per_year != null
               ? `${water.groundwater_trend_cm_per_year.toFixed(2)} cm/yr`
-              : "Stable"}
+              : "—"}
           </span>
           <span className="block text-[10px] font-mono text-muted">{t("sensor.grace")}</span>
           {graceMult > 1.0 && (
             <div className="pt-1">
               <span className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-semibold leading-tight">
-                {/* t("badge.graceUrgencyActive") */}
                 {t("badge.graceUrgencyActive", {
                   mult: graceMult.toFixed(2),
                   trend: Math.abs(gwTrend).toFixed(2),
@@ -134,7 +134,8 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
             {soil.texture_class ?? "Loam"} (pH {soil.ph?.toFixed(1) ?? "7.5"})
           </span>
           <span className="block text-[10px] font-mono text-muted">
-            SOC: {soil.soc_g_per_kg?.toFixed(1) ?? "10"} g/kg · {soil.source === "farmer_test" ? "Govt SHC Lab" : "ISRIC 250m"}
+            SOC: {soil.soc_g_per_kg !== undefined && soil.soc_g_per_kg !== null ? soil.soc_g_per_kg.toFixed(1) : "—"} g/kg ·{" "}
+            {soil.source === "farmer_test" ? t("brief.govtShcLab") : t("brief.isric250m")}
           </span>
         </div>
 
@@ -142,10 +143,18 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
           <span className="text-muted block text-[10px] font-mono uppercase tracking-wider">{t("brief.fireStatus")}</span>
           <span
             className={`font-bold text-sm font-mono block ${
-              hazards.residue_burning_detected ? "text-rose-500" : "text-emerald-600 dark:text-emerald-400"
+              hazards.residue_burning_detected === true
+                ? "text-rose-500"
+                : hazards.residue_burning_detected === false
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-muted"
             }`}
           >
-            {hazards.residue_burning_detected ? t("brief.activeFire") : t("brief.noFire")}
+            {hazards.residue_burning_detected === true
+              ? t("brief.activeFire")
+              : hazards.residue_burning_detected === false
+              ? t("brief.noFire")
+              : t("telemetry.firmsUnverified")}
           </span>
           <span className="block text-[10px] font-mono text-muted">{t("sensor.firms")}</span>
         </div>
@@ -164,24 +173,28 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
               <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-foreground/10 text-muted border border-line">
                 REF // {t("strategy.baseline")}
               </span>
-              <span className="text-xs text-rose-500 font-bold">{baseIrr} mm/yr Irrigation</span>
+              <span className="text-xs text-rose-500 font-bold">
+                {baseIrr} {t("brief.irrigationYr")}
+              </span>
             </div>
             <h5 className="font-display font-bold text-base text-foreground">
-              {baseline?.rotation.label ?? "Continuous Intensive Double-Crop"}
+              {baseline?.rotation.label ?? t("brief.defaultBaselineLabel")}
             </h5>
             <div className="grid grid-cols-3 gap-2 text-center pt-3 border-t border-line text-[11px] font-mono">
               <div>
-                <span className="text-muted block text-[9px] uppercase">10-Yr SOC Δ</span>
+                <span className="text-muted block text-[9px] uppercase">{t("brief.soc10yr")}</span>
                 <span className="font-bold text-rose-500">
                   {fmtSigned(baseRes?.soc_delta_t_ha_10yr ?? -0.8, 1, " t C/ha")}
                 </span>
               </div>
               <div>
-                <span className="text-muted block text-[9px] uppercase">Soil Health</span>
+                <span className="text-muted block text-[9px] uppercase">{t("brief.soilHealthLabel")}</span>
                 <span className="font-bold text-foreground">{Math.round(baseRes?.soil_health_score ?? 38)}/100</span>
               </div>
               <div>
-                <span className="text-muted block text-[9px] uppercase">Median Margin ({fmtAreaUnit(unitSystem)})</span>
+                <span className="text-muted block text-[9px] uppercase">
+                  {t("brief.medianMargin")} ({fmtAreaUnit(unitSystem)})
+                </span>
                 <span className="font-bold text-foreground">
                   {fmtAreaMoney(baseRes?.profit_p50 ?? 85000, currencySymbol, unitSystem)}
                 </span>
@@ -200,23 +213,25 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
               </span>
             </div>
             <h5 className="font-display font-bold text-base text-foreground">
-              {topStrategy?.rotation.label ?? "Diversified Conservation Rotation"}
+              {topStrategy?.rotation.label ?? t("brief.defaultRecLabel")}
             </h5>
             <div className="grid grid-cols-3 gap-2 text-center pt-3 border-t border-emerald-500/20 text-[11px] font-mono">
               <div>
-                <span className="text-muted block text-[9px] uppercase">10-Yr SOC Δ</span>
+                <span className="text-muted block text-[9px] uppercase">{t("brief.soc10yr")}</span>
                 <span className="font-bold text-emerald-600 dark:text-emerald-400">
                   {fmtSigned(topRes?.soc_delta_t_ha_10yr ?? 2.1, 1, " t C/ha")}
                 </span>
               </div>
               <div>
-                <span className="text-muted block text-[9px] uppercase">Soil Health</span>
+                <span className="text-muted block text-[9px] uppercase">{t("brief.soilHealthLabel")}</span>
                 <span className="font-bold text-emerald-600 dark:text-emerald-400">
                   {Math.round(topRes?.soil_health_score ?? 72)}/100
                 </span>
               </div>
               <div>
-                <span className="text-muted block text-[9px] uppercase">Median Margin ({fmtAreaUnit(unitSystem)})</span>
+                <span className="text-muted block text-[9px] uppercase">
+                  {t("brief.medianMargin")} ({fmtAreaUnit(unitSystem)})
+                </span>
                 <span className="font-bold text-emerald-600 dark:text-emerald-400">
                   {fmtAreaMoney(topRes?.profit_p50 ?? 104000, currencySymbol, unitSystem)}
                 </span>
@@ -236,7 +251,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
             </h4>
             {pm && (
               <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold">
-                MSP Procurement: {pm.msp_assurance_level.toUpperCase()}
+                {t("brief.mspProcurement")}: {pm.msp_assurance_level.toUpperCase()}
               </span>
             )}
           </div>
@@ -252,7 +267,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
               <div className="p-3 rounded-lg bg-surface border border-line">
                 <span className="text-[10px] text-muted block uppercase">{t("brief.turnaroundWindow")}</span>
                 <span className="text-sm font-bold text-emerald-500 dark:text-emerald-400">
-                  {pm.turnaround_days_kharif_rabi} days
+                  {pm.turnaround_days_kharif_rabi} {t("unit.days")}
                 </span>
                 <span className="text-[10px] text-muted block font-sans">
                   {pm.turnaround_days_kharif_rabi >= 20 ? t("brief.happySeederWindow") : t("brief.tightWindow")}
@@ -262,20 +277,25 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
               <div className="p-3 rounded-lg bg-surface border border-line">
                 <span className="text-[10px] text-muted block uppercase">{t("brief.irrigationsSaved")}</span>
                 <span className="text-sm font-bold text-cyan-500 dark:text-cyan-300">
-                  {pm.irrigations_saved_per_yr > 0 ? `−${pm.irrigations_saved_per_yr.toFixed(1)}` : "0"} irrigations/yr
+                  {pm.irrigations_saved_per_yr > 0 ? `−${pm.irrigations_saved_per_yr.toFixed(1)}` : "0"}{" "}
+                  {t("brief.irrigationsUnit")}
                 </span>
                 <span className="text-[10px] text-muted block font-sans">
-                  {Math.round(scaleByUnit(pm.pumping_hours_saved_per_ha, unitSystem))} hrs pump{fmtAreaUnit(unitSystem)}
+                  {Math.round(scaleByUnit(pm.pumping_hours_saved_per_ha, unitSystem))} {t("brief.hrsPumpUnit")}
+                  {fmtAreaUnit(unitSystem)}
                 </span>
               </div>
 
               <div className="p-3 rounded-lg bg-surface border border-line">
                 <span className="text-[10px] text-muted block uppercase">{t("brief.ureaBagsSaved")}</span>
                 <span className="text-sm font-bold text-emerald-500 dark:text-emerald-400">
-                  {scaleByUnit(pm.urea_bags_saved_per_ha, unitSystem).toFixed(1)} bags{fmtAreaUnit(unitSystem)}
+                  {scaleByUnit(pm.urea_bags_saved_per_ha, unitSystem).toFixed(1)} {t("brief.bagsUnit")}
+                  {fmtAreaUnit(unitSystem)}
                 </span>
                 <span className="text-[10px] text-muted block font-sans">
-                  Saves ₹{Math.round(scaleByUnit(pm.urea_bags_saved_per_ha, unitSystem) * 266.5)}{fmtAreaUnit(unitSystem)}
+                  {currencySymbol === "₹"
+                    ? `${t("brief.savesWord")} ₹${Math.round(scaleByUnit(pm.urea_bags_saved_per_ha, unitSystem) * 266.5)}${fmtAreaUnit(unitSystem)}`
+                    : t("brief.bioNSaved")}
                 </span>
               </div>
 
@@ -285,7 +305,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
                   {fmtAreaMoney(pm.labor_cost_inr_per_ha, currencySymbol, unitSystem)}
                 </span>
                 <span className="text-[10px] text-muted block font-sans">
-                  Inputs: {fmtAreaMoney(pm.input_cost_inr_per_ha, currencySymbol, unitSystem)}
+                  {t("brief.inputsWord")}: {fmtAreaMoney(pm.input_cost_inr_per_ha, currencySymbol, unitSystem)}
                 </span>
               </div>
             </div>

@@ -7,7 +7,7 @@ gdd_to_maturity: 1650
 base_temp_c: 10
 optimal_temp_c: [25, 32]
 max_temp_c: 40
-min_temp_c: 15
+min_temp_c: 10
 duration_days: [93, 123]
 water_requirement_mm: [950, 1250]
 kc: [1.05, 1.18, 0.70]
@@ -19,7 +19,7 @@ n_fixation_kg_ha: 0
 n_demand_kg_ha: 110
 residue_t_ha: 4.8
 residue_cn_ratio: 58
-typical_yield_t_ha: [6.2, 7.5]
+typical_yield_t_ha: [5.5, 6.8]
 aquacrop_name: PaddyRice
 good_predecessors: [dhaincha, moong, urad]
 bad_predecessors: []

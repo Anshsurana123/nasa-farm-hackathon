@@ -1,6 +1,5 @@
 import type {
   CropSpec,
-  FarmConstraints,
   FieldGeometry,
   FieldProfile,
   GoldenField,
@@ -8,6 +7,7 @@ import type {
   RecommendRequest,
   StrategyRecommendation,
   SuitabilityItem,
+  SuitabilityRequest,
 } from "@/types/api";
 import { adaptStrategiesForHorizon } from "@/lib/fallbackStrategies";
 import { generateFallbackProfile } from "@/lib/fallbackProfile";
@@ -24,6 +24,7 @@ export const API_URL = (
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let backendError: string | null = null;
+  let httpStatus: number | null = null;
   try {
     const res = await fetch(`${API_URL}${path}`, {
       ...init,
@@ -32,6 +33,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (res.ok) {
       return (await res.json()) as T;
     }
+    httpStatus = res.status;
     const errData = await res.json().catch(() => null);
     if (errData?.detail) {
       backendError = String(errData.detail);
@@ -40,7 +42,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // API not running or unreachable, fallback below
   }
 
-  // Fallback to static public/golden data for demo resilience
+  // Never mask validation (400/422), auth (401/403), not-found (404 on explicit lookup), or rate-limit (429) errors
+  if (httpStatus !== null && httpStatus < 500 && !(httpStatus === 404 && path.startsWith("/geocode"))) {
+    throw new Error(backendError ?? `API request failed (${httpStatus})`);
+  }
+
+  // Fallback to static public/golden data ONLY when backend is unreachable or 5xx on static demo endpoints
   if (path === "/golden") {
     const localRes = await fetch("/golden/fields.json");
     if (localRes.ok) return localRes.json() as Promise<T>;
@@ -62,19 +69,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (localRes.ok) return localRes.json() as Promise<T>;
   }
 
-  // If live /recommend is requested while backend API is offline, serve precomputed golden recommendations
-  // ONLY if reqBody.field.id exactly matches a known demo benchmark field ID (WS-B2)
-  if (path === "/recommend" && init?.body) {
+  // If live /recommend fails because backend API is unreachable (network/502/503/504),
+  // serve precomputed golden snapshot ONLY when field.id matches a golden demo AND no custom params/shocks were requested.
+  if (path === "/recommend" && (httpStatus === null || httpStatus >= 502) && init?.body) {
     try {
       const reqBody = JSON.parse(init.body as string) as RecommendRequest;
       const fieldId = reqBody.field?.id;
-      if (fieldId) {
+      const hasCustomShocks =
+        Boolean(reqBody.drought_shock_pct) ||
+        Boolean(reqBody.price_shock_pct) ||
+        Boolean(reqBody.fertilizer_shock_pct) ||
+        (reqBody.climate_scenario && reqBody.climate_scenario !== "historical");
+      if (fieldId && !hasCustomShocks && !reqBody.baseline_override && !reqBody.soil_health_card) {
         const fieldsRes = await fetch("/golden/fields.json");
         if (fieldsRes.ok) {
           const fields = (await fieldsRes.json()) as GoldenField[];
           const exact = fields.find((f) => f.id === fieldId);
           if (exact) {
-            await new Promise((resolve) => setTimeout(resolve, 300));
+            await new Promise((resolve) => setTimeout(resolve, 250));
             const recRes = await fetch(`/golden/${exact.id}/recommendations.json`);
             if (recRes.ok) {
               const recs = (await recRes.json()) as StrategyRecommendation[];
@@ -93,9 +105,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
   }
 
-  // If live /profile is requested but backend API is offline, serve golden profile if field.id matches,
-  // or generate location-calibrated regional fallback profile for custom parcels (WS-B2)
-  if (path === "/profile" && init?.body) {
+  // If live /profile is unreachable offline, serve golden profile if field.id matches,
+  // or generate location-calibrated regional fallback profile for custom parcels
+  if (path === "/profile" && (httpStatus === null || httpStatus >= 502) && init?.body) {
     try {
       const field = JSON.parse(init.body as string) as FieldGeometry;
       const fieldId = field?.id;
@@ -127,30 +139,38 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (geocodeMatch) {
     const raw = decodeURIComponent(geocodeMatch[1]).trim();
     // Protobuf !1d(lon)!2d(lat)
-    const mProto = raw.match(/!1d(-?\d+\.\d+)!2d(-?\d+\.\d+)/);
+    const mProto = raw.match(/!1d(-?\d+(?:\.\d+)?)!2d(-?\d+(?:\.\d+)?)/);
     if (mProto) {
       const lon = parseFloat(mProto[1]);
       const lat = parseFloat(mProto[2]);
-      return { lat, lon, name: `Google Maps Location (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)` } as T;
+      if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+        return { lat, lon, name: `Google Maps Location (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)` } as T;
+      }
     }
-    // Regex parse Google Maps URLs or coordinates offline
-    const m1 = raw.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    // Regex parse Google Maps URLs or coordinates offline (handles both decimal & integer coordinates)
+    const m1 = raw.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
     if (m1) {
       const lat = parseFloat(m1[1]);
       const lon = parseFloat(m1[2]);
-      return { lat, lon, name: `Google Maps Location (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)` } as T;
+      if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+        return { lat, lon, name: `Google Maps Location (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)` } as T;
+      }
     }
-    const m2 = raw.match(/[?&](?:q|query|ll)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+    const m2 = raw.match(/[?&](?:q|query|ll)=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
     if (m2) {
       const lat = parseFloat(m2[1]);
       const lon = parseFloat(m2[2]);
-      return { lat, lon, name: `Google Maps Location (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)` } as T;
+      if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+        return { lat, lon, name: `Google Maps Location (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)` } as T;
+      }
     }
-    const m3 = raw.match(/^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$/);
+    const m3 = raw.match(/^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/);
     if (m3) {
       const lat = parseFloat(m3[1]);
       const lon = parseFloat(m3[2]);
-      return { lat, lon, name: `Coordinates (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)` } as T;
+      if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+        return { lat, lon, name: `Coordinates (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)` } as T;
+      }
     }
     // Attempt direct Nominatim fetch in browser if backend was offline
     try {
@@ -185,7 +205,7 @@ export const api = {
   crops: () => request<CropSpec[]>("/crops"),
   profile: (field: FieldGeometry) =>
     request<FieldProfile>("/profile", { method: "POST", body: JSON.stringify(field) }),
-  suitability: (req: { field: FieldGeometry; constraints?: FarmConstraints }) =>
+  suitability: (req: SuitabilityRequest) =>
     request<SuitabilityItem[]>("/suitability", { method: "POST", body: JSON.stringify(req) }),
   recommend: (req: RecommendRequest) =>
     request<StrategyRecommendation[]>("/recommend", { method: "POST", body: JSON.stringify(req) }),
@@ -196,8 +216,19 @@ export const api = {
   geocode: (q: string) => request<import("@/types/api").GeocodeResult>(`/geocode?q=${encodeURIComponent(q)}`),
 };
 
+export type ProgressStage =
+  | "profile"
+  | "weather"
+  | "generating"
+  | "simulating"
+  | "selecting"
+  | "explaining"
+  | "ranking"
+  | "done"
+  | "failed";
+
 export type ProgressCallback = (status: {
-  stage: "profile" | "weather" | "simulating" | "ranking" | "done" | "failed";
+  stage: ProgressStage;
   progressPct: number;
   message?: string;
 }) => void;
@@ -206,6 +237,7 @@ export async function recommendWithProgress(
   req: RecommendRequest,
   onProgress?: ProgressCallback
 ): Promise<StrategyRecommendation[]> {
+  let simFailedExplicitly = false;
   try {
     const job = await api.recommendAsync(req);
     const jobId = job.job_id;
@@ -218,7 +250,7 @@ export async function recommendWithProgress(
     }
 
     onProgress?.({
-      stage: (job.stage || job.step || "profile") as "profile" | "weather" | "simulating" | "ranking" | "done" | "failed",
+      stage: (job.stage || job.step || "profile") as ProgressStage,
       progressPct: Math.round(job.progress_pct ?? (job.progress ? job.progress * 100 : 10)),
       message: job.message ?? undefined,
     });
@@ -230,7 +262,7 @@ export async function recommendWithProgress(
       await new Promise((r) => setTimeout(r, 400));
       const poll = await api.getRecommendJob(jobId);
 
-      const stage = (poll.stage || poll.step || "simulating") as "profile" | "weather" | "simulating" | "ranking" | "done" | "failed";
+      const stage = (poll.stage || poll.step || "simulating") as ProgressStage;
       const pct = Math.round(poll.progress_pct ?? (poll.progress ? poll.progress * 100 : 50));
       onProgress?.({ stage, progressPct: pct, message: poll.message ?? undefined });
 
@@ -244,6 +276,7 @@ export async function recommendWithProgress(
         return poll.result;
       }
       if (poll.status === "failed") {
+        simFailedExplicitly = true;
         try {
           if (typeof window !== "undefined" && window.sessionStorage) {
             sessionStorage.removeItem("terraloop_active_job_id");
@@ -253,12 +286,21 @@ export async function recommendWithProgress(
       }
     }
     throw new Error("Simulation timed out");
-  } catch {
+  } catch (err) {
     try {
       if (typeof window !== "undefined" && window.sessionStorage) {
         sessionStorage.removeItem("terraloop_active_job_id");
       }
     } catch {}
+    // Re-throw real simulation errors instead of duplicating heavy compute; fall back to sync /recommend only
+    // when async endpoint or in-flight lambda job handle is unavailable (e.g. cold serverless hop / 404).
+    if (simFailedExplicitly) {
+      throw err;
+    }
+    const msg = err instanceof Error ? err.message : "";
+    if (/exceeded|rate limit|422|validation/i.test(msg)) {
+      throw err;
+    }
     onProgress?.({ stage: "simulating", progressPct: 50 });
     const res = await api.recommend(req);
     onProgress?.({ stage: "done", progressPct: 100 });

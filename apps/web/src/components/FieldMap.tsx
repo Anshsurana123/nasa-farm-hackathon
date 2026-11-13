@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
 import type { GoldenField } from "@/types/api";
+import { useI18n } from "@/i18n";
 import { Layers, MapPin, Compass, Globe2, Box, RotateCw } from "lucide-react";
 import { fmtDMS, regionContext, regionFlag } from "@/lib/ui";
 
 interface FieldMapProps {
-  selectedField: { lat: number; lon: number; name?: string };
+  selectedField: { id?: string; lat: number; lon: number; name?: string };
   goldenFields: GoldenField[];
-  onSelect: (field: { lat: number; lon: number; name: string }) => void;
+  onSelect: (field: { id?: string; lat: number; lon: number; name: string }) => void;
 }
 
 function buildParcelGeoJSON(lat: number, lon: number) {
@@ -58,6 +59,7 @@ function buildParcelGeoJSON(lat: number, lon: number) {
 }
 
 export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProps) {
+  const { t } = useI18n();
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<MapLibreMap | null>(null);
   const markerInstance = useRef<MapLibreMarker | null>(null);
@@ -163,10 +165,6 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
           pitch: 52,
           bearing: -18,
           maxPitch: 72,
-          maxBounds: [
-            [66.0, 5.0],
-            [99.0, 38.5],
-          ],
         });
 
         map.addControl(new maplibre.NavigationControl({ visualizePitch: true }), "top-right");
@@ -249,7 +247,7 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
           el.addEventListener("click", (ev) => {
             ev.stopPropagation();
             setIsOrbiting(false);
-            onSelect({ lat: gf.lat, lon: gf.lon, name: gf.name });
+            onSelect({ id: gf.id, lat: gf.lat, lon: gf.lon, name: gf.name });
           });
 
           return new maplibre.Marker({ element: el })
@@ -304,7 +302,7 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
           el.addEventListener("click", (ev) => {
             ev.stopPropagation();
             setIsOrbiting(false);
-            onSelect({ lat: gf.lat, lon: gf.lon, name: gf.name });
+            onSelect({ id: gf.id, lat: gf.lat, lon: gf.lon, name: gf.name });
           });
 
           return new maplibre.Marker({ element: el }).setLngLat([gf.lon, gf.lat]).addTo(map);
@@ -426,7 +424,7 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
           }`}
         >
           <Globe2 className="w-3.5 h-3.5" />
-          <span>EO Optical</span>
+          <span>{t("map.eoOptical")}</span>
         </button>
         <button
           type="button"
@@ -438,7 +436,7 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>Topo / Street</span>
+          <span>{t("map.topoStreet")}</span>
         </button>
 
         <span className="h-4 w-[1px] bg-line mx-0.5" />
@@ -451,10 +449,10 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
               ? "bg-sky-500/20 text-sky-400 border border-sky-500/40"
               : "text-muted hover:text-foreground hover:bg-foreground/5"
           }`}
-          title="Toggle 3D DEM Terrain & Parcel Extrusion"
+          title={t("map.toggle3dTitle")}
         >
           <Box className="w-3.5 h-3.5" />
-          <span>{is3D ? "3D Swath" : "2D Nadir"}</span>
+          <span>{is3D ? t("map.swath3d") : t("map.nadir2d")}</span>
         </button>
 
         <button
@@ -470,16 +468,16 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
               ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
               : "text-muted hover:text-foreground hover:bg-foreground/5"
           }`}
-          title="Orbit 360° around parcel"
+          title={t("map.orbitTitle")}
         >
           <RotateCw className={`w-3.5 h-3.5 ${isOrbiting ? "animate-spin" : ""}`} />
-          <span>Orbit</span>
+          <span>{t("map.orbit")}</span>
         </button>
 
         <button
           type="button"
           onClick={resetView}
-          title="Reset Orientation & Center"
+          title={t("map.resetTitle")}
           className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
         >
           <Compass className="w-3.5 h-3.5" />
@@ -496,7 +494,7 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
       <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 pointer-events-none z-10">
         <div className="glass-strong text-foreground pointer-events-auto px-3 py-1.5 rounded-xl border border-line text-[11px] font-mono flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-foreground/90">Click terrain or drag reticle to sample parcel</span>
+          <span className="text-foreground/90">{t("map.hint")}</span>
         </div>
 
         <div className="glass-strong text-foreground pointer-events-auto px-3 py-1.5 rounded-xl border border-line text-[11px] font-mono font-bold shadow-md flex items-center gap-2">

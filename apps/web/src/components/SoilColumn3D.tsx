@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FieldProfile, StrategyRecommendation } from "@/types/api";
 import { MONTHS, waterSavedPct } from "@/lib/ui";
+import { useI18n } from "@/i18n";
 import { ProvenanceChip } from "./ProvenanceChip";
 import {
   RotateCcw,
@@ -32,6 +33,7 @@ interface ProjectedPt {
 }
 
 export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
+  const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Interactive 3D camera state
@@ -570,8 +572,11 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
           );
 
           ctx.save();
-          // In Baseline mode with FIRMS residue burning in Oct/Nov, show charred/burning stubble
-          const isFireView = reg < 0.5 && hazards.residue_burning_detected && (monthIdx === 9 || monthIdx === 10);
+          // In Baseline mode with FIRMS residue burning in post-Rabi (Apr/May) or post-Kharif (Oct/Nov), show charred stubble
+          const isFireView =
+            reg < 0.5 &&
+            hazards.residue_burning_detected &&
+            (monthIdx === 3 || monthIdx === 4 || monthIdx === 9 || monthIdx === 10);
           ctx.strokeStyle = isFireView
             ? "#ea580c"
             : isLegumeRow
@@ -784,10 +789,10 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
       <div className="instrument-header px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="font-mono text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-foreground/8 text-foreground border border-line">
-            FIG. 01 // 3D PEDON &amp; AQUIFER COLUMN
+            FIG. 01 // {t("soil3d.figTag")}
           </span>
           <h3 className="font-display font-bold text-sm text-foreground">
-            Interactive Subsurface Stratigraphy &amp; Root-Zone Hydrology
+            {t("soil3d.title")}
           </h3>
         </div>
 
@@ -795,7 +800,7 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
         <div className="flex items-center gap-2 flex-wrap">
           <div
             role="group"
-            aria-label="Management Regime Comparison"
+            aria-label={t("soil3d.regimeAria")}
             className="inline-flex rounded-lg bg-background/80 p-0.5 border border-line text-[11px] font-mono"
           >
             <button
@@ -807,7 +812,7 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
                   : "text-muted hover:text-foreground"
               }`}
             >
-              Baseline Practice
+              {t("soil3d.baselinePractice")}
             </button>
             <button
               type="button"
@@ -818,7 +823,7 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
                   : "text-muted hover:text-foreground"
               }`}
             >
-              Regenerative Strategy #1
+              {t("soil3d.regenStrategy")}
             </button>
           </div>
 
@@ -830,18 +835,18 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
                 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                 : "border-line bg-surface text-muted hover:text-foreground"
             }`}
-            title="Explode or collapse 3D soil horizons"
+            title={t("soil3d.explodeTitle")}
           >
             <ArrowDownUp className="w-3 h-3" />
-            <span>{exploded ? "Exploded" : "Compact"}</span>
+            <span>{exploded ? t("soil3d.exploded") : t("soil3d.compact")}</span>
           </button>
 
           <button
             type="button"
             onClick={resetCamera}
             className="p-1.5 rounded-lg border border-line bg-surface text-muted hover:text-foreground cursor-pointer transition-colors"
-            title="Reset 3D camera angle"
-            aria-label="Reset 3D camera angle"
+            title={t("soil3d.resetTitle")}
+            aria-label={t("soil3d.resetTitle")}
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
@@ -863,24 +868,26 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
         <div className="absolute top-3 left-3.5 pointer-events-none space-y-1.5">
           <div className="glass-strong px-3 py-1.5 rounded-lg border border-line text-[11px] font-mono flex items-center gap-2">
             <Eye className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="text-muted">3D Orbit:</span>
-            <span className="text-foreground font-semibold">Drag to rotate · {slopePct.toFixed(1)}% NASADEM slope</span>
+            <span className="text-muted">{t("soil3d.orbitLabel")}:</span>
+            <span className="text-foreground font-semibold">
+              {t("soil3d.dragRotate")} · {slopePct.toFixed(1)}% {t("soil3d.slopeSuffix")}
+            </span>
           </div>
 
           <div className="glass-strong px-3 py-1.5 rounded-lg border border-line text-[11px] font-mono flex items-center gap-3">
             <span>
-              Texture: <strong className="text-foreground capitalize">{soil.texture_class ?? "Loam"}</strong>
+              {t("soil3d.textureLabel")}: <strong className="text-foreground capitalize">{soil.texture_class ?? "Loam"}</strong>
             </span>
             <span className="text-muted">|</span>
             <span>
-              Sand <strong className="text-amber-500">{Math.round(sand)}%</strong> · Silt{" "}
-              <strong className="text-stone-400">{Math.round(silt)}%</strong> · Clay{" "}
+              {t("soil3d.sand")} <strong className="text-amber-500">{Math.round(sand)}%</strong> · {t("soil3d.silt")}{" "}
+              <strong className="text-stone-400">{Math.round(silt)}%</strong> · {t("soil3d.clay")}{" "}
               <strong className="text-orange-500">{Math.round(clay)}%</strong>
             </span>
           </div>
         </div>
 
-        {/* Accessible screen-reader data table fallback (mandatory per modern-web-guidance) */}
+        {/* Accessible screen-reader data table fallback */}
         <table className="sr-only">
           <caption>Stratigraphic Soil and Subsurface Water Profile for {profile.field.name ?? "Selected Parcel"}</caption>
           <thead>
@@ -924,8 +931,8 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
             type="button"
             onClick={() => setAutoPlay((v) => !v)}
             className="p-1.5 rounded-lg border border-line bg-surface hover:bg-foreground/5 text-foreground cursor-pointer transition-colors shrink-0"
-            title={autoPlay ? "Pause seasonal cycle" : "Play 12-month SMAP moisture cycle"}
-            aria-label={autoPlay ? "Pause seasonal cycle" : "Play 12-month SMAP moisture cycle"}
+            title={autoPlay ? t("soil3d.pauseCycle") : t("soil3d.playCycle")}
+            aria-label={autoPlay ? t("soil3d.pauseCycle") : t("soil3d.playCycle")}
           >
             {autoPlay ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
           </button>
@@ -934,14 +941,14 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
             <div className="flex items-center justify-between text-[10px] font-mono">
               <span className="text-muted uppercase tracking-wider flex items-center gap-1">
                 <SlidersHorizontal className="w-3 h-3" />
-                <span>SMAP Seasonal Wetting Front:</span>
+                <span>{t("soil3d.smapFront")}:</span>
                 <strong className="text-foreground">{MONTHS[monthIdx]}</strong>
                 <span className="text-[8px] px-1 rounded bg-foreground/10 text-muted font-mono uppercase tracking-wider">
-                  Context Only
+                  {t("badge.contextOnly")}
                 </span>
               </span>
               <span className="text-sky-600 dark:text-sky-400 font-bold">
-                Root-Zone: {Math.round(currentSmap)}th %ile · Rain: {Math.round(monthlyRain)} mm
+                {t("soil3d.rootZone")}: {Math.round(currentSmap)}th %ile · {t("soil3d.rain")}: {Math.round(monthlyRain)} mm
               </span>
             </div>
 
@@ -973,7 +980,7 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
         </div>
 
         <div className="shrink-0">
-          <ProvenanceChip provenance={combinedProvenance.slice(0, 3)} />
+          <ProvenanceChip provenance={combinedProvenance} />
         </div>
       </div>
     </section>

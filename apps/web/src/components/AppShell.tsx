@@ -40,7 +40,7 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useI18n();
-  const { profile, strategies, loading, error } = useField();
+  const { profile, strategies, loading, error, runOptimization } = useField();
 
   const isFallbackData =
     Boolean(profile?.is_fallback) ||
@@ -92,7 +92,7 @@ export function AppShell({
               <div className="flex items-center gap-2 flex-wrap font-mono text-[11px]">
                 {pageStep && (
                   <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-wider">
-                    MODULE {pageStep}
+                    {t("app.module")} {pageStep}
                   </span>
                 )}
                 {pageBadge && (
@@ -143,19 +143,13 @@ export function AppShell({
             <div>
               {isFallbackData ? (
                 <>
-                  <span className="font-bold uppercase">FALLBACK DATA MODE (REGIONAL CLIMATOLOGY): </span>
-                  <span>
-                    Live satellite APIs were unreachable for this coordinate. Showing location-calibrated regional
-                    estimates rather than observed field telemetry.
-                  </span>
+                  <span className="font-bold uppercase">{t("app.fallbackBannerTitle")}: </span>
+                  <span>{t("app.fallbackBannerDesc")}</span>
                 </>
               ) : (
                 <>
-                  <span className="font-bold uppercase">HYBRID REGIONAL DATA MODE: </span>
-                  <span>
-                    NASA POWER observed satellite climate telemetry active. Regional soil/satellite estimates applied where
-                    local satellite layers are offline; enter Soil Health Card values to calibrate with local lab tests.
-                  </span>
+                  <span className="font-bold uppercase">{t("app.hybridBannerTitle")}: </span>
+                  <span>{t("app.hybridBannerDesc")}</span>
                 </>
               )}
             </div>
@@ -185,7 +179,7 @@ export function AppShell({
           <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 text-xs font-mono flex items-center justify-between no-print animate-pulse shadow-sm">
             <span className="flex items-center gap-2 font-bold uppercase tracking-wider text-[11px]">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>SYNCHRONIZING NASA TELEMETRY FOR NEW PARCEL COORDINATES…</span>
+              <span>{t("app.syncingCoords")}</span>
             </span>
             <span className="text-[10px] text-muted hidden sm:inline font-mono">
               POWER AG · SoilGrids 250m · SMAP L4 · GRACE-FO
@@ -194,12 +188,21 @@ export function AppShell({
         )}
 
         {error && (
-          <div className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/35 text-rose-600 dark:text-rose-300 text-xs space-y-1.5">
-            <p className="font-bold font-mono flex items-center gap-2 uppercase">
-              <AlertTriangle className="w-4 h-4 text-rose-500" />
-              <span>{t("profile.error")}</span>
-            </p>
-            <p className="font-mono text-[11px] opacity-90">{error}</p>
+          <div className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/35 text-rose-600 dark:text-rose-300 text-xs flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1.5">
+              <p className="font-bold font-mono flex items-center gap-2 uppercase">
+                <AlertTriangle className="w-4 h-4 text-rose-500" />
+                <span>{t("profile.error")}</span>
+              </p>
+              <p className="font-mono text-[11px] opacity-90">{error}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => runOptimization()}
+              className="px-3.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 font-mono text-xs font-bold cursor-pointer"
+            >
+              {t("common.retry")}
+            </button>
           </div>
         )}
 
@@ -223,7 +226,7 @@ export function AppShell({
                   </div>
                   <div>
                     <span className="block text-[10px] font-mono uppercase tracking-wider text-muted">
-                      Previous Step ({prevRoute.step})
+                      {t("app.prevStep")} ({prevRoute.step})
                     </span>
                     <span className="font-display font-bold text-sm text-foreground">
                       {t(prevRoute.key)}
@@ -240,7 +243,7 @@ export function AppShell({
                     key={r.href}
                     href={r.href}
                     onClick={(e) => navigateWithTransition(e, r.href)}
-                    title={`${r.step} · ${r.shortLabel}`}
+                    title={`${r.step} · ${t(r.key)}`}
                     className={`h-2 rounded-full transition-all ${
                       idx === currentIdx
                         ? "w-8 bg-emerald-400"
@@ -260,10 +263,10 @@ export function AppShell({
                 >
                   <div className="text-left sm:text-right">
                     <span className="block text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">
-                      Next Mission Module ({nextRoute.step})
+                      {t("app.nextModule")} ({nextRoute.step})
                     </span>
                     <span className="font-display font-bold text-sm text-foreground">
-                      {t(nextRoute.key)} — {nextRoute.desc}
+                      {t(nextRoute.key)} — {t(nextRoute.descKey)}
                     </span>
                   </div>
                   <div className="w-9 h-9 rounded-lg bg-emerald-500 text-slate-950 flex items-center justify-center group-hover:translate-x-0.5 transition-transform shrink-0">
@@ -289,8 +292,7 @@ export function AppShell({
                 </span>
               </div>
               <p className="text-xs font-sans text-muted leading-relaxed max-w-md">
-                Multi-objective crop rotation decision-support platform coupling NASA satellite
-                Earth observations with process-based soil carbon, hydrological, and economic models.
+                {t("app.footerTagline")}
               </p>
             </div>
 
@@ -302,9 +304,11 @@ export function AppShell({
                   onClick={(e) => navigateWithTransition(e, r.href)}
                   className="p-2.5 rounded-xl bg-background/50 hover:bg-foreground/5 border border-line transition-colors flex flex-col gap-0.5"
                 >
-                  <span className="text-[10px] text-emerald-500 font-bold">MODULE {r.step}</span>
-                  <span className="font-sans font-semibold text-foreground">{r.shortLabel}</span>
-                  <span className="text-[10px] text-muted truncate font-sans">{r.desc}</span>
+                  <span className="text-[10px] text-emerald-500 font-bold">
+                    {t("app.module")} {r.step}
+                  </span>
+                  <span className="font-sans font-semibold text-foreground">{t(r.key)}</span>
+                  <span className="text-[10px] text-muted truncate font-sans">{t(r.descKey)}</span>
                 </Link>
               ))}
             </div>
@@ -319,7 +323,7 @@ export function AppShell({
               onClick={(e) => navigateWithTransition(e, "/methodology")}
               className="text-cyan-600 dark:text-cyan-300 hover:underline flex items-center gap-1 font-semibold"
             >
-              <span>Scientific Methodology, Equations &amp; DOIs</span>
+              <span>{t("app.methodologyLink")}</span>
               <ExternalLink className="w-3 h-3" />
             </Link>
           </div>

@@ -224,7 +224,10 @@ def synthetic_daily_weather(
     gamma_wet = w_params.get("gamma_wet", [0.5, 10.0])
     gamma_dry = w_params.get("gamma_dry", [0.08, 3.0])
 
-    wet = (idx.month >= wet_start) & (idx.month <= wet_end)
+    if wet_start <= wet_end:
+        wet = (idx.month >= wet_start) & (idx.month <= wet_end)
+    else:
+        wet = (idx.month >= wet_start) | (idx.month <= wet_end)
     precip = np.where(
         wet,
         rng.gamma(gamma_wet[0], gamma_wet[1], n_days),

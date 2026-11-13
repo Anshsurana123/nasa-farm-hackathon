@@ -424,6 +424,12 @@ def soil_health_breakdown(
                 soil_cond_mod -= min(3.0, (6.0 - soil.ph) * 1.5)
             elif soil.ph > 8.2:
                 soil_cond_mod -= min(3.0, (soil.ph - 8.2) * 1.5)
+        p_val = getattr(soil, "available_p_kg_ha", None)
+        if p_val is not None:
+            soil_cond_mod += float(np.clip((float(p_val) - 15.0) / 15.0 * 0.8, -0.8, 0.8))
+        k_val = getattr(soil, "available_k_kg_ha", None)
+        if k_val is not None:
+            soil_cond_mod += float(np.clip((float(k_val) - 180.0) / 140.0 * 0.8, -0.8, 0.8))
         soil_cond_mod = float(np.clip(soil_cond_mod, -5.0, 5.0))
 
     total_score = round(float(np.clip(base_sum + soc_mod + erosion_mod + burning_penalty + soil_cond_mod, 0.0, 100.0)), 1)

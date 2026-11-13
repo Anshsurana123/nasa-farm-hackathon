@@ -16,7 +16,9 @@ import threading
 import time
 import urllib.parse
 import uuid
-from datetime import date
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 # Ensure workspace packages (schemas, engine, api) are importable across all runtimes & serverless platforms
@@ -43,6 +45,7 @@ from terraloop_engine.models import economics, nutrition
 from terraloop_engine.optimize import evaluate, rotations, selection
 from terraloop_schemas import (
     CropSpec,
+    DataProvenance,
     FieldGeometry,
     FieldProfile,
     GeocodeResult,
@@ -50,7 +53,6 @@ from terraloop_schemas import (
     StrategyRecommendation,
     SuitabilityItem,
     SuitabilityRequest,
-    WaterSummary,
 )
 
 log = logging.getLogger("terraloop.api")
@@ -58,7 +60,7 @@ log = logging.getLogger("terraloop.api")
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GOLDEN_DIR = REPO_ROOT / "data" / "golden"
 
-app = FastAPI(title="TerraLoop India API", version="0.2.0")
+app = FastAPI(title="TerraLoop Global & India Agro-Advisory API", version="0.2.0")
 
 # Public path prefix. On Vercel the top-level rewrite `/api/(.*)` forwards to this service with the
 # prefix intact; locally (uvicorn on :8000) requests arrive without it. Both must resolve to the same routes.
@@ -201,7 +203,7 @@ def golden_profile(field_id: str) -> FieldProfile:
         prof.currency = "INR"
         prof.currency_symbol = "₹"
         prof.served_from = "demo_snapshot"
-        prof.snapshot_date = "2026-11-10"
+        prof.snapshot_date = prof.snapshot_date or datetime.now(UTC).date().isoformat()
         if not prof.agro_zone:
             prof.agro_zone = economics.detect_agro_zone(prof.field.lat, prof.field.lon)
         return prof
@@ -210,7 +212,7 @@ def golden_profile(field_id: str) -> FieldProfile:
         raise HTTPException(404, f"Unknown golden field '{field_id}'")
     prof = profiler.build_profile(FieldGeometry(lat=match["lat"], lon=match["lon"], name=match["name"], id=field_id))
     prof.served_from = "demo_snapshot"
-    prof.snapshot_date = "2026-11-10"
+    prof.snapshot_date = datetime.now(UTC).date().isoformat()
     return prof
 
 
@@ -222,7 +224,7 @@ def golden_recommendations(field_id: str) -> list[StrategyRecommendation]:
         recs = [StrategyRecommendation.model_validate(item) for item in raw_list]
         for r in recs:
             r.served_from = "demo_snapshot"
-            r.snapshot_date = "2026-11-10"
+            r.snapshot_date = r.snapshot_date or datetime.now(UTC).date().isoformat()
         return recs
     match = next((f for f in _golden_index() if f["id"] == field_id), None)
     if not match:
@@ -315,7 +317,7 @@ def _call_nominatim_search(query_text: str) -> list[dict] | None:
 
         url = "https://nominatim.openstreetmap.org/search"
         headers = {"User-Agent": "TerraLoop-SpaceApps/1.0"}
-        params = {"q": query_text, "format": "json", "limit": 1, "countrycodes": "in"}
+        params = {"q": query_text, "format": "json", "limit": 1}
         try:
             with httpx.Client(timeout=10.0) as client:
                 resp = client.get(url, params=params, headers=headers)
@@ -440,7 +442,7 @@ def geocode_location(q: str) -> GeocodeResult:
             name=short_name,
         )
 
-    raise HTTPException(status_code=404, detail=f"Indian location or village '{q}' not found")
+    raise HTTPException(status_code=404, detail=f"Location or village '{q}' not found")
 
 
 @app.post("/profile", response_model=FieldProfile)
@@ -450,7 +452,6 @@ def build_profile(field: FieldGeometry) -> FieldProfile:
     if matched_id:
         prof = golden_profile(matched_id)
         prof.served_from = "demo_snapshot"
-        prof.snapshot_date = "2026-11-10"
     else:
         try:
             prof = profiler.build_profile(field)
@@ -460,9 +461,10 @@ def build_profile(field: FieldGeometry) -> FieldProfile:
             log.warning("Live profile build encountered error (%s); falling back to regional profile", exc)
             try:
                 prof = profiler.build_profile(field, use_live_network=False)
-                prof.served_from = "demo_snapshot"
+                prof.served_from = "live_computation"
+                prof.snapshot_date = None
                 prof.is_fallback = True
-                prof.data_mode = "fallback_synthetic"
+                prof.data_mode = "regional_climatology" if reg_cfg.country == "India" else "fallback_synthetic"
             except Exception:  # noqa: BLE001
                 raise HTTPException(502, f"Upstream data error: {exc}") from exc
 
@@ -476,8 +478,13 @@ def build_profile(field: FieldGeometry) -> FieldProfile:
 
 @app.post("/suitability", response_model=list[SuitabilityItem])
 def crop_suitability(req: SuitabilityRequest) -> list[SuitabilityItem]:
-    matched_id = _match_golden_field(req.field)
-    prof = golden_profile(matched_id) if matched_id else profiler.build_profile(req.field)
+    if req.profile is not None:
+        prof = req.profile
+    else:
+        matched_id = _match_golden_field(req.field)
+        prof = golden_profile(matched_id) if matched_id else profiler.build_profile(req.field)
+    if req.soil_health_card is not None:
+        prof = profiler.apply_soil_health_card_override(prof, req.soil_health_card)
     crops = crop_kb.load_crops()
     return [
         SuitabilityItem(name=crops[r.crop_id].name, **r.__dict__)
@@ -574,7 +581,15 @@ def build_objective_dict(
     # Food Security: calculated metabolizable food energy (Mcal/ha) and dietary protein (kg/ha)
     # benchmarked against ICMR-NIN (2020) rural household Recommended Dietary Allowances.
     step_yields = [
-        (s.crop_id, float(np.mean(res.yield_t_ha.get(s.crop_id, [0.0]))))
+        (
+            s.crop_id,
+            float(
+                res.step_yields.get(
+                    f"{s.year_index}:{s.season_index}:{s.crop_id}",
+                    np.mean(res.yield_t_ha.get(s.crop_id, [0.0])),
+                )
+            ),
+        )
         for s in rot.steps
     ]
     nutr = nutrition.compute_nutrition_yield(step_yields, rotation_years=rot_years)
@@ -597,11 +612,14 @@ def build_objective_dict(
     }
 
 
-@app.post("/recommend", response_model=list[StrategyRecommendation])
-def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
-    """TASK-A03: profile -> candidates (optimize.rotations) -> simulate (models.*) across
-    scenarios (climate.ensembles) -> objectives -> optimize.selection.select_top -> why-cards.
-    Returns list[StrategyRecommendation] containing baseline (rank 0) plus top 3 recommendations."""
+def _recommend_impl(
+    req: RecommendRequest,
+    progress_cb: Callable[[str, float], None] | None = None,
+) -> list[StrategyRecommendation]:
+    """Core recommendation pipeline: profile -> weather ensembles -> candidates -> simulate -> Pareto/priority ranking -> why-cards."""
+    if progress_cb:
+        progress_cb("profile", 0.12)
+
     # 1. Field Profile & Regional Validation Status
     reg_cfg = region_registry.detect_region_config(req.field.lat, req.field.lon)
     matched_golden_id: str | None = _match_golden_field(req.field)
@@ -609,40 +627,18 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     if matched_golden_id:
         prof = golden_profile(matched_golden_id)
         prof.served_from = "demo_snapshot"
-        prof.snapshot_date = "2026-11-10"
     else:
         try:
             prof = profiler.build_profile(req.field)
             prof.served_from = "live_computation"
             prof.snapshot_date = None
         except Exception as exc:  # noqa: BLE001
-            log.warning("Live profiler failed: %s; falling back to regional Indian profile", exc)
-            syn_weather = nasa_power.synthetic_daily_weather(req.field.lat, req.field.lon, (1995, 2024))
-            c, h, wb = profiler.summarise_climate(syn_weather, req.field.lat, prov_mode="regional_climatology")
-            s = profiler.summarise_soil(
-                region_registry.get_regional_soil(req.field.lat, req.field.lon),
-                prov_mode="regional_climatology",
-            )
-            prof = FieldProfile(
-                field=req.field,
-                state=reg_cfg.state,
-                climate=c,
-                water=WaterSummary(climatic_water_balance_mm=wb),
-                soil=s,
-                hazards=h,
-                currency=reg_cfg.currency,
-                currency_symbol=reg_cfg.currency_symbol,
-                agro_zone=reg_cfg.agro_zone,
-                validation_status=reg_cfg.validation_status,
-                validation_message=reg_cfg.validation_message,
-                is_fallback=True,
-                data_mode="regional_climatology",
-                served_from="live_computation",
-                snapshot_date=None,
-                agro_climatic_notes=profiler.build_notes(
-                    c, s, WaterSummary(climatic_water_balance_mm=wb), h, lat=req.field.lat
-                ),
-            )
+            log.warning("Live profiler failed: %s; falling back to regional profile", exc)
+            prof = profiler.build_profile(req.field, use_live_network=False)
+            prof.served_from = "live_computation"
+            prof.snapshot_date = None
+            prof.is_fallback = True
+            prof.data_mode = "regional_climatology" if reg_cfg.country == "India" else "fallback_synthetic"
 
     prof.agro_zone = reg_cfg.agro_zone
     prof.currency = reg_cfg.currency
@@ -652,6 +648,9 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
 
     if req.soil_health_card is not None:
         prof = profiler.apply_soil_health_card_override(prof, req.soil_health_card)
+
+    if progress_cb:
+        progress_cb("weather", 0.25)
 
     # 2. Weather Ensemble (30 years historical or NASA NEX-GDDP-CMIP6 future scenario)
     crops = crop_kb.load_crops()
@@ -704,11 +703,13 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
             shocked_members[m_id] = df_s
         members = shocked_members
 
-    # 3. Generate candidate rotations pre-screened by suitability (no arbitrary alphabetical [:35] cut!)
+    if progress_cb:
+        progress_cb("generating", 0.40)
+
+    # 3. Generate candidate rotations pre-screened by suitability
     ranked_crops = suitability.rank_crops(prof, crops, req.constraints)
     rank_scores = {r.crop_id: r.score for r in ranked_crops}
     top_ids = {r.crop_id for r in ranked_crops[:10] if r.score >= 0.22}
-    # Always include key regional diversification & staple crops if suitable
     is_punjab_belt = reg_cfg.region_id in ("punjab_central", "punjab_southwest", "haryana")
     is_semi_arid_limited = req.constraints.irrigation == "limited" and prof.climate.annual_precip_mm < 520.0
     for key_cid in (
@@ -742,7 +743,12 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     filtered_crops = {cid: crops[cid] for cid in top_ids if cid in crops}
 
     seasons = rotations.derive_seasons(prof)
-    candidate_rotations = rotations.generate_rotations(filtered_crops, req.constraints, seasons=seasons)
+    candidate_rotations = rotations.generate_rotations(
+        filtered_crops,
+        req.constraints,
+        seasons=seasons,
+        region_id=reg_cfg.region_id,
+    )
 
     if len(candidate_rotations) > 85:
         candidate_rotations = evaluate.prescreen_rotations_with_surrogate(
@@ -761,6 +767,9 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     candidate_rotations = [r for r in candidate_rotations if [s.crop_id for s in r.steps] != base_seq]
     all_rotations = [baseline_rot] + candidate_rotations
 
+    if progress_cb:
+        progress_cb("simulating", 0.58)
+
     # 5. Evaluate all candidates across weather ensemble (with optional price & fertilizer shocks)
     sim_results = evaluate.evaluate_candidates(
         rotations=all_rotations,
@@ -772,6 +781,9 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         fertilizer_shock_pct=req.fertilizer_shock_pct,
     )
 
+    if progress_cb:
+        progress_cb("selecting", 0.80)
+
     baseline_result = sim_results[0]
     baseline_pm = evaluate.compute_practical_farmer_metrics(
         baseline_rot,
@@ -781,10 +793,14 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         constraints=req.constraints,
         profile=prof,
         region_id=reg_cfg.region_id,
+        price_shock_pct=req.price_shock_pct,
+        fertilizer_shock_pct=req.fertilizer_shock_pct,
     )
 
     # 6. Map to objective scores for Pareto / Priority selection (incorporating procurement_type & market_risk)
-    econ_region = reg_cfg.state.lower().replace(" ", "_") if reg_cfg.state else reg_cfg.region_id
+    econ_region = reg_cfg.economics_table or (
+        reg_cfg.state.lower().replace(" ", "_") if reg_cfg.state else reg_cfg.region_id
+    )
     econ_data = economics.load_economics(econ_region)
     econ_crops = econ_data.get("crops", {})
     econ_basis = econ_data.get("economics_basis", "local_verified")
@@ -813,6 +829,8 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
             constraints=req.constraints,
             profile=prof,
             region_id=reg_cfg.region_id,
+            price_shock_pct=req.price_shock_pct,
+            fertilizer_shock_pct=req.fertilizer_shock_pct,
         )
         cand_pms.append(pm)
         obj_dict = _build_objective_dict(r, res, pm)
@@ -827,7 +845,7 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
     alt_results = sim_results[1:]
     alt_pms = cand_pms[1:]
     alt_crop_pairs = [
-        (r.steps[0].crop_id, r.steps[1].crop_id if len(r.steps) > 1 else "")
+        tuple(s.crop_id for s in r.steps if s.crop_id != "fallow") or ("fallow",)
         for r in alt_rotations
     ]
 
@@ -839,12 +857,38 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         crop_pairs=alt_crop_pairs,
     )
 
+    if progress_cb:
+        progress_cb("explaining", 0.90)
+
     # 7. Assemble recommendations with localized why-cards, practical metrics, narrative, and provenance
     baseline_res_metrics = evaluate.compute_resilience_and_regret(baseline_result)
     rec_is_fallback = prof.is_fallback or used_fallback_weather
-    rec_data_mode = "fallback_synthetic" if rec_is_fallback else prof.data_mode
+    rec_data_mode = (
+        ("regional_climatology" if reg_cfg.country == "India" else "fallback_synthetic")
+        if rec_is_fallback
+        else prof.data_mode
+    )
 
-    base_why = why_cards.baseline_why_cards(prof, baseline_rot, language=req.language)
+    base_why = why_cards.baseline_why_cards(
+        prof,
+        baseline_rot,
+        language=req.language,
+        baseline_result=baseline_result,
+        baseline_pm=baseline_pm,
+    )
+    base_prov_raw: list[DataProvenance] = (
+        list(prof.climate.provenance)
+        + list(prof.water.provenance)
+        + list(prof.soil.provenance)
+        + list(scenario_set.provenance)
+        + [why_cards._FAO56_PROV, why_cards._ROTHC_PROV, why_cards._CACP_PROV]
+    )
+    seen_base_src: set[str] = set()
+    base_provs: list[DataProvenance] = []
+    for bp in base_prov_raw:
+        if bp.source not in seen_base_src:
+            seen_base_src.add(bp.source)
+            base_provs.append(bp)
 
     baseline_rec = StrategyRecommendation(
         rank=0,
@@ -857,7 +901,7 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
             "irrigation_spike_mm": baseline_res_metrics["irrigation_spike_mm"],
         },
         why=base_why,
-        provenance=scenario_set.provenance,
+        provenance=base_provs,
         currency=reg_cfg.currency,
         currency_symbol=reg_cfg.currency_symbol,
         practical_metrics=baseline_pm,
@@ -867,11 +911,11 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         validation_message=reg_cfg.validation_message,
         economics_basis=econ_basis,
         state=prof.state,
-        served_from="demo_snapshot" if matched_golden_id else "live_computation",
-        snapshot_date="2026-11-10" if matched_golden_id else None,
+        served_from="live_computation",
+        snapshot_date=None,
     )
     baseline_rec.narrative_summary = why_cards.grounded_llm_explain(
-        prof, baseline_rec, baseline_rec, language=req.language
+        prof, baseline_rec, baseline_rec, language=req.language, use_llm=False
     )
 
     out_recs: list[StrategyRecommendation] = [baseline_rec]
@@ -887,12 +931,13 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
         irr_change_mm = round(cand_irr - base_irr, 1)
         is_rainfed = 1.0 if base_irr == 0.0 else 0.0
         irr_diff_pct = round((cand_irr - base_irr) / base_irr * 100.0, 1) if base_irr > 0 else 0.0
+        base_p50 = baseline_result.profit_p50
         profit_diff_pct = (
-            round((chosen_res.profit_p50 - baseline_result.profit_p50) / baseline_result.profit_p50 * 100.0, 1)
-            if baseline_result.profit_p50 > 0
+            round((chosen_res.profit_p50 - base_p50) / abs(base_p50) * 100.0, 1)
+            if abs(base_p50) > 100.0
             else 0.0
         )
-        profit_change_abs = round(chosen_res.profit_p50 - baseline_result.profit_p50, 0)
+        profit_change_abs = round(chosen_res.profit_p50 - base_p50, 0)
         soil_diff = round(chosen_res.soil_health_score - baseline_result.soil_health_score, 1)
 
         cand_res_metrics = evaluate.compute_resilience_and_regret(chosen_res)
@@ -926,53 +971,155 @@ def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
             validation_message=reg_cfg.validation_message,
             economics_basis=econ_basis,
             state=prof.state,
-            served_from="demo_snapshot" if matched_golden_id else "live_computation",
-            snapshot_date="2026-11-10" if matched_golden_id else None,
+            served_from="live_computation",
+            snapshot_date=None,
         )
         cards, provs = why_cards.why_cards(prof, rec, baseline_rec, language=req.language)
         if scenario_set.kind == "cmip6":
             provs = list(provs) + list(scenario_set.provenance)
         rec.why = cards
         rec.provenance = provs
-        rec.narrative_summary = why_cards.grounded_llm_explain(
-            prof, rec, baseline_rec, language=req.language
-        )
         out_recs.append(rec)
+
+    top_recs = out_recs[1:]
+    if top_recs:
+        with ThreadPoolExecutor(max_workers=len(top_recs)) as pool:
+            narratives = list(
+                pool.map(
+                    lambda rec_item: why_cards.grounded_llm_explain(
+                        prof, rec_item, baseline_rec, language=req.language
+                    ),
+                    top_recs,
+                )
+            )
+        for rec_item, summary in zip(top_recs, narratives, strict=False):
+            rec_item.narrative_summary = summary
 
     return out_recs
 
 
+@app.post("/recommend", response_model=list[StrategyRecommendation])
+def recommend(req: RecommendRequest) -> list[StrategyRecommendation]:
+    """TASK-A03: profile -> candidates (optimize.rotations) -> simulate (models.*) across
+    scenarios (climate.ensembles) -> objectives -> optimize.selection.select_top -> why-cards.
+    Returns list[StrategyRecommendation] containing baseline (rank 0) plus top 3 recommendations."""
+    return _recommend_impl(req)
+
+
 # ---------------------------------------------------------------------------
-# Async Recommend Jobs (TASK-H02)
+# Async Recommend Jobs (TASK-H02 — Atomic disk-backed + memory store)
 # ---------------------------------------------------------------------------
 _RECOMMEND_JOBS: dict[str, dict] = {}
+_JOBS_LOCK = threading.Lock()
+_JOB_TTL_SECONDS = 1800.0
+_MAX_PERSISTED_JOBS = 50
+
+
+def _jobs_dir() -> Path | None:
+    try:
+        root = cache.cache_dir().parent / "jobs"
+        root.mkdir(parents=True, exist_ok=True)
+        return root
+    except OSError:
+        return None
+
+
+def _save_job(job_id: str, data: dict) -> None:
+    with _JOBS_LOCK:
+        _RECOMMEND_JOBS[job_id] = data
+        jdir = _jobs_dir()
+        if jdir is None:
+            return
+        now = time.time()
+        target = jdir / f"{job_id}.json"
+        tmp = jdir / f"{job_id}.{threading.get_ident()}.tmp"
+        try:
+            tmp.write_text(json.dumps(data), encoding="utf-8")
+            os.replace(tmp, target)
+            # Prune stale/excess persisted jobs beyond TTL / cap
+            files = sorted(jdir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+            for idx, p in enumerate(files):
+                if idx >= _MAX_PERSISTED_JOBS or (now - p.stat().st_mtime > _JOB_TTL_SECONDS):
+                    p.unlink(missing_ok=True)
+        except OSError as exc:
+            log.debug("Failed persisting async job %s: %s", job_id, exc)
+            tmp.unlink(missing_ok=True)
+
+
+def _load_job(job_id: str) -> dict | None:
+    now = time.time()
+    with _JOBS_LOCK:
+        mem = _RECOMMEND_JOBS.get(job_id)
+        if mem is not None:
+            return mem
+        jdir = _jobs_dir()
+        if jdir is None:
+            return None
+        path = jdir / f"{job_id}.json"
+        if not path.exists():
+            return None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if now - float(data.get("created_at", now)) > _JOB_TTL_SECONDS:
+                path.unlink(missing_ok=True)
+                return None
+            _RECOMMEND_JOBS[job_id] = data
+            return data
+        except (OSError, ValueError):
+            return None
 
 
 def _async_recommend_worker(job_id: str, req: RecommendRequest) -> None:
+    existing = _load_job(job_id) or {"job_id": job_id, "created_at": time.time()}
+
+    def _on_progress(step: str, progress: float) -> None:
+        state = {
+            **existing,
+            "job_id": job_id,
+            "status": "running",
+            "step": step,
+            "progress": round(progress, 2),
+            "result": None,
+            "error": None,
+        }
+        _save_job(job_id, state)
+
     try:
-        _RECOMMEND_JOBS[job_id]["status"] = "running"
-        _RECOMMEND_JOBS[job_id]["step"] = "evaluating"
-        _RECOMMEND_JOBS[job_id]["progress"] = 0.3
-        recs = recommend(req)
-        _RECOMMEND_JOBS[job_id]["status"] = "completed"
-        _RECOMMEND_JOBS[job_id]["step"] = "done"
-        _RECOMMEND_JOBS[job_id]["progress"] = 1.0
-        _RECOMMEND_JOBS[job_id]["result"] = [r.model_dump() for r in recs]
-        _RECOMMEND_JOBS[job_id]["error"] = None
+        _on_progress("evaluating", 0.2)
+        recs = _recommend_impl(req, progress_cb=_on_progress)
+        _save_job(
+            job_id,
+            {
+                **existing,
+                "job_id": job_id,
+                "status": "completed",
+                "step": "done",
+                "progress": 1.0,
+                "result": [r.model_dump(mode="json") for r in recs],
+                "error": None,
+            },
+        )
     except Exception as exc:
         log.exception("Async recommend worker error for job %s", job_id)
-        _RECOMMEND_JOBS[job_id]["status"] = "failed"
-        _RECOMMEND_JOBS[job_id]["step"] = "failed"
-        _RECOMMEND_JOBS[job_id]["progress"] = 1.0
-        _RECOMMEND_JOBS[job_id]["result"] = None
-        _RECOMMEND_JOBS[job_id]["error"] = str(exc)
+        _save_job(
+            job_id,
+            {
+                **existing,
+                "job_id": job_id,
+                "status": "failed",
+                "step": "failed",
+                "progress": 1.0,
+                "result": None,
+                "error": str(exc),
+            },
+        )
 
 
 @app.post("/recommend/async")
 def recommend_async(req: RecommendRequest) -> dict:
     """Submit an asynchronous crop-rotation recommendation simulation job (TASK-H02)."""
     job_id = str(uuid.uuid4())
-    _RECOMMEND_JOBS[job_id] = {
+    init_state = {
         "job_id": job_id,
         "status": "running",
         "progress": 0.1,
@@ -981,6 +1128,7 @@ def recommend_async(req: RecommendRequest) -> dict:
         "error": None,
         "created_at": time.time(),
     }
+    _save_job(job_id, init_state)
     thread = threading.Thread(target=_async_recommend_worker, args=(job_id, req), daemon=True)
     thread.start()
     return {
@@ -994,7 +1142,7 @@ def recommend_async(req: RecommendRequest) -> dict:
 @app.get("/recommend/jobs/{job_id}")
 def get_recommend_job(job_id: str) -> dict:
     """Poll status and retrieve results of an asynchronous recommendation job (TASK-H02)."""
-    job = _RECOMMEND_JOBS.get(job_id)
+    job = _load_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
     return job

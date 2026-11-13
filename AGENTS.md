@@ -21,14 +21,14 @@
 Everything we build is judged against those core dimensions. Before starting work, confirm which challenge pillar your change serves:
 1. **Shifting Temperatures:** March wheat terminal grain-filling heat stress (>32°C) and canopy cooling via Happy Seeder surface straw mulch (-1.0°C).
 2. **Changing Rainfall Patterns:** Erratic monsoon distribution, mid-season dry spells, extreme rainfall days (>50 mm), and rainfall erosivity from NASA GPM IMERG V07.
-3. **Water Shortages & Aquifer Depletion:** Regional groundwater collapse detected by NASA GRACE ($-3.85\text{ cm/year}$ in Punjab) and root-zone agricultural drought percentiles from NASA SMAP L4.
+3. **Water Shortages & Aquifer Depletion:** Regional groundwater collapse detected by NASA GRACE ($-3.85\text{ cm/year}$ regional baseline; $-4.15\text{ cm/year}$ JPL RL06 V04 mascon in Punjab) and root-zone agricultural drought percentiles from NASA SMAP L4.
 4. **Extreme Weather & Stubble Burning:** Narrow turnaround windows between rice harvest and wheat sowing forcing residue burning (detected by NASA FIRMS active fire hotspots).
 5. **Declining Soil Health:** Long-term soil organic carbon (SOC) depletion modeled via RothC-lite 26.3, seasonal nitrogen mass balance with legume credits, and the USDA-NRCS 5-principle soil health index (0–100).
 6. **Local Soil Information & Crop Characteristics:** Depth-weighted ISRIC SoilGrids 2.0 (250m) with Government of India Soil Health Card (SHC) laboratory test overrides, paired with a 23-crop agronomic knowledge base parameterized from Punjab Agricultural University (PAU) and ICAR field trials.
 7. **Farmer Priorities & Downside Risk:** 6-objective Pareto optimization (Profit, Water Savings, Soil Health, Downside Risk $CVaR_{10}$, Low Labour, Food Security) evaluated across a 30-year historical weather ensemble or NEX-GDDP-CMIP6 climate projections.
 
 ### Operational Context & Scope Honesty
-- **Lead Demo Story:** Trans-Gangetic Plains of Punjab, India (`sangrur` and `ludhiana`). Replaces conventional puddled rice (*Pusa-44*) with Short-Duration Rice (PR-126) or Direct-Seeded Rice (DSR) + Alternate Wetting & Drying (AWD) plus Happy Seeder zero-till wheat and summer moong—saving **14–59% irrigation water**, expanding turnaround to **26–34 days (eliminating stubble burning)**, sequestering **$+2.79\text{ t C/ha}$ of soil carbon over 10 years**, and saving **3.5 bags of Urea/ha**.
+- **Lead Demo Story:** Trans-Gangetic Plains of Punjab, India (`sangrur` and `ludhiana`). Replaces conventional puddled rice (*Pusa-44*) with Short-Duration Rice (PR-126) or Direct-Seeded Rice (DSR) + Alternate Wetting & Drying (AWD) plus Happy Seeder zero-till wheat and summer moong—saving **17.6–60.1% irrigation water**, expanding turnaround to **26–34 days (eliminating stubble burning)**, sequestering **$+3.01\text{ to }+3.74\text{ t C/ha}$ of soil carbon over 10 years**, and saving **3.5–4.1 bags of Urea/ha**.
 - **Six Golden Benchmark Fields:** Precomputed in `data/golden/<id>/` and `apps/web/public/golden/<id>/`:
   1. `sangrur` (Punjab): Trans-Gangetic alluvial plains (hero demo field).
   2. `ludhiana` (Punjab): PAU central alluvial plains (model calibration baseline).
@@ -43,7 +43,7 @@ Everything we build is judged against those core dimensions. Before starting wor
 
 ## 2. Current Phase: Hardening, Not Building
 
-All 44 original backlog items, all 15 audit findings from `docs/AUDIT.md`, all Round-2 audit hardening items from `docs/AUDIT_V3.md`, and all 20 Round-3 hardening defect items from `TERRALOOP_ROUND3_FIX_PROMPT.md` are implemented, integrated, and verified with **86/86 passing offline tests**. There is no "next unchecked task".
+All 44 original backlog items, all 15 audit findings from `docs/AUDIT.md`, all Round-2 audit hardening items from `docs/AUDIT_V3.md`, all 20 Round-3 hardening defect items from `TERRALOOP_ROUND3_FIX_PROMPT.md`, and all 94 codebase audit findings are implemented, integrated, and verified with **94/94 passing offline tests**. There is no "next unchecked task".
 
 Work comes from, in this strict order of priority:
 1. **The user's explicit request.**
@@ -92,7 +92,7 @@ docs/                                BUILD_PLAN, METHODOLOGY, BENCHMARKS, DATASE
 ```
 FieldGeometry (lat, lon, polygon)
   │
-  ├─► [Match Golden Field? <0.15°] ──► Instant precomputed FieldProfile
+  ├─► [Match Golden Field? Exact field.id] ──► Instant precomputed FieldProfile (exact ID only)
   │   └─► Else profiler.build_profile(NASA POWER, GPM, SMAP, GRACE, NASADEM, FIRMS, HLS, SoilGrids)
   │       (On network failure: labelled regional Indian fallback profile with is_fallback=True)
   │
@@ -212,7 +212,7 @@ Follow these non-negotiable rules at all times:
   5. Inert Organic Matter (IOM, computed via Falloon et al. 1998: $\text{IOM} = 0.049 \times C_{\text{tot}}^{1.139}$)
 - Monthly abiotic rate modifier $\xi = a(T) \times b(M) \times c_{\text{cov}}$, where $c_{\text{cov}} = 0.6$ under canopy or mulch, $1.0$ under bare fallow.
 - Clay-dependent partitioning: $x = 1.67 \times (1.85 + 1.60 \times \exp(-0.0786 \times \text{clay}))$. Fraction lost as $\text{CO}_2$ is $x / (x+1)$; remainder synthesized into BIO and HUM.
-- Residue burning retains only ~10% ash carbon (driving $-1.86\text{ t C/ha/10yr}$ loss), whereas mulch retention sequesters $+2.79\text{ t C/ha/10yr}$.
+- Residue burning retains only ~10% ash carbon (driving $-1.92\text{ t C/ha/10yr}$ loss on Sangrur loam), whereas mulch retention sequesters $+3.19\text{ to }+4.01\text{ t C/ha/10yr}$ (`docs/BENCHMARKS.md` Section 5).
 
 ### 6.3 Seasonal Nitrogen Mass Balance & Legume Credit (`models/soil_health.py`)
 $$\text{Balance}_N = (N_{\text{fert}} + N_{\text{fix}} + N_{\text{dep}}) - N_{\text{removal}}$$
@@ -276,7 +276,7 @@ Execute commands from the repository root:
 uv sync                                               # Install all workspace packages in editable mode
 
 # 2. Testing (Must stay 100% green)
-uv run pytest -q -m "not network"                     # 56 offline tests
+uv run pytest -q -m "not network"                     # Offline unit & integration tests (87+ tests)
 uv run pytest -q                                      # Full suite (including live GEE/POWER if authenticated)
 uv run pytest tests/test_models.py -q                 # Biophysical unit tests only
 uv run pytest tests/test_engine.py -q                 # Engine integration tests only
@@ -311,9 +311,9 @@ graphify path "recommend" "soil_health_score"
 ### Continuous Integration (CI) Contract
 GitHub Actions (`.github/workflows/ci.yml`) enforces:
 1. `uv run ruff check .`
-2. `uv run pytest -q -m "not network"` (56 tests)
+2. `uv run pytest -q -m "not network"` (all offline tests passing)
 3. `uv run python scripts/run_validation_benchmarks.py --write-docs` followed by `git diff --exit-code docs/BENCHMARKS.md`
-4. `cd apps/web && npx tsc --noEmit && npm run lint`
+4. `cd apps/web && npx tsc --noEmit && npm run lint && npm run build`
 
 ### Priority-Sensitivity Verification Protocol
 Required whenever modifying `optimize/selection.py`, the objective builder in `main.py`, or frontend priority sliders:
@@ -371,7 +371,7 @@ When modifying or adding a biophysical process model:
 Before marking any task complete, verify each item:
 
 - [ ] **Behavior Verified:** Code meets acceptance criteria, reproduced before the change and verified after.
-- [ ] **Offline Tests Pass:** `uv run pytest -q -m "not network"` passes (56/56 tests passing).
+- [ ] **Offline Tests Pass:** `uv run pytest -q -m "not network"` passes (all offline tests passing).
 - [ ] **Linters & Typings Clean:** `uv run ruff check .`, `cd apps/web && npx tsc --noEmit`, and `npm run lint` pass with zero warnings.
 - [ ] **Data Provenance Attached:** Every user-facing number carries verifiable `DataProvenance` metadata; fallbacks are labeled.
 - [ ] **Trilingual Synchronization:** All three translation files (`en.json`, `hi.json`, `pa.json`) are updated; no hardcoded English strings in TSX or Python templates.
@@ -386,12 +386,12 @@ Before marking any task complete, verify each item:
 
 Keep these known issues in mind when working in the repository:
 
-1. **`selection.select_top` Sorting Hierarchy:** The weighted priority score currently operates as the third sort key behind hardcoded agronomic viability and Pareto dominance filters. Keep this in mind when debugging priority sensitivity.
-2. **`/recommend` Objective Builder:** Procurement assurance factors currently feed into `profit`, `low_risk`, and `food_security` objectives simultaneously. Furthermore, `food_security` uses a crop group lookup rather than direct caloric density calculations.
-3. **Region Hardcoding in `/recommend`:** The API contains legacy fallback checks (e.g. `lat >= 28.5` for the Punjab belt and `load_economics("punjab")`). These should be transitioned to dynamic zone detection via `economics.detect_agro_zone()`.
-4. **Frontend Fallback Presentation in `RotationExplorer.tsx`:** When the live `/recommend` API fails, the frontend falls back to static golden data. Ensure the UI displays an informative fallback badge rather than an unqualified success state.
-5. **Golden-Field Coordinate Tolerance ($\pm 0.15^\circ$):** The API golden-match threshold ($\sim 16\text{ km}$) means nearby fields can snap to precomputed golden benchmarks. Maintain transparency by exposing `data_mode` in the UI.
-6. **Web Priority Sliders vs. API Constraints:** The web UI currently exposes 5 priority sliders (omitting `food_security`) and limits rotation horizons to 3 years, whereas the backend API supports 6 objectives and up to 6-year rotation horizons.
+1. **`selection.select_top` Sorting Hierarchy:** Filters hard agronomic violations first, then performs NSGA-II non-dominated sorting across objectives and ranks within each Pareto front using normalized priority weights. Keep this in mind when debugging priority sensitivity.
+2. **`/recommend` Objective Builder:** Evaluates 6 objectives (`profit`, `water_savings`, `soil_health`, `low_risk`, `low_labour`, `food_security`); `food_security` combines macro kcal/protein yield density (`models/nutrition.py`) with regional procurement assurance.
+3. **Region Resolution in `/recommend`:** Regional agro-zones, bias corrections, economics files, and synthetic weather parameters resolve through `region_registry.py` and `packages/crop-kb/economics/*.yaml`; coordinates outside India explicitly carry `validation_status="unvalidated_global"`.
+4. **Frontend Error & Fallback Presentation in `RotationExplorer.tsx`:** Failed live `/recommend` calls surface localized error states rather than substituting unrelated golden profiles; `fallback_synthetic` / `demo_snapshot` badges reflect actual data provenance.
+5. **Golden-Field Exact-ID Matching:** `_match_golden_field` in `main.py` matches ONLY exact `field.id` entries in `data/golden/fields.json` (the former 0.15° spatial proximity shortcut was removed).
+6. **Web Priority Sliders & Constraints:** The web UI exposes all 6 objectives (`profit`, `water_savings`, `soil_health`, `low_risk`, `low_labour`, `food_security`) alongside SHC N/P/K overrides, farm area scaling (`area_ha`), `must_grow`/`exclude`/`irrigation_cap_mm`, and climate/price stress shocks.
 7. **NASA POWER Hot-Season Warm Bias in Northwest India:** MERRA-2 reanalysis lacks the localized cooling effect of extensive flood irrigation in Punjab and Haryana (+3°C to +4.5°C warm bias in March/June). Always route POWER data through `apply_igp_irrigation_bias_correction` (`packages/engine/terraloop_engine/data/nasa_power.py`).
 8. **Rainfall Inhomogeneity Across Satellite Epochs:** Do not mix pre-2001 reanalysis precipitation with post-2001 GPM observations when computing multi-decadal trends. Use GPM IMERG V07 (2001–2024) for rainfall statistics, extremes, and RUSLE $R$-factor calculations.
 9. **SoilGrids Urban & Water Pixel Masking:** SoilGrids 2.0 returns `null` for urban clusters. `soilgrids.fetch_topsoil()` uses a 3 km spiral search to find adjacent agricultural soils.

@@ -246,7 +246,7 @@ def _imerg_daily_live(lat: float, lon: float, start: str, end: str) -> pd.Series
     pt = ee.Geometry.Point([lon, lat])
     start_ts = pd.Timestamp(start)
     end_ts = pd.Timestamp(end)
-    n_days = (end_ts - start_ts).days
+    n_days = max(1, (end_ts - start_ts).days)
 
     if n_days <= 60:
         col = (
@@ -258,43 +258,65 @@ def _imerg_daily_live(lat: float, lon: float, start: str, end: str) -> pd.Series
         data = col.getRegion(pt, 10000).getInfo()
         if len(data) <= 1:
             raise RuntimeError("Empty IMERG response from GEE")
-        header = data[0]
-        rows = data[1:]
-        df_ee = pd.DataFrame(rows, columns=header)
+        df_ee = pd.DataFrame(data[1:], columns=data[0])
         df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms").dt.date
         # IMERG_V07 half-hourly rate (mm/hr) * 0.5 hr = mm per 30-min interval
         daily = df_ee.groupby("date")["precipitation"].sum() * 0.5
         return pd.Series(daily.values, index=pd.to_datetime(daily.index), name="precipitation_mm")
 
-    # Multi-year queries use NASA/GPM_L3/IMERG_MONTHLY_V07 to avoid 400k half-hourly image limit
-    col = (
-        ee.ImageCollection("NASA/GPM_L3/IMERG_MONTHLY_V07")
-        .filterBounds(pt)
-        .filterDate(start, end)
-        .select("precipitation")
-    )
-    data = col.getRegion(pt, 10000).getInfo()
-    if len(data) <= 1:
-        raise RuntimeError("Empty IMERG MONTHLY response from GEE")
-    header = data[0]
-    df_ee = pd.DataFrame(data[1:], columns=header).dropna(subset=["precipitation"])
-    df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms")
-    df_ee["days_in_month"] = df_ee["date"].dt.days_in_month
-    df_ee["month_mm"] = df_ee["precipitation"].astype(float) * 24.0 * df_ee["days_in_month"]
+    # Server-side daily summation per 90-day block from IMERG_V07 half-hourly scenes (preserves true daily extremes)
+    daily_frames: list[pd.Series] = []
+    chunk_start = start_ts
+    while chunk_start < end_ts:
+        chunk_end = min(chunk_start + pd.Timedelta(days=90), end_ts)
+        c_days = max(1, (chunk_end - chunk_start).days)
+        raw_col = (
+            ee.ImageCollection("NASA/GPM_L3/IMERG_V07")
+            .filterBounds(pt)
+            .filterDate(chunk_start.strftime("%Y-%m-%d"), chunk_end.strftime("%Y-%m-%d"))
+            .select("precipitation")
+        )
 
-    idx = pd.date_range(start_ts, end_ts, freq="D")
-    daily_vals = np.zeros(len(idx), dtype=float)
-    ym_to_mm = {
-        (int(r["date"].year), int(r["date"].month)): float(r["month_mm"])
-        for _, r in df_ee.iterrows()
-    }
-    for (y, m), total_mm in ym_to_mm.items():
-        mask = (idx.year == y) & (idx.month == m)
-        n_m = int(mask.sum())
-        if n_m > 0:
-            daily_vals[mask] = round(total_mm / n_m, 3)
+        def _make_mapper(start_s: str, collection: ee.ImageCollection):
+            base_d = ee.Date(start_s)
 
-    return pd.Series(daily_vals, index=idx, name="precipitation_mm")
+            def _make_daily(offset):
+                d0 = base_d.advance(offset, "day")
+                d1 = d0.advance(1, "day")
+                day_col = collection.filterDate(d0, d1)
+                img = ee.Image(
+                    ee.Algorithms.If(
+                        day_col.size().gt(0),
+                        day_col.mean().multiply(24.0),
+                        ee.Image.constant(-1.0).rename("precipitation").toFloat(),
+                    )
+                )
+                return img.set("system:time_start", d0.millis())
+
+            return _make_daily
+
+        daily_col = ee.ImageCollection.fromImages(
+            ee.List.sequence(0, c_days - 1).map(_make_mapper(chunk_start.strftime("%Y-%m-%d"), raw_col))
+        )
+        data = daily_col.getRegion(pt, 10000).getInfo()
+        if len(data) > 1:
+            df_c = pd.DataFrame(data[1:], columns=data[0]).dropna(subset=["precipitation"])
+            df_c = df_c[df_c["precipitation"].astype(float) >= 0.0]
+            if not df_c.empty:
+                df_c["date"] = pd.to_datetime(df_c["time"], unit="ms").dt.floor("D")
+                s = pd.Series(
+                    np.maximum(0.0, df_c["precipitation"].astype(float).to_numpy()),
+                    index=df_c["date"],
+                )
+                daily_frames.append(s)
+        chunk_start = chunk_end
+
+    if not daily_frames:
+        raise RuntimeError("Empty daily IMERG response from GEE")
+    combined = pd.concat(daily_frames).sort_index()
+    combined = combined[~combined.index.duplicated(keep="last")]
+    combined.name = "precipitation_mm"
+    return combined
 
 
 def imerg_daily(lat: float, lon: float, start: str, end: str) -> pd.Series:
@@ -340,35 +362,32 @@ def _smap_rootzone_live(lat: float, lon: float, start: str, end: str) -> pd.Seri
     pt = ee.Geometry.Point([lon, lat])
     start_ts = max(pd.Timestamp("2015-04-01"), pd.Timestamp(start))
     end_ts = pd.Timestamp(end)
-    n_days = (end_ts - start_ts).days
 
-    if n_days <= 45:
+    chunks: list[pd.Series] = []
+    chunk_start = start_ts
+    while chunk_start < end_ts:
+        chunk_end = min(chunk_start + pd.Timedelta(days=45), end_ts)
         col = (
             ee.ImageCollection("NASA/SMAP/SPL4SMGP/008")
             .filterBounds(pt)
-            .filterDate(start_ts.strftime("%Y-%m-%d"), end_ts.strftime("%Y-%m-%d"))
+            .filterDate(chunk_start.strftime("%Y-%m-%d"), chunk_end.strftime("%Y-%m-%d"))
             .select("sm_rootzone")
         )
-    else:
-        # Construct bi-monthly asset IDs (1st and 15th of each month) to avoid 30k-image GEE memory limit
-        asset_ids: list[str] = []
-        months = pd.date_range(start_ts.replace(day=1), end_ts, freq="MS")
-        for m_dt in months:
-            for day_num in (1, 15):
-                cand = pd.Timestamp(year=m_dt.year, month=m_dt.month, day=day_num)
-                if start_ts <= cand <= end_ts:
-                    asset_ids.append(f"NASA/SMAP/SPL4SMGP/008/{cand.strftime('%Y%m%d')}_0130")
-        col = ee.ImageCollection(asset_ids).select("sm_rootzone")
+        data = col.getRegion(pt, 9000).getInfo()
+        if len(data) > 1:
+            df_ee = pd.DataFrame(data[1:], columns=data[0]).dropna(subset=["sm_rootzone"])
+            if not df_ee.empty:
+                df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms").dt.date
+                daily = df_ee.groupby("date")["sm_rootzone"].mean()
+                chunks.append(pd.Series(daily.values, index=pd.to_datetime(daily.index)))
+        chunk_start = chunk_end
 
-    data = col.getRegion(pt, 9000).getInfo()
-    if len(data) <= 1:
+    if not chunks:
         raise RuntimeError("Empty SMAP response from GEE")
-    header = data[0]
-    rows = data[1:]
-    df_ee = pd.DataFrame(rows, columns=header).dropna(subset=["sm_rootzone"])
-    df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms").dt.date
-    daily = df_ee.groupby("date")["sm_rootzone"].mean()
-    return pd.Series(daily.values, index=pd.to_datetime(daily.index), name="sm_rootzone_m3_m3")
+    out = pd.concat(chunks).sort_index()
+    out = out[~out.index.duplicated(keep="last")]
+    out.name = "sm_rootzone_m3_m3"
+    return out
 
 
 def smap_rootzone(lat: float, lon: float, start: str, end: str) -> pd.Series:
@@ -523,34 +542,44 @@ def fire_detections(lat: float, lon: float, start: str, end: str, buffer_m: int 
 def _ndvi_timeseries_live(lat: float, lon: float, start: str, end: str, buffer_m: int = 60) -> pd.DataFrame:
     import ee
 
-    pt = ee.Geometry.Point([lon, lat])
-    s2 = (
-        ee.ImageCollection("NASA/HLS/HLSS30/v002")
-        .filterBounds(pt)
-        .filterDate(start, end)
-        .select(["B8", "B4", "Fmask"])
-    )
-    data = s2.getRegion(pt, 30).getInfo()
-    if len(data) <= 1:
-        raise RuntimeError("Empty HLS response from GEE")
-    header = data[0]
-    df_ee = pd.DataFrame(data[1:], columns=header).dropna(subset=["B8", "B4"])
-    if "Fmask" in df_ee.columns:
-        fmask = df_ee["Fmask"].fillna(0).astype(int)
-        # Bit 1 = cloud, Bit 2 = cloud shadow/adjacent, Bit 3 = snow/ice
-        df_ee = df_ee[(fmask & 14) == 0]
-    df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms").dt.floor("D")
-    b8 = df_ee["B8"].astype(float)
-    b4 = df_ee["B4"].astype(float)
-    denom = b8 + b4
-    valid = denom > 0
-    df_ee = df_ee[valid].copy()
-    df_ee["ndvi"] = ((b8[valid] - b4[valid]) / denom[valid]).round(3)
-    df_ee = df_ee[df_ee["ndvi"].between(0.05, 0.95)]
-    if df_ee.empty:
+    geom = ee.Geometry.Point([lon, lat]).buffer(max(15, int(buffer_m)))
+
+    def _query_hls(col_id: str, nir_band: str, label: str) -> pd.DataFrame:
+        col = ee.ImageCollection(col_id).filterBounds(geom).filterDate(start, end).select([nir_band, "B4", "Fmask"])
+        data = col.getRegion(geom, 30).getInfo()
+        if len(data) <= 1:
+            return pd.DataFrame(columns=["date", "ndvi", "sensor"])
+        df_ee = pd.DataFrame(data[1:], columns=data[0]).dropna(subset=[nir_band, "B4"])
+        if df_ee.empty:
+            return pd.DataFrame(columns=["date", "ndvi", "sensor"])
+        if "Fmask" in df_ee.columns:
+            fmask = df_ee["Fmask"].fillna(0).astype(int)
+            # Bit 1 = cloud, Bit 2 = cloud shadow/adjacent, Bit 3 = snow/ice
+            df_ee = df_ee[(fmask & 14) == 0]
+        df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms").dt.floor("D")
+        nir = df_ee[nir_band].astype(float)
+        red = df_ee["B4"].astype(float)
+        denom = nir + red
+        valid = denom > 0
+        df_ee = df_ee[valid].copy()
+        df_ee["ndvi"] = ((nir[valid] - red[valid]) / denom[valid]).round(3)
+        df_ee = df_ee[df_ee["ndvi"].between(0.05, 0.95)]
+        if df_ee.empty:
+            return pd.DataFrame(columns=["date", "ndvi", "sensor"])
+        daily = df_ee.groupby("date", as_index=False)["ndvi"].median()
+        daily["sensor"] = label
+        return daily[["date", "ndvi", "sensor"]]
+
+    parts = [
+        _query_hls("NASA/HLS/HLSS30/v002", "B8", "HLS_S30"),
+        _query_hls("NASA/HLS/HLSL30/v002", "B5", "HLS_L30"),
+    ]
+    non_empty = [p for p in parts if not p.empty]
+    if not non_empty:
         raise RuntimeError("No cloud-free HLS observations found")
-    daily = df_ee.groupby("date", as_index=False)["ndvi"].max().sort_values("date")
-    daily["sensor"] = "HLS_S30"
+    merged = pd.concat(non_empty, ignore_index=True)
+    daily = merged.groupby("date", as_index=False).agg({"ndvi": "median", "sensor": lambda s: "+".join(sorted(set(s)))}).sort_values("date")
+    daily["ndvi"] = daily["ndvi"].round(3)
     return daily[["date", "ndvi", "sensor"]].reset_index(drop=True)
 
 
@@ -628,7 +657,8 @@ def cmip6_daily(lat: float, lon: float, model: str, scenario: str, start: str, e
     amp_c = getattr(w_params, "amp_c", float(w_params.get("amplitude", 9.0)))
     trange_c = getattr(w_params, "trange_c", float(w_params.get("trange_c", 11.0)))
 
-    tmax = base_tmax + warming + amp_c * np.sin(2 * np.pi * (doy - 80) / 365)
+    peak_doy = float(getattr(w_params, "peak_doy", w_params.get("peak_doy", 160 if lat >= 0 else 15)))
+    tmax = base_tmax + warming + amp_c * np.cos(2.0 * np.pi * (doy - peak_doy) / 365.25)
     tmin = tmax - trange_c
     seed = int((zlib.crc32(model.encode("utf-8")) % 10000) + abs(lat * 100) + abs(lon * 10))
     rng = np.random.default_rng(seed)

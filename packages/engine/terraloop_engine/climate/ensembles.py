@@ -106,7 +106,7 @@ def quantile_map(obs: pd.Series, model_hist: pd.Series, model_future: pd.Series)
     if len(clean_obs) == 0 or len(clean_mh) == 0 or len(clean_mf) == 0:
         return model_future.copy()
 
-    is_non_neg = bool((clean_obs >= 0.0).all() and (clean_obs == 0.0).any())
+    is_non_neg = bool((clean_obs >= 0.0).all() and float((clean_obs == 0.0).mean()) > 0.05)
 
     # Apply monthly empirical quantile mapping across the 12 calendar months if DatetimeIndex
     if hasattr(clean_obs.index, "month") and hasattr(clean_mh.index, "month") and hasattr(clean_mf.index, "month"):
@@ -141,7 +141,71 @@ def quantile_map(obs: pd.Series, model_hist: pd.Series, model_future: pd.Series)
     return pd.Series(corr_vals, index=clean_mf.index, name=model_future.name)
 
 
-def quantile_map_df(obs_df: pd.DataFrame, model_hist_df: pd.DataFrame, model_future_df: pd.DataFrame) -> pd.DataFrame:
+def _derive_missing_surface_vars(
+    res: pd.DataFrame,
+    obs_df: pd.DataFrame | None = None,
+    lat: float = 30.2,
+) -> pd.DataFrame:
+    """Populate solar radiation, relative humidity, and wind physically when GCMs omit them."""
+    out = res.copy()
+    if "T2M_MAX" in out.columns and "T2M_MIN" in out.columns:
+        out["T2M_MIN"] = np.minimum(out["T2M_MIN"].to_numpy(dtype=float), out["T2M_MAX"].to_numpy(dtype=float) - 0.5)
+
+    months = out.index.month if isinstance(out.index, pd.DatetimeIndex) else pd.Series(6, index=out.index)
+
+    if "ALLSKY_SFC_SW_DWN" not in out.columns:
+        if "T2M_MAX" in out.columns and "T2M_MIN" in out.columns:
+            doy = (
+                out.index.dayofyear.to_numpy(dtype=float)
+                if isinstance(out.index, pd.DatetimeIndex)
+                else np.arange(1, len(out) + 1, dtype=float)
+            )
+            lat_r = float(np.deg2rad(np.clip(lat, -66.0, 66.0)))
+            dr = 1.0 + 0.033 * np.cos(2.0 * np.pi * doy / 365.0)
+            delta = 0.409 * np.sin(2.0 * np.pi * doy / 365.0 - 1.39)
+            ws = np.arccos(np.clip(-np.tan(lat_r) * np.tan(delta), -0.9999, 0.9999))
+            ra = (24.0 * 60.0 / np.pi) * 0.0820 * dr * (
+                ws * np.sin(lat_r) * np.sin(delta) + np.cos(lat_r) * np.cos(delta) * np.sin(ws)
+            )
+            dt = np.maximum(0.5, out["T2M_MAX"].to_numpy(dtype=float) - out["T2M_MIN"].to_numpy(dtype=float))
+            out["ALLSKY_SFC_SW_DWN"] = np.round(np.clip(0.16 * np.sqrt(dt) * ra, 2.5, 32.0), 3)
+        elif obs_df is not None and not obs_df.empty and "ALLSKY_SFC_SW_DWN" in obs_df.columns:
+            m_rad = obs_df["ALLSKY_SFC_SW_DWN"].groupby(obs_df.index.month).median()
+            out["ALLSKY_SFC_SW_DWN"] = pd.Series(months, index=out.index).map(m_rad).fillna(18.0).to_numpy()
+        else:
+            out["ALLSKY_SFC_SW_DWN"] = 18.0
+
+    if "RH2M" not in out.columns:
+        if obs_df is not None and not obs_df.empty and "RH2M" in obs_df.columns:
+            m_rh = obs_df["RH2M"].groupby(obs_df.index.month).median()
+            out["RH2M"] = pd.Series(months, index=out.index).map(m_rh).fillna(55.0).to_numpy()
+        elif "T2M_MAX" in out.columns and "T2M_MIN" in out.columns:
+            tmax = out["T2M_MAX"].to_numpy(dtype=float)
+            tmin = out["T2M_MIN"].to_numpy(dtype=float)
+            tmean = 0.5 * (tmax + tmin)
+            tdew = tmin - 1.0
+            es_tmean = 0.6108 * np.exp((17.27 * tmean) / np.maximum(1.0, tmean + 237.3))
+            ea = 0.6108 * np.exp((17.27 * tdew) / np.maximum(1.0, tdew + 237.3))
+            out["RH2M"] = np.round(np.clip(100.0 * ea / np.maximum(0.05, es_tmean), 25.0, 95.0), 1)
+        else:
+            out["RH2M"] = 55.0
+
+    if "WS2M" not in out.columns:
+        if obs_df is not None and not obs_df.empty and "WS2M" in obs_df.columns:
+            m_ws = obs_df["WS2M"].groupby(obs_df.index.month).median()
+            out["WS2M"] = pd.Series(months, index=out.index).map(m_ws).fillna(2.0).to_numpy()
+        else:
+            out["WS2M"] = 2.0
+
+    return out
+
+
+def quantile_map_df(
+    obs_df: pd.DataFrame,
+    model_hist_df: pd.DataFrame,
+    model_future_df: pd.DataFrame,
+    lat: float = 30.2,
+) -> pd.DataFrame:
     """Apply monthly empirical quantile mapping across daily weather variables."""
     corr_cols = {}
     col_mapping = {
@@ -151,16 +215,18 @@ def quantile_map_df(obs_df: pd.DataFrame, model_hist_df: pd.DataFrame, model_fut
     }
     for obs_col, mod_col in col_mapping.items():
         if obs_col in obs_df.columns and mod_col in model_hist_df.columns and mod_col in model_future_df.columns:
-            corr_cols[obs_col] = quantile_map(obs_df[obs_col], model_hist_df[mod_col], model_future_df[mod_col])
+            if obs_col in ("T2M_MAX", "T2M_MIN"):
+                mapped = quantile_map(
+                    obs_df[obs_col] + 273.15,
+                    model_hist_df[mod_col] + 273.15,
+                    model_future_df[mod_col] + 273.15,
+                )
+                corr_cols[obs_col] = mapped - 273.15
+            else:
+                corr_cols[obs_col] = quantile_map(obs_df[obs_col], model_hist_df[mod_col], model_future_df[mod_col])
 
     res = pd.DataFrame(corr_cols, index=model_future_df.index)
-    if "ALLSKY_SFC_SW_DWN" not in res.columns:
-        res["ALLSKY_SFC_SW_DWN"] = 20.0
-    if "RH2M" not in res.columns:
-        res["RH2M"] = 50.0
-    if "WS2M" not in res.columns:
-        res["WS2M"] = 2.0
-    return res
+    return _derive_missing_surface_vars(res, obs_df=obs_df, lat=lat)
 
 
 def build_scenario_set(
@@ -204,14 +270,12 @@ def build_scenario_set(
             hist_cmip = gee.cmip6_daily(lat, lon, model, "historical", "1985-01-01", "2014-12-31")
             fut_cmip = gee.cmip6_daily(lat, lon, model, ssp, f"{start_year}-01-01", f"{end_year}-12-31")
             if not power_hist.empty:
-                corrected_df = quantile_map_df(power_hist, hist_cmip, fut_cmip)
+                corrected_df = quantile_map_df(power_hist, hist_cmip, fut_cmip, lat=lat)
             else:
                 corrected_df = fut_cmip.rename(
                     columns={"tasmax": "T2M_MAX", "tasmin": "T2M_MIN", "pr": "PRECTOTCORR"}
                 )
-                corrected_df["ALLSKY_SFC_SW_DWN"] = 20.0
-                corrected_df["RH2M"] = 50.0
-                corrected_df["WS2M"] = 2.0
+                corrected_df = _derive_missing_surface_vars(corrected_df, obs_df=None, lat=lat)
             member_id = f"{model.lower().replace('-', '_')}_{ssp}_{horizon}"
             members[member_id] = corrected_df
 

@@ -54,22 +54,44 @@ def get_currency_info(region: str = "punjab") -> dict[str, str]:
 
 
 @functools.lru_cache(maxsize=16)
-def load_economics(region_or_state: str = "punjab") -> dict:
+def load_economics(region_or_state: str | None = "punjab") -> dict:
     """Load state-specific or regional Indian CACP economics YAML file.
 
     When a state file is available, loads verified local A2+FL costs and MSPs with
-    economics_basis="local_verified". When unverified, falls back to punjab.yaml
-    explicitly tagged with economics_basis="punjab_proxy" (Rule 8, WS-D).
+    economics_basis="local_verified". When unverified or outside India, falls back
+    to punjab.yaml explicitly tagged with economics_basis="punjab_proxy" (Rule 8, WS-D).
     """
-    key = (region_or_state or "punjab").lower().replace(" ", "_").strip()
+    raw = (region_or_state or "").strip()
+    key = raw.lower().replace(" ", "_")
 
-    # Aliases
+    if not key or key == "unvalidated_global":
+        proxy_path = _DEFAULT_ECONOMICS_DIR / "punjab.yaml"
+        if proxy_path.exists():
+            data = yaml.safe_load(proxy_path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                data["economics_basis"] = "punjab_proxy"
+                data["proxy_for"] = raw or "unvalidated_global"
+                if key == "unvalidated_global":
+                    data["currency"] = "USD"
+                return data
+        return {"crops": {}, "currency": "USD" if key == "unvalidated_global" else "INR", "economics_basis": "punjab_proxy"}
+
+    # Aliases mapping verified Indian zones/cities/districts to state economics tables
     aliases = {
         "punjab_central": "punjab",
         "punjab_southwest": "punjab",
+        "sangrur": "punjab",
+        "ludhiana": "punjab",
+        "bathinda": "punjab",
+        "chandigarh": "punjab",
+        "delhi": "haryana",
         "vidarbha": "maharashtra",
+        "western_maharashtra": "maharashtra",
         "cauvery": "tamil_nadu",
+        "thanjavur": "tamil_nadu",
+        "puducherry": "tamil_nadu",
         "bundelkhand": "uttar_pradesh",
+        "western_up": "uttar_pradesh",
     }
     key = aliases.get(key, key)
 
@@ -120,10 +142,18 @@ def profit_per_ha(
         dict with revenue_per_ha, cost_per_ha, labor_cost_per_ha, profit_per_ha,
         market_risk, procurement_type, currency, economics_basis.
     """
+    currency = currency or get_currency_info(region or "")["code"]
     econ = load_economics(region)
-    crop_data = econ.get("crops", {}).get(crop_id, {})
+    crops_map = econ.get("crops", {})
+    crop_data = crops_map.get(crop_id)
     usd_rate = float(econ.get("usd_exchange_rate", 83.5))
     economics_basis = econ.get("economics_basis", "local_verified")
+    if not crop_data:
+        ref_crops = load_economics("punjab").get("crops", {})
+        crop_data = ref_crops.get(crop_id, {})
+        if crop_data:
+            economics_basis = "punjab_proxy"
+    crop_data = crop_data or {}
 
     price_inr = float(crop_data.get("price_per_tonne", 24000.0)) * float(price_multiplier)
     cost_inr = float(crop_data.get("cost_per_ha", 28000.0))
@@ -148,6 +178,9 @@ def profit_per_ha(
         # Saves land soaking rauni puddling, laser leveling & nursery manual transplanting (~Rs 6,000/ha)
         cost_inr -= 6000.0
         labor_inr -= 4500.0
+    if "broad_bed_furrow" in practices:
+        # Broad-Bed Furrow planter drainage & inter-row weeding efficiency (~Rs 1,000/ha labour saving)
+        labor_inr -= 1000.0
 
     # Biological Nitrogen credit: succeeding cereal saves 25 kg N/ha (~Rs 650/ha fertilizer cost)
     if preceded_by_legume and crop_id in ("wheat", "rice_puddled", "rice_short", "rice_dsr", "maize", "barley"):

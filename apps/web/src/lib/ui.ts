@@ -74,7 +74,7 @@ export const waterSavedPct = (s: StrategyRecommendation): number | null => {
 export interface CropMeta {
   emoji: string;
   code: string;
-  family: "cereal" | "legume" | "oilseed" | "fiber" | "fallow" | "forage";
+  family: "cereal" | "legume" | "oilseed" | "fiber" | "fallow" | "forage" | "tuber";
   /** Tailwind classes for a pill/block representing this crop */
   tone: string;
   /** Raw colour for SVG / 3D Canvas */
@@ -83,10 +83,10 @@ export interface CropMeta {
 
 export function cropMeta(cropId?: string | null): CropMeta {
   const c = (cropId ?? "").toLowerCase();
-  if (c.includes("rice") || c.includes("paddy"))
+  if (c.includes("rice") || c.includes("paddy") || c.includes("basmati"))
     return {
       emoji: "ORI",
-      code: c.includes("dsr") ? "DSR-ORI" : "PAD-ORI",
+      code: c.includes("dsr") ? "DSR-ORI" : c.includes("basmati") ? "BAS-ORI" : "PAD-ORI",
       family: "cereal",
       tone: "bg-sky-500/12 text-sky-800 dark:text-sky-300 border-sky-500/30",
       color: "#3898c8",
@@ -94,7 +94,7 @@ export function cropMeta(cropId?: string | null): CropMeta {
   if (c.includes("wheat") || c.includes("barley") || c.includes("rye"))
     return {
       emoji: "TRI",
-      code: "WHT-TRI",
+      code: c.includes("barley") ? "BRL-HOR" : "WHT-TRI",
       family: "cereal",
       tone: "bg-amber-500/12 text-amber-800 dark:text-amber-300 border-amber-500/30",
       color: "#d49b35",
@@ -107,6 +107,14 @@ export function cropMeta(cropId?: string | null): CropMeta {
       tone: "bg-yellow-500/12 text-yellow-800 dark:text-yellow-300 border-yellow-500/30",
       color: "#ca8a04",
     };
+  if (c.includes("potato") || c.includes("tuber"))
+    return {
+      emoji: "SOL",
+      code: "POT-SOL",
+      family: "tuber",
+      tone: "bg-purple-500/12 text-purple-800 dark:text-purple-300 border-purple-500/30",
+      color: "#a855f7",
+    };
   if (c.includes("cotton"))
     return {
       emoji: "GOS",
@@ -117,6 +125,8 @@ export function cropMeta(cropId?: string | null): CropMeta {
     };
   if (
     c.includes("moong") ||
+    c.includes("urad") ||
+    c.includes("groundnut") ||
     c.includes("bean") ||
     c.includes("chickpea") ||
     c.includes("soy") ||
@@ -124,18 +134,19 @@ export function cropMeta(cropId?: string | null): CropMeta {
     c.includes("gram") ||
     c.includes("clover") ||
     c.includes("berseem") ||
+    c.includes("dhaincha") ||
     c.includes("lentil") ||
     c.includes("cowpea") ||
     c.includes("pigeon")
   )
     return {
       emoji: "FAB",
-      code: "LEG-BNF",
+      code: c.includes("groundnut") ? "GNT-FAB" : "LEG-BNF",
       family: "legume",
       tone: "bg-emerald-500/12 text-emerald-800 dark:text-emerald-300 border-emerald-500/30",
       color: "#4d9e6d",
     };
-  if (c.includes("mustard") || c.includes("sunflower") || c.includes("canola") || c.includes("groundnut"))
+  if (c.includes("mustard") || c.includes("sunflower") || c.includes("canola"))
     return {
       emoji: "OLS",
       code: "OIL-BRS",
@@ -189,8 +200,7 @@ const CROP_LABELS: Record<string, string> = {
   barley: "Barley",
   sunflower: "Sunflower",
   potato: "Potato",
-  sugarcane: "Sugarcane",
-  guar: "Cluster Bean (Guar)",
+  common_bean: "Common Bean (Rajma)",
   berseem: "Berseem Clover",
   dhaincha: "Dhaincha (Green Manure)",
   fallow: "Fallow",
@@ -202,7 +212,10 @@ export const cropName = (cropId: string) =>
     .replace(/_/g, " ")
     .replace(/^\w/, (m) => m.toUpperCase());
 
-export function seasonName(lat: number, _lon: number, idx: number): string {
+export function seasonName(lat: number, lon: number, idx: number): string {
+  if (!isSouthAsia(lat, lon)) {
+    return ["Main Season", "Cool / Winter", "Catch / Cover"][idx] ?? `S${idx + 1}`;
+  }
   if (lat < 16.5) return ["Kuruvai (Kharif)", "Samba (Rabi)", "Navarai (Summer)"][idx] ?? `S${idx + 1}`;
   return ["Kharif", "Rabi", "Zaid"][idx] ?? `S${idx + 1}`;
 }
@@ -270,10 +283,11 @@ export interface RegionContext {
   regionName: string;
   defaultBadge: string;
   defaultTone: string;
+  currencySymbol: string;
 }
 
 export function regionContext(lat: number, lon: number, goldenId: string | null): RegionContext {
-  if (goldenId === "vidarbha" || (lat >= 17.0 && lat <= 22.0 && lon >= 73.5 && lon <= 81.5)) {
+  if (goldenId === "vidarbha" || (lat >= 17.0 && lat <= 21.8 && lon >= 73.5 && lon <= 81.5)) {
     return {
       key: "vidarbha",
       icon: "IN-MH",
@@ -282,9 +296,10 @@ export function regionContext(lat: number, lon: number, goldenId: string | null)
       regionName: "Deccan Trap Vertisols (Maharashtra)",
       defaultBadge: "RAINFED VERTISOL CORRIDOR",
       defaultTone: "border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
+      currencySymbol: "₹",
     };
   }
-  if (goldenId === "bundelkhand" || (lat >= 23.8 && lat <= 26.5 && lon >= 77.5 && lon <= 81.2)) {
+  if (goldenId === "bundelkhand" || (lat >= 23.8 && lat <= 26.3 && lon >= 78.0 && lon <= 81.5)) {
     return {
       key: "bundelkhand",
       icon: "IN-UP·BK",
@@ -293,9 +308,10 @@ export function regionContext(lat: number, lon: number, goldenId: string | null)
       regionName: "Bundelkhand Hard-Rock Plateau",
       defaultBadge: "DRYLAND PLATEAU ADAPTATION",
       defaultTone: "border-amber-500/50 bg-amber-500/15 text-amber-600 dark:text-amber-300",
+      currencySymbol: "₹",
     };
   }
-  if (goldenId === "thanjavur" || (lat >= 8.0 && lat < 17.0 && lon >= 78.0 && lon <= 85.0)) {
+  if (goldenId === "thanjavur" || (lat >= 8.0 && lat < 17.0 && lon >= 77.8 && lon <= 85.0)) {
     return {
       key: "cauvery",
       icon: "IN-TN",
@@ -304,9 +320,10 @@ export function regionContext(lat: number, lon: number, goldenId: string | null)
       regionName: "Cauvery Delta & East Coast Plains",
       defaultBadge: "DELTAIC RICE-PULSE SYSTEM",
       defaultTone: "border-cyan-500/50 bg-cyan-500/15 text-cyan-600 dark:text-cyan-300",
+      currencySymbol: "₹",
     };
   }
-  if (lat >= 8.0 && lat < 17.0 && lon >= 72.0 && lon < 78.0) {
+  if (lat >= 8.0 && lat < 17.0 && lon >= 72.0 && lon < 77.8) {
     return {
       key: "peninsular",
       icon: "IN-KA",
@@ -315,6 +332,7 @@ export function regionContext(lat: number, lon: number, goldenId: string | null)
       regionName: "Southern Peninsular Plateau & Ghats",
       defaultBadge: "PENINSULAR SEMI-ARID ZONE",
       defaultTone: "border-teal-500/50 bg-teal-500/15 text-teal-600 dark:text-teal-300",
+      currencySymbol: "₹",
     };
   }
   if (goldenId === "bathinda" || (lat >= 29.2 && lat <= 30.6 && lon >= 73.8 && lon <= 75.3)) {
@@ -326,6 +344,7 @@ export function regionContext(lat: number, lon: number, goldenId: string | null)
       regionName: "Semi-Arid Malwa Belt (SW Punjab)",
       defaultBadge: "SEMI-ARID CANAL COMMAND",
       defaultTone: "border-orange-500/50 bg-orange-500/15 text-orange-600 dark:text-orange-300",
+      currencySymbol: "₹",
     };
   }
   if (
@@ -341,9 +360,10 @@ export function regionContext(lat: number, lon: number, goldenId: string | null)
       regionName: "Indo-Gangetic Basin (NW Plains)",
       defaultBadge: "CRITICAL AQUIFER CORRIDOR",
       defaultTone: "border-amber-500/50 bg-amber-500/15 text-amber-600 dark:text-amber-300",
+      currencySymbol: "₹",
     };
   }
-  if ((lat > 32.5 && lon >= 72.0 && lon <= 81.5) || (lat >= 29.5 && lat <= 32.5 && lon > 77.5 && lon <= 81.5)) {
+  if ((lat > 32.5 && lat <= 37.5 && lon >= 72.0 && lon <= 81.5) || (lat >= 29.5 && lat <= 32.5 && lon > 77.5 && lon <= 81.5)) {
     return {
       key: "himalayan",
       icon: "IN-HI",
@@ -352,9 +372,10 @@ export function regionContext(lat: number, lon: number, goldenId: string | null)
       regionName: "Western Himalayan Hill & Sub-Montane Belt",
       defaultBadge: "MONTANE TERRACE REGIME",
       defaultTone: "border-sky-500/50 bg-sky-500/15 text-sky-600 dark:text-sky-300",
+      currencySymbol: "₹",
     };
   }
-  if (lat >= 24.0 && lat < 29.2 && lon >= 69.0 && lon < 76.5) {
+  if (lat >= 24.5 && lat < 29.2 && lon >= 69.0 && lon < 76.2) {
     return {
       key: "arid_west",
       icon: "IN-RJ",
@@ -363,6 +384,7 @@ export function regionContext(lat: number, lon: number, goldenId: string | null)
       regionName: "Western Dry & Thar Arid Belt (Rajasthan)",
       defaultBadge: "ARID DESERT & MARWAR BELT",
       defaultTone: "border-orange-500/50 bg-orange-500/15 text-orange-600 dark:text-orange-300",
+      currencySymbol: "₹",
     };
   }
   if (lat >= 20.0 && lat < 24.5 && lon >= 68.0 && lon < 74.5) {
@@ -374,9 +396,10 @@ export function regionContext(lat: number, lon: number, goldenId: string | null)
       regionName: "Gujarat Plains & Saurashtra Corridor",
       defaultBadge: "SEMI-ARID OILSEED-COTTON BELT",
       defaultTone: "border-amber-500/50 bg-amber-500/15 text-amber-600 dark:text-amber-300",
+      currencySymbol: "₹",
     };
   }
-  if (lat >= 21.0 && lat < 26.5 && lon >= 74.5 && lon <= 83.0) {
+  if (lat >= 21.8 && lat < 25.8 && lon >= 74.5 && lon < 83.0) {
     return {
       key: "central_plateau",
       icon: "IN-MP",
@@ -385,9 +408,10 @@ export function regionContext(lat: number, lon: number, goldenId: string | null)
       regionName: "Central Malwa & Vindhyan Plateau",
       defaultBadge: "CENTRAL SOYBEAN-WHEAT PLATEAU",
       defaultTone: "border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
+      currencySymbol: "₹",
     };
   }
-  if (lat >= 24.5 && lat <= 29.5 && lon >= 76.5 && lon <= 88.0) {
+  if (lat >= 25.8 && lat <= 29.5 && lon >= 76.5 && lon <= 84.5) {
     return {
       key: "gangetic",
       icon: "IN-IGP",
@@ -396,9 +420,10 @@ export function regionContext(lat: number, lon: number, goldenId: string | null)
       regionName: "Upper & Middle Indo-Gangetic Alluvial Basin",
       defaultBadge: "ALLUVIAL CEREAL-PULSE CORRIDOR",
       defaultTone: "border-cyan-500/50 bg-cyan-500/15 text-cyan-600 dark:text-cyan-300",
+      currencySymbol: "₹",
     };
   }
-  if (lat >= 18.0 && lat <= 28.5 && lon > 83.0 && lon <= 97.5) {
+  if (lat >= 18.0 && lat <= 28.5 && lon > 84.5 && lon <= 97.5) {
     return {
       key: "eastern",
       icon: "IN-EA",
@@ -407,6 +432,7 @@ export function regionContext(lat: number, lon: number, goldenId: string | null)
       regionName: "Eastern Alluvial & Chota Nagpur Plateau",
       defaultBadge: "HIGH-RAINFALL RICE-PULSE ZONE",
       defaultTone: "border-cyan-500/50 bg-cyan-500/15 text-cyan-600 dark:text-cyan-300",
+      currencySymbol: "₹",
     };
   }
   if (lat >= 5 && lat <= 38.5 && lon >= 66 && lon <= 99) {
@@ -418,6 +444,7 @@ export function regionContext(lat: number, lon: number, goldenId: string | null)
       regionName: "South Asian Subtropical Agro-Climatic Zone",
       defaultBadge: "SUBTROPICAL EO SWATH",
       defaultTone: "border-cyan-500/45 bg-cyan-500/15 text-cyan-600 dark:text-cyan-300",
+      currencySymbol: "₹",
     };
   }
   return {
@@ -425,9 +452,10 @@ export function regionContext(lat: number, lon: number, goldenId: string | null)
     icon: "GL-EO",
     code: "SECTOR // GLOBAL-SWATH",
     shortName: "Global Parcel",
-    regionName: "Global Agro-Climatic Intelligence & Subsurface Modeling",
-    defaultBadge: "GLOBAL EO SWATH",
+    regionName: "Global Agro-Climatic Intelligence (Exploratory Mode)",
+    defaultBadge: "GLOBAL EXPLORATORY SWATH",
     defaultTone: "border-cyan-500/45 bg-cyan-500/15 text-cyan-600 dark:text-cyan-300",
+    currencySymbol: "$",
   };
 }
 
@@ -447,7 +475,8 @@ export function buildSectorBriefing(
   lon: number,
   goldenId: string | null,
   profile: FieldProfile | null,
-  topRec?: StrategyRecommendation | null
+  topRec?: StrategyRecommendation | null,
+  lang: "en" | "hi" | "pa" = "en"
 ): SectorBriefing {
   const reg = regionContext(lat, lon, goldenId);
 
@@ -455,8 +484,18 @@ export function buildSectorBriefing(
     return {
       badge: reg.defaultBadge,
       badgeTone: reg.defaultTone,
-      title: `${reg.regionName}: Synchronizing Satellite Swath…`,
-      description: `Sampling NASA POWER daily agroclimatology, ISRIC SoilGrids 250m soil physics, NASA SMAP root-zone moisture, and GRACE-FO groundwater trends for ${fmtDMS(lat, true)} ${fmtDMS(lon, false)}.`,
+      title:
+        lang === "hi"
+          ? `${reg.shortName}: सैटेलाइट डेटा लोड हो रहा है…`
+          : lang === "pa"
+          ? `${reg.shortName}: ਸੈਟੇਲਾਈਟ ਡਾਟਾ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…`
+          : `${reg.regionName}: Synchronizing Satellite Swath…`,
+      description:
+        lang === "hi"
+          ? `${fmtDMS(lat, true)} ${fmtDMS(lon, false)} के लिए NASA POWER, SoilGrids 250m, SMAP और GRACE-FO भूजल डेटा प्राप्त किया जा रहा है।`
+          : lang === "pa"
+          ? `${fmtDMS(lat, true)} ${fmtDMS(lon, false)} ਲਈ NASA POWER, SoilGrids 250m, SMAP ਅਤੇ GRACE-FO ਧਰਤੀ ਹੇਠਲੇ ਪਾਣੀ ਦਾ ਡਾਟਾ ਲਿਆ ਜਾ ਰਿਹਾ ਹੈ।`
+          : `Sampling NASA POWER daily agroclimatology, ISRIC SoilGrids 250m soil physics, NASA SMAP root-zone moisture, and GRACE-FO groundwater trends for ${fmtDMS(lat, true)} ${fmtDMS(lon, false)}.`,
     };
   }
 
@@ -473,7 +512,6 @@ export function buildSectorBriefing(
   const soc = soil.soc_g_per_kg !== undefined && soil.soc_g_per_kg !== null ? soil.soc_g_per_kg.toFixed(1) : "5.5";
   const ph = soil.ph !== undefined && soil.ph !== null ? soil.ph.toFixed(1) : "7.5";
 
-  // 1. Dynamic Badge & Tone based on live parcel hydro-edaphic thresholds
   let badge = reg.defaultBadge;
   let badgeTone = reg.defaultTone;
 
@@ -496,40 +534,83 @@ export function buildSectorBriefing(
     badge = `${reg.defaultBadge} · ${precip} MM/YR`;
   }
 
-  // 2. Dynamic Headline combining actual region with parcel-specific agronomic challenge
   let focusHeadline = "Water-Smart Rotation & Soil Carbon Stewardship";
-  if (precip < 450) {
-    focusHeadline = "Arid Moisture Conservation & Drought-Hardy Millet–Pulse Systems";
-  } else if (gw !== undefined && gw !== null && gw < -2.0 && hazards.residue_burning_detected) {
-    focusHeadline = "Aquifer Depletion & Stubble Fire Mitigation";
-  } else if (gw !== undefined && gw !== null && gw < -2.0) {
-    focusHeadline = "Groundwater Overdraft Recovery & Low-Irrigation Diversification";
-  } else if (clay >= 40) {
-    focusHeadline = "Cracking-Clay Moisture Storage & Rainfed Cotton–Pulse Relay";
-  } else if (sand >= 58) {
-    focusHeadline = "Coarse-Textured Root-Zone Retention & Dryland Pulse–Oilseed Rotation";
-  } else if (wb < -650) {
-    focusHeadline = "High Evaporative Demand & Canal/Deficit Pulse Diversification";
-  } else if (precip >= 1150) {
-    focusHeadline = "Monsoon Rice–Pulse Relay & Biological Nitrogen Optimization";
+  if (lang === "hi") {
+    focusHeadline = "जल-संरक्षण फसल चक्र एवं मृदा कार्बन संवर्धन";
+    if (precip < 450) focusHeadline = "शुष्क जल संरक्षण और बाजरा-दलहन प्रणाली";
+    else if (gw !== undefined && gw !== null && gw < -2.0 && hazards.residue_burning_detected)
+      focusHeadline = "भूजल संकट व पराली जलाने का समाधान";
+    else if (gw !== undefined && gw !== null && gw < -2.0)
+      focusHeadline = "भूजल संरक्षण और कम सिंचाई फसल विविधीकरण";
+    else if (clay >= 40) focusHeadline = "काली मिट्टी नमी संरक्षण और वर्षा-आधारित कपास-दलहन";
+    else if (sand >= 58) focusHeadline = "हल्की मिट्टी में नमी व दलहन-तिलहन चक्र";
+    else if (precip >= 1150) focusHeadline = "अधिक वर्षा धान-दलहन रिले एवं नाइट्रोजन संतुलन";
+  } else if (lang === "pa") {
+    focusHeadline = "ਪਾਣੀ-ਸੰਭਾਲ ਫ਼ਸਲੀ ਚੱਕਰ ਅਤੇ ਮਿੱਟੀ ਕਾਰਬਨ ਸੁਧਾਰ";
+    if (precip < 450) focusHeadline = "ਖੁਸ਼ਕ ਖੇਤਰ ਨਮੀ ਸੰਭਾਲ ਅਤੇ ਬਾਜਰਾ-ਦਾਲਾਂ ਪ੍ਰਣਾਲੀ";
+    else if (gw !== undefined && gw !== null && gw < -2.0 && hazards.residue_burning_detected)
+      focusHeadline = "ਧਰਤੀ ਹੇਠਲੇ ਪਾਣੀ ਦੀ ਬਚਤ ਤੇ ਪਰਾਲੀ-ਮੁਕਤ ਖੇਤੀ";
+    else if (gw !== undefined && gw !== null && gw < -2.0)
+      focusHeadline = "ਭੂ-ਜਲ ਸੰਕਟ ਸੁਧਾਰ ਅਤੇ ਘੱਟ-ਪਾਣੀ ਵਾਲਾ ਫ਼ਸਲੀ ਵਿਭਿੰਨਤਾ ਚੱਕਰ";
+    else if (clay >= 40) focusHeadline = "ਕਾਲੀ ਚੀਕਣੀ ਮਿੱਟੀ ਵਿੱਚ ਨਮੀ ਸੰਭਾਲ ਤੇ ਨਰਮਾ-ਦਾਲਾਂ";
+    else if (sand >= 58) focusHeadline = "ਰੇਤਲੀ ਮਿੱਟੀ ਲਈ ਨਮੀ ਸੰਭਾਲ ਤੇ ਦਾਲਾਂ-ਤੇਲ ਬੀਜ ਚੱਕਰ";
+    else if (precip >= 1150) focusHeadline = "ਭਾਰੀ ਮੀਂਹ ਝੋਨਾ-ਦਾਲਾਂ ਪ੍ਰਣਾਲੀ ਤੇ ਜੈਵਿਕ ਨਾਈਟ੍ਰੋਜਨ";
+  } else {
+    if (precip < 450) {
+      focusHeadline = "Arid Moisture Conservation & Drought-Hardy Millet–Pulse Systems";
+    } else if (gw !== undefined && gw !== null && gw < -2.0 && hazards.residue_burning_detected) {
+      focusHeadline = "Aquifer Depletion & Stubble Fire Mitigation";
+    } else if (gw !== undefined && gw !== null && gw < -2.0) {
+      focusHeadline = "Groundwater Overdraft Recovery & Low-Irrigation Diversification";
+    } else if (clay >= 40) {
+      focusHeadline = "Cracking-Clay Moisture Storage & Rainfed Cotton–Pulse Relay";
+    } else if (sand >= 58) {
+      focusHeadline = "Coarse-Textured Root-Zone Retention & Dryland Pulse–Oilseed Rotation";
+    } else if (wb < -650) {
+      focusHeadline = "High Evaporative Demand & Canal/Deficit Pulse Diversification";
+    } else if (precip >= 1150) {
+      focusHeadline = "Monsoon Rice–Pulse Relay & Biological Nitrogen Optimization";
+    }
   }
 
   const title = `${reg.regionName}: ${focusHeadline}`;
-
-  // 3. Dynamic Description grounded strictly in engine-returned profile numbers
   const wbStr = `${wb > 0 ? "+" : ""}${wb.toLocaleString()} mm/yr`;
+  const savedPct = topRec ? waterSavedPct(topRec) : null;
+
+  if (lang === "hi") {
+    const gwHi = gw !== undefined && gw !== null ? `, तथा NASA GRACE-FO भूजल प्रवृत्ति ${gw > 0 ? "+" : ""}${gw.toFixed(2)} सेमी/वर्ष है` : "";
+    const recHi = topRec?.rotation.label
+      ? ` अनुशंसित विकल्प: ${topRec.rotation.label}${savedPct && savedPct > 0 ? ` (−${savedPct}% सिंचाई जल)` : ""}।`
+      : "";
+    return {
+      badge,
+      badgeTone,
+      title,
+      description: `${fmtDMS(lat, true)} ${fmtDMS(lon, false)} पर वार्षिक वर्षा ${precip.toLocaleString()} मिमी तथा ET₀ ${et0.toLocaleString()} मिमी (${wbStr})${gwHi}। मिट्टी: ${texture} (${sand}% रेत, ${clay}% चिकनी, ${soc} g/kg कार्बन, pH ${ph})।${recHi}`,
+    };
+  }
+  if (lang === "pa") {
+    const gwPa = gw !== undefined && gw !== null ? `, ਅਤੇ NASA GRACE-FO ਰੁਝਾਨ ${gw > 0 ? "+" : ""}${gw.toFixed(2)} ਸੈਂਟੀਮੀਟਰ/ਸਾਲ ਹੈ` : "";
+    const recPa = topRec?.rotation.label
+      ? ` ਸਿਫ਼ਾਰਿਸ਼ ਚੱਕਰ: ${topRec.rotation.label}${savedPct && savedPct > 0 ? ` (−${savedPct}% ਸਿੰਚਾਈ ਪਾਣੀ)` : ""}।`
+      : "";
+    return {
+      badge,
+      badgeTone,
+      title,
+      description: `${fmtDMS(lat, true)} ${fmtDMS(lon, false)} 'ਤੇ ਸਾਲਾਨਾ ਮੀਂਹ ${precip.toLocaleString()} ਮਿਮੀ ਅਤੇ ET₀ ${et0.toLocaleString()} ਮਿਮੀ (${wbStr})${gwPa}। ਮਿੱਟੀ: ${texture} (${sand}% ਰੇਤ, ${clay}% ਚੀਕਣੀ, ${soc} g/kg ਕਾਰਬਨ, pH ${ph})।${recPa}`,
+    };
+  }
+
   const gwClause =
     gw !== undefined && gw !== null
       ? `, while NASA GRACE-FO mascons track ${gw > 0 ? "+" : ""}${gw.toFixed(2)} cm/yr groundwater storage change`
       : "";
-
   const fireOrDryClause = hazards.residue_burning_detected
     ? " with post-harvest residue burning detected by NASA FIRMS"
     : climate.longest_dry_spell_days_mean >= 15
     ? ` with ${Math.round(climate.longest_dry_spell_days_mean)}-day mean monsoon dry spells and ${Math.round(climate.recent_heat_days_per_year)} heat-stress days/yr (>35°C)`
     : ` across ${Math.round(climate.recent_heat_days_per_year)} heat-stress days/yr (>35°C)`;
-
-  const savedPct = topRec ? waterSavedPct(topRec) : null;
   const recClause = topRec?.rotation.label
     ? `TerraLoop prescribes ${topRec.rotation.label}${savedPct && savedPct > 0 ? ` (−${savedPct}% irrigation water)` : ""} to match this parcel's water balance and rebuild soil organic carbon.`
     : "TerraLoop evaluates drought-hardy pulses, oilseeds, and residue-retention rotations tailored to this parcel's hydro-edaphic envelope.";
@@ -555,10 +636,7 @@ export const regionFlag = (id: string) =>
     vidarbha: "MH·VD",
     bundelkhand: "UP·BK",
     thanjavur: "TN·TJ",
-  })[id] ?? "IN·AG";
+  })[id] ?? (id ? id.slice(0, 5).toUpperCase() : "GL·AO");
 
-export const currencyFor = (profile: FieldProfile | null, _lat: number, _lon: number) => {
-  void _lat;
-  void _lon;
-  return profile?.currency_symbol ?? "₹";
-};
+export const currencyFor = (profile: FieldProfile | null, lat: number, lon: number) =>
+  profile?.currency_symbol ?? (isSouthAsia(lat, lon) ? "₹" : "$");

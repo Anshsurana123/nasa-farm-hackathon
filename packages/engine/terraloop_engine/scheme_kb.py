@@ -49,33 +49,36 @@ def get_matching_schemes(
     planted_crops: set[str],
     practices: set[str],
     urea_bags_saved: float = 0.0,
+    region_id: str | None = None,
 ) -> list[str]:
     """Return matching central and state government agricultural scheme display titles."""
+    if not state:
+        return []
+
     all_schemes = load_all_schemes()
     matched_titles: list[str] = []
 
     # 1. State schemes (only if state is determined and matches)
-    if state:
-        state_key_map = {
-            "haryana": "haryana",
-            "punjab": "punjab",
-            "maharashtra": "maharashtra",
-            "tamil nadu": "tamil_nadu",
-            "uttar pradesh": "uttar_pradesh",
-        }
-        target_key = state_key_map.get(state.lower().strip())
-        if target_key and target_key in all_schemes:
-            for s in all_schemes[target_key]:
-                if _is_scheme_eligible(s, planted_crops, practices, urea_bags_saved):
-                    matched_titles.append(s.get("display_title", s["name"]))
+    state_key_map = {
+        "haryana": "haryana",
+        "punjab": "punjab",
+        "maharashtra": "maharashtra",
+        "tamil nadu": "tamil_nadu",
+        "uttar pradesh": "uttar_pradesh",
+    }
+    target_key = state_key_map.get(state.lower().strip())
+    if target_key and target_key in all_schemes:
+        for s in all_schemes[target_key]:
+            if _is_scheme_eligible(s, planted_crops, practices, urea_bags_saved, region_id=region_id):
+                matched_titles.append(s.get("display_title", s["name"]))
 
-    # 2. Central schemes (universal)
+    # 2. Central schemes (Indian national schemes only when in India)
     central = all_schemes.get("central", [])
     for s in central:
         # Don't duplicate mechanization if state CRM already matched
         if s.get("id") == "smam_mechanization" and any("CRM Sub-Mission" in t for t in matched_titles):
             continue
-        if _is_scheme_eligible(s, planted_crops, practices, urea_bags_saved):
+        if _is_scheme_eligible(s, planted_crops, practices, urea_bags_saved, region_id=region_id):
             matched_titles.append(s.get("display_title", s["name"]))
 
     return matched_titles
@@ -86,7 +89,11 @@ def _is_scheme_eligible(
     planted_crops: set[str],
     practices: set[str],
     urea_bags_saved: float,
+    region_id: str | None = None,
 ) -> bool:
+    eligible_zones = set(scheme.get("eligible_zones") or [])
+    if eligible_zones and region_id and region_id not in eligible_zones:
+        return False
     # Check trigger on urea saved
     if "trigger_min_urea_bags_saved" in scheme and urea_bags_saved < float(scheme["trigger_min_urea_bags_saved"]):
         return False

@@ -52,6 +52,26 @@ vidarbha:
   nitrogen: 0.65
   source_citation: "PDKV Akola / NBSS&LUP Nagpur Deep Black Vertisol"
 
+western_maharashtra:
+  sand: 28.0
+  silt: 28.0
+  clay: 44.0
+  soc: 6.8
+  phh2o: 7.5
+  bdod: 138.0
+  nitrogen: 0.68
+  source_citation: "MPKV Rahuri Deccan Plateau Medium Black Soil"
+
+western_up:
+  sand: 46.0
+  silt: 35.0
+  clay: 19.0
+  soc: 5.0
+  phh2o: 7.8
+  bdod: 148.0
+  nitrogen: 0.55
+  source_citation: "SVPUAT Meerut Upper Gangetic Alluvial Loam"
+
 cauvery:
   sand: 32.0
   silt: 32.0

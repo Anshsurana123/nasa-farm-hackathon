@@ -86,3 +86,153 @@ crops:
     market_risk: 0.15
     procurement_type: "nafed_pss"
     sources: ["CACP Kharif 2024-25 (Cotton MSP Rs 7,121/q)"]
+
+  barley:
+    price_per_tonne: 19800
+    price_usd_per_tonne: 237.1
+    cost_per_ha: 30500
+    labor_cost_per_ha: 9000
+    cost_usd_per_ha: 365.3
+    market_risk: 0.18
+    procurement_type: "mandi_linked"
+    sources: ["CACP Rabi 2024-25 (Barley MSP Rs 1,980/q; TNAU cost reference)"]
+
+  basmati:
+    price_per_tonne: 37500
+    price_usd_per_tonne: 449.1
+    cost_per_ha: 55000
+    labor_cost_per_ha: 21000
+    cost_usd_per_ha: 658.7
+    market_risk: 0.25
+    procurement_type: "mandi_linked"
+    sources: ["TNAU Specialty Aromatic Rice Market Benchmark"]
+
+  berseem:
+    price_per_tonne: 2200
+    price_usd_per_tonne: 26.3
+    cost_per_ha: 36000
+    labor_cost_per_ha: 13000
+    cost_usd_per_ha: 431.1
+    market_risk: 0.12
+    procurement_type: "mandi_linked"
+    sources: ["TANUVAS / TNAU Green Fodder Enterprise Budget"]
+
+  chickpea:
+    price_per_tonne: 56500
+    price_usd_per_tonne: 676.6
+    cost_per_ha: 30500
+    labor_cost_per_ha: 9500
+    cost_usd_per_ha: 365.3
+    market_risk: 0.12
+    procurement_type: "nafed_pss"
+    sources: ["CACP Rabi 2024-25 (Gram MSP Rs 5,650/q)"]
+
+  common_bean:
+    price_per_tonne: 68000
+    price_usd_per_tonne: 814.4
+    cost_per_ha: 33000
+    labor_cost_per_ha: 10500
+    cost_usd_per_ha: 395.2
+    market_risk: 0.22
+    procurement_type: "mandi_linked"
+    sources: ["Agmarknet Tamil Nadu Dry Bean / Rajma Wholesale Price"]
+
+  dhaincha:
+    price_per_tonne: 0
+    price_usd_per_tonne: 0.0
+    cost_per_ha: 8200
+    labor_cost_per_ha: 2500
+    cost_usd_per_ha: 98.2
+    market_risk: 0.0
+    procurement_type: "msp_assured"
+    sources: ["TNAU / Aduthurai TRRI In-situ Green Manuring Package"]
+
+  lentil:
+    price_per_tonne: 67000
+    price_usd_per_tonne: 802.4
+    cost_per_ha: 29000
+    labor_cost_per_ha: 9000
+    cost_usd_per_ha: 347.3
+    market_risk: 0.12
+    procurement_type: "nafed_pss"
+    sources: ["CACP Rabi 2024-25 (Masur MSP Rs 6,700/q)"]
+
+  mustard:
+    price_per_tonne: 59500
+    price_usd_per_tonne: 712.6
+    cost_per_ha: 31500
+    labor_cost_per_ha: 9500
+    cost_usd_per_ha: 377.2
+    market_risk: 0.14
+    procurement_type: "nafed_pss"
+    sources: ["CACP Rabi 2024-25 (Mustard MSP Rs 5,950/q)"]
+
+  pearl_millet:
+    price_per_tonne: 26250
+    price_usd_per_tonne: 314.4
+    cost_per_ha: 26500
+    labor_cost_per_ha: 8800
+    cost_usd_per_ha: 317.4
+    market_risk: 0.14
+    procurement_type: "msp_assured"
+    sources: ["CACP Kharif 2024-25 (Bajra / Cumbu MSP Rs 2,625/q; TNAU Cost Studies)"]
+
+  pigeon_pea:
+    price_per_tonne: 75500
+    price_usd_per_tonne: 904.2
+    cost_per_ha: 32500
+    labor_cost_per_ha: 10500
+    cost_usd_per_ha: 389.2
+    market_risk: 0.12
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Tur / Redgram MSP Rs 7,550/q; TNAU)"]
+
+  potato:
+    price_per_tonne: 11500
+    price_usd_per_tonne: 137.7
+    cost_per_ha: 98000
+    labor_cost_per_ha: 28000
+    cost_usd_per_ha: 1173.7
+    market_risk: 0.36
+    procurement_type: "mandi_linked"
+    sources: ["TNAU / Nilgiris & Western Hills Horticulture Study"]
+
+  sorghum:
+    price_per_tonne: 33710
+    price_usd_per_tonne: 403.7
+    cost_per_ha: 27500
+    labor_cost_per_ha: 9200
+    cost_usd_per_ha: 329.3
+    market_risk: 0.14
+    procurement_type: "msp_assured"
+    sources: ["CACP Kharif 2024-25 (Jowar / Cholam MSP Rs 3,371/q; TNAU Cost Studies)"]
+
+  soybean:
+    price_per_tonne: 48920
+    price_usd_per_tonne: 585.9
+    cost_per_ha: 34500
+    labor_cost_per_ha: 11000
+    cost_usd_per_ha: 413.2
+    market_risk: 0.15
+    procurement_type: "nafed_pss"
+    sources: ["CACP Kharif 2024-25 (Soybean MSP Rs 4,892/q)"]
+
+  sunflower:
+    price_per_tonne: 72800
+    price_usd_per_tonne: 871.9
+    cost_per_ha: 33500
+    labor_cost_per_ha: 10200
+    cost_usd_per_ha: 401.2
+    market_risk: 0.15
+    procurement_type: "nafed_pss"
+    sources: ["CACP Price Policy 2024-25 (Sunflower MSP Rs 7,280/q; TNAU Dryland/Cauvery Summer Trail)"]
+
+  wheat:
+    price_per_tonne: 24250
+    price_usd_per_tonne: 290.4
+    cost_per_ha: 42000
+    labor_cost_per_ha: 12000
+    cost_usd_per_ha: 503.0
+    market_risk: 0.10
+    procurement_type: "msp_assured"
+    sources: ["CACP Rabi 2024-25 (Wheat MSP Rs 2,425/q; reference cost baseline)"]

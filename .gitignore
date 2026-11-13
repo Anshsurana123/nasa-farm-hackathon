@@ -67,6 +67,7 @@ credentials.json
 
 # TerraLoop specific data caches (keep golden test fixtures)
 data/cache/
+data/jobs/
 !data/golden/
 
 # OS and IDE files

@@ -231,6 +231,11 @@ def detect_region_config(lat: float, lon: float) -> RegionConfig:
             hemisphere=hemisphere,
             economics_table=None,
             state=None,
+            baseline_rotation=("maize", "soybean", "fallow"),
+            baseline_slope_pct=1.2,
+            grace_trend_cm_yr=0.0,
+            grace_citation="NASA GRACE-FO Global Observation Required (No Regional Prior)",
+            igp_merra2_bias_correction=False,
         )
 
     zones_dict = load_zones_data().get("zones", {})
@@ -247,7 +252,8 @@ def detect_region_config(lat: float, lon: float) -> RegionConfig:
     elif state_norm in ("gujarat", "dadra and nagar haveli and daman and diu"):
         zone_id = "gujarat"
     elif state_norm == "maharashtra":
-        zone_id = "vidarbha"
+        # Western Maharashtra / Sahyadri / Konkan vs Vidarbha & Marathwada
+        zone_id = "western_maharashtra" if lon < 75.8 else "vidarbha"
     elif state_norm in ("tamil nadu", "puducherry"):
         zone_id = "cauvery"
     elif state_norm in ("kerala", "goa"):
@@ -264,14 +270,20 @@ def detect_region_config(lat: float, lon: float) -> RegionConfig:
         # Bundelkhand (northern MP: Tikamgarh, Chhatarpur, Datia, Panna) vs Malwa
         zone_id = "bundelkhand" if (lat >= 23.5 and 77.5 <= lon <= 81.5) else "central_malwa"
     elif state_norm == "uttar pradesh":
-        # Bundelkhand (southern UP: Jhansi, Lalitpur, Banda, Mahoba) vs Gangetic Plain
-        zone_id = "bundelkhand" if (lat <= 26.5 and 77.5 <= lon <= 81.5) else "eastern_gangetic"
+        # Bundelkhand (southern UP: Jhansi, Lalitpur, Banda) vs Western UP vs Eastern UP
+        if lat <= 26.5 and 77.5 <= lon <= 81.5:
+            zone_id = "bundelkhand"
+        elif lon < 80.5:
+            zone_id = "western_up"
+        else:
+            zone_id = "eastern_gangetic"
     elif state_norm in ("bihar", "west bengal", "jharkhand", "odisha", "chhattisgarh"):
         zone_id = "eastern_gangetic"
     else:
         zone_id = "eastern_gangetic"
 
     z_cfg = zones_dict.get(zone_id, load_zones_data().get("default_zone", {}))
+    econ_table = "uttar_pradesh" if state_norm == "uttar pradesh" else z_cfg.get("economics_table", "punjab")
 
     return RegionConfig(
         region_id=zone_id,
@@ -285,7 +297,7 @@ def detect_region_config(lat: float, lon: float) -> RegionConfig:
         allow_economic_ranking=True,
         agro_zone=z_cfg.get("agro_zone", "Trans-Gangetic Plains (Alluvial Rice–Wheat Belt)"),
         hemisphere="NH",
-        economics_table=z_cfg.get("economics_table", "punjab"),
+        economics_table=econ_table,
         state=state,
         baseline_rotation=tuple(z_cfg.get("baseline_rotation", ["rice_puddled", "wheat", "fallow"])),
         baseline_slope_pct=float(z_cfg.get("baseline_slope_pct", 1.0)),
@@ -309,6 +321,17 @@ def get_regional_grace_trend(lat: float, lon: float) -> tuple[float, str]:
 
 def get_regional_soil(lat: float, lon: float) -> dict[str, float]:
     cfg = detect_region_config(lat, lon)
+    if cfg.region_id == "unvalidated_global":
+        return {
+            "sand": 40.0,
+            "silt": 36.0,
+            "clay": 24.0,
+            "soc": 12.0,
+            "phh2o": 6.6,
+            "bdod": 140.0,
+            "nitrogen": 1.1,
+            "source_citation": "FAO/UNESCO Global Loam Reference (Unvalidated Fallback Outside India)",
+        }
     soils = load_soils_data()
     return soils.get(cfg.region_id, soils.get("default_soil", {
         "sand": 44.0, "silt": 36.0, "clay": 20.0, "soc": 5.2, "phh2o": 7.9, "bdod": 148.0, "nitrogen": 0.58
@@ -352,6 +375,28 @@ class RegionalWeatherParams(dict):
 
 def get_regional_weather_params(lat: float, lon: float) -> RegionalWeatherParams:
     cfg = detect_region_config(lat, lon)
+    if cfg.region_id == "unvalidated_global":
+        abs_lat = min(abs(float(lat)), 65.0)
+        t_base = round(max(2.0, 27.5 - 0.35 * abs_lat), 1)
+        amplitude = round(min(15.0, 2.5 + 0.25 * abs_lat), 1)
+        peak_doy = 195 if lat >= 0.0 else 15
+        if abs_lat < 15.0:
+            ws, we = 1, 12
+        elif lat >= 0.0:
+            ws, we = 5, 9
+        else:
+            ws, we = 11, 3
+        return RegionalWeatherParams({
+            "t_base": t_base,
+            "amplitude": amplitude,
+            "peak_doy": peak_doy,
+            "trange_c": round(max(6.0, 11.5 - 0.06 * abs_lat), 1),
+            "wet_start_month": ws,
+            "wet_end_month": we,
+            "gamma_wet": [0.55, 11.0],
+            "gamma_dry": [0.15, 4.0],
+            "citation": "Latitude-Zonal Global Climatology Approximation (Unvalidated Outside India)",
+        })
     w_data = load_weather_data()
     raw = w_data.get(cfg.region_id, w_data.get("default_weather", {
         "t_base": 25.0, "amplitude": 9.0, "peak_doy": 150, "trange_c": 11.0,

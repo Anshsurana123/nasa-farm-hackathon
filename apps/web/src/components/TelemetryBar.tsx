@@ -29,17 +29,19 @@ export function TelemetryBar({ profile }: { profile: FieldProfile }) {
   const wb = water.climatic_water_balance_mm;
   const hasFire = hazards.residue_burning_detected;
 
-  const soc = soil.soc_g_per_kg ?? 8.0;
+  const soc = soil.soc_g_per_kg ?? 0;
   const socScore = Math.min(100, Math.round((soc / 16) * 100));
 
   const smapArr = water.root_zone_moisture_percentile ?? [];
   const meanSmap = smapArr.length
     ? Math.round(smapArr.reduce((a, b) => a + b, 0) / smapArr.length)
-    : 48;
+    : null;
 
-  let historyLabel = seasons_per_year ? `${seasons_per_year} Seasons / Yr` : "Annual Cropping";
+  let historyLabel = seasons_per_year
+    ? `${seasons_per_year} ${t("telemetry.seasonsPerYr")}`
+    : t("telemetry.annualCropping");
   if (crop_history && crop_history.length >= 2) {
-    const crops = crop_history.slice(-2).map((s) => cropName(s.crop_group ?? "Crop"));
+    const crops = crop_history.slice(-2).map((s) => cropName(s.crop_id ?? s.crop_group ?? "Crop"));
     historyLabel = `${crops[0]} → ${crops[1]}`;
   }
 
@@ -78,20 +80,20 @@ export function TelemetryBar({ profile }: { profile: FieldProfile }) {
               {isSevereGw ? (
                 <span className="text-rose-500 dark:text-rose-400 flex items-center gap-1 font-semibold">
                   <TrendingDown className="w-3 h-3" />
-                  Critical Drawdown
+                  {t("telemetry.criticalDrawdown")}
                 </span>
               ) : isModerateGw ? (
                 <span className="text-amber-500 dark:text-amber-400 flex items-center gap-1 font-semibold">
                   <TrendingDown className="w-3 h-3" />
-                  Moderate Overdraft
+                  {t("telemetry.moderateOverdraft")}
                 </span>
               ) : isPositiveGw ? (
                 <span className="text-emerald-500 flex items-center gap-1 font-semibold">
                   <TrendingUp className="w-3 h-3" />
-                  Net Recharge
+                  {t("telemetry.netRecharge")}
                 </span>
               ) : (
-                <span className="text-muted">Equilibrium</span>
+                <span className="text-muted">{t("telemetry.equilibrium")}</span>
               )}
             </div>
           </div>
@@ -127,24 +129,26 @@ export function TelemetryBar({ profile }: { profile: FieldProfile }) {
               >
                 {wb !== undefined && wb !== null ? Math.round(wb).toLocaleString() : "—"}
               </span>
-              <span className="text-[11px] font-mono text-muted">mm/yr</span>
+              <span className="text-[11px] font-mono text-muted">{t("unit.mmYr")}</span>
             </div>
 
             <p className="text-[10px] text-muted truncate font-mono">
-              Rain {Math.round(climate.annual_precip_mm)} · ET₀{" "}
-              {Math.round(climate.annual_et0_mm ?? 1500)} mm
+              {t("telemetry.rainLabel")} {Math.round(climate.annual_precip_mm)} · ET₀{" "}
+              {climate.annual_et0_mm != null ? `${Math.round(climate.annual_et0_mm)} mm` : "—"}
             </p>
           </div>
 
           <ProgressRing
-            value={meanSmap}
+            value={meanSmap ?? 0}
             max={100}
-            label="SMAP Root-Zone Soil Moisture Percentile (Context Only)"
+            label={`${t("water.smap")} (${t("badge.contextOnly")})`}
             size="2.9rem"
             thickness="4px"
             color="var(--accent-water)"
           >
-            <span className="text-[9px] font-mono font-bold text-foreground">{meanSmap}%</span>
+            <span className="text-[9px] font-mono font-bold text-foreground">
+              {meanSmap != null ? `${meanSmap}%` : "—"}
+            </span>
           </ProgressRing>
         </Link>
 
@@ -167,7 +171,7 @@ export function TelemetryBar({ profile }: { profile: FieldProfile }) {
                   ? soil.soc_g_per_kg.toFixed(1)
                   : "—"}
               </span>
-              <span className="text-[11px] font-mono text-muted">g C/kg</span>
+              <span className="text-[11px] font-mono text-muted">{t("unit.gkg")}</span>
             </div>
 
             <p className="text-[10px] text-muted capitalize truncate font-mono">
@@ -178,7 +182,7 @@ export function TelemetryBar({ profile }: { profile: FieldProfile }) {
           <ProgressRing
             value={socScore}
             max={100}
-            label="Topsoil Organic Carbon Index"
+            label={t("telemetry.soc")}
             size="2.9rem"
             thickness="4px"
             color="var(--accent-canopy)"
@@ -206,7 +210,7 @@ export function TelemetryBar({ profile }: { profile: FieldProfile }) {
             <p className="text-sm font-bold text-foreground font-mono truncate">{historyLabel}</p>
             <div className="mt-1 flex items-center gap-1 text-[10px] font-mono text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="w-3 h-3 shrink-0" />
-              <span className="truncate">Savitzky-Golay NDVI Verified</span>
+              <span className="truncate">{t("telemetry.ndviVerified")}</span>
             </div>
           </div>
         </Link>
@@ -228,20 +232,25 @@ export function TelemetryBar({ profile }: { profile: FieldProfile }) {
 
           <div className="mt-2">
             <div className="flex items-center gap-1.5">
-              {hasFire ? (
+              {hasFire === true ? (
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-mono font-bold bg-rose-500/20 text-rose-500 dark:text-rose-300 border border-rose-500/40">
                   <Flame className="w-3.5 h-3.5 text-rose-500" />
-                  <span>Thermal Anomaly</span>
+                  <span>{t("telemetry.thermalAnomaly")}</span>
                 </span>
-              ) : (
+              ) : hasFire === false ? (
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-mono font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Clear Swath</span>
+                  <span>{t("telemetry.clearSwath")}</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/40">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                  <span>{t("telemetry.firmsUnverified")}</span>
                 </span>
               )}
             </div>
             <p className="text-[10px] text-muted mt-1.5 truncate font-mono">
-              RUSLE Erosion:{" "}
+              {t("telemetry.rusleErosion")}:{" "}
               <strong className="uppercase text-foreground">
                 {hazards.erosion_risk_class ?? "Low"}
               </strong>

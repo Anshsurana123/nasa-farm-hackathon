@@ -32,15 +32,20 @@ MIN_SPREADS: dict[str, float] = {
 }
 
 
-def pareto_front(candidates: list[dict[str, float]]) -> list[int]:
-    """Indices of non-dominated candidates (higher is better on every key present)."""
+def pareto_front(
+    candidates: list[dict[str, float]],
+    keys: Sequence[str] | None = None,
+) -> list[int]:
+    """Indices of non-dominated candidates (higher is better on every active key)."""
     if not candidates:
         return []
-    keys = [k for k in OBJECTIVES if all(k in c for c in candidates)]
+    eval_keys = list(keys) if keys is not None else [k for k in OBJECTIVES if all(k in c for c in candidates)]
+    if not eval_keys:
+        return list(range(len(candidates)))
     front = []
     for i, a in enumerate(candidates):
         dominated = any(
-            all(b[k] >= a[k] for k in keys) and any(b[k] > a[k] for k in keys)
+            all(b[k] >= a[k] for k in eval_keys) and any(b[k] > a[k] for k in eval_keys)
             for j, b in enumerate(candidates)
             if j != i
         )
@@ -82,7 +87,7 @@ def select_top(
     labels: list[str],
     priorities: Priorities,
     k: int = 3,
-    crop_pairs: Sequence[tuple[str, str]] | None = None,
+    crop_pairs: Sequence[tuple[str, ...]] | None = None,
 ) -> list[int]:
     """Return indices of the top-k Pareto-optimal, structurally distinct candidates.
 
@@ -93,15 +98,18 @@ def select_top(
     """
     if not candidates:
         return []
-    front = set(pareto_front(candidates))
+    weights = priorities.model_dump()
+    active_keys = [k for k in OBJECTIVES if weights.get(k, 0.0) > 0 and all(k in c for c in candidates)]
+    if not active_keys:
+        active_keys = [k for k in OBJECTIVES if all(k in c for c in candidates)]
+    front = set(pareto_front(candidates, keys=active_keys))
     scores = weighted_scores(candidates, priorities)
-    nsga2_pool = set(nsga2_select(candidates, k=min(len(candidates), max(k * 3, 6))))
+    nsga2_pool = set(nsga2_select(candidates, k=min(len(candidates), max(k * 3, 6)), keys=active_keys))
 
     # Priority-driven viability filter:
     # Solvency requirement (P50 >= 0) is maintained, while relative floors on profit and soil health
     # scale strictly with the farmer's normalized priority weights, preventing water-saving or
     # climate-resilient rotations from being blocked when the farmer does not prioritize profit.
-    weights = priorities.model_dump()
     total_w = sum(weights.get(obj, 0.0) for obj in OBJECTIVES) or 1.0
     norm_profit = weights.get("profit", 0.0) / total_w
     norm_soil = weights.get("soil_health", 0.0) / total_w
@@ -148,22 +156,21 @@ def select_top(
     )
 
     chosen: list[int] = []
-    seen_pairs: set[tuple[str, str]] = set()
+    seen_pairs: set[tuple[str, ...]] = set()
     seen_kharif: list[str] = []
 
-    def _get_pair(idx: int) -> tuple[str, str]:
+    def _get_pair(idx: int) -> tuple[str, ...]:
         if crop_pairs and idx < len(crop_pairs):
-            return crop_pairs[idx]
+            return tuple(crop_pairs[idx])
         return _extract_primary_pair(labels[idx])
 
     max_score = max(scores) if scores else 1.0
+    min_viable_score = max_score * 0.60
 
     # Pass 1: Require distinct Kharif crop AND distinct (Kharif, Rabi) pair among viable Pareto candidates
     # that remain competitive with farmer priority weights (score >= 0.60 * max_score)
     for i in order:
-        if i not in viable:
-            continue
-        if scores[i] < max_score * 0.60:
+        if i not in viable or scores[i] < min_viable_score:
             continue
         pair = _get_pair(i)
         if pair not in seen_pairs and pair[0] not in seen_kharif:
@@ -173,9 +180,9 @@ def select_top(
         if len(chosen) == k:
             return chosen
 
-    # Pass 2: Allow same Kharif if Rabi crop differs (distinct (Kharif, Rabi) pair)
+    # Pass 2: Allow same Kharif if Rabi crop differs, still enforcing viable + 0.60 score competitiveness
     for i in order:
-        if i in chosen:
+        if i in chosen or i not in viable or scores[i] < min_viable_score:
             continue
         pair = _get_pair(i)
         if pair not in seen_pairs and all(labels[i] != labels[j] for j in chosen):
@@ -184,7 +191,16 @@ def select_top(
         if len(chosen) == k:
             return chosen
 
-    # Pass 3: Fallback to distinct full labels
+    # Pass 3: Viable + 0.60 score competitive candidates with distinct full rotation labels
+    for i in order:
+        if i in chosen or i not in viable or scores[i] < min_viable_score:
+            continue
+        if all(labels[i] != labels[j] for j in chosen):
+            chosen.append(i)
+        if len(chosen) == k:
+            return chosen
+
+    # Pass 4: Fallback if fewer than k viable candidates satisfied 0.60 floor (order preserves viable & score priority)
     for i in order:
         if i not in chosen and all(labels[i] != labels[j] for j in chosen):
             chosen.append(i)

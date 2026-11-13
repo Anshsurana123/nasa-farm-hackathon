@@ -7,7 +7,7 @@ gdd_to_maturity: 1550
 base_temp_c: 10
 optimal_temp_c: [25, 33]
 max_temp_c: 41
-min_temp_c: 14
+min_temp_c: 10
 duration_days: [105, 125]
 water_requirement_mm: [400, 550]
 kc: [0.40, 1.15, 0.60]

@@ -20,8 +20,8 @@ import {
 
 export default function BriefPage() {
   const { t } = useI18n();
-  const { profile, strategies, selectedField } = useField();
-  const [areaHa, setAreaHa] = useState<number>(2.5);
+  const { profile, strategies, selectedField, constraints } = useField();
+  const [areaHa, setAreaHa] = useState<number>(() => constraints.area_ha ?? 2.5);
   const [selectedRank, setSelectedRank] = useState<number>(1);
 
   const isSA = isSouthAsia(selectedField.lat, selectedField.lon);
@@ -39,28 +39,35 @@ export default function BriefPage() {
 
   const baseIrrMm = baseRes?.irrigation_mm?.length
     ? Math.round(baseRes.irrigation_mm.reduce((a, b) => a + b, 0) / baseRes.irrigation_mm.length)
-    : 1400;
+    : null;
   const activeIrrMm = activeRes?.irrigation_mm?.length
     ? Math.round(
         activeRes.irrigation_mm.reduce((a, b) => a + b, 0) / activeRes.irrigation_mm.length
       )
-    : 890;
+    : null;
 
   // 1 mm over 1 ha = 10 m³ = 10,000 Liters
-  const waterSavedMmPerHa = Math.max(0, baseIrrMm - activeIrrMm);
-  const totalWaterSavedM3 = Math.round(waterSavedMmPerHa * 10 * areaHa);
-  const totalWaterSavedLiters = totalWaterSavedM3 * 1000;
+  const waterSavedMmPerHa =
+    baseIrrMm != null && activeIrrMm != null ? Math.max(0, baseIrrMm - activeIrrMm) : null;
+  const totalWaterSavedM3 =
+    waterSavedMmPerHa != null ? Math.round(waterSavedMmPerHa * 10 * areaHa) : null;
+  const totalWaterSavedLiters = totalWaterSavedM3 != null ? totalWaterSavedM3 * 1000 : null;
 
-  const profitPerHa = Math.round(activeRes?.profit_p50 ?? 138000);
-  const baseProfitPerHa = Math.round(baseRes?.profit_p50 ?? 124000);
-  const totalFarmProfit = Math.round(profitPerHa * areaHa);
-  const totalProfitDelta = Math.round((profitPerHa - baseProfitPerHa) * areaHa);
+  const profitPerHa = activeRes ? Math.round(activeRes.profit_p50) : null;
+  const baseProfitPerHa = baseRes ? Math.round(baseRes.profit_p50) : null;
+  const totalFarmProfit = profitPerHa != null ? Math.round(profitPerHa * areaHa) : null;
+  const totalProfitDelta =
+    profitPerHa != null && baseProfitPerHa != null
+      ? Math.round((profitPerHa - baseProfitPerHa) * areaHa)
+      : null;
 
-  const socDeltaPerHa10Yr = activeRes?.soc_delta_t_ha_10yr ?? 2.1;
-  const totalSocTonnes10Yr = +(socDeltaPerHa10Yr * areaHa).toFixed(1);
-  const totalCo2eTonnes10Yr = +(totalSocTonnes10Yr * 3.67).toFixed(1);
+  const socDeltaPerHa10Yr = activeRes?.soc_delta_t_ha_10yr ?? null;
+  const totalSocTonnes10Yr =
+    socDeltaPerHa10Yr != null ? +(socDeltaPerHa10Yr * areaHa).toFixed(1) : null;
+  const totalCo2eTonnes10Yr =
+    totalSocTonnes10Yr != null ? +(totalSocTonnes10Yr * 3.67).toFixed(1) : null;
 
-  const nBalancePerHa = activeRes?.n_balance_kg_ha_yr ?? 42;
+  const nBalancePerHa = activeRes?.n_balance_kg_ha_yr ?? null;
   const ureaBagsSavedPerHa = activeStrategy?.practical_metrics?.urea_bags_saved_per_ha ?? 0;
   const totalUreaBagsSavedYr = +(ureaBagsSavedPerHa * areaHa).toFixed(1);
   const totalNSavedKgYr = Math.round(ureaBagsSavedPerHa * 20.7 * areaHa);
@@ -112,7 +119,7 @@ export default function BriefPage() {
                 </span>
               </div>
               <h2 className="text-lg font-display font-bold text-foreground">
-                {t("brief.scalerTitle")} ({areaHa} ha / {acres} acres)
+                {t("brief.scalerTitle")} ({areaHa} {t("unit.haShort")} / {acres} {t("unit.acreFull")})
               </h2>
             </div>
 
@@ -132,7 +139,7 @@ export default function BriefPage() {
                         : "bg-surface-2 text-muted hover:text-foreground border-line"
                     }`}
                   >
-                    Rank #{strat.rank}: {strat.rotation.label ?? strat.rotation.id}
+                    #{strat.rank}: {strat.rotation.label ?? strat.rotation.id}
                   </button>
                 ))}
             </div>
@@ -146,7 +153,7 @@ export default function BriefPage() {
                   {t("brief.dragToScale")}
                 </label>
                 <span className="text-sm font-bold text-emerald-400">
-                  {areaHa.toFixed(1)} Hectares ({acres} Acres)
+                  {areaHa.toFixed(1)} {t("unit.hectares")} ({acres} {t("unit.acres")})
                 </span>
               </div>
               <input
@@ -160,20 +167,20 @@ export default function BriefPage() {
                 className="w-full accent-emerald-400 cursor-pointer"
               />
               <div className="flex justify-between text-[10px] font-mono text-muted">
-                <span>0.5 ha (Marginal)</span>
-                <span>2.0 ha (Smallholder)</span>
-                <span>10 ha (Medium)</span>
-                <span>50 ha (FPO / Co-op)</span>
+                <span>{t("brief.scaleMarginal")}</span>
+                <span>{t("brief.scaleSmallholder")}</span>
+                <span>{t("brief.scaleMedium")}</span>
+                <span>{t("brief.scaleCoop")}</span>
               </div>
             </div>
 
             <div className="lg:col-span-5 flex flex-wrap gap-2">
               {[
-                { ha: 1.0, label: "1 ha (2.5 ac)" },
-                { ha: 2.5, label: "2.5 ha (6.2 ac)" },
-                { ha: 5.0, label: "5 ha (12.4 ac)" },
-                { ha: 15.0, label: "15 ha (37 ac)" },
-                { ha: 50.0, label: "50 ha (Village FPO)" },
+                { ha: 1.0, label: `1 ${t("unit.haShort")} (2.5 ${t("unit.acreShort")})` },
+                { ha: 2.5, label: `2.5 ${t("unit.haShort")} (6.2 ${t("unit.acreShort")})` },
+                { ha: 5.0, label: `5 ${t("unit.haShort")} (12.4 ${t("unit.acreShort")})` },
+                { ha: 15.0, label: `15 ${t("unit.haShort")} (37 ${t("unit.acreShort")})` },
+                { ha: 50.0, label: `50 ${t("unit.haShort")} (${t("brief.fpoShort")})` },
               ].map((preset) => (
                 <button
                   key={preset.ha}
@@ -201,10 +208,14 @@ export default function BriefPage() {
                 <Droplets className="w-4 h-4" />
               </div>
               <p className="text-2xl font-display font-extrabold text-foreground">
-                {totalWaterSavedM3.toLocaleString()} m³
+                {totalWaterSavedM3 != null ? `${totalWaterSavedM3.toLocaleString()} m³` : "—"}
               </p>
               <p className="text-[11px] font-mono text-cyan-400">
-                {(totalWaterSavedLiters / 1_000_000).toFixed(2)} Million Liters / yr saved
+                {totalWaterSavedLiters != null
+                  ? t("brief.millionLitersSaved", {
+                      liters: (totalWaterSavedLiters / 1_000_000).toFixed(2),
+                    })
+                  : "—"}
               </p>
             </div>
 
@@ -216,11 +227,12 @@ export default function BriefPage() {
                 <Coins className="w-4 h-4" />
               </div>
               <p className="text-2xl font-display font-extrabold text-foreground">
-                {fmtMoney(totalFarmProfit, currencySymbol)}
+                {totalFarmProfit != null ? fmtMoney(totalFarmProfit, currencySymbol) : "—"}
               </p>
               <p className="text-[11px] font-mono text-emerald-400">
-                {totalProfitDelta >= 0 ? "+" : ""}
-                {fmtMoney(totalProfitDelta, currencySymbol)} vs. status-quo
+                {totalProfitDelta != null
+                  ? `${totalProfitDelta >= 0 ? "+" : ""}${fmtMoney(totalProfitDelta, currencySymbol)} ${t("brief.vsStatusQuo")}`
+                  : "—"}
               </p>
             </div>
 
@@ -232,11 +244,14 @@ export default function BriefPage() {
                 <Leaf className="w-4 h-4" />
               </div>
               <p className="text-2xl font-display font-extrabold text-foreground">
-                {totalSocTonnes10Yr >= 0 ? "+" : ""}
-                {totalSocTonnes10Yr} t C
+                {totalSocTonnes10Yr != null
+                  ? `${totalSocTonnes10Yr >= 0 ? "+" : ""}${totalSocTonnes10Yr} t C`
+                  : "—"}
               </p>
               <p className="text-[11px] font-mono text-emerald-400">
-                ≈ {totalCo2eTonnes10Yr} t CO₂e atmospheric drawdown
+                {totalCo2eTonnes10Yr != null
+                  ? t("brief.co2eDrawdown", { tons: String(totalCo2eTonnes10Yr) })
+                  : "—"}
               </p>
             </div>
 
@@ -248,11 +263,15 @@ export default function BriefPage() {
                 <Sprout className="w-4 h-4" />
               </div>
               <p className="text-2xl font-display font-extrabold text-foreground">
-                +{totalNSavedKgYr.toLocaleString()} kg N
+                {activeRes ? `+${totalNSavedKgYr.toLocaleString()} kg N` : "—"}
               </p>
               <p className="text-[11px] font-mono text-stone-400">
-                ≈ {totalUreaBagsSavedYr} bags (45kg) Urea saved/yr · Net N: {nBalancePerHa >= 0 ? "+" : ""}
-                {Math.round(nBalancePerHa * areaHa)} kg
+                {nBalancePerHa != null
+                  ? t("brief.ureaAndNetN", {
+                      bags: String(totalUreaBagsSavedYr),
+                      net: `${nBalancePerHa >= 0 ? "+" : ""}${Math.round(nBalancePerHa * areaHa)}`,
+                    })
+                  : "—"}
               </p>
             </div>
           </div>

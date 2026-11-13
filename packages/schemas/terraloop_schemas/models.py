@@ -128,6 +128,8 @@ class SoilSummary(BaseModel):
     bulk_density_g_cm3: float | None = None
     cec_cmol_kg: float | None = None
     nitrogen_g_kg: float | None = None
+    available_p_kg_ha: float | None = None
+    available_k_kg_ha: float | None = None
     field_capacity_vol: float | None = None
     wilting_point_vol: float | None = None
     slope_pct: float | None = None
@@ -309,6 +311,14 @@ class SimulationResult(BaseModel):
     cvar_profit_10: float
     cvar_ci_low: float | None = None
     cvar_ci_high: float | None = None
+    step_yields: dict[str, float] = Field(
+        default_factory=dict,
+        description="Per-step ensemble mean yields keyed by '{year_index}:{season_index}:{crop_id}'",
+    )
+    step_irrigations_mm: dict[str, float] = Field(
+        default_factory=dict,
+        description="Per-step ensemble mean irrigation demand (mm) keyed by '{year_index}:{season_index}:{crop_id}'",
+    )
 
 
 class SeasonalOperationStep(BaseModel):
@@ -358,6 +368,11 @@ class PracticalFarmerMetrics(BaseModel):
     )
     labor_cost_inr_per_ha: float = 0.0
     input_cost_inr_per_ha: float = 0.0
+    area_ha: float = Field(1.0, gt=0)
+    total_farm_profit_p50: float = 0.0
+    total_farm_input_cost: float = 0.0
+    total_farm_urea_bags_saved: float = 0.0
+    total_farm_pumping_hours_saved: int = 0
     seasonal_operations: list[SeasonalOperationStep] = Field(
         default_factory=list,
         description="Per-season actionable field operation, budget, irrigation, and nutrient ledger",
@@ -400,6 +415,8 @@ class GeocodeResult(BaseModel):
 class SuitabilityRequest(BaseModel):
     field: FieldGeometry
     constraints: FarmConstraints = Field(default_factory=FarmConstraints)
+    profile: FieldProfile | None = None
+    soil_health_card: SoilHealthCardInput | None = None
 
 
 class SuitabilityItem(BaseModel):

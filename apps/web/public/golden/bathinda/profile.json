@@ -11,29 +11,29 @@
     "recent_period": "2005-2024",
     "mean_tmax_c": 30.7,
     "mean_tmin_c": 19.17,
-    "annual_precip_mm": 443.7,
-    "recent_annual_precip_mm": 515.7,
-    "precip_change_pct": 16.2,
+    "annual_precip_mm": 446.2,
+    "recent_annual_precip_mm": 562.8,
+    "precip_change_pct": 26.1,
     "tmax_change_c": -1.08,
     "heat_days_per_year": 131.4,
     "recent_heat_days_per_year": 102.0,
     "frost_days_per_year": 0.1,
     "longest_dry_spell_days_mean": 15.3,
-    "annual_et0_mm": 1553.8,
+    "annual_et0_mm": 1784.9,
     "gdd_base10_per_year": 4811.0,
     "monthly_precip_mm": [
-      17.0,
-      20.1,
-      26.0,
-      15.4,
-      28.8,
-      67.0,
-      120.0,
-      88.2,
-      79.2,
-      6.5,
-      4.3,
-      7.3
+      18.7,
+      19.4,
+      24.3,
+      15.3,
+      24.0,
+      67.1,
+      132.0,
+      102.4,
+      81.7,
+      7.5,
+      5.3,
+      6.8
     ],
     "monthly_tmax_c": [
       19.9,
@@ -106,8 +106,8 @@
       70.0
     ],
     "groundwater_trend_cm_per_year": -4.15,
-    "climatic_water_balance_mm": -1074.1,
-    "irrigation_detected": null,
+    "climatic_water_balance_mm": -1280.4,
+    "irrigation_detected": true,
     "provenance": [
       {
         "source": "NASA POWER",
@@ -157,6 +157,8 @@
     "bulk_density_g_cm3": 1.52,
     "cec_cmol_kg": 12.7,
     "nitrogen_g_kg": 0.86,
+    "available_p_kg_ha": null,
+    "available_k_kg_ha": null,
     "field_capacity_vol": 0.259,
     "wilting_point_vol": 0.137,
     "slope_pct": 0.8,
@@ -232,7 +234,7 @@
       "end": "2020-04-22",
       "crop_group": "wheat",
       "crop_id": "wheat",
-      "confidence": 0.88,
+      "confidence": 0.92,
       "confirmed_by_farmer": false
     },
     {
@@ -320,7 +322,7 @@
       "end": "2024-05-01",
       "crop_group": "wheat",
       "crop_id": "wheat",
-      "confidence": 0.87,
+      "confidence": 0.91,
       "confirmed_by_farmer": false
     }
   ],
@@ -337,8 +339,8 @@
   ],
   "agro_climatic_notes": [
     "Wheat terminal heat stress: grain-fill period (1 Mar-15 Apr) averages 12.3 days/yr with Tmax > 32 C.",
-    "Annual rainfall has increased by 16% between periods.",
-    "Evaporative demand exceeds rainfall by 1074 mm/yr: crops depend on irrigation; water-efficient rotations matter.",
+    "Annual rainfall has increased by 26% between periods.",
+    "Evaporative demand exceeds rainfall by 1280 mm/yr: crops depend on irrigation; water-efficient rotations matter.",
     "Rainy-season dry spells average 15 days: drought-tolerant options reduce risk.",
     "Post-harvest residue burning detected near field via NASA FIRMS: in-situ mulching or alternative rotations recommended."
   ],
@@ -347,7 +349,7 @@
   "agro_zone": "Trans-Gangetic Semi-Arid Belt (South-West Punjab / Haryana)",
   "state": "Punjab",
   "served_from": "demo_snapshot",
-  "snapshot_date": "2026-11-10",
+  "snapshot_date": "2026-11-13",
   "is_fallback": false,
   "data_mode": "observed",
   "validation_status": "validated_india",

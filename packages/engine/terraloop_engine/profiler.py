@@ -67,7 +67,23 @@ def summarise_climate(
         else:
             bias_corrected = False
     df = df.copy()
-    df["ET0"] = agroclimate.et0_hargreaves(df["T2M_MAX"], df["T2M_MIN"], lat)
+    has_pm = (
+        {"ALLSKY_SFC_SW_DWN", "RH2M", "WS2M"}.issubset(df.columns)
+        and df["ALLSKY_SFC_SW_DWN"].notna().mean() > 0.5
+        and df["RH2M"].notna().mean() > 0.5
+        and df["WS2M"].notna().mean() > 0.5
+    )
+    if has_pm:
+        df["ET0"] = agroclimate.et0_penman_monteith_series(
+            df["T2M_MAX"],
+            df["T2M_MIN"],
+            lat,
+            rs_mj_m2_day=df["ALLSKY_SFC_SW_DWN"],
+            rh_mean_pct=df["RH2M"],
+            wind_m_s=df["WS2M"],
+        )
+    else:
+        df["ET0"] = agroclimate.et0_hargreaves(df["T2M_MAX"], df["T2M_MIN"], lat)
     df["GDD10"] = agroclimate.gdd(df["T2M_MAX"], df["T2M_MIN"], base=10.0)
 
     years = df.index.year
@@ -86,14 +102,22 @@ def summarise_climate(
 
     # TASK-D11: Use homogeneous satellite-gauge GPM IMERG era (2001+) for rainfall statistics
     # and rainfall trend so pre-2001 MERRA-2 gauge inhomogeneity does not skew trends.
-    if imerg_precip is not None and not imerg_precip.empty:
-        p_series = imerg_precip.copy()
-        if not isinstance(p_series.index, pd.DatetimeIndex):
-            p_series.index = pd.to_datetime(p_series.index)
-    elif (years >= 2001).any() and (years <= 2000).any():
-        p_series = df.loc[years >= 2001, "PRECTOTCORR"]
+    if (years >= 2001).any() and (years <= 2000).any():
+        p_series = df.loc[years >= 2001, "PRECTOTCORR"].copy()
     else:
-        p_series = df["PRECTOTCORR"]
+        p_series = df["PRECTOTCORR"].copy()
+
+    if imerg_precip is not None and not imerg_precip.empty:
+        im_s = imerg_precip.copy()
+        if not isinstance(im_s.index, pd.DatetimeIndex):
+            im_s.index = pd.to_datetime(im_s.index)
+        im_s.index = im_s.index.floor("D")
+        if len(im_s) >= 0.7 * len(p_series):
+            p_series = im_s
+        else:
+            common_idx = p_series.index.intersection(im_s.index)
+            if len(common_idx) > 0:
+                p_series.loc[common_idx] = im_s.loc[common_idx]
 
     p_years = p_series.index.year
     if (p_years >= 2001).all() and p_years.max() >= 2015:
@@ -224,6 +248,7 @@ def summarise_soil(props: dict[str, float] | None, prov_mode: str = "observed") 
 
 def apply_soil_health_card_override(profile: FieldProfile, shc: SoilHealthCardInput) -> FieldProfile:
     """Apply farmer's Indian Government Soil Health Card (SHC) lab test measurements to the FieldProfile."""
+    profile = profile.model_copy(deep=True)
     s = profile.soil
     if shc.ph is not None:
         s.ph = round(float(shc.ph), 2)
@@ -236,6 +261,10 @@ def apply_soil_health_card_override(profile: FieldProfile, shc: SoilHealthCardIn
             s.wilting_point_vol = wp
     if shc.available_n_kg_ha is not None:
         s.nitrogen_g_kg = round(float(shc.available_n_kg_ha) / 2240.0, 4)
+    if shc.available_p_kg_ha is not None:
+        s.available_p_kg_ha = round(float(shc.available_p_kg_ha), 1)
+    if shc.available_k_kg_ha is not None:
+        s.available_k_kg_ha = round(float(shc.available_k_kg_ha), 1)
 
     s.source = "farmer_test"
     shc_prov = DataProvenance(
@@ -298,6 +327,14 @@ def build_notes(
         notes.append(
             "Post-harvest residue burning detected near field via NASA FIRMS: in-situ mulching or alternative rotations recommended."
         )
+    if s.available_p_kg_ha is not None and s.available_p_kg_ha < 12.0:
+        notes.append(
+            f"Low available soil phosphorus ({s.available_p_kg_ha:.1f} kg/ha P from SHC): pulse/legume inclusion and basal DAP aid root establishment."
+        )
+    if s.available_k_kg_ha is not None and s.available_k_kg_ha < 110.0:
+        notes.append(
+            f"Low available soil potassium ({s.available_k_kg_ha:.1f} kg/ha K from SHC): residue retention recycles >80% crop K."
+        )
     return notes
 
 
@@ -320,6 +357,8 @@ def build_profile(
     props = None
     slope_val = None
     gw_trend = None
+    smap_series = None
+    imerg_series = None
     fire_df = None
     ndvi_df = None
 
@@ -335,6 +374,11 @@ def build_profile(
                 fut_slope = pool.submit(gee.slope_pct, field.lat, field.lon)
                 fut_grace = pool.submit(gee.grace_trend, field.lat, field.lon)
                 fut_smap = pool.submit(gee.smap_rootzone, field.lat, field.lon, "2015-04-01", str(end))
+                fut_imerg = (
+                    pool.submit(gee.imerg_daily, field.lat, field.lon, f"{max(2001, end.year - 2)}-01-01", str(end))
+                    if gee_active
+                    else None
+                )
                 fut_firms = (
                     pool.submit(gee.fire_detections, field.lat, field.lon, f"{end.year - 4}-01-01", str(end))
                     if gee_active
@@ -370,12 +414,17 @@ def build_profile(
                     except Exception:  # noqa: BLE001
                         gw_trend = None
 
-                smap_series = None
                 if fut_smap is not None:
                     try:
                         smap_series = fut_smap.result(timeout=6.0)
                     except Exception:  # noqa: BLE001
                         smap_series = None
+
+                if fut_imerg is not None:
+                    try:
+                        imerg_series = fut_imerg.result(timeout=12.0)
+                    except Exception:  # noqa: BLE001
+                        imerg_series = None
 
                 if fut_firms is not None:
                     try:
@@ -404,9 +453,16 @@ def build_profile(
     reg_cfg = region_registry.detect_region_config(field.lat, field.lon)
     state = region_registry.detect_state(field.lat, field.lon)
 
+    imerg_prov = (
+        gee.provenance_with_mode(gee.IMERG_PROVENANCE)
+        if imerg_series is not None and not imerg_series.empty
+        else None
+    )
     climate, hazards, water_balance = summarise_climate(
         weather,
         field.lat,
+        imerg_precip=imerg_series,
+        imerg_prov=imerg_prov,
         lon=field.lon,
         prov_mode=power_mode,
         bias_corrected=bool(reg_cfg.igp_merra2_bias_correction),
@@ -454,11 +510,11 @@ def build_profile(
         provenance=water_prov,
     )
 
-    # 3. FIRMS fire detections (TASK-D07)
+    # 3. FIRMS fire detections (TASK-D07) — Kharif (Oct-Nov) & Rabi/global post-harvest windows
     if fire_df is not None and not fire_df.empty and "date" in fire_df.columns:
         fire_dates = pd.to_datetime(fire_df["date"])
-        oct_nov = (fire_dates.dt.month == 10) | (fire_dates.dt.month == 11)
-        hazards.residue_burning_detected = bool(oct_nov.any())
+        burn_months = {4, 5, 10, 11} if state else {3, 4, 5, 9, 10, 11}
+        hazards.residue_burning_detected = bool(fire_dates.dt.month.isin(burn_months).any())
     elif use_live_network and gee.is_live():
         hazards.residue_burning_detected = False
     else:
@@ -475,6 +531,20 @@ def build_profile(
             years_detected = [h.year for h in crop_history]
             seasons_per_year = round(len(crop_history) / max(1, len(set(years_detected))))
     crop_history_prov = [gee.provenance_with_mode(gee.HLS_PROVENANCE, unknown_if_offline=True)]
+
+    # 4b. Satellite irrigation detection (dry-season active cropping or elevated SMAP moisture under water deficit)
+    has_dry_crop = any(h.season_index in (1, 2) and h.crop_id not in (None, "fallow") for h in crop_history)
+    if has_dry_crop and water_balance < -250:
+        water.irrigation_detected = True
+    elif smap_series is not None and not smap_series.empty and gee.is_live():
+        wet_set = set(climate.wettest_months or ([12, 1, 2, 3] if field.lat < 0 else [7, 8, 9]))
+        dry_mask = ~smap_series.index.month.isin(wet_set)
+        dry_sm = smap_series[dry_mask].dropna()
+        if not dry_sm.empty:
+            if float(dry_sm.mean()) >= 0.22 and water_balance < -300:
+                water.irrigation_detected = True
+            elif float(dry_sm.mean()) < 0.17 and not has_dry_crop:
+                water.irrigation_detected = False
 
     # Erosion screening using NASADEM slope
     if soil_summary.sand_pct is not None and soil_summary.soc_g_per_kg is not None:
