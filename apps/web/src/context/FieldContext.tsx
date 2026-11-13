@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -152,6 +153,7 @@ export function FieldProvider({ children }: { children: ReactNode }) {
   const [settledProfileKey, setSettledProfileKey] = useState<string>("");
   const [settledRecsKey, setSettledRecsKey] = useState<string>("");
   const [manualOptimizing, setManualOptimizing] = useState<boolean>(false);
+  const rawProfileRef = useRef<FieldProfile | null>(null);
   const [errorState, setErrorState] = useState<{ key: string; msg: string | null }>({
     key: "",
     msg: null,
@@ -193,86 +195,89 @@ export function FieldProvider({ children }: { children: ReactNode }) {
       ? api.goldenProfile(selectedGoldenId)
       : api.profile({ lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name });
 
-    fetchPromise
-      .then((data) => {
-        if (!isCancelled) {
-          if (soilHealthCard) {
-            const nextSoil = { ...data.soil };
-            if (soilHealthCard.ph !== undefined && soilHealthCard.ph !== null) {
-              nextSoil.ph = soilHealthCard.ph;
-            }
-            if (soilHealthCard.soc_pct !== undefined && soilHealthCard.soc_pct !== null) {
-              nextSoil.soc_g_per_kg = Number((soilHealthCard.soc_pct * 10).toFixed(2));
-            }
-            if (
-              soilHealthCard.available_n_kg_ha !== undefined &&
-              soilHealthCard.available_n_kg_ha !== null
-            ) {
-              nextSoil.nitrogen_g_kg = Number(
-                (soilHealthCard.available_n_kg_ha / 2240).toFixed(2)
-              );
-            }
-            if (
-              soilHealthCard.available_p_kg_ha !== undefined &&
-              soilHealthCard.available_p_kg_ha !== null
-            ) {
-              nextSoil.available_p_kg_ha = soilHealthCard.available_p_kg_ha;
-            }
-            if (
-              soilHealthCard.available_k_kg_ha !== undefined &&
-              soilHealthCard.available_k_kg_ha !== null
-            ) {
-              nextSoil.available_k_kg_ha = soilHealthCard.available_k_kg_ha;
-            }
-            nextSoil.source = "farmer_test";
-            setProfile({ ...data, soil: nextSoil });
-          } else {
-            setProfile(data);
+    void (async () => {
+      let resolvedProfile: FieldProfile | null = null;
+      try {
+        const data = await fetchPromise;
+        if (isCancelled) return;
+        rawProfileRef.current = data;
+        resolvedProfile = data;
+        if (soilHealthCard) {
+          const nextSoil = { ...data.soil };
+          if (soilHealthCard.ph !== undefined && soilHealthCard.ph !== null) {
+            nextSoil.ph = soilHealthCard.ph;
           }
-          setErrorState({ key: requestKey, msg: null });
-          setSettledProfileKey(requestKey);
+          if (soilHealthCard.soc_pct !== undefined && soilHealthCard.soc_pct !== null) {
+            nextSoil.soc_g_per_kg = Number((soilHealthCard.soc_pct * 10).toFixed(2));
+          }
+          if (
+            soilHealthCard.available_n_kg_ha !== undefined &&
+            soilHealthCard.available_n_kg_ha !== null
+          ) {
+            nextSoil.nitrogen_g_kg = Number(
+              (soilHealthCard.available_n_kg_ha / 2240).toFixed(2)
+            );
+          }
+          if (
+            soilHealthCard.available_p_kg_ha !== undefined &&
+            soilHealthCard.available_p_kg_ha !== null
+          ) {
+            nextSoil.available_p_kg_ha = soilHealthCard.available_p_kg_ha;
+          }
+          if (
+            soilHealthCard.available_k_kg_ha !== undefined &&
+            soilHealthCard.available_k_kg_ha !== null
+          ) {
+            nextSoil.available_k_kg_ha = soilHealthCard.available_k_kg_ha;
+          }
+          nextSoil.source = "farmer_test";
+          setProfile({ ...data, soil: nextSoil });
+        } else {
+          setProfile(data);
         }
-      })
-      .catch((err) => {
-        if (!isCancelled) {
-          const fallback = generateFallbackProfile({
-            id: selectedGoldenId ?? undefined,
-            lat: selectedField.lat,
-            lon: selectedField.lon,
-            name: selectedField.name,
-          });
-          setProfile(fallback);
-          setErrorState({
-            key: requestKey,
-            msg:
-              err instanceof Error
-                ? `Live satellite profile unavailable (${err.message}); showing regional climatology estimate.`
-                : "Live satellite profile unavailable; showing regional climatology estimate.",
-          });
-          setSettledProfileKey(requestKey);
-        }
-      });
-
-    api
-      .recommend({
-        field: {
+        setErrorState({ key: requestKey, msg: null });
+        setSettledProfileKey(requestKey);
+      } catch (err) {
+        if (isCancelled) return;
+        rawProfileRef.current = null;
+        const fallback = generateFallbackProfile({
           id: selectedGoldenId ?? undefined,
           lat: selectedField.lat,
           lon: selectedField.lon,
           name: selectedField.name,
-        },
-        priorities,
-        constraints,
-        language: (lang as "en" | "pa" | "hi") || "en",
-        soil_health_card: soilHealthCard,
-        baseline_override: baselineOverride,
-      })
-      .then((recs) => {
+        });
+        setProfile(fallback);
+        setErrorState({
+          key: requestKey,
+          msg:
+            err instanceof Error
+              ? `Live satellite profile unavailable (${err.message}); showing regional climatology estimate.`
+              : "Live satellite profile unavailable; showing regional climatology estimate.",
+        });
+        setSettledProfileKey(requestKey);
+      }
+
+      if (isCancelled) return;
+
+      try {
+        const recs = await api.recommend({
+          field: {
+            id: selectedGoldenId ?? undefined,
+            lat: selectedField.lat,
+            lon: selectedField.lon,
+            name: selectedField.name,
+          },
+          priorities,
+          constraints,
+          language: (lang as "en" | "pa" | "hi") || "en",
+          soil_health_card: soilHealthCard,
+          profile: resolvedProfile ?? undefined,
+          baseline_override: baselineOverride,
+        });
         if (!isCancelled && recs && recs.length > 0) {
           setStrategies(recs);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         if (!isCancelled) {
           const fallbackList = getFallbackStrategies(
             {
@@ -298,10 +303,10 @@ export function FieldProvider({ children }: { children: ReactNode }) {
                 : "Live rotation optimizer failed; please retry.",
           });
         }
-      })
-      .finally(() => {
+      } finally {
         if (!isCancelled) setSettledRecsKey(requestKey);
-      });
+      }
+    })();
 
     return () => {
       isCancelled = true;
@@ -407,6 +412,14 @@ export function FieldProvider({ children }: { children: ReactNode }) {
       setManualOptimizing(true);
       setErrorState({ key: requestKey, msg: null });
       try {
+        const rawCached = rawProfileRef.current;
+        const matchingProfile =
+          rawCached &&
+          !rawCached.is_fallback &&
+          Math.abs(rawCached.field.lat - selectedField.lat) < 1e-4 &&
+          Math.abs(rawCached.field.lon - selectedField.lon) < 1e-4
+            ? rawCached
+            : undefined;
         const recs = await api.recommend({
           field: {
             id: selectedGoldenId ?? undefined,
@@ -418,6 +431,7 @@ export function FieldProvider({ children }: { children: ReactNode }) {
           constraints: cToUse,
           language: (lang as "en" | "pa" | "hi") || "en",
           soil_health_card: shcToUse,
+          profile: matchingProfile,
           baseline_override: baseToUse,
         });
         if (recs && recs.length > 0) {

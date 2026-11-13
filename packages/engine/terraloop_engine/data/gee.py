@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import os
 import zlib
+from concurrent.futures import ThreadPoolExecutor, wait
 from pathlib import Path
 
 import numpy as np
@@ -205,6 +206,12 @@ def init() -> bool:
             ee.Initialize(credentials=creds, project=project)
         else:
             ee.Initialize(project=project)
+        deadline_ms = int(float(os.environ.get("GEE_DEADLINE_MS", "18000")))
+        if deadline_ms > 0:
+            try:
+                ee.data.setDeadline(deadline_ms)
+            except Exception as exc:  # noqa: BLE001
+                log.debug("ee.data.setDeadline ignored: %s", exc)
         _initialised = True
         return True
     except Exception as exc:  # noqa: BLE001
@@ -239,6 +246,30 @@ def provenance_with_mode(
     return prov.model_copy(update={"mode": effective_mode})
 
 
+def _run_parallel_chunks(fn, tasks: list, max_workers: int = 6, timeout_sec: float = 18.0) -> list:
+    """Execute independent GEE chunk queries in parallel with non-blocking shutdown on timeout."""
+    if not tasks:
+        return []
+    workers = max(1, min(max_workers, len(tasks)))
+    pool = ThreadPoolExecutor(max_workers=workers)
+    results: list = []
+    try:
+        futures = [pool.submit(fn, t) for t in tasks]
+        done, not_done = wait(futures, timeout=timeout_sec)
+        for fut in not_done:
+            fut.cancel()
+        for fut in done:
+            try:
+                res = fut.result()
+                if res is not None:
+                    results.append(res)
+            except Exception as exc:  # noqa: BLE001
+                log.debug("GEE parallel chunk error: %s", exc)
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+    return results
+
+
 @disk_cache(namespace="gee_imerg_live")
 def _imerg_daily_live(lat: float, lon: float, start: str, end: str) -> pd.Series:
     import ee
@@ -264,16 +295,21 @@ def _imerg_daily_live(lat: float, lon: float, start: str, end: str) -> pd.Series
         daily = df_ee.groupby("date")["precipitation"].sum() * 0.5
         return pd.Series(daily.values, index=pd.to_datetime(daily.index), name="precipitation_mm")
 
-    # Server-side daily summation per 90-day block from IMERG_V07 half-hourly scenes (preserves true daily extremes)
-    daily_frames: list[pd.Series] = []
+    # Parallel server-side daily summation per 90-day block from IMERG_V07 half-hourly scenes (preserves true daily extremes)
+    windows: list[tuple[pd.Timestamp, pd.Timestamp]] = []
     chunk_start = start_ts
     while chunk_start < end_ts:
         chunk_end = min(chunk_start + pd.Timedelta(days=90), end_ts)
-        c_days = max(1, (chunk_end - chunk_start).days)
+        windows.append((chunk_start, chunk_end))
+        chunk_start = chunk_end
+
+    def _fetch_imerg_chunk(bounds: tuple[pd.Timestamp, pd.Timestamp]) -> pd.Series | None:
+        c_start, c_end = bounds
+        c_days = max(1, (c_end - c_start).days)
         raw_col = (
             ee.ImageCollection("NASA/GPM_L3/IMERG_V07")
             .filterBounds(pt)
-            .filterDate(chunk_start.strftime("%Y-%m-%d"), chunk_end.strftime("%Y-%m-%d"))
+            .filterDate(c_start.strftime("%Y-%m-%d"), c_end.strftime("%Y-%m-%d"))
             .select("precipitation")
         )
 
@@ -296,20 +332,22 @@ def _imerg_daily_live(lat: float, lon: float, start: str, end: str) -> pd.Series
             return _make_daily
 
         daily_col = ee.ImageCollection.fromImages(
-            ee.List.sequence(0, c_days - 1).map(_make_mapper(chunk_start.strftime("%Y-%m-%d"), raw_col))
+            ee.List.sequence(0, c_days - 1).map(_make_mapper(c_start.strftime("%Y-%m-%d"), raw_col))
         )
         data = daily_col.getRegion(pt, 10000).getInfo()
-        if len(data) > 1:
-            df_c = pd.DataFrame(data[1:], columns=data[0]).dropna(subset=["precipitation"])
-            df_c = df_c[df_c["precipitation"].astype(float) >= 0.0]
-            if not df_c.empty:
-                df_c["date"] = pd.to_datetime(df_c["time"], unit="ms").dt.floor("D")
-                s = pd.Series(
-                    np.maximum(0.0, df_c["precipitation"].astype(float).to_numpy()),
-                    index=df_c["date"],
-                )
-                daily_frames.append(s)
-        chunk_start = chunk_end
+        if len(data) <= 1:
+            return None
+        df_c = pd.DataFrame(data[1:], columns=data[0]).dropna(subset=["precipitation"])
+        df_c = df_c[df_c["precipitation"].astype(float) >= 0.0]
+        if df_c.empty:
+            return None
+        df_c["date"] = pd.to_datetime(df_c["time"], unit="ms").dt.floor("D")
+        return pd.Series(
+            np.maximum(0.0, df_c["precipitation"].astype(float).to_numpy()),
+            index=df_c["date"],
+        )
+
+    daily_frames = _run_parallel_chunks(_fetch_imerg_chunk, windows, max_workers=6, timeout_sec=18.0)
 
     if not daily_frames:
         raise RuntimeError("Empty daily IMERG response from GEE")
@@ -362,25 +400,36 @@ def _smap_rootzone_live(lat: float, lon: float, start: str, end: str) -> pd.Seri
     pt = ee.Geometry.Point([lon, lat])
     start_ts = max(pd.Timestamp("2015-04-01"), pd.Timestamp(start))
     end_ts = pd.Timestamp(end)
+    if start_ts >= end_ts:
+        raise RuntimeError("Invalid SMAP date range")
 
-    chunks: list[pd.Series] = []
+    windows: list[tuple[pd.Timestamp, pd.Timestamp]] = []
     chunk_start = start_ts
     while chunk_start < end_ts:
-        chunk_end = min(chunk_start + pd.Timedelta(days=45), end_ts)
+        chunk_end = min(chunk_start + pd.Timedelta(days=365), end_ts)
+        windows.append((chunk_start, chunk_end))
+        chunk_start = chunk_end
+
+    def _fetch_smap_chunk(bounds: tuple[pd.Timestamp, pd.Timestamp]) -> pd.Series | None:
+        c_start, c_end = bounds
         col = (
             ee.ImageCollection("NASA/SMAP/SPL4SMGP/008")
             .filterBounds(pt)
-            .filterDate(chunk_start.strftime("%Y-%m-%d"), chunk_end.strftime("%Y-%m-%d"))
+            .filterDate(c_start.strftime("%Y-%m-%d"), c_end.strftime("%Y-%m-%d"))
+            .filter(ee.Filter.calendarRange(13, 13, "hour"))
             .select("sm_rootzone")
         )
         data = col.getRegion(pt, 9000).getInfo()
-        if len(data) > 1:
-            df_ee = pd.DataFrame(data[1:], columns=data[0]).dropna(subset=["sm_rootzone"])
-            if not df_ee.empty:
-                df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms").dt.date
-                daily = df_ee.groupby("date")["sm_rootzone"].mean()
-                chunks.append(pd.Series(daily.values, index=pd.to_datetime(daily.index)))
-        chunk_start = chunk_end
+        if len(data) <= 1:
+            return None
+        df_ee = pd.DataFrame(data[1:], columns=data[0]).dropna(subset=["sm_rootzone"])
+        if df_ee.empty:
+            return None
+        df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms").dt.date
+        daily = df_ee.groupby("date")["sm_rootzone"].mean()
+        return pd.Series(daily.values, index=pd.to_datetime(daily.index))
+
+    chunks = _run_parallel_chunks(_fetch_smap_chunk, windows, max_workers=6, timeout_sec=20.0)
 
     if not chunks:
         raise RuntimeError("Empty SMAP response from GEE")
@@ -542,11 +591,18 @@ def fire_detections(lat: float, lon: float, start: str, end: str, buffer_m: int 
 def _ndvi_timeseries_live(lat: float, lon: float, start: str, end: str, buffer_m: int = 60) -> pd.DataFrame:
     import ee
 
-    geom = ee.Geometry.Point([lon, lat]).buffer(max(15, int(buffer_m)))
+    pt = ee.Geometry.Point([lon, lat])
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end)
 
-    def _query_hls(col_id: str, nir_band: str, label: str) -> pd.DataFrame:
-        col = ee.ImageCollection(col_id).filterBounds(geom).filterDate(start, end).select([nir_band, "B4", "Fmask"])
-        data = col.getRegion(geom, 30).getInfo()
+    windows: list[tuple[pd.Timestamp, pd.Timestamp]] = []
+    cur = start_ts
+    while cur < end_ts:
+        nxt = min(cur + pd.Timedelta(days=365), end_ts)
+        windows.append((cur, nxt))
+        cur = nxt
+
+    def _parse_hls(data: list, nir_band: str, label: str) -> pd.DataFrame:
         if len(data) <= 1:
             return pd.DataFrame(columns=["date", "ndvi", "sensor"])
         df_ee = pd.DataFrame(data[1:], columns=data[0]).dropna(subset=[nir_band, "B4"])
@@ -556,12 +612,16 @@ def _ndvi_timeseries_live(lat: float, lon: float, start: str, end: str, buffer_m
             fmask = df_ee["Fmask"].fillna(0).astype(int)
             # Bit 1 = cloud, Bit 2 = cloud shadow/adjacent, Bit 3 = snow/ice
             df_ee = df_ee[(fmask & 14) == 0]
+        if df_ee.empty:
+            return pd.DataFrame(columns=["date", "ndvi", "sensor"])
         df_ee["date"] = pd.to_datetime(df_ee["time"], unit="ms").dt.floor("D")
         nir = df_ee[nir_band].astype(float)
         red = df_ee["B4"].astype(float)
         denom = nir + red
         valid = denom > 0
         df_ee = df_ee[valid].copy()
+        if df_ee.empty:
+            return pd.DataFrame(columns=["date", "ndvi", "sensor"])
         df_ee["ndvi"] = ((nir[valid] - red[valid]) / denom[valid]).round(3)
         df_ee = df_ee[df_ee["ndvi"].between(0.05, 0.95)]
         if df_ee.empty:
@@ -570,10 +630,51 @@ def _ndvi_timeseries_live(lat: float, lon: float, start: str, end: str, buffer_m
         daily["sensor"] = label
         return daily[["date", "ndvi", "sensor"]]
 
-    parts = [
-        _query_hls("NASA/HLS/HLSS30/v002", "B8", "HLS_S30"),
-        _query_hls("NASA/HLS/HLSL30/v002", "B5", "HLS_L30"),
-    ]
+    def _query_window(task: tuple[str, str, str, pd.Timestamp, pd.Timestamp]) -> pd.DataFrame | None:
+        col_id, nir_band, label, c_start, c_end = task
+        col = (
+            ee.ImageCollection(col_id)
+            .filterBounds(pt)
+            .filterDate(c_start.strftime("%Y-%m-%d"), c_end.strftime("%Y-%m-%d"))
+            .filter(ee.Filter.lt("CLOUD_COVERAGE", 45))
+            .select([nir_band, "B4", "Fmask"])
+        )
+        data = col.getRegion(pt, 30).getInfo()
+        df = _parse_hls(data, nir_band, label)
+        return df if not df.empty else None
+
+    tasks: list[tuple[str, str, str, pd.Timestamp, pd.Timestamp]] = []
+    for c_start, c_end in windows:
+        tasks.append(("NASA/HLS/HLSS30/v002", "B8", "HLS_S30", c_start, c_end))
+        tasks.append(("NASA/HLS/HLSL30/v002", "B5", "HLS_L30", c_start, c_end))
+
+    parts = _run_parallel_chunks(_query_window, tasks, max_workers=6, timeout_sec=18.0)
+
+    if sum(len(p) for p in parts) < 10:
+        fb_start = max(start_ts, end_ts - pd.Timedelta(days=730))
+        geom = pt.buffer(max(30, int(buffer_m)))
+
+        def _query_fallback(spec: tuple[str, str, str]) -> pd.DataFrame | None:
+            col_id, nir_band, label = spec
+            col = (
+                ee.ImageCollection(col_id)
+                .filterBounds(geom)
+                .filterDate(fb_start.strftime("%Y-%m-%d"), end_ts.strftime("%Y-%m-%d"))
+                .select([nir_band, "B4", "Fmask"])
+            )
+            data = col.getRegion(geom, 60).getInfo()
+            df = _parse_hls(data, nir_band, label)
+            return df if not df.empty else None
+
+        parts.extend(
+            _run_parallel_chunks(
+                _query_fallback,
+                [("NASA/HLS/HLSS30/v002", "B8", "HLS_S30"), ("NASA/HLS/HLSL30/v002", "B5", "HLS_L30")],
+                max_workers=2,
+                timeout_sec=12.0,
+            )
+        )
+
     non_empty = [p for p in parts if not p.empty]
     if not non_empty:
         raise RuntimeError("No cloud-free HLS observations found")

@@ -74,7 +74,7 @@ def _fetch_json(lat: float, lon: float, start: str, end: str, parameters: str) -
         "Accept": "application/json",
         "Accept-Encoding": "gzip, deflate",
     }
-    timeout = float(os.environ.get("NASA_POWER_TIMEOUT", "20.0"))
+    timeout = float(os.environ.get("NASA_POWER_TIMEOUT", "12.0"))
     last_exc = None
     for attempt in range(2):
         try:

@@ -2714,3 +2714,102 @@ def test_cmip6_step_cache_isolates_divergent_weather() -> None:
     res_warm = evaluate.evaluate_rotation(rot, {"m0": df_warm}, prof, FarmConstraints(), step_cache=shared_cache)
 
     assert res_warm.irrigation_mm[0] > res_base.irrigation_mm[0] or res_warm.yield_t_ha["wheat"][0] != res_base.yield_t_ha["wheat"][0]
+
+
+def test_recommend_endpoint_reuses_supplied_profile(monkeypatch) -> None:
+    """Verify POST /recommend skips profiler.build_profile when a matching profile is provided."""
+    import json
+    from pathlib import Path
+
+    from fastapi.testclient import TestClient
+    from terraloop_api.main import app
+    from terraloop_engine import profiler
+
+    calls = 0
+
+    def _fail_build(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        raise AssertionError("profiler.build_profile should not be called when profile matches")
+
+    monkeypatch.setattr(profiler, "build_profile", _fail_build)
+
+    raw_prof = json.loads(Path("data/golden/sangrur/profile.json").read_text(encoding="utf-8"))
+    raw_prof["field"]["id"] = None  # Force non-golden path so it checks req.profile
+    client = TestClient(app)
+    res = client.post(
+        "/recommend",
+        json={
+            "field": raw_prof["field"],
+            "profile": raw_prof,
+            "constraints": {"irrigation": "full"},
+            "language": "en",
+        },
+    )
+    assert res.status_code == 200
+    assert calls == 0
+    recs = res.json()
+    assert len(recs) >= 3
+
+
+def test_soilgrids_gee_conversion_matches_golden_targets() -> None:
+    """Verify SoilGrids GEE conversion factors convert raw GEE integer scales to exact target units."""
+    from terraloop_engine.data import soilgrids
+
+    # Simulating raw GEE integer values for Sangrur topsoil
+    # clay: 220 g/kg -> 22.0 %
+    # sand: 450 g/kg -> 45.0 %
+    # silt: 330 g/kg -> 33.0 %
+    # soc: 56 dg/kg -> 5.6 g/kg
+    # phh2o: 78 -> 7.8
+    # bdod: 145 cg/cm3 -> 1.45 g/cm3
+    # cec: 180 mmol(c)/kg -> 18.0 cmol(c)/kg
+    # nitrogen: 1040 mg/kg -> 1.04 g/kg
+    raw = {
+        "clay": 220.0,
+        "sand": 450.0,
+        "silt": 330.0,
+        "soc": 56.0,
+        "phh2o": 78.0,
+        "bdod": 145.0,
+        "cec": 180.0,
+        "nitrogen": 1040.0,
+    }
+    converted = {k: v / soilgrids._GEE_DFACTORS[k] for k, v in raw.items()}
+    assert converted["clay"] == 22.0
+    assert converted["sand"] == 45.0
+    assert converted["silt"] == 33.0
+    assert converted["soc"] == 5.6
+    assert converted["phh2o"] == 7.8
+    assert converted["bdod"] == 1.45
+    assert converted["cec"] == 18.0
+    assert converted["nitrogen"] == 1.04
+
+
+def test_profiler_nonblocking_pool_on_slow_feed(monkeypatch) -> None:
+    """Verify profiler.build_profile does not hang when an optional feed blocks longer than timeout."""
+    import time
+
+    from terraloop_engine import profiler
+    from terraloop_engine.data import gee
+    from terraloop_schemas import FieldGeometry
+
+    def _hung_smap(*args, **kwargs):
+        time.sleep(10.0)
+        raise RuntimeError("Hung")
+
+    monkeypatch.setenv("PROFILE_LIVE_TIMEOUT_SEC", "0.2")
+    monkeypatch.setattr(gee, "init", lambda: True)
+    monkeypatch.setattr(gee, "smap_rootzone", _hung_smap)
+    monkeypatch.setattr(gee, "slope_pct", lambda lat, lon: 1.0)
+    monkeypatch.setattr(gee, "grace_trend", lambda lat, lon: (-3.5, None))
+
+    t0 = time.time()
+    prof = profiler.build_profile(
+        FieldGeometry(lat=30.19, lon=75.78, name="Test Timeout"),
+        use_live_network=True,
+    )
+    duration = time.time() - t0
+    assert duration < 5.0  # Must not block on the 10s hung thread
+    assert prof is not None
+

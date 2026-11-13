@@ -624,7 +624,15 @@ def _recommend_impl(
     reg_cfg = region_registry.detect_region_config(req.field.lat, req.field.lon)
     matched_golden_id: str | None = _match_golden_field(req.field)
 
-    if matched_golden_id:
+    has_matching_profile = (
+        req.profile is not None
+        and (round(req.profile.field.lat, 4), round(req.profile.field.lon, 4))
+        == (round(req.field.lat, 4), round(req.field.lon, 4))
+    )
+
+    if has_matching_profile and req.profile is not None:
+        prof = req.profile.model_copy(deep=True)
+    elif matched_golden_id:
         prof = golden_profile(matched_golden_id)
         prof.served_from = "demo_snapshot"
     else:
@@ -659,8 +667,12 @@ def _recommend_impl(
 
     if weather_df is None:
         try:
-            req_power = nasa_power.PowerRequest(req.field.lat, req.field.lon, date(1995, 1, 1), date(2024, 12, 31))
-            weather_df = nasa_power.fetch_daily(req_power)
+            # Matches profiler's 1985-2024 PowerRequest cache key to avoid a duplicate NASA POWER call
+            req_power = nasa_power.PowerRequest(req.field.lat, req.field.lon, date(1985, 1, 1), date(2024, 12, 31))
+            fetched_df = nasa_power.fetch_daily(req_power)
+            if fetched_df is not None and not fetched_df.empty:
+                sliced_df = fetched_df[fetched_df.index >= "1995-01-01"]
+                weather_df = sliced_df if not sliced_df.empty else fetched_df
         except Exception as exc:  # noqa: BLE001
             log.warning("Live weather fetch failed: %s", exc)
 
@@ -1129,6 +1141,10 @@ def recommend_async(req: RecommendRequest) -> dict:
         "created_at": time.time(),
     }
     _save_job(job_id, init_state)
+    if os.environ.get("VERCEL"):
+        # Vercel Serverless freezes background daemon threads on HTTP return; execute synchronously.
+        _async_recommend_worker(job_id, req)
+        return _load_job(job_id) or init_state
     thread = threading.Thread(target=_async_recommend_worker, args=(job_id, req), daemon=True)
     thread.start()
     return {

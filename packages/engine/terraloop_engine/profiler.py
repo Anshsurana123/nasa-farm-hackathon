@@ -9,7 +9,11 @@ Failures in optional sources must NOT break the profile (log + leave None or reg
 from __future__ import annotations
 
 import logging
-from concurrent.futures import ThreadPoolExecutor
+import os
+import threading
+from concurrent.futures import ThreadPoolExecutor, wait
+from dataclasses import dataclass
+from dataclasses import field as dc_field
 from datetime import date
 
 import numpy as np
@@ -341,6 +345,33 @@ def build_notes(
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+@dataclass
+class _InflightEntry:
+    event: threading.Event = dc_field(default_factory=threading.Event)
+    profile: FieldProfile | None = None
+
+
+_INFLIGHT_LOCK = threading.Lock()
+_INFLIGHT_PROFILES: dict[tuple[float, float, str, str], _InflightEntry] = {}
+
+
+def _collect_future(fut, label: str | None = None):
+    """Read a completed future or cancel an unfinished one without blocking."""
+    if fut is None:
+        return None
+    if not fut.done():
+        fut.cancel()
+        if label:
+            log.warning("%s live fetch timed out; using regional fallback", label)
+        return None
+    try:
+        return fut.result()
+    except Exception as exc:  # noqa: BLE001
+        if label:
+            log.warning("%s live fetch failed: %s; using regional fallback", label, exc)
+        return None
+
+
 def build_profile(
     field: FieldGeometry,
     start: date | None = None,
@@ -351,6 +382,55 @@ def build_profile(
     start = start or date(BASELINE[0], 1, 1)
     end = end or date(RECENT[1], 12, 31)
 
+    inflight_key: tuple[float, float, str, str] | None = None
+    inflight_entry: _InflightEntry | None = None
+    is_owner = False
+
+    if use_live_network:
+        inflight_key = (round(field.lat, 4), round(field.lon, 4), str(start), str(end))
+        with _INFLIGHT_LOCK:
+            existing = _INFLIGHT_PROFILES.get(inflight_key)
+            if existing is None:
+                inflight_entry = _InflightEntry()
+                _INFLIGHT_PROFILES[inflight_key] = inflight_entry
+                is_owner = True
+            else:
+                inflight_entry = existing
+
+        if not is_owner and inflight_entry is not None:
+            wait_sec = float(os.environ.get("PROFILE_LIVE_TIMEOUT_SEC", "24.0")) + 6.0
+            inflight_entry.event.wait(timeout=wait_sec)
+            if inflight_entry.profile is not None:
+                shared_profile = inflight_entry.profile.model_copy(deep=True)
+                if soil_health_card is not None:
+                    shared_profile = apply_soil_health_card_override(shared_profile, soil_health_card)
+                return shared_profile
+            # Owner failed or timed out; fall through cleanly without sharing broken state
+            inflight_key = None
+            inflight_entry = None
+
+    try:
+        profile = _build_base_profile(field, start, end, use_live_network=use_live_network)
+        if is_owner and inflight_entry is not None:
+            inflight_entry.profile = profile.model_copy(deep=True)
+    finally:
+        if is_owner and inflight_key is not None and inflight_entry is not None:
+            with _INFLIGHT_LOCK:
+                if _INFLIGHT_PROFILES.get(inflight_key) is inflight_entry:
+                    _INFLIGHT_PROFILES.pop(inflight_key, None)
+            inflight_entry.event.set()
+
+    if soil_health_card is not None:
+        profile = apply_soil_health_card_override(profile, soil_health_card)
+    return profile
+
+
+def _build_base_profile(
+    field: FieldGeometry,
+    start: date,
+    end: date,
+    use_live_network: bool = True,
+) -> FieldProfile:
     power_mode = "observed"
     soil_mode = "observed"
     weather = None
@@ -364,81 +444,63 @@ def build_profile(
 
     if use_live_network:
         gee_active = bool(gee.init())
+        timeout_sec = float(os.environ.get("PROFILE_LIVE_TIMEOUT_SEC", "24.0"))
+        pool = ThreadPoolExecutor(max_workers=8)
         try:
-            with ThreadPoolExecutor(max_workers=8) as pool:
-                fut_power = pool.submit(
-                    nasa_power.fetch_daily,
-                    nasa_power.PowerRequest(field.lat, field.lon, start, end),
+            fut_power = pool.submit(
+                nasa_power.fetch_daily,
+                nasa_power.PowerRequest(field.lat, field.lon, start, end),
+            )
+            fut_soil = pool.submit(soilgrids.fetch_topsoil, field.lat, field.lon)
+            fut_slope = pool.submit(gee.slope_pct, field.lat, field.lon)
+            fut_grace = pool.submit(gee.grace_trend, field.lat, field.lon)
+            fut_smap = pool.submit(gee.smap_rootzone, field.lat, field.lon, "2015-04-01", str(end))
+            fut_imerg = (
+                pool.submit(gee.imerg_daily, field.lat, field.lon, f"{max(2001, end.year - 2)}-01-01", str(end))
+                if gee_active
+                else None
+            )
+            fut_firms = (
+                pool.submit(gee.fire_detections, field.lat, field.lon, f"{end.year - 4}-01-01", str(end))
+                if gee_active
+                else None
+            )
+            fut_ndvi = (
+                pool.submit(gee.ndvi_timeseries, field.lat, field.lon, f"{end.year - 4}-01-01", str(end))
+                if gee_active
+                else None
+            )
+
+            all_futs = [
+                f
+                for f in (
+                    fut_power,
+                    fut_soil,
+                    fut_slope,
+                    fut_grace,
+                    fut_smap,
+                    fut_imerg,
+                    fut_firms,
+                    fut_ndvi,
                 )
-                fut_soil = pool.submit(soilgrids.fetch_topsoil, field.lat, field.lon)
-                fut_slope = pool.submit(gee.slope_pct, field.lat, field.lon)
-                fut_grace = pool.submit(gee.grace_trend, field.lat, field.lon)
-                fut_smap = pool.submit(gee.smap_rootzone, field.lat, field.lon, "2015-04-01", str(end))
-                fut_imerg = (
-                    pool.submit(gee.imerg_daily, field.lat, field.lon, f"{max(2001, end.year - 2)}-01-01", str(end))
-                    if gee_active
-                    else None
-                )
-                fut_firms = (
-                    pool.submit(gee.fire_detections, field.lat, field.lon, f"{end.year - 4}-01-01", str(end))
-                    if gee_active
-                    else None
-                )
-                fut_ndvi = (
-                    pool.submit(gee.ndvi_timeseries, field.lat, field.lon, f"{end.year - 4}-01-01", str(end))
-                    if gee_active
-                    else None
-                )
+                if f is not None
+            ]
+            wait(all_futs, timeout=timeout_sec)
 
-                try:
-                    weather = fut_power.result(timeout=20.0)
-                except Exception as exc:  # noqa: BLE001
-                    log.warning("NASA POWER live fetch failed: %s; using location-calibrated regional weather", exc)
-                    weather = None
-
-                try:
-                    props, _used = fut_soil.result(timeout=20.0)
-                except Exception as exc:  # noqa: BLE001
-                    log.warning("SoilGrids live fetch failed: %s; using regional soil fallback", exc)
-                    props = None
-
-                if fut_slope is not None:
-                    try:
-                        slope_val = fut_slope.result(timeout=6.0)
-                    except Exception:  # noqa: BLE001
-                        slope_val = None
-
-                if fut_grace is not None:
-                    try:
-                        gw_trend, _ = fut_grace.result(timeout=6.0)
-                    except Exception:  # noqa: BLE001
-                        gw_trend = None
-
-                if fut_smap is not None:
-                    try:
-                        smap_series = fut_smap.result(timeout=6.0)
-                    except Exception:  # noqa: BLE001
-                        smap_series = None
-
-                if fut_imerg is not None:
-                    try:
-                        imerg_series = fut_imerg.result(timeout=12.0)
-                    except Exception:  # noqa: BLE001
-                        imerg_series = None
-
-                if fut_firms is not None:
-                    try:
-                        fire_df = fut_firms.result(timeout=6.0)
-                    except Exception:  # noqa: BLE001
-                        fire_df = None
-
-                if fut_ndvi is not None:
-                    try:
-                        ndvi_df = fut_ndvi.result(timeout=6.0)
-                    except Exception:  # noqa: BLE001
-                        ndvi_df = None
+            weather = _collect_future(fut_power, "NASA POWER")
+            soil_res = _collect_future(fut_soil, "SoilGrids")
+            props = soil_res[0] if isinstance(soil_res, tuple) and soil_res else None
+            slope_val = _collect_future(fut_slope)
+            grace_res = _collect_future(fut_grace)
+            gw_trend = grace_res[0] if isinstance(grace_res, tuple) and grace_res else None
+            smap_series = _collect_future(fut_smap)
+            imerg_series = _collect_future(fut_imerg)
+            fire_df = _collect_future(fut_firms)
+            ndvi_df = _collect_future(fut_ndvi)
         except Exception as exc:  # noqa: BLE001
             log.warning("Parallel external fetcher pool error: %s", exc)
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
     else:
         slope_val = gee.slope_pct(field.lat, field.lon)
         gw_trend, _ = gee.grace_trend(field.lat, field.lon)
@@ -589,8 +651,4 @@ def build_profile(
         is_fallback=is_fallback,
         data_mode=data_mode,  # type: ignore[arg-type]
     )
-
-    if soil_health_card is not None:
-        profile = apply_soil_health_card_override(profile, soil_health_card)
-
     return profile

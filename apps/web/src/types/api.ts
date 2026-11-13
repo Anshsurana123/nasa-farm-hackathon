@@ -291,6 +291,7 @@ export interface RecommendRequest {
   constraints?: FarmConstraints;
   language?: "en" | "pa" | "hi";
   soil_health_card?: SoilHealthCardInput | null;
+  profile?: FieldProfile | null;
   baseline_override?: string[] | null;
   climate_scenario?: ClimateScenarioId;
   drought_shock_pct?: number;

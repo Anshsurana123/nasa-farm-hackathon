@@ -172,6 +172,15 @@ export function RotationExplorer({
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
+  const reusableProfile =
+    profile &&
+    !profile.is_fallback &&
+    !(profile.soil?.source === "farmer_test" && !soilHealthCard) &&
+    Math.abs(profile.field.lat - field.lat) < 1e-4 &&
+    Math.abs(profile.field.lon - field.lon) < 1e-4
+      ? profile
+      : undefined;
+
   const fetchRecommendations = async (overrideP?: Priorities, overrideC?: FarmConstraints) => {
     const pToUse = overrideP ?? priorities;
     const cToUse = overrideC ?? constraints;
@@ -188,6 +197,7 @@ export function RotationExplorer({
           constraints: cToUse,
           language: (lang as "en" | "pa" | "hi") || "en",
           soil_health_card: soilHealthCard,
+          profile: reusableProfile,
           baseline_override: baselineOverride,
           climate_scenario: climateScenario,
         },
@@ -234,6 +244,7 @@ export function RotationExplorer({
         constraints,
         language: (lang as "en" | "pa" | "hi") || "en",
         soil_health_card: soilHealthCard,
+        profile: reusableProfile,
         baseline_override: baselineOverride,
         climate_scenario: scen,
         drought_shock_pct: droughtShockPct,

@@ -22,12 +22,22 @@ export const API_URL = (
     : (process.env.NEXT_PUBLIC_API_URL || "/api")
 ).replace(/\/$/, "");
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, timeoutMs = 25000): Promise<T> {
   let backendError: string | null = null;
   let httpStatus: number | null = null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  if (init?.signal) {
+    if (init.signal.aborted) {
+      controller.abort();
+    } else {
+      init.signal.addEventListener("abort", () => controller.abort(), { once: true });
+    }
+  }
   try {
     const res = await fetch(`${API_URL}${path}`, {
       ...init,
+      signal: controller.signal,
       headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
     });
     if (res.ok) {
@@ -38,8 +48,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (errData?.detail) {
       backendError = String(errData.detail);
     }
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      backendError = `Request timed out after ${Math.round(timeoutMs / 1000)}s`;
+    }
     // API not running or unreachable, fallback below
+  } finally {
+    clearTimeout(timer);
   }
 
   // Never mask validation (400/422), auth (401/403), not-found (404 on explicit lookup), or rate-limit (429) errors
@@ -204,15 +219,15 @@ export const api = {
     request<StrategyRecommendation[]>(`/golden/${id}/recommendations`),
   crops: () => request<CropSpec[]>("/crops"),
   profile: (field: FieldGeometry) =>
-    request<FieldProfile>("/profile", { method: "POST", body: JSON.stringify(field) }),
+    request<FieldProfile>("/profile", { method: "POST", body: JSON.stringify(field) }, 45000),
   suitability: (req: SuitabilityRequest) =>
-    request<SuitabilityItem[]>("/suitability", { method: "POST", body: JSON.stringify(req) }),
+    request<SuitabilityItem[]>("/suitability", { method: "POST", body: JSON.stringify(req) }, 35000),
   recommend: (req: RecommendRequest) =>
-    request<StrategyRecommendation[]>("/recommend", { method: "POST", body: JSON.stringify(req) }),
+    request<StrategyRecommendation[]>("/recommend", { method: "POST", body: JSON.stringify(req) }, 50000),
   recommendAsync: (req: RecommendRequest) =>
-    request<RecommendJobStatus>("/recommend/async", { method: "POST", body: JSON.stringify(req) }),
+    request<RecommendJobStatus>("/recommend/async", { method: "POST", body: JSON.stringify(req) }, 50000),
   getRecommendJob: (jobId: string) =>
-    request<RecommendJobStatus>(`/recommend/jobs/${jobId}`),
+    request<RecommendJobStatus>(`/recommend/jobs/${jobId}`, undefined, 10000),
   geocode: (q: string) => request<import("@/types/api").GeocodeResult>(`/geocode?q=${encodeURIComponent(q)}`),
 };
 
@@ -255,8 +270,30 @@ export async function recommendWithProgress(
       message: job.message ?? undefined,
     });
 
-    const maxWaitMs = 60000;
+    if (job.status === "completed" && job.result) {
+      try {
+        if (typeof window !== "undefined" && window.sessionStorage) {
+          sessionStorage.removeItem("terraloop_active_job_id");
+        }
+      } catch {}
+      onProgress?.({ stage: "done", progressPct: 100 });
+      return job.result;
+    }
+    if (job.status === "failed") {
+      simFailedExplicitly = true;
+      try {
+        if (typeof window !== "undefined" && window.sessionStorage) {
+          sessionStorage.removeItem("terraloop_active_job_id");
+        }
+      } catch {}
+      throw new Error(job.error || "Simulation job failed");
+    }
+
+    const maxWaitMs = 45000;
+    const stallTimeoutMs = 20000;
     const startTime = Date.now();
+    let lastProgressKey = `${job.stage || job.step || ""}:${job.progress_pct ?? job.progress ?? 0}`;
+    let lastProgressAt = Date.now();
 
     while (Date.now() - startTime < maxWaitMs) {
       await new Promise((r) => setTimeout(r, 400));
@@ -264,6 +301,11 @@ export async function recommendWithProgress(
 
       const stage = (poll.stage || poll.step || "simulating") as ProgressStage;
       const pct = Math.round(poll.progress_pct ?? (poll.progress ? poll.progress * 100 : 50));
+      const progressKey = `${stage}:${pct}:${poll.status}`;
+      if (progressKey !== lastProgressKey) {
+        lastProgressKey = progressKey;
+        lastProgressAt = Date.now();
+      }
       onProgress?.({ stage, progressPct: pct, message: poll.message ?? undefined });
 
       if (poll.status === "completed" && poll.result) {
@@ -283,6 +325,9 @@ export async function recommendWithProgress(
           }
         } catch {}
         throw new Error(poll.error || "Simulation job failed");
+      }
+      if (Date.now() - lastProgressAt > stallTimeoutMs) {
+        throw new Error("Simulation stalled");
       }
     }
     throw new Error("Simulation timed out");

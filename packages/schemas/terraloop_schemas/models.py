@@ -435,6 +435,7 @@ class RecommendRequest(BaseModel):
     constraints: FarmConstraints = Field(default_factory=FarmConstraints)
     language: Literal["en", "pa", "hi"] = "en"
     soil_health_card: SoilHealthCardInput | None = None
+    profile: FieldProfile | None = None
     baseline_override: list[str] | None = None
     climate_scenario: Literal[
         "historical",
