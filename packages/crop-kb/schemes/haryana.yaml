@@ -5,6 +5,8 @@ schemes:
   - id: "haryana_mera_pani"
     name: "Haryana Mera Pani Meri Virasat"
     display_title: "Haryana Mera Pani Meri Virasat (₹17,500/ha crop diversification incentive)"
+    display_title_hi: "हरियाणा मेरा पानी मेरी विरासत (₹17,500/हेक्टेयर फसल विविधीकरण प्रोत्साहन)"
+    display_title_pa: "ਹਰਿਆਣਾ ਮੇਰਾ ਪਾਣੀ ਮੇਰੀ ਵਿਰਾਸਤ (₹17,500/ਹੈਕਟੇਅਰ ਫ਼ਸਲੀ ਵਿਭਿੰਨਤਾ ਪ੍ਰੋਤਸਾਹਨ)"
     state: "Haryana"
     eligible_crops: ["maize", "moong", "urad", "pigeon_pea", "soybean", "groundnut", "pearl_millet", "cotton"]
     ineligible_crops: ["rice_puddled"]

@@ -16,7 +16,7 @@ export default function LabPage() {
   return (
     <AppShell
       pageStep="04"
-      pageBadge="NSGA-II 3D PARETO SPACE · MONTE CARLO PERTURBATION · CMIP6 SSP2-4.5 / SSP5-8.5"
+      pageBadge={t("nav.badge.lab")}
       pageTitle={t("lab.pageTitle")}
       pageDescription={t("lab.pageDesc")}
       headerActions={

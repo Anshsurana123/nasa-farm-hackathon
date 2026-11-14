@@ -133,7 +133,7 @@ def crops_for_slot(
                 continue
             # Strictly rainfed fields cannot support paddy rice or irrigation-dependent crops
             if constraints.irrigation == "none" and (
-                c.id in ("rice_puddled", "rice_short", "rice_dsr", "basmati", "sugarcane", "potato", "sunflower")
+                c.id in ("rice_puddled", "rice_short", "rice_dsr", "basmati", "potato", "sunflower")
                 or c.water_requirement_mm[0] > 650
             ):
                 continue

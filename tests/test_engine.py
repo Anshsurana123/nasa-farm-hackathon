@@ -34,9 +34,17 @@ def synthetic_punjab_weather(years=(2000, 2009)) -> pd.DataFrame:
 
 
 @pytest.fixture(autouse=True)
-def reset_rate_limit_bucket():
+def reset_rate_limit_bucket(monkeypatch):
     from terraloop_api.main import _RATE_LIMIT_BUCKET
+    from terraloop_engine.data import gee, meteomatics
+
     _RATE_LIMIT_BUCKET.clear()
+    monkeypatch.setenv("GEE_DISABLE", "1")
+    monkeypatch.setattr(gee, "_initialised", False)
+    monkeypatch.delenv("METEOMATICS_USERNAME", raising=False)
+    monkeypatch.delenv("METEOMATICS_PASSWORD", raising=False)
+    monkeypatch.setattr(meteomatics, "_load_dotenv_if_needed", lambda: None)
+    monkeypatch.setattr(gee, "_load_dotenv_if_needed", lambda: None)
     yield
     _RATE_LIMIT_BUCKET.clear()
 
@@ -204,7 +212,9 @@ def test_api_basics_and_recommend_endpoint():
     from terraloop_api.main import app
 
     client = TestClient(app)
-    assert client.get("/health").json() == {"status": "ok"}
+    health_data = client.get("/health").json()
+    assert health_data["status"] == "ok"
+    assert isinstance(health_data["meteomatics_configured"], bool)
     assert len(client.get("/crops").json()) >= 20
     assert any(f["id"] == "sangrur" for f in client.get("/golden").json())
 
@@ -1704,18 +1714,26 @@ def test_i18n_key_parity_and_no_hardcoded_jsx_error_strings():
     assert 't("badge.graceUrgencyActive"' in rot_explorer_code
     assert 't("badge.graceUrgencyActive"' in agronomic_brief_code
 
-    # Scan RotationExplorer.tsx, AgronomicBrief.tsx, and brief/page.tsx for unlocalized multi-word English JSX text nodes (>12 chars)
-    target_tsx_files = [
-        root / "apps" / "web" / "src" / "components" / "RotationExplorer.tsx",
-        root / "apps" / "web" / "src" / "components" / "AgronomicBrief.tsx",
-        root / "apps" / "web" / "src" / "app" / "brief" / "page.tsx",
-    ]
+    # Scan all page and UI component TSX files under apps/web/src/{app,components} for unlocalized multi-word English JSX text nodes (>12 chars)
+    web_src = root / "apps" / "web" / "src"
+    target_tsx_files = sorted(
+        list((web_src / "app").rglob("*.tsx")) + list((web_src / "components").rglob("*.tsx"))
+    )
+    assert len(target_tsx_files) >= 10
     raw_jsx_pat = re.compile(r">[A-Za-z][^<{]{12,}<")
 
     for tsx_path in target_tsx_files:
         content = tsx_path.read_text(encoding="utf-8")
         matches = raw_jsx_pat.findall(content)
-        assert not matches, f"Unlocalized English JSX prose found in {tsx_path.name}: {matches}"
+        assert not matches, f"Unlocalized English JSX prose found in {tsx_path.relative_to(web_src)}: {matches}"
+
+    # Verify fallbackProfile.ts keeps canopy_wetness_idx in [0, 1] and populates VWC/drought/hazards provenance (#095)
+    fallback_prof_code = (root / "apps" / "web" / "src" / "lib" / "fallbackProfile.ts").read_text(encoding="utf-8")
+    assert "canopy_wetness_idx: prof.hazards.canopy_wetness_idx ?? 0.18" in fallback_prof_code
+    assert "canopy_wetness_idx: prof.hazards.canopy_wetness_idx ?? 18.0" not in fallback_prof_code
+    assert "volumetric_soil_water_layers: vwcLayers" in fallback_prof_code
+    assert "meteorological_drought_idx:" in fallback_prof_code
+    assert "hazardsProv" in fallback_prof_code and "regClimProv" in fallback_prof_code
 
 
 def test_fao56_annex_worked_examples():
@@ -2091,7 +2109,7 @@ def test_priority_monotonicity_sweep_200_vectors_four_fields():
         prof = FieldProfile.model_validate_json((Path("data/golden") / fid / "profile.json").read_text(encoding="utf-8"))
         ranked = suitability.rank_crops(prof, crops, constraints)
         top_ids = {r.crop_id for r in ranked[:10]}
-        filtered = {cid: crops[cid] for cid in top_ids if cid in crops}
+        filtered = {cid: crops[cid] for cid in crops if cid in top_ids}
         seasons = rotations.derive_seasons(prof)
         cands = rotations.generate_rotations(filtered, constraints, seasons=seasons)[:20]
 
@@ -2812,4 +2830,772 @@ def test_profiler_nonblocking_pool_on_slow_feed(monkeypatch) -> None:
     duration = time.time() - t0
     assert duration < 5.0  # Must not block on the 10s hung thread
     assert prof is not None
+
+
+def test_meteomatics_offline_and_mocked_live_parsing(monkeypatch, tmp_path) -> None:
+    """Verify Meteomatics REST connector offline fallback and JSON/HTTP parsing without real network calls."""
+    from datetime import date
+
+    from terraloop_engine.data import meteomatics
+
+    monkeypatch.setenv("TERRALOOP_CACHE_DIR", str(tmp_path / "mm_cache"))
+    monkeypatch.delenv("METEOMATICS_USERNAME", raising=False)
+    monkeypatch.delenv("METEOMATICS_PASSWORD", raising=False)
+    monkeypatch.setattr(meteomatics, "_load_dotenv_if_needed", lambda: None)
+    assert meteomatics.is_configured() is False
+    assert meteomatics.fetch_daily_weather(30.19, 75.78, date(2026, 1, 1), date(2026, 1, 5)) is None
+    assert meteomatics.fetch_tactical_forecast(30.19, 75.78) is None
+
+    # Enable credentials and mock HTTP responses (OAuth + API JSON)
+    monkeypatch.setenv("METEOMATICS_USERNAME", "demo_user")
+    monkeypatch.setenv("METEOMATICS_PASSWORD", "demo_pass")
+    assert meteomatics.is_configured() is True
+
+    class _FakeResp:
+        def __init__(self, payload: dict, status_code: int = 200) -> None:
+            self._payload = payload
+            self.status_code = status_code
+
+        def raise_for_status(self) -> None:
+            if self.status_code >= 400:
+                raise RuntimeError(f"HTTP {self.status_code}")
+
+        def json(self) -> dict:
+            return self._payload
+
+    class _FakeClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+        def get(self, url: str, **kwargs):
+            if "login.meteomatics.com" in url:
+                return _FakeResp({"access_token": "tok_123", "expires_in": 3600})
+            if "/elevation:m/" in url:
+                return _FakeResp(
+                    {
+                        "data": [
+                            {
+                                "parameter": "elevation:m",
+                                "coordinates": [
+                                    {"lat": 30.19, "lon": 75.78, "dates": [{"date": "2026-11-14T00:00:00Z", "value": v}]}
+                                    for v in (235.0, 234.0, 235.5, 234.5)
+                                ],
+                            }
+                        ]
+                    }
+                )
+            params_seg = url.split("/json")[0].split("/")[-2]
+            param_names = params_seg.split(",")
+            is_range = "--" in url
+            dates_strs = (
+                [f"2026-11-{14 + i:02d}T00:00:00Z" for i in range(7)]
+                if is_range
+                else ["2026-11-14T06:00:00Z"]
+            )
+            sample_vals = {
+                "t_max_2m_24h:C": 28.5,
+                "t_min_2m_24h:C": 14.0,
+                "precip_24h:mm": 2.0,
+                "prob_precip_24h:p": 15.0,
+                "global_rad_24h:Wh": 5000.0,  # 5000 * 0.0036 = 18.0 MJ/m2/day
+                "relative_humidity_2m:p": 62.0,
+                "wind_speed_2m:ms": 2.1,
+                "evapotranspiration_24h:mm": 3.4,
+                "soil_moisture_deficit:mm": 32.0,
+                "soil_moisture_index_-5cm:idx": 0.45,
+                "soil_moisture_index_-15cm:idx": 0.52,
+                "soil_moisture_index_-50cm:idx": 0.60,
+                "soil_moisture_index_-150cm:idx": 0.68,
+                "volumetric_soil_water_-5cm:m3m3": 0.21,
+                "volumetric_soil_water_-15cm:m3m3": 0.24,
+                "volumetric_soil_water_-50cm:m3m3": 0.26,
+                "volumetric_soil_water_-150cm:m3m3": 0.29,
+                "t_-5cm:C": 19.6,
+                "phytophthora_negative:idx": 168.0,
+                "leaf_wetness:idx": 0.72,
+                "hail_24h:cm": 0.0,
+                "fosberg_fire_weather_index:idx": 38.0,
+                "drought_index:idx": -0.4,
+                "precip_30min:mm": 6.5,  # -> 13.0 mm/h
+            }
+            data = []
+            for p in param_names:
+                data.append(
+                    {
+                        "parameter": p,
+                        "coordinates": [
+                            {
+                                "lat": 30.19,
+                                "lon": 75.78,
+                                "dates": [{"date": d, "value": sample_vals.get(p, 1.0)} for d in dates_strs],
+                            }
+                        ],
+                    }
+                )
+            return _FakeResp({"status": "OK", "data": data})
+
+    monkeypatch.setattr(meteomatics.httpx, "Client", _FakeClient)
+
+    w_df = meteomatics.fetch_daily_weather(30.19, 75.78, date(2026, 11, 14), date(2026, 11, 20))
+    assert w_df is not None and len(w_df) == 7
+    assert float(w_df["ALLSKY_SFC_SW_DWN"].iloc[0]) == pytest.approx(18.0)
+
+    snap = meteomatics.fetch_soil_and_hazards_snapshot(30.19, 75.78, ref_date=date(2026, 11, 14))
+    assert snap is not None
+    assert snap["soil_moisture_deficit_mm"] == 32.0
+    assert snap["seedbed_temp_5cm_c"] == 19.6
+    assert snap["late_blight_risk_idx"] == 168.0
+    assert snap["max_30m_precip_rate_mmh"] == 13.0
+    assert set(snap["soil_moisture_index_layers"].keys()) == {"-5cm", "-15cm", "-50cm", "-150cm"}
+
+    adv = meteomatics.fetch_tactical_forecast(30.19, 75.78, days=7, start_date=date(2026, 11, 14))
+    assert adv is not None
+    assert adv.sowing_ready is True
+    assert adv.urea_spray_safe is True
+    assert adv.next_7d_precip_mm == pytest.approx(14.0)
+    assert adv.provenance[0].mode == "observed"
+
+    cmip_df = meteomatics.fetch_cmip6_daily(30.19, 75.78, "ssp245", "2026-11-14", "2026-11-20")
+    assert cmip_df is not None and {"tasmax", "tasmin", "pr", "ALLSKY_SFC_SW_DWN"}.issubset(cmip_df.columns)
+
+    slope_val = meteomatics.fetch_srtm_slope_pct(30.19, 75.78)
+    assert slope_val is not None and slope_val > 0.0
+
+
+def test_suitability_biotic_and_hail_hazards(punjab_profile) -> None:
+    """Verify Phytophthora blight, canopy wetness, and hail hazards steer suitability cleanly."""
+    from terraloop_engine import crop_kb, suitability
+
+    crops = crop_kb.load_crops()
+    base_pot = suitability.score_crop(punjab_profile, crops["potato"])
+    base_chk = suitability.score_crop(punjab_profile, crops["chickpea"])
+    base_wht = suitability.score_crop(punjab_profile, crops["wheat"])
+
+    prof_haz = punjab_profile.model_copy(deep=True)
+    prof_haz.hazards.late_blight_risk_idx = 185.0
+    prof_haz.hazards.canopy_wetness_idx = 0.80
+    prof_haz.hazards.hail_probability_pct = 35.0
+
+    haz_pot = suitability.score_crop(prof_haz, crops["potato"])
+    haz_chk = suitability.score_crop(prof_haz, crops["chickpea"])
+    haz_wht = suitability.score_crop(prof_haz, crops["wheat"])
+
+    assert haz_pot.score <= base_pot.score
+    assert any("Phytophthora" in r for r in haz_pot.reasons)
+    assert haz_chk.score < base_chk.score
+    assert any("leaf wetness" in r for r in haz_chk.reasons)
+    assert haz_wht.score < base_wht.score
+    assert any("hailstorm" in r for r in haz_wht.reasons)
+
+    # Also assert strict potato score reduction on an optimal-pH profile without pre-clamping to 0
+    prof_ph = punjab_profile.model_copy(deep=True)
+    prof_ph.soil.ph = 6.5
+    prof_ph_haz = prof_ph.model_copy(deep=True)
+    prof_ph_haz.hazards.late_blight_risk_idx = 185.0
+    prof_ph_haz.hazards.canopy_wetness_idx = 0.80
+    prof_ph_haz.hazards.hail_probability_pct = 35.0
+    assert suitability.score_crop(prof_ph_haz, crops["potato"]).score < suitability.score_crop(prof_ph, crops["potato"]).score
+
+
+def test_tactical_advisory_endpoint_and_golden_profile() -> None:
+    """Verify /tactical-advisory and /golden/{id}/profile serve provenance-tagged Meteomatics tactical data."""
+    from terraloop_api.main import app
+
+    client = TestClient(app)
+    res_adv = client.get("/tactical-advisory", params={"lat": 30.19, "lon": 75.78})
+    assert res_adv.status_code == 200
+    adv = res_adv.json()
+    assert len(adv["forecast_days"]) == 7
+    assert adv["provenance"][0]["mode"] in ("observed", "regional_climatology")
+
+    res_api_adv = client.get("/api/tactical-advisory", params={"lat": 30.19, "lon": 75.78})
+    assert res_api_adv.status_code == 200
+
+    res_prof = client.get("/golden/sangrur/profile")
+    assert res_prof.status_code == 200
+    prof = res_prof.json()
+    assert prof["tactical_advisory"] is not None
+    assert prof["water"]["seedbed_temp_5cm_c"] is not None
+    assert prof["water"]["soil_moisture_index_layers"] is not None
+    assert prof["hazards"]["late_blight_risk_idx"] is not None
+    assert prof["hazards"]["fire_weather_index"] is not None
+
+
+def test_meteomatics_cmip6_historical_and_multiyear_sampling(monkeypatch):
+    """fetch_cmip6_daily supports historical source and samples multiple years across >1yr spans."""
+    from terraloop_engine.data import meteomatics
+
+    monkeypatch.setattr(meteomatics, "is_configured", lambda: True)
+    seen_calls: list[tuple[str, str]] = []
+
+    def _fake_query(vrange: str, params: list[str], loc: str, extra_query: str = ""):
+        seen_calls.append((vrange, extra_query))
+        start_part, end_part = vrange.split("--")
+        q_start = start_part.split("T")[0]
+        q_end = end_part.split("T")[0]
+        idx = pd.date_range(q_start, q_end, freq="D", tz="UTC")
+        year = idx[0].year
+        offset = float(year - 2000)
+        doy = idx.dayofyear.to_numpy()
+        tmax = 29.0 + offset + 6.0 * np.sin(2.0 * np.pi * doy / 366.0)
+        return {
+            "t_max_2m_24h:C": pd.Series(tmax, index=idx),
+            "t_min_2m_24h:C": pd.Series(tmax - 11.0, index=idx),
+            "precip_24h:mm": pd.Series(np.where(idx.month == 7, 10.0, 0.5), index=idx),
+        }
+
+    monkeypatch.setattr(meteomatics, "_query_param_batches", _fake_query)
+
+    df = meteomatics.fetch_cmip6_daily(30.19, 75.78, "historical", "2000-01-01", "2005-12-31")
+    assert df is not None
+    assert len(seen_calls) == 3
+    assert all(q == "source=mri-esm2" for _, q in seen_calls)
+    sampled_years = [int(vr[:4]) for vr, _ in seen_calls]
+    assert sampled_years == [2000, 2002, 2005]
+    assert df.index.min() == pd.Timestamp("2000-01-01")
+    assert df.index.max() == pd.Timestamp("2005-12-31")
+    assert not df[["tasmax", "tasmin", "pr"]].isna().any().any()
+    assert df.loc["2004-02-29", "tasmax"] > 0.0
+    annual_means = df.groupby(df.index.year)["tasmax"].mean()
+    assert float(annual_means.std()) > 1.0
+
+
+def test_gee_cmip6_does_not_clone_mri_esm2_across_other_gcms(monkeypatch):
+    """gee.cmip6_daily must only route MRI-ESM2-0 through Meteomatics REST."""
+    from terraloop_engine.data import gee, meteomatics
+
+    monkeypatch.setattr(gee, "init", lambda: False)
+    monkeypatch.setattr(meteomatics, "is_configured", lambda: True)
+    mm_models_called: list[str] = []
+
+    def _fake_mm_cmip6(lat: float, lon: float, ssp: str, start: str, end: str):
+        mm_models_called.append(ssp)
+        idx = pd.date_range(start, end, freq="D")
+        return pd.DataFrame({"tasmax": 99.0, "tasmin": 88.0, "pr": 1.0}, index=idx)
+
+    monkeypatch.setattr(meteomatics, "fetch_cmip6_daily", _fake_mm_cmip6)
+
+    access_df = gee.cmip6_daily(30.19, 75.78, "ACCESS-CM2", "ssp245", "2026-01-01", "2026-01-10")
+    assert len(mm_models_called) == 0
+    assert float(access_df["tasmax"].mean()) < 60.0
+
+    mri_df = gee.cmip6_daily(30.19, 75.78, "MRI-ESM2-0", "ssp245", "2026-01-01", "2026-01-10")
+    assert len(mm_models_called) == 1
+    assert float(mri_df["tasmax"].mean()) == pytest.approx(99.0)
+
+
+def test_ensembles_quantile_map_mri_esm2_against_historical_baseline(monkeypatch):
+    """build_scenario_set maps Meteomatics MRI-ESM2.0 future against MRI historical baseline."""
+    from terraloop_engine.climate import ensembles
+    from terraloop_engine.data import gee, meteomatics
+
+    idx_hist = pd.date_range("1995-01-01", "2014-12-31", freq="D")
+    doy_h = idx_hist.dayofyear.to_numpy()
+    tmax_h = 30.0 + 3.0 * np.sin(2.0 * np.pi * doy_h / 365.0)
+    power_df = pd.DataFrame(
+        {
+            "T2M_MAX": tmax_h,
+            "T2M_MIN": tmax_h - 12.0,
+            "PRECTOTCORR": 2.0 + 1.5 * np.sin(2.0 * np.pi * doy_h / 365.0) ** 2,
+            "ALLSKY_SFC_SW_DWN": 20.0,
+            "RH2M": 55.0,
+            "WS2M": 2.0,
+            "ET0": 4.5,
+        },
+        index=idx_hist,
+    )
+
+    def _fake_gee_cmip6(lat: float, lon: float, model: str, scenario: str, start: str, end: str):
+        idx = pd.date_range(start, end, freq="D")
+        doy = idx.dayofyear.to_numpy()
+        base = 31.5 if "245" in scenario else 30.0
+        t = base + 3.0 * np.sin(2.0 * np.pi * doy / 365.0)
+        return pd.DataFrame({"tasmax": t, "tasmin": t - 12.0, "pr": 2.0}, index=idx)
+
+    def _fake_mm_cmip6(lat: float, lon: float, ssp: str, start: str, end: str):
+        idx = pd.date_range(start, end, freq="D")
+        doy = idx.dayofyear.to_numpy()
+        # Hot model bias (+5C over POWER) with +2.5C future delta
+        base = 35.0 if ssp == "historical" else 37.5
+        t = base + 3.0 * np.sin(2.0 * np.pi * doy / 365.0)
+        return pd.DataFrame({"tasmax": t, "tasmin": t - 15.0, "pr": 2.2}, index=idx)
+
+    monkeypatch.setattr(gee, "cmip6_daily", _fake_gee_cmip6)
+    monkeypatch.setattr(meteomatics, "is_configured", lambda: True)
+    monkeypatch.setattr(meteomatics, "fetch_cmip6_daily", _fake_mm_cmip6)
+
+    scen, members = ensembles.build_scenario_set(
+        kind="cmip6",
+        power_df=power_df,
+        rotation_years=1,
+        ssp="ssp245",
+        horizon="2030s",
+        lat=30.19,
+        lon=75.78,
+    )
+    assert "mri_esm2_0_ssp245_2030s" in members
+    assert "mri_esm2_0_ssp245_2030s" in scen.members
+    mri_corr = members["mri_esm2_0_ssp245_2030s"]
+    # Mapped relative to historical MRI (37.5 - 35.0 + 30.0 = 32.5), NOT 37.5 identity
+    assert 31.0 <= float(mri_corr["T2M_MAX"].mean()) <= 34.0
+
+
+def test_rusle_r_factor_intensity_and_evaluate_wiring():
+    """r_factor_intensity stays neutral on drizzle and scales erosion upward in storms."""
+    import json
+    from pathlib import Path
+
+    from terraloop_engine.models import rusle
+    from terraloop_engine.optimize import evaluate
+    from terraloop_schemas import Rotation, RotationStep
+
+    r_base = rusle.r_factor_annual(700.0)
+    assert rusle.r_factor_intensity(700.0, max_30m_rate_mmh=15.0, extreme_rain_days_per_yr=1.0) == pytest.approx(r_base)
+    assert rusle.r_factor_intensity(700.0, max_30m_rate_mmh=55.0, extreme_rain_days_per_yr=6.0) > r_base * 1.1
+
+    raw = json.loads(Path("data/golden/sangrur/profile.json").read_text(encoding="utf-8"))
+    base_prof = FieldProfile.model_validate(raw)
+    sloped_soil = base_prof.soil.model_copy(update={"slope_pct": 6.0})
+    calm_haz = base_prof.hazards.model_copy(
+        update={"max_30m_precip_rate_mmh": 15.0, "extreme_rain_days_per_year": 1.0}
+    )
+    storm_haz = base_prof.hazards.model_copy(
+        update={"max_30m_precip_rate_mmh": 65.0, "extreme_rain_days_per_year": 6.0}
+    )
+    prof_calm = base_prof.model_copy(update={"soil": sloped_soil, "hazards": calm_haz})
+    prof_storm = base_prof.model_copy(update={"soil": sloped_soil, "hazards": storm_haz})
+
+    rot = Rotation(
+        id="maize_wheat_1yr",
+        steps=[
+            RotationStep(year_index=0, season_index=0, crop_id="maize", sowing_doy=170, practices=[]),
+            RotationStep(year_index=0, season_index=1, crop_id="wheat", sowing_doy=310, practices=[]),
+        ],
+        label="Maize + Wheat",
+    )
+    members = {
+        "m0": synthetic_punjab_weather((2015, 2016)),
+        "m1": synthetic_punjab_weather((2016, 2017)),
+    }
+    res_calm = evaluate.evaluate_rotation(rot, members, prof_calm, FarmConstraints())
+    res_storm = evaluate.evaluate_rotation(rot, members, prof_storm, FarmConstraints())
+    assert res_storm.erosion_t_ha_yr > res_calm.erosion_t_ha_yr
+
+
+def test_fao56_preserves_custom_et0_and_dry_seedbed_increases_rice_soak():
+    """FAO-56 keeps valid input ET0 and adds pre-sowing soak when initial_depletion_mm > 35."""
+    import json
+    from pathlib import Path
+
+    from terraloop_engine.models import fao56_runner
+    from terraloop_schemas import Rotation, RotationStep
+
+    raw_wx = synthetic_punjab_weather((2018, 2020))
+    raw_wx = raw_wx.copy()
+    raw_wx["ET0"] = 7.77
+    prepared = fao56_runner.to_daily_simulation_weather(raw_wx, lat=30.19)
+    assert np.allclose(prepared["ReferenceET"].to_numpy(), 7.77)
+
+    raw_prof = json.loads(Path("data/golden/sangrur/profile.json").read_text(encoding="utf-8"))
+    soil = FieldProfile.model_validate(raw_prof).soil
+    rot = Rotation(
+        id="rice_puddled_1step",
+        steps=[RotationStep(year_index=0, season_index=0, crop_id="rice_puddled", sowing_doy=165, practices=[])],
+        label="Rice Puddled",
+    )
+    wet_steps = fao56_runner.simulate_rotation(
+        rot, prepared, soil, FarmConstraints(), start_year=2018, lat=30.19, initial_depletion_mm=10.0
+    )
+    dry_steps = fao56_runner.simulate_rotation(
+        rot, prepared, soil, FarmConstraints(), start_year=2018, lat=30.19, initial_depletion_mm=75.0
+    )
+    assert dry_steps[0]["irrigation_mm"] > wet_steps[0]["irrigation_mm"]
+
+
+def test_rate_limit_middleware_covers_advisory_suitability_geocode_and_evicts_idle(monkeypatch):
+    """rate_limit_middleware enforces limits across advisory/suitability/geocode and evicts idle IPs."""
+    import json
+    import time
+    from pathlib import Path
+
+    from terraloop_api import main as api_main
+
+    monkeypatch.setenv("TERRALOOP_RATE_LIMIT_PER_MIN", "2")
+    monkeypatch.setattr(api_main, "_reverse_geocode_nominatim", lambda lat, lon: "Sangrur, Punjab")
+    prof_json = json.loads(Path("data/golden/sangrur/profile.json").read_text(encoding="utf-8"))
+    client = TestClient(api_main.app)
+
+    for method, url, kwargs in [
+        ("GET", "/tactical-advisory", {"params": {"lat": 30.19, "lon": 75.78}}),
+        ("GET", "/api/tactical-advisory", {"params": {"lat": 30.19, "lon": 75.78}}),
+        ("POST", "/suitability", {"json": {"field": prof_json["field"], "profile": prof_json}}),
+        ("GET", "/geocode", {"params": {"q": "30.19,75.78"}}),
+    ]:
+        api_main._RATE_LIMIT_BUCKET.clear()
+        r1 = client.request(method, url, **kwargs)
+        r2 = client.request(method, url, **kwargs)
+        r3 = client.request(method, url, **kwargs)
+        assert r1.status_code == 200, f"{method} {url} r1={r1.status_code}"
+        assert r2.status_code == 200, f"{method} {url} r2={r2.status_code}"
+        assert r3.status_code == 429, f"{method} {url} r3={r3.status_code}"
+
+    # Populate > 512 expired IP buckets and verify eviction occurs on next request
+    api_main._RATE_LIMIT_BUCKET.clear()
+    stale_ts = time.time() - 120.0
+    for i in range(520):
+        api_main._RATE_LIMIT_BUCKET[f"10.0.{i // 250}.{i % 250}"] = [stale_ts]
+    r_evict = client.get("/tactical-advisory", params={"lat": 30.19, "lon": 75.78})
+    assert r_evict.status_code == 200
+    assert len(api_main._RATE_LIMIT_BUCKET) <= 5
+
+
+def test_meteomatics_http_token_401_retry_and_endpoints(monkeypatch, tmp_path):
+    """Mock httpx.Client to exercise OAuth token fetch, 401 Basic Auth retry, snapshot VWC/hail/precip gating, T12:00Z forecast, and static SRTM timestamp."""
+    from datetime import date
+
+    import httpx
+    from terraloop_engine.data import meteomatics
+
+    monkeypatch.setenv("TERRALOOP_CACHE_DIR", str(tmp_path))
+    monkeypatch.setenv("METEOMATICS_USERNAME", "demo_user")
+    monkeypatch.setenv("METEOMATICS_PASSWORD", "demo_pass")
+    meteomatics._CACHED_TOKEN.update({"token": None, "expires_at": 0.0, "user": None})
+
+    seen_requests: list[tuple[str, str | None, tuple[str, str] | None]] = []
+    bearer_401_triggered = {"done": False}
+
+    class _FakeResponse:
+        def __init__(self, status_code: int, payload: dict) -> None:
+            self.status_code = status_code
+            self._payload = payload
+
+        def json(self) -> dict:
+            return self._payload
+
+        def raise_for_status(self) -> None:
+            if self.status_code >= 400:
+                req = httpx.Request("GET", "https://api.meteomatics.com/")
+                resp = httpx.Response(self.status_code, request=req)
+                raise httpx.HTTPStatusError("HTTP error", request=req, response=resp)
+
+    class _FakeHttpxClient:
+        def __init__(self, timeout=None, headers=None, **kwargs) -> None:
+            self._headers = dict(headers or {})
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def get(self, url: str, auth=None):
+            auth_hdr = self._headers.get("Authorization")
+            seen_requests.append((url, auth_hdr, auth))
+            if url == meteomatics.TOKEN_URL:
+                assert auth == ("demo_user", "demo_pass")
+                return _FakeResponse(200, {"access_token": "tok_test_123", "expires_in": 3600})
+
+            if not bearer_401_triggered["done"] and auth_hdr == "Bearer tok_test_123":
+                bearer_401_triggered["done"] = True
+                return _FakeResponse(401, {"error": "expired"})
+
+            if "elevation:m" in url:
+                assert "2024-01-01T00:00:00Z" in url
+                coords = []
+                for elev in (250.4, 249.8, 250.2, 249.9):
+                    coords.append({"dates": [{"date": "2024-01-01T00:00:00Z", "value": elev}]})
+                return _FakeResponse(200, {"data": [{"parameter": "elevation:m", "coordinates": coords}]})
+
+            if "volumetric_soil_water_-5cm:m3m3" in url:
+                vals = {
+                    "soil_moisture_deficit:mm": 31.2,
+                    "soil_moisture_index_-5cm:idx": 0.45,
+                    "soil_moisture_index_-15cm:idx": 0.52,
+                    "soil_moisture_index_-50cm:idx": 0.58,
+                    "soil_moisture_index_-150cm:idx": 0.62,
+                    "volumetric_soil_water_-5cm:m3m3": 0.221,
+                    "volumetric_soil_water_-15cm:m3m3": 0.242,
+                    "volumetric_soil_water_-50cm:m3m3": 0.265,
+                    "volumetric_soil_water_-150cm:m3m3": 0.280,
+                    "t_-5cm:C": 21.4,
+                    "phytophthora_negative:idx": 92.0,
+                    "leaf_wetness:idx": 0.35,
+                    "hail_24h:cm": 0.0,
+                    "fosberg_fire_weather_index:idx": 29.5,
+                    "drought_index:idx": 0.3,
+                    "precip_30min:mm": 0.0,
+                }
+                data = [
+                    {"parameter": k, "coordinates": [{"dates": [{"date": "2026-11-14T06:00:00Z", "value": v}]}]}
+                    for k, v in vals.items()
+                ]
+                return _FakeResponse(200, {"data": data})
+
+            # Tactical 7-day forecast query
+            assert "T12:00:00Z--" in url
+            dates_d1 = {"date": "2026-11-14T12:00:00Z"}
+            dates_d2 = {"date": "2026-11-15T12:00:00Z"}
+            tact_vals = {
+                "t_max_2m_24h:C": [28.0, 27.5],
+                "t_min_2m_24h:C": [14.0, 13.5],
+                "precip_24h:mm": [0.0, 0.5],
+                "prob_precip_24h:p": [5.0, 15.0],
+                "evapotranspiration_24h:mm": [3.2, 3.0],
+                "wind_speed_2m:ms": [2.4, 2.1],
+                "t_-5cm:C": [20.5, 20.0],
+                "soil_moisture_deficit:mm": [28.0, 29.5],
+                "fosberg_fire_weather_index:idx": [24.0, 22.0],
+            }
+            data = [
+                {
+                    "parameter": k,
+                    "coordinates": [{"dates": [{**dates_d1, "value": vs[0]}, {**dates_d2, "value": vs[1]}]}],
+                }
+                for k, vs in tact_vals.items()
+            ]
+            return _FakeResponse(200, {"data": data})
+
+    monkeypatch.setattr(httpx, "Client", _FakeHttpxClient)
+
+    snap = meteomatics.fetch_soil_and_hazards_snapshot(30.19, 75.78, ref_date=date(2026, 11, 14))
+    assert snap is not None
+    assert bearer_401_triggered["done"] is True
+    assert any(auth == ("demo_user", "demo_pass") and url != meteomatics.TOKEN_URL for url, _, auth in seen_requests)
+    assert snap["volumetric_soil_water_layers"] == {"-5cm": 0.221, "-15cm": 0.242, "-50cm": 0.265, "-150cm": 0.28}
+    assert snap["hail_probability_pct"] is None
+    assert snap["max_30m_precip_rate_mmh"] is None
+
+    adv = meteomatics.fetch_tactical_forecast(30.19, 75.78, days=2, start_date=date(2026, 11, 14))
+    assert adv is not None and len(adv.forecast_days) == 2
+
+    slope = meteomatics.fetch_srtm_slope_pct(30.19, 75.78)
+    assert slope is not None and slope >= 0.0
+
+
+def test_profiler_power_outage_with_meteomatics_daily_overlay(monkeypatch, tmp_path):
+    """When NASA POWER fails while Meteomatics supplies 90d recent weather, multi-year baseline precipitation is preserved."""
+    from terraloop_engine.data import meteomatics, nasa_power, soilgrids
+
+    monkeypatch.setenv("TERRALOOP_CACHE_DIR", str(tmp_path))
+    monkeypatch.setenv("METEOMATICS_USERNAME", "demo_user")
+    monkeypatch.setenv("METEOMATICS_PASSWORD", "demo_pass")
+
+    monkeypatch.setattr(nasa_power, "fetch_daily", lambda req: (_ for _ in ()).throw(RuntimeError("POWER offline")))
+    monkeypatch.setattr(soilgrids, "fetch_topsoil", lambda lat, lon: None)
+
+    idx_90 = pd.date_range("2024-10-03", "2024-12-31", freq="D")
+    mm_90_df = pd.DataFrame(
+        {
+            "T2M_MAX": 26.5,
+            "T2M_MIN": 12.0,
+            "PRECTOTCORR": 0.2,
+            "ALLSKY_SFC_SW_DWN": 15.5,
+            "RH2M": 58.0,
+            "WS2M": 1.8,
+            "ET0": 2.9,
+        },
+        index=idx_90,
+    )
+    monkeypatch.setattr(meteomatics, "fetch_daily_weather", lambda lat, lon, start, end: mm_90_df)
+    monkeypatch.setattr(meteomatics, "fetch_soil_and_hazards_snapshot", lambda lat, lon: None)
+    monkeypatch.setattr(meteomatics, "fetch_tactical_forecast", lambda lat, lon: None)
+    monkeypatch.setattr(meteomatics, "fetch_srtm_slope_pct", lambda lat, lon: None)
+
+    prof = profiler.build_profile(FieldGeometry(lat=30.19, lon=75.78, name="Sangrur Outage"), use_live_network=True)
+    assert prof.climate.annual_precip_mm > 200.0
+    assert any("Meteomatics" in p.source for p in prof.climate.provenance)
+    assert any("Meteomatics" in p.source for p in prof.hazards.provenance)
+
+
+def test_attach_tactical_advisory_partial_failure_preserves_live_snap(monkeypatch):
+    """When live soil/hazards snapshot succeeds while tactical forecast returns None, observed snap values and provenance are preserved."""
+    from terraloop_api import main as api_main
+    from terraloop_engine.data import meteomatics
+
+    prof = profiler.build_profile(FieldGeometry(lat=30.19, lon=75.78, name="Partial Live"), use_live_network=False)
+    prof.tactical_advisory = None
+    prof.water.provenance = [p for p in prof.water.provenance if "Meteomatics" not in p.source]
+    prof.hazards.provenance = [p for p in prof.hazards.provenance if "Meteomatics" not in p.source]
+
+    obs_prov = meteomatics.METEOMATICS_MIX_PROVENANCE.model_copy(
+        update={"period": "2026-11-14", "mode": "observed"}
+    )
+    live_snap = {
+        "soil_moisture_deficit_mm": 19.4,
+        "soil_moisture_index_layers": {"-5cm": 0.77, "-15cm": 0.78, "-50cm": 0.79, "-150cm": 0.80},
+        "volumetric_soil_water_layers": {"-5cm": 0.31, "-15cm": 0.32, "-50cm": 0.33, "-150cm": 0.34},
+        "seedbed_temp_5cm_c": 17.3,
+        "late_blight_risk_idx": 123.4,
+        "canopy_wetness_idx": 0.44,
+        "hail_probability_pct": 14.0,
+        "fire_weather_index": 21.5,
+        "meteorological_drought_idx": 0.65,
+        "max_30m_precip_rate_mmh": 31.2,
+        "provenance": obs_prov,
+    }
+
+    monkeypatch.setattr(api_main.meteomatics, "is_configured", lambda: True)
+    monkeypatch.setattr(api_main.meteomatics, "fetch_tactical_forecast", lambda lat, lon: None)
+    monkeypatch.setattr(api_main.meteomatics, "fetch_soil_and_hazards_snapshot", lambda lat, lon: live_snap)
+
+    out = api_main._attach_tactical_advisory(prof)
+    assert out.water.soil_moisture_deficit_mm == pytest.approx(19.4)
+    assert out.water.seedbed_temp_5cm_c == pytest.approx(17.3)
+    assert out.water.soil_moisture_index_layers == {"-5cm": 0.77, "-15cm": 0.78, "-50cm": 0.79, "-150cm": 0.8}
+    assert out.water.volumetric_soil_water_layers == {"-5cm": 0.31, "-15cm": 0.32, "-50cm": 0.33, "-150cm": 0.34}
+    assert out.hazards.late_blight_risk_idx == pytest.approx(123.4)
+    assert out.hazards.fire_weather_index == pytest.approx(21.5)
+
+    mm_water_provs = [p for p in out.water.provenance if "Meteomatics" in p.source]
+    mm_hazard_provs = [p for p in out.hazards.provenance if "Meteomatics" in p.source]
+    assert len(mm_water_provs) == 1 and mm_water_provs[0].mode == "observed"
+    assert len(mm_hazard_provs) == 1 and mm_hazard_provs[0].mode == "observed"
+    assert out.tactical_advisory is not None
+    assert out.tactical_advisory.provenance[0].mode == "regional_climatology"
+
+
+def test_open_audit_hardening_items_regression():
+    """Regression suite covering open audit fixes #009, #048, #071, #074, #075, #076, #078, #079, #080, and #090."""
+    from pathlib import Path
+
+    from terraloop_engine import crop_kb, profiler, scheme_kb, suitability
+    from terraloop_engine.models import soil_health
+    from terraloop_engine.optimize import evaluate, rotations
+    from terraloop_schemas import CropSpec, FarmConstraints, FieldProfile, RotationStep
+
+    root = Path(__file__).resolve().parents[1]
+    golden_root = root / "data" / "golden"
+
+    # #009: Sunflower YAML clean of sugarcane typo & schema comment updated
+    sunflower_yaml = (root / "packages" / "crop-kb" / "crops" / "sunflower.yaml").read_text(encoding="utf-8")
+    models_py = (root / "packages" / "schemas" / "terraloop_schemas" / "models.py").read_text(encoding="utf-8")
+    assert "sugarcane" not in sunflower_yaml.lower()
+    assert "# sesame" not in models_py
+    assert "# oilseed family" in models_py
+
+    # #048: precompute_golden preserves deterministic snapshot_date unless refreshed
+    precompute_src = (root / "scripts" / "precompute_golden.py").read_text(encoding="utf-8")
+    assert "TERRALOOP_SNAPSHOT_DATE" in precompute_src
+    assert "TERRALOOP_REFRESH_SNAPSHOT_DATE" in precompute_src
+
+    # #071: Snapshot biotic/hail hazard penalties are gated by seasonal window overlap
+    prof = FieldProfile.model_validate_json((golden_root / "sangrur" / "profile.json").read_text(encoding="utf-8"))
+    crops = crop_kb.load_crops()
+    haz_high = prof.hazards.model_copy(
+        update={"late_blight_risk_idx": 195.0, "canopy_wetness_idx": 0.85, "hail_probability_pct": 45.0}
+    )
+    prof_haz = prof.model_copy(update={"hazards": haz_high})
+    cool_potato = crops["potato"]
+    warm_potato = CropSpec(
+        **{
+            **cool_potato.model_dump(),
+            "id": "potato_warm",
+            "season_type": ["warm"],
+            "optimal_temp_c": (20.0, 34.0),
+            "max_temp_c": 42.0,
+        }
+    )
+    res_cool_pot = suitability.score_crop(prof_haz, cool_potato)
+    res_warm_pot = suitability.score_crop(prof_haz, warm_potato)
+    assert any("Phytophthora" in r for r in res_cool_pot.reasons)
+    assert not any("Phytophthora" in r for r in res_warm_pot.reasons)
+
+    # #074: rothc_lite shifts default seasonal climate 6 months in Southern Hemisphere (lat < 0)
+    sh_c = soil_health.rothc_lite(soil=prof.soil, crop_cover_months=[12, 1, 2, 3], years=10, lat=-33.0)
+    nh_c = soil_health.rothc_lite(soil=prof.soil, crop_cover_months=[12, 1, 2, 3], years=10, lat=30.0)
+    assert abs(float(sh_c["soc_delta_10yr"]) - float(nh_c["soc_delta_10yr"])) > 0.05
+
+    # #075: prescreen_rotations_with_surrogate incorporates soil/climate/aquifer interactions
+    rot_pool = rotations.generate_rotations(
+        crops,
+        FarmConstraints(irrigation="full", rotation_years=1),
+        seasons=rotations.derive_seasons(prof),
+    )[:100]
+    arid_depleted_prof = prof.model_copy(
+        update={
+            "climate": prof.climate.model_copy(update={"annual_precip_mm": 320.0, "annual_et0_mm": 1850.0}),
+            "water": prof.water.model_copy(update={"groundwater_trend_cm_per_year": -6.0}),
+            "soil": prof.soil.model_copy(update={"soc_g_per_kg": 2.8}),
+        }
+    )
+    humid_fertile_prof = prof.model_copy(
+        update={
+            "climate": prof.climate.model_copy(update={"annual_precip_mm": 1350.0, "annual_et0_mm": 1150.0}),
+            "water": prof.water.model_copy(update={"groundwater_trend_cm_per_year": 0.2}),
+            "soil": prof.soil.model_copy(update={"soc_g_per_kg": 11.5}),
+        }
+    )
+    arid_screened = evaluate.prescreen_rotations_with_surrogate(rot_pool, arid_depleted_prof, crops=crops, max_candidates=25)
+    humid_screened = evaluate.prescreen_rotations_with_surrogate(rot_pool, humid_fertile_prof, crops=crops, max_candidates=25)
+    assert len(arid_screened) <= 25 and len(humid_screened) <= 25
+    assert [r.id for r in arid_screened] != [r.id for r in humid_screened]
+
+    # #076 & #078: profiler.build_notes and suitability.rank_crops return native scripts for hi & pa
+    for lang_code in ("hi", "pa"):
+        notes_loc = profiler.build_notes(prof.climate, prof.soil, prof.water, prof.hazards, lat=prof.field.lat, language=lang_code)
+        assert len(notes_loc) >= 1
+        assert all(any(ord(ch) > 127 for ch in n) for n in notes_loc)
+        suit_loc = suitability.rank_crops(prof, crops, FarmConstraints(irrigation="full"), language=lang_code)
+        assert suit_loc and any(ord(ch) > 127 for ch in suit_loc[0].reasons[0])
+
+    # #079 & #080: compute_practical_farmer_metrics & scheme_kb return localized metadata for hi & pa
+    rot_dsr_w_m = rotations.Rotation(
+        id="dsr_wheat_moong_i18n",
+        steps=[
+            RotationStep(year_index=0, season_index=0, crop_id="rice_dsr", practices=["direct_seeded", "awd"]),
+            RotationStep(year_index=0, season_index=1, crop_id="wheat", practices=["happy_seeder", "residue_retained"]),
+            RotationStep(year_index=0, season_index=2, crop_id="moong", practices=["zero_till", "residue_retained"]),
+        ],
+    )
+    sim_dummy = evaluate.SimulationResult(
+        rotation_id="dsr_wheat_moong_i18n",
+        scenario_set_id="historical",
+        yield_t_ha={"rice_dsr": [6.5], "wheat": [5.1], "moong": [1.1]},
+        irrigation_mm=[920.0],
+        profit_per_ha=[180000.0],
+        soc_delta_t_ha_10yr=3.2,
+        erosion_t_ha_yr=1.4,
+        n_balance_kg_ha_yr=15.0,
+        living_root_days_pct=82.0,
+        family_diversity_index=0.65,
+        soil_health_score=84.0,
+        profit_p10=150000.0,
+        profit_p50=180000.0,
+        profit_p90=210000.0,
+        cvar_profit_10=140000.0,
+    )
+    for lang_code in ("hi", "pa"):
+        pm_loc = evaluate.compute_practical_farmer_metrics(
+            rot_dsr_w_m,
+            sim_dummy,
+            sim_dummy,
+            crops=crops,
+            profile=prof,
+            region_id="punjab",
+            language=lang_code,
+        )
+        assert any(ord(ch) > 127 for ch in pm_loc.msp_assurance_level)
+        assert pm_loc.eligible_schemes and all(any(ord(ch) > 127 for ch in s) for s in pm_loc.eligible_schemes)
+        assert pm_loc.seasonal_operations and any(ord(ch) > 127 for ch in pm_loc.seasonal_operations[0].season_name)
+        assert any(ord(ch) > 127 for ch in pm_loc.seasonal_operations[0].agronomic_guidance)
+        # Ensure SMAM is still deduplicated when crm_punjab matches in non-English languages
+        schemes_pun = scheme_kb.get_matching_schemes("Punjab", {"rice_dsr"}, {"happy_seeder"}, language=lang_code)
+        assert not any("SMAM" in s for s in schemes_pun)
+
+    # #090: Farmer-facing primary i18n keys avoid raw NSGA-II / Fosberg / CVaR jargon
+    en_dict = (root / "apps" / "web" / "src" / "i18n" / "en.json").read_text(encoding="utf-8")
+    for jargon_key in ("hazards.fireWeather", "home.mod03Desc", "label.paretoUpdated", "nav.badge.lab", "nav.badge.rotations"):
+        assert jargon_key in en_dict
+    assert "Fosberg" not in en_dict
+    assert "NSGA-II" not in en_dict
+    assert "drought CVaR" not in en_dict
+
+
+
 

@@ -78,6 +78,7 @@ def rothc_lite(
     crop_cover_months: Sequence[int] | None = None,
     years: int = 10,
     dpm_rpm_ratio: float = 1.44,
+    lat: float | None = None,
 ) -> dict[str, list[float] | float]:
     """Simulate annual SOC stock (t C/ha, 0-30 cm) over N years using steady-state calibrated RothC-lite."""
     if soil is not None:
@@ -109,15 +110,18 @@ def rothc_lite(
     f_bio = 0.46 * (1.0 - f_co2)
     f_hum = 0.54 * (1.0 - f_co2)
 
-    temps = list(monthly_temp_c) if monthly_temp_c else [
+    def _shift_hemisphere(arr: list[float]) -> list[float]:
+        return arr[6:] + arr[:6] if (lat is not None and lat < 0) else arr
+
+    temps = list(monthly_temp_c) if monthly_temp_c else _shift_hemisphere([
         13.0, 16.0, 22.0, 28.0, 33.0, 34.0, 31.0, 30.0, 29.0, 25.0, 19.0, 14.0
-    ]
-    precips = list(monthly_precip_mm) if monthly_precip_mm else [
+    ])
+    precips = list(monthly_precip_mm) if monthly_precip_mm else _shift_hemisphere([
         20.0, 20.0, 20.0, 15.0, 25.0, 70.0, 150.0, 140.0, 80.0, 15.0, 5.0, 10.0
-    ]
-    et0s = list(monthly_et0_mm) if monthly_et0_mm else [
+    ])
+    et0s = list(monthly_et0_mm) if monthly_et0_mm else _shift_hemisphere([
         60.0, 80.0, 120.0, 170.0, 220.0, 210.0, 160.0, 140.0, 130.0, 110.0, 80.0, 55.0
-    ]
+    ])
 
     n_t = len(temps)
     n_p = len(precips)

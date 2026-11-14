@@ -72,3 +72,32 @@ def test_gee_service_account_credentials_resolution(monkeypatch, tmp_path):
     )
     creds, proj = gee._resolve_credentials(mock_ee)
     assert proj == "file-proj"
+
+
+def test_golden_profiles_include_meteomatics_fields():
+    """All 6 golden profiles in data/ and apps/web/public/ include Meteomatics hydrology, hazards & provenance."""
+    import json
+
+    root = Path(__file__).resolve().parents[1]
+    golden_ids = ("sangrur", "ludhiana", "bathinda", "vidarbha", "bundelkhand", "thanjavur")
+    bases = (root / "data" / "golden", root / "apps" / "web" / "public" / "golden")
+
+    for base in bases:
+        for fid in golden_ids:
+            prof = json.loads((base / fid / "profile.json").read_text(encoding="utf-8"))
+            adv = prof.get("tactical_advisory")
+            assert adv is not None, f"{base / fid}: missing tactical_advisory"
+            assert len(adv.get("forecast_days", [])) == 7, f"{base / fid}: expected 7 tactical forecast days"
+            assert any("Meteomatics" in p.get("source", "") for p in adv.get("provenance", []))
+
+            water = prof["water"]
+            assert water.get("seedbed_temp_5cm_c") is not None
+            assert isinstance(water.get("soil_moisture_index_layers"), dict) and water["soil_moisture_index_layers"]
+            assert isinstance(water.get("volumetric_soil_water_layers"), dict) and water["volumetric_soil_water_layers"]
+            assert any("Meteomatics" in p.get("source", "") for p in water.get("provenance", []))
+
+            hazards = prof["hazards"]
+            assert hazards.get("late_blight_risk_idx") is not None
+            assert hazards.get("fire_weather_index") is not None
+            assert hazards.get("max_30m_precip_rate_mmh") is not None
+            assert any("Meteomatics" in p.get("source", "") for p in hazards.get("provenance", []))

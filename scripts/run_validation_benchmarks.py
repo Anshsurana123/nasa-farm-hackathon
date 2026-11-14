@@ -3,13 +3,14 @@
 Run (from repo root):
     uv run python scripts/run_validation_benchmarks.py --write-docs
 
-Executes the TerraLoop biophysical engine across 6 reproducible benchmarks:
+Executes the TerraLoop biophysical engine across 7 reproducible benchmarks:
   1. Empirical Ground-Truth Comparison against DES / ICRISAT District-Level Yield Statistics
   2. Soil Texture & Root-Zone Water Holding Sensitivity (Sandy Loam vs Alluvial Loam vs Vertisol Clay)
   3. March Terminal Heatwave Sensitivity (Reproducing the 2022 North India Wheat Heat Shock)
   4. Rice Establishment Hydrology & Stubble Turnaround Window (Puddled Pusa-44 vs Short-Duration PR-126 vs DSR)
   5. 10-Year RothC-Lite SOC, Biological N & Soil Health Score Component Breakdown
   6. 6 Indian Agro-Climatic Golden Benchmark Fields (Baseline vs Rank #1 Strategy)
+  7. Meteomatics 90m Storm Intensity Erosivity (RUSLE I30) & Seedbed Moisture Deficit Sensitivity (Rice Puddled vs DSR)
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ import pandas as pd
 from terraloop_engine import crop_kb, profiler
 from terraloop_engine.climate import ensembles
 from terraloop_engine.models import fao56_runner as aquacrop_runner
-from terraloop_engine.models import soil
+from terraloop_engine.models import rusle, soil
 from terraloop_engine.optimize import evaluate, rotations
 from terraloop_schemas import (
     FarmConstraints,
@@ -526,6 +527,92 @@ def run_benchmarks() -> str:
         lines.append(
             f"| **{f['name']}** (`{fid}`) | {prof_f.agro_zone or f['region']} | {base_r['rotation']['label']} | "
             f"**{top_r['rotation']['label']}** | **{irr_chg:+.1f}%** | **₹{p50:,.0f}** | **{soc_d:+.2f}** | **{sh_s:.0f}/100** |"
+        )
+    lines.append("")
+
+    # -----------------------------------------------------------------------
+    # Benchmark 7: Meteomatics 90m Storm Intensity Erosivity (RUSLE I30)
+    #              & Seedbed Moisture Deficit Sensitivity (Rice Puddled vs DSR)
+    # -----------------------------------------------------------------------
+    lines.append("## 7. Meteomatics 90m Storm Intensity Erosivity & Seedbed Moisture Deficit Sensitivity")
+    lines.append("")
+    lines.append(
+        "Verifies `models/rusle.py::r_factor_intensity` across sub-daily storm regimes ($I_{30}$) so dry-snapshot "
+        "snapshots (`0.0 mm/h`) never halve annual RUSLE $R$, while extreme monsoon cells escalate soil loss dynamically, "
+        "alongside `models/fao56_runner.py::simulate_rotation` sensitivity to Meteomatics root-zone `initial_depletion_mm` "
+        "across both puddled rice and DSR + AWD."
+    )
+    lines.append("")
+    lines.append("### 7a. Sub-Daily Storm Intensity Erosivity (`rusle.r_factor_intensity`, Sangrur Loam)")
+    lines.append("")
+    lines.append("| Storm Intensity Regime | 30-Min Peak Rate ($I_{30}$, mm/h) | Extreme Rain Days/Yr | Effective $R$ Factor (MJ·mm/ha/h/yr) | Soil Loss $A$ (t/ha/yr) | Delta vs Static Annual $R$ |")
+    lines.append("| :--- | :---: | :---: | :---: | :---: | :---: |")
+
+    s_soil = sangrur_prof.soil
+    s_prec = float(sangrur_prof.climate.annual_precip_mm)
+    s_ext = float(sangrur_prof.hazards.extreme_rain_days_per_year or 3.5)
+    k_val = rusle.k_factor_williams(
+        float(s_soil.sand_pct or 44.0),
+        float(s_soil.silt_pct or 36.0),
+        float(s_soil.clay_pct or 20.0),
+        float(s_soil.soc_g_per_kg or 5.2) / 10.0,
+    )
+    ls_val = rusle.ls_factor(float(s_soil.slope_pct or 1.0))
+    r_static = rusle.r_factor_annual(s_prec)
+
+    storm_regimes: list[tuple[str, float | None, float | None]] = [
+        ("Static Annual Climatology (`r_factor_annual`)", None, None),
+        ("Dry Snapshot Day (`0.0 mm/h` — non-suppression guard)", 0.0, s_ext),
+        ("Moderate Monsoon Cell (`25.0 mm/h`)", 25.0, s_ext),
+        ("Extreme Convective Cloudburst (`55.0 mm/h`)", 55.0, s_ext),
+    ]
+    for regime_lbl, i30_val, ext_days in storm_regimes:
+        r_eff = rusle.r_factor_intensity(s_prec, max_30m_rate_mmh=i30_val, extreme_rain_days_per_yr=ext_days)
+        a_loss = rusle.soil_loss(r_eff, k_val, ls_val, c=0.38)
+        r_pct = ((r_eff - r_static) / max(r_static, 1e-6)) * 100.0
+        i30_str = "—" if i30_val is None else f"{i30_val:.1f}"
+        ext_str = "—" if ext_days is None else f"{ext_days:.1f}"
+        lines.append(
+            f"| {regime_lbl} | {i30_str} | {ext_str} | **{r_eff:,.1f}** | {a_loss:.2f} | {r_pct:+.1f}% |"
+        )
+    lines.append("")
+
+    lines.append("### 7b. Seedbed Root-Zone Deficit Coupling (`initial_depletion_mm`, Rice Puddled vs DSR + AWD)")
+    lines.append("")
+    lines.append("| Initial Seedbed Deficit (mm) | Puddled Rice Irrigation (mm) | Puddled Yield (t/ha) | DSR + AWD Irrigation (mm) | DSR + AWD Yield (t/ha) | Irrigation Delta vs 15 mm (Puddled / DSR) |")
+    lines.append("| :---: | :---: | :---: | :---: | :---: | :---: |")
+
+    rot_puddled_dep = Rotation(
+        id="puddled_dep_bench",
+        steps=[RotationStep(year_index=0, season_index=0, crop_id="rice_puddled", practices=["puddled"])],
+    )
+    rot_dsr_dep = Rotation(
+        id="dsr_dep_bench",
+        steps=[RotationStep(year_index=0, season_index=0, crop_id="rice_dsr", practices=["direct_seeded", "awd"])],
+    )
+    dep_rows: list[tuple[float, float, float, float, float]] = []
+    for dep_mm in (15.0, 55.0, 80.0):
+        res_pud = aquacrop_runner.simulate_rotation(
+            rot_puddled_dep, w_df, loam_soil, FarmConstraints(irrigation="full"), start_year=2020, initial_depletion_mm=dep_mm
+        )[0]
+        res_dsr_d = aquacrop_runner.simulate_rotation(
+            rot_dsr_dep, w_df, loam_soil, FarmConstraints(irrigation="full"), start_year=2020, initial_depletion_mm=dep_mm
+        )[0]
+        dep_rows.append(
+            (
+                dep_mm,
+                float(res_pud["irrigation_mm"]),
+                float(res_pud["yield_t_ha"]),
+                float(res_dsr_d["irrigation_mm"]),
+                float(res_dsr_d["yield_t_ha"]),
+            )
+        )
+    base_pud_irr = dep_rows[0][1]
+    base_dsr_irr = dep_rows[0][3]
+    for dep_mm, p_irr, p_y, d_irr, d_y in dep_rows:
+        lines.append(
+            f"| **{dep_mm:.1f}** | {p_irr:.1f} | {p_y:.2f} | {d_irr:.1f} | {d_y:.2f} | "
+            f"{p_irr - base_pud_irr:+.1f} mm / {d_irr - base_dsr_irr:+.1f} mm |"
         )
     lines.append("")
     return "\n".join(lines)

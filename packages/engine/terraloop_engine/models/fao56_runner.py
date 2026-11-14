@@ -78,14 +78,23 @@ def to_daily_simulation_weather(power_df: pd.DataFrame, lat: float) -> pd.DataFr
     rh_s = pd.Series(np.asarray(df["RH2M"], dtype=float), index=dates) if "RH2M" in df.columns else None
     ws_s = pd.Series(np.asarray(df["WS2M"], dtype=float), index=dates) if "WS2M" in df.columns else None
 
-    et0_s = agroclimate.et0_penman_monteith_series(
-        tmax_s,
-        tmin_s,
-        lat,
-        rs_mj_m2_day=rs_s,
-        rh_mean_pct=rh_s,
-        wind_m_s=ws_s,
-    )
+    et0_col = "ET0" if "ET0" in df.columns else ("ReferenceET" if "ReferenceET" in df.columns else None)
+    use_existing_et0 = False
+    if et0_col is not None:
+        raw_et0 = pd.to_numeric(df[et0_col], errors="coerce")
+        if raw_et0.notna().all() and (raw_et0 >= 0.0).all() and (raw_et0 <= 20.0).all():
+            et0_s = pd.Series(np.asarray(raw_et0, dtype=float), index=dates)
+            use_existing_et0 = True
+
+    if not use_existing_et0:
+        et0_s = agroclimate.et0_penman_monteith_series(
+            tmax_s,
+            tmin_s,
+            lat,
+            rs_mj_m2_day=rs_s,
+            rh_mean_pct=rh_s,
+            wind_m_s=ws_s,
+        )
 
     out_cols: dict[str, object] = {
         "MinTemp": tmin_s.values,
@@ -443,6 +452,9 @@ def _simulate_step(
     if crop_id in ("rice_puddled", "rice_short", "basmati", "rice_dsr"):
         is_dsr = crop_id == "rice_dsr" or "direct_seeded" in practices
 
+        # Adjust pre-sowing soak demand upward when Meteomatics reports dry root-zone deficit (>35 mm)
+        extra_dry_mm = max(0.0, float(initial_depletion_mm) - 35.0)
+
         if not is_dsr:
             # Puddled Transplanted Rice (PTR):
             # Mechanical puddling breaks soil aggregates and forms a plough pan (reducing saturated
@@ -451,7 +463,7 @@ def _simulate_step(
             # reproductive stages. This continuous positive hydrostatic pressure head drives steady-state
             # downward percolation (~3.5 mm/d on alluvial loam). Additionally, PTR requires ~175 mm
             # of land-soaking and puddling water before transplanting.
-            puddling_mm = 175.0
+            puddling_mm = 175.0 + min(45.0, extra_dry_mm * 0.55)
             plough_pan_perc_rate = 3.5 * (0.75 + 0.25 * sand_seepage_factor)
             flooded_days = max(60, n_days - 14)
             percolation_mm = plough_pan_perc_rate * flooded_days
@@ -490,7 +502,7 @@ def _simulate_step(
             # and the 175 mm puddling soak is replaced by a lighter ~75 mm pre-sowing rauni irrigation.
             # On coarse sandy soils (sand > 55%) without a plough pan, non-ponded retention is low,
             # percolation increases to ~4.2 mm/d, and iron chlorosis reduces yield.
-            rauni_mm = 75.0
+            rauni_mm = 75.0 + min(30.0, extra_dry_mm * 0.40)
             if sand_pct <= 55.0:
                 dsr_seepage_rate = 2.55 * sand_seepage_factor
                 sand_yield_penalty = 0.98
@@ -671,6 +683,7 @@ def simulate_rotation(
     crops: dict[str, CropSpec] | None = None,
     lat: float = 30.0,
     step_cache: dict | None = None,
+    initial_depletion_mm: float | None = None,
 ) -> list[dict]:
     """Simulate multi-year rotation sequence under daily FAO-56 soil-water balance."""
     crops = crops or crop_kb.load_crops()
@@ -686,7 +699,10 @@ def simulate_rotation(
             elif "date" in w_df.columns:
                 w_df.index = pd.to_datetime(w_df["date"])
 
-    current_depletion_mm = 0.0
+    if initial_depletion_mm is not None:
+        current_depletion_mm = float(np.clip(initial_depletion_mm, 0.0, 120.0))
+    else:
+        current_depletion_mm = 0.0
     if step_cache is not None and len(w_df) > 0:
         weather_sig = (
             len(w_df),

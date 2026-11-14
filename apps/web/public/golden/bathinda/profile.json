@@ -108,6 +108,20 @@
     "groundwater_trend_cm_per_year": -4.15,
     "climatic_water_balance_mm": -1280.4,
     "irrigation_detected": true,
+    "soil_moisture_deficit_mm": 13.4,
+    "soil_moisture_index_layers": {
+      "-5cm": 0.72,
+      "-15cm": 0.8,
+      "-50cm": 0.85,
+      "-150cm": 0.88
+    },
+    "volumetric_soil_water_layers": {
+      "-5cm": 0.225,
+      "-15cm": 0.235,
+      "-50cm": 0.241,
+      "-150cm": 0.244
+    },
+    "seedbed_temp_5cm_c": 21.7,
     "provenance": [
       {
         "source": "NASA POWER",
@@ -144,6 +158,15 @@
         "doi": "10.5067/K2VT90DE20GV",
         "url": "https://smap.jpl.nasa.gov/",
         "mode": "observed"
+      },
+      {
+        "source": "Regional Climatology Baseline (Meteomatics Schema)",
+        "product": "Synthesized 7-Day Field Operations & Soil Moisture Climatology (Live API Credentials Unset)",
+        "period": "2026-11-13 to 2026-11-19",
+        "resolution": "Regional baseline (live 90m requires METEOMATICS_USERNAME)",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "regional_climatology"
       }
     ]
   },
@@ -192,6 +215,12 @@
     "erosion_risk_class": "low",
     "residue_burning_detected": true,
     "terminal_heat_days_per_year": 12.3,
+    "late_blight_risk_idx": 100.7,
+    "canopy_wetness_idx": 0.05,
+    "hail_probability_pct": 2.0,
+    "fire_weather_index": 33.8,
+    "meteorological_drought_idx": 1.2,
+    "max_30m_precip_rate_mmh": 32.6,
     "provenance": [
       {
         "source": "NASA POWER",
@@ -210,6 +239,15 @@
         "doi": "10.5067/FIRMS/MODIS",
         "url": "https://firms.modaps.eosdis.nasa.gov/",
         "mode": "observed"
+      },
+      {
+        "source": "Regional Climatology Baseline (Meteomatics Schema)",
+        "product": "Synthesized 7-Day Field Operations & Soil Moisture Climatology (Live API Credentials Unset)",
+        "period": "2026-11-13 to 2026-11-19",
+        "resolution": "Regional baseline (live 90m requires METEOMATICS_USERNAME)",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "regional_climatology"
       }
     ]
   },
@@ -353,5 +391,106 @@
   "is_fallback": false,
   "data_mode": "observed",
   "validation_status": "validated_india",
-  "validation_message": null
+  "validation_message": null,
+  "tactical_advisory": {
+    "sowing_ready": true,
+    "sowing_status_code": "optimal",
+    "irrigation_action": "irrigate_soon",
+    "urea_spray_safe": true,
+    "next_7d_precip_mm": 1.4,
+    "next_7d_et0_mm": 34.2,
+    "seedbed_temp_5cm_c": 21.7,
+    "soil_moisture_deficit_mm": 13.4,
+    "fire_weather_index": 33.8,
+    "forecast_days": [
+      {
+        "date": "2026-11-13",
+        "tmax_c": 27.8,
+        "tmin_c": 14.0,
+        "precip_mm": 0.3,
+        "prob_precip_pct": 4.4,
+        "et0_mm": 5.1,
+        "wind_speed_ms": 2.6,
+        "soil_temp_5cm_c": 22.0,
+        "soil_moisture_deficit_mm": 13.4
+      },
+      {
+        "date": "2026-11-14",
+        "tmax_c": 28.1,
+        "tmin_c": 14.2,
+        "precip_mm": 0.3,
+        "prob_precip_pct": 4.4,
+        "et0_mm": 5.2,
+        "wind_speed_ms": 2.8,
+        "soil_temp_5cm_c": 22.1,
+        "soil_moisture_deficit_mm": 15.7
+      },
+      {
+        "date": "2026-11-15",
+        "tmax_c": 27.8,
+        "tmin_c": 14.0,
+        "precip_mm": 0.2,
+        "prob_precip_pct": 3.6,
+        "et0_mm": 5.1,
+        "wind_speed_ms": 2.5,
+        "soil_temp_5cm_c": 21.9,
+        "soil_moisture_deficit_mm": 18.1
+      },
+      {
+        "date": "2026-11-16",
+        "tmax_c": 27.1,
+        "tmin_c": 13.6,
+        "precip_mm": 0.2,
+        "prob_precip_pct": 3.6,
+        "et0_mm": 4.8,
+        "wind_speed_ms": 2.4,
+        "soil_temp_5cm_c": 21.6,
+        "soil_moisture_deficit_mm": 20.4
+      },
+      {
+        "date": "2026-11-17",
+        "tmax_c": 26.6,
+        "tmin_c": 13.2,
+        "precip_mm": 0.1,
+        "prob_precip_pct": 3.0,
+        "et0_mm": 4.6,
+        "wind_speed_ms": 2.8,
+        "soil_temp_5cm_c": 21.3,
+        "soil_moisture_deficit_mm": 23.0
+      },
+      {
+        "date": "2026-11-18",
+        "tmax_c": 26.6,
+        "tmin_c": 13.3,
+        "precip_mm": 0.1,
+        "prob_precip_pct": 3.0,
+        "et0_mm": 4.6,
+        "wind_speed_ms": 2.7,
+        "soil_temp_5cm_c": 21.4,
+        "soil_moisture_deficit_mm": 25.4
+      },
+      {
+        "date": "2026-11-19",
+        "tmax_c": 27.2,
+        "tmin_c": 13.6,
+        "precip_mm": 0.2,
+        "prob_precip_pct": 3.6,
+        "et0_mm": 4.8,
+        "wind_speed_ms": 2.3,
+        "soil_temp_5cm_c": 21.6,
+        "soil_moisture_deficit_mm": 27.5
+      }
+    ],
+    "provenance": [
+      {
+        "source": "Regional Climatology Baseline (Meteomatics Schema)",
+        "product": "Synthesized 7-Day Field Operations & Soil Moisture Climatology (Live API Credentials Unset)",
+        "period": "2026-11-13 to 2026-11-19",
+        "resolution": "Regional baseline (live 90m requires METEOMATICS_USERNAME)",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "regional_climatology"
+      }
+    ]
+  }
 }

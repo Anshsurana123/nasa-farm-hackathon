@@ -189,7 +189,7 @@ export default function MissionControlPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider font-bold text-foreground">
                     <Search className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Address Search &amp; Coordinates</span>
+                    <span>{t("home.addressSearchHeading")}</span>
                   </div>
                   <div className="inline-flex rounded-lg bg-background/80 p-0.5 border border-line text-[10px] font-mono">
                     <button

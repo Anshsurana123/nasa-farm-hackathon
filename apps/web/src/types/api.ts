@@ -72,6 +72,10 @@ export interface WaterSummary {
   groundwater_trend_cm_per_year?: number | null;
   climatic_water_balance_mm?: number | null;
   irrigation_detected?: boolean | null;
+  soil_moisture_deficit_mm?: number | null;
+  soil_moisture_index_layers?: Record<string, number> | null;
+  volumetric_soil_water_layers?: Record<string, number> | null;
+  seedbed_temp_5cm_c?: number | null;
   provenance: DataProvenance[];
 }
 
@@ -83,7 +87,39 @@ export interface HazardSummary {
   erosion_risk_class?: "low" | "moderate" | "high" | "very_high" | null;
   residue_burning_detected?: boolean | null;
   terminal_heat_days_per_year?: number | null;
+  late_blight_risk_idx?: number | null;
+  canopy_wetness_idx?: number | null;
+  hail_probability_pct?: number | null;
+  fire_weather_index?: number | null;
+  meteorological_drought_idx?: number | null;
+  max_30m_precip_rate_mmh?: number | null;
   provenance?: DataProvenance[];
+}
+
+export interface TacticalDayForecast {
+  date: string;
+  tmax_c: number;
+  tmin_c: number;
+  precip_mm: number;
+  prob_precip_pct: number;
+  et0_mm: number;
+  wind_speed_ms: number;
+  soil_temp_5cm_c?: number | null;
+  soil_moisture_deficit_mm?: number | null;
+}
+
+export interface TacticalAdvisory {
+  sowing_ready: boolean;
+  sowing_status_code: "optimal" | "too_cold" | "too_hot" | "too_dry" | "waterlogged";
+  irrigation_action: "hold_rain_ahead" | "irrigate_soon" | "adequate_moisture";
+  urea_spray_safe: boolean;
+  next_7d_precip_mm: number;
+  next_7d_et0_mm: number;
+  seedbed_temp_5cm_c?: number | null;
+  soil_moisture_deficit_mm?: number | null;
+  fire_weather_index?: number | null;
+  forecast_days: TacticalDayForecast[];
+  provenance: DataProvenance[];
 }
 
 export interface InferredSeason {
@@ -118,6 +154,7 @@ export interface FieldProfile {
   data_mode?: "observed" | "hybrid_regional" | "fallback_synthetic" | "regional_climatology";
   validation_status?: "validated_india" | "unvalidated_global";
   validation_message?: string | null;
+  tactical_advisory?: TacticalAdvisory | null;
 }
 
 export interface GoldenField {
@@ -304,6 +341,7 @@ export interface SuitabilityRequest {
   constraints?: FarmConstraints;
   profile?: FieldProfile | null;
   soil_health_card?: SoilHealthCardInput | null;
+  language?: "en" | "pa" | "hi";
 }
 
 export interface SuitabilityItem {

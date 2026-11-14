@@ -14,7 +14,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from dataclasses import field as dc_field
-from datetime import date
+from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
@@ -29,7 +29,7 @@ from terraloop_schemas import (
     WaterSummary,
 )
 
-from .data import gee, nasa_power, soilgrids
+from .data import gee, meteomatics, nasa_power, soilgrids
 from .eo import phenology
 from .models import agroclimate, rusle, soil
 
@@ -71,23 +71,44 @@ def summarise_climate(
         else:
             bias_corrected = False
     df = df.copy()
-    has_pm = (
-        {"ALLSKY_SFC_SW_DWN", "RH2M", "WS2M"}.issubset(df.columns)
-        and df["ALLSKY_SFC_SW_DWN"].notna().mean() > 0.5
-        and df["RH2M"].notna().mean() > 0.5
-        and df["WS2M"].notna().mean() > 0.5
+    has_valid_et0 = (
+        "ET0" in df.columns
+        and pd.to_numeric(df["ET0"], errors="coerce").notna().all()
+        and (pd.to_numeric(df["ET0"], errors="coerce") >= 0.0).all()
+        and (pd.to_numeric(df["ET0"], errors="coerce") <= 20.0).all()
     )
-    if has_pm:
-        df["ET0"] = agroclimate.et0_penman_monteith_series(
-            df["T2M_MAX"],
-            df["T2M_MIN"],
-            lat,
-            rs_mj_m2_day=df["ALLSKY_SFC_SW_DWN"],
-            rh_mean_pct=df["RH2M"],
-            wind_m_s=df["WS2M"],
-        )
+    if has_valid_et0:
+        df["ET0"] = pd.to_numeric(df["ET0"], errors="coerce").astype(float)
     else:
-        df["ET0"] = agroclimate.et0_hargreaves(df["T2M_MAX"], df["T2M_MIN"], lat)
+        has_pm = (
+            {"ALLSKY_SFC_SW_DWN", "RH2M", "WS2M"}.issubset(df.columns)
+            and df["ALLSKY_SFC_SW_DWN"].notna().mean() > 0.5
+            and df["RH2M"].notna().mean() > 0.5
+            and df["WS2M"].notna().mean() > 0.5
+        )
+        if has_pm:
+            pm_et0 = agroclimate.et0_penman_monteith_series(
+                df["T2M_MAX"],
+                df["T2M_MIN"],
+                lat,
+                rs_mj_m2_day=df["ALLSKY_SFC_SW_DWN"],
+                rh_mean_pct=df["RH2M"],
+                wind_m_s=df["WS2M"],
+            )
+            if "ET0" in df.columns:
+                existing_et0 = pd.to_numeric(df["ET0"], errors="coerce")
+                valid_mask = existing_et0.notna() & (existing_et0 >= 0.0) & (existing_et0 <= 20.0)
+                df["ET0"] = existing_et0.where(valid_mask, pm_et0)
+            else:
+                df["ET0"] = pm_et0
+        else:
+            hg_et0 = agroclimate.et0_hargreaves(df["T2M_MAX"], df["T2M_MIN"], lat)
+            if "ET0" in df.columns:
+                existing_et0 = pd.to_numeric(df["ET0"], errors="coerce")
+                valid_mask = existing_et0.notna() & (existing_et0 >= 0.0) & (existing_et0 <= 20.0)
+                df["ET0"] = existing_et0.where(valid_mask, hg_et0)
+            else:
+                df["ET0"] = hg_et0
     df["GDD10"] = agroclimate.gdd(df["T2M_MAX"], df["T2M_MIN"], base=10.0)
 
     years = df.index.year
@@ -300,44 +321,124 @@ def build_notes(
     w: WaterSummary,
     h: HazardSummary | None = None,
     lat: float = 30.0,
+    language: str = "en",
 ) -> list[str]:
+    lang = language if language in ("en", "hi", "pa") else "en"
+
+    def _tr(en: str, hi: str, pa: str) -> str:
+        return hi if lang == "hi" else pa if lang == "pa" else en
+
     notes: list[str] = []
     if TREND_NOTES_ENABLED and c.recent_heat_days_per_year - c.heat_days_per_year >= 5:
         notes.append(
-            f"Heat-stress days (>35 C) rose from {c.heat_days_per_year:.0f} to "
-            f"{c.recent_heat_days_per_year:.0f} per year ({c.baseline_period} vs {c.recent_period})."
+            _tr(
+                f"Heat-stress days (>35 C) rose from {c.heat_days_per_year:.0f} to "
+                f"{c.recent_heat_days_per_year:.0f} per year ({c.baseline_period} vs {c.recent_period}).",
+                f"तेज़ गर्मी (>35°C) के दिन {c.heat_days_per_year:.0f} से बढ़कर {c.recent_heat_days_per_year:.0f} दिन/वर्ष हो गए ({c.baseline_period} बनाम {c.recent_period})।",
+                f"ਤੇਜ਼ ਗਰਮੀ (>35°C) ਦੇ ਦਿਨ {c.heat_days_per_year:.0f} ਤੋਂ ਵੱਧ ਕੇ {c.recent_heat_days_per_year:.0f} ਦਿਨ/ਸਾਲ ਹੋ ਗਏ ({c.baseline_period} ਬਨਾਮ {c.recent_period})।",
+            )
         )
     if h is not None and h.terminal_heat_days_per_year is not None and h.terminal_heat_days_per_year >= 3:
         grain_fill_range = "1 Sep-15 Oct" if lat < 0 else "1 Mar-15 Apr"
         notes.append(
-            f"Wheat terminal heat stress: grain-fill period ({grain_fill_range}) averages "
-            f"{h.terminal_heat_days_per_year:.1f} days/yr with Tmax > 32 C."
+            _tr(
+                f"Wheat terminal heat stress: grain-fill period ({grain_fill_range}) averages "
+                f"{h.terminal_heat_days_per_year:.1f} days/yr with Tmax > 32 C.",
+                f"गेहूं दाने भरने की अवधि ({grain_fill_range}) में औसतन {h.terminal_heat_days_per_year:.1f} दिन/वर्ष Tmax > 32°C ताप तनाव रहता है।",
+                f"ਕਣਕ ਦੇ ਦਾਣੇ ਭਰਨ ਸਮੇਂ ({grain_fill_range}) ਔਸਤਨ {h.terminal_heat_days_per_year:.1f} ਦਿਨ/ਸਾਲ Tmax > 32°C ਗਰਮੀ ਦਾ ਦਬਾਅ ਰਹਿੰਦਾ ਹੈ।",
+            )
         )
     if TREND_NOTES_ENABLED and 10 <= abs(c.precip_change_pct) <= 30:
         direction = "increased" if c.precip_change_pct > 0 else "decreased"
-        notes.append(f"Annual rainfall has {direction} by {abs(c.precip_change_pct):.0f}% between periods.")
+        dir_hi = "बढ़ी है" if c.precip_change_pct > 0 else "घटी है"
+        dir_pa = "ਵਧੀ ਹੈ" if c.precip_change_pct > 0 else "ਘਟੀ ਹੈ"
+        notes.append(
+            _tr(
+                f"Annual rainfall has {direction} by {abs(c.precip_change_pct):.0f}% between periods.",
+                f"दोनों अवधियों के बीच वार्षिक वर्षा {abs(c.precip_change_pct):.0f}% {dir_hi}।",
+                f"ਦੋਹਾਂ ਦੌਰਾਂ ਵਿੱਚ ਸਾਲਾਨਾ ਮੀਂਹ {abs(c.precip_change_pct):.0f}% {dir_pa}।",
+            )
+        )
     if w.climatic_water_balance_mm is not None and w.climatic_water_balance_mm < -300:
         notes.append(
-            f"Evaporative demand exceeds rainfall by {abs(w.climatic_water_balance_mm):.0f} mm/yr: "
-            "crops depend on irrigation; water-efficient rotations matter."
+            _tr(
+                f"Evaporative demand exceeds rainfall by {abs(w.climatic_water_balance_mm):.0f} mm/yr: "
+                "crops depend on irrigation; water-efficient rotations matter.",
+                f"वाष्पीकरण मांग वर्षा से {abs(w.climatic_water_balance_mm):.0f} मिमी/वर्ष अधिक है: फसलें सिंचाई पर निर्भर हैं, इसलिए कम पानी वाले फसल चक्र आवश्यक हैं।",
+                f"ਵਾਸ਼ਪੀਕਰਨ ਦੀ ਲੋੜ ਮੀਂਹ ਨਾਲੋਂ {abs(w.climatic_water_balance_mm):.0f} ਮਿ.ਮੀ./ਸਾਲ ਵੱਧ ਹੈ: ਫ਼ਸਲਾਂ ਸਿੰਚਾਈ 'ਤੇ ਨਿਰਭਰ ਹਨ, ਇਸ ਲਈ ਘੱਟ ਪਾਣੀ ਵਾਲੇ ਫ਼ਸਲੀ ਚੱਕਰ ਜ਼ਰੂਰੀ ਹਨ।",
+            )
         )
     if s.soc_g_per_kg is not None and s.soc_g_per_kg < 6:
-        notes.append(f"Topsoil organic carbon is low ({s.soc_g_per_kg} g/kg): residue retention and legumes help.")
+        notes.append(
+            _tr(
+                f"Topsoil organic carbon is low ({s.soc_g_per_kg} g/kg): residue retention and legumes help.",
+                f"ऊपरी मिट्टी में जैविक कार्बन कम ({s.soc_g_per_kg} ग्राम/किग्रा) है: फसल अवशेष मल्च और दलहन मददगार हैं।",
+                f"ਉੱਪਰਲੀ ਮਿੱਟੀ ਵਿੱਚ ਜੈਵਿਕ ਕਾਰਬਨ ਘੱਟ ({s.soc_g_per_kg} ਗ੍ਰਾਮ/ਕਿਲੋ) ਹੈ: ਪਰਾਲੀ ਸੰਭਾਲ ਅਤੇ ਦਾਲਾਂ ਮਦਦਗਾਰ ਹਨ।",
+            )
+        )
     if c.longest_dry_spell_days_mean >= 15:
         notes.append(
-            f"Rainy-season dry spells average {c.longest_dry_spell_days_mean:.0f} days: drought-tolerant options reduce risk."
+            _tr(
+                f"Rainy-season dry spells average {c.longest_dry_spell_days_mean:.0f} days: drought-tolerant options reduce risk.",
+                f"वर्षा ऋतु में सूखे अंतराल औसतन {c.longest_dry_spell_days_mean:.0f} दिन के हैं: सूखा-सहिष्णु फसलें जोखिम घटाती हैं।",
+                f"ਬਰਸਾਤ ਦੌਰਾਨ ਸੁੱਕੇ ਦਿਨਾਂ ਦਾ ਅੰਤਰਾਲ ਔਸਤਨ {c.longest_dry_spell_days_mean:.0f} ਦਿਨ ਹੈ: ਸੋਕਾ-ਸਹਿਣਸ਼ੀਲ ਫ਼ਸਲਾਂ ਖ਼ਤਰਾ ਘਟਾਉਂਦੀਆਂ ਹਨ।",
+            )
         )
     if h is not None and h.residue_burning_detected:
         notes.append(
-            "Post-harvest residue burning detected near field via NASA FIRMS: in-situ mulching or alternative rotations recommended."
+            _tr(
+                "Post-harvest residue burning detected near field via NASA FIRMS: in-situ mulching or alternative rotations recommended.",
+                "नासा FIRMS से खेत के पास पराली जलाने की गतिविधि दिखी है: खेत में मल्चिंग या वैकल्पिक फसल चक्र अपनाएं।",
+                "ਨਾਸਾ FIRMS ਰਾਹੀਂ ਖੇਤ ਨੇੜੇ ਪਰਾਲੀ ਸਾੜਨ ਦੇ ਸੰਕੇਤ ਮਿਲੇ ਹਨ: ਖੇਤ ਵਿੱਚ ਮਲਚਿੰਗ ਜਾਂ ਬਦਲਵੇਂ ਫ਼ਸਲੀ ਚੱਕਰ ਅਪਣਾਓ।",
+            )
         )
     if s.available_p_kg_ha is not None and s.available_p_kg_ha < 12.0:
         notes.append(
-            f"Low available soil phosphorus ({s.available_p_kg_ha:.1f} kg/ha P from SHC): pulse/legume inclusion and basal DAP aid root establishment."
+            _tr(
+                f"Low available soil phosphorus ({s.available_p_kg_ha:.1f} kg/ha P from SHC): pulse/legume inclusion and basal DAP aid root establishment.",
+                f"मिट्टी में उपलब्ध फॉस्फोरस कम ({s.available_p_kg_ha:.1f} किग्रा/हेक्टेयर P) है: दलहन और बेसल DAP जड़ों के विकास में सहायक हैं।",
+                f"ਮਿੱਟੀ ਵਿੱਚ ਉਪਲਬਧ ਫਾਸਫੋਰਸ ਘੱਟ ({s.available_p_kg_ha:.1f} ਕਿਲੋ/ਹੈਕਟੇਅਰ P) ਹੈ: ਦਾਲਾਂ ਅਤੇ ਬੇਸਲ DAP ਜੜ੍ਹਾਂ ਦੀ ਮਜ਼ਬੂਤੀ ਲਈ ਸਹਾਇਕ ਹਨ।",
+            )
         )
     if s.available_k_kg_ha is not None and s.available_k_kg_ha < 110.0:
         notes.append(
-            f"Low available soil potassium ({s.available_k_kg_ha:.1f} kg/ha K from SHC): residue retention recycles >80% crop K."
+            _tr(
+                f"Low available soil potassium ({s.available_k_kg_ha:.1f} kg/ha K from SHC): residue retention recycles >80% crop K.",
+                f"मिट्टी में उपलब्ध पोटाश कम ({s.available_k_kg_ha:.1f} किग्रा/हेक्टेयर K) है: पराली मल्च से 80% से अधिक फसल पोटाश लौट आता है।",
+                f"ਮਿੱਟੀ ਵਿੱਚ ਉਪਲਬਧ ਪੋਟਾਸ਼ ਘੱਟ ({s.available_k_kg_ha:.1f} ਕਿਲੋ/ਹੈਕਟੇਅਰ K) ਹੈ: ਪਰਾਲੀ ਮਲਚ ਨਾਲ 80% ਤੋਂ ਵੱਧ ਫ਼ਸਲੀ ਪੋਟਾਸ਼ ਵਾਪਸ ਮਿਲਦਾ ਹੈ।",
+            )
+        )
+    if h is not None and h.late_blight_risk_idx is not None and h.late_blight_risk_idx > 150.0:
+        notes.append(
+            _tr(
+                f"High Phytophthora late-blight index ({h.late_blight_risk_idx:.0f} > 150): monitor potato and solanaceous canopies.",
+                f"फाइटोफ्थोरा लेट-ब्लाइट सूचकांक अधिक ({h.late_blight_risk_idx:.0f} > 150) है: आलू की फसल की निगरानी करें।",
+                f"ਫਾਈਟੋਪਥੋਰਾ ਲੇਟ-ਬਲਾਈਟ ਸੂਚਕ ਵੱਧ ({h.late_blight_risk_idx:.0f} > 150) ਹੈ: ਆਲੂ ਦੀ ਫ਼ਸਲ ਦੀ ਨਿਗਰਾਨੀ ਕਰੋ।",
+            )
+        )
+    if h is not None and h.hail_probability_pct is not None and h.hail_probability_pct > 25.0:
+        notes.append(
+            _tr(
+                f"Elevated hailstorm exposure ({h.hail_probability_pct:.0f}%): select lodging-tolerant varieties during Rabi grain fill.",
+                f"ओलावृष्टि जोखिम अधिक ({h.hail_probability_pct:.0f}%): रबी दाने भरते समय न गिरने वाली किस्में चुनें।",
+                f"ਗੜੇਮਾਰੀ ਦਾ ਖ਼ਤਰਾ ਵੱਧ ({h.hail_probability_pct:.0f}%): ਹਾੜ੍ਹੀ ਦੌਰਾਨ ਨਾ ਡਿੱਗਣ ਵਾਲੀਆਂ ਕਿਸਮਾਂ ਚੁਣੋ।",
+            )
+        )
+    if h is not None and h.fire_weather_index is not None and h.fire_weather_index > 50.0:
+        notes.append(
+            _tr(
+                f"Elevated Fosberg fire-weather danger ({h.fire_weather_index:.0f}/100): avoid open stubble burning and deploy Happy Seeder mulching.",
+                f"फसल अवशेष आग-मौसम सूचकांक अधिक ({h.fire_weather_index:.0f}/100): पराली न जलाएं और हैप्पी सीडर मल्चिंग अपनाएं।",
+                f"ਪਰਾਲੀ ਅੱਗ-ਮੌਸਮ ਖ਼ਤਰਾ ਵੱਧ ({h.fire_weather_index:.0f}/100): ਪਰਾਲੀ ਨਾ ਸਾੜੋ ਅਤੇ ਹੈਪੀ ਸੀਡਰ ਮਲਚਿੰਗ ਵਰਤੋ।",
+            )
+        )
+    if h is not None and h.meteorological_drought_idx is not None and h.meteorological_drought_idx <= -1.5:
+        notes.append(
+            _tr(
+                f"Meteomatics SPI drought index is negative ({h.meteorological_drought_idx:+.1f}): prioritize drought-tolerant pulses, oilseeds, or deficit irrigation.",
+                f"मेटियोमैटिक्स सूखा सूचकांक नकारात्मक ({h.meteorological_drought_idx:+.1f}) है: सूखा-रोधी दलहन, तिलहन या नियंत्रित सिंचाई को प्राथमिकता दें।",
+                f"ਮੀਟੀਓਮੈਟਿਕਸ ਸੋਕਾ ਸੂਚਕ ਨਕਾਰਾਤਮਕ ({h.meteorological_drought_idx:+.1f}) ਹੈ: ਸੋਕਾ-ਰੋਧੀ ਦਾਲਾਂ, ਤੇਲ ਬੀਜ ਜਾਂ ਬਚਤ ਸਿੰਚਾਈ ਨੂੰ ਤਰਜੀਹ ਦਿਓ।",
+            )
         )
     return notes
 
@@ -441,11 +542,18 @@ def _build_base_profile(
     imerg_series = None
     fire_df = None
     ndvi_df = None
+    mm_snap = None
+    mm_tactical = None
+    mm_slope = None
+    mm_daily_recent = None
+    slope_from_mm = False
+    fused_mm_weather = False
 
     if use_live_network:
         gee_active = bool(gee.init())
+        mm_active = bool(meteomatics.is_configured())
         timeout_sec = float(os.environ.get("PROFILE_LIVE_TIMEOUT_SEC", "24.0"))
-        pool = ThreadPoolExecutor(max_workers=8)
+        pool = ThreadPoolExecutor(max_workers=10)
         try:
             fut_power = pool.submit(
                 nasa_power.fetch_daily,
@@ -470,6 +578,24 @@ def _build_base_profile(
                 if gee_active
                 else None
             )
+            fut_mm_snap = pool.submit(meteomatics.fetch_soil_and_hazards_snapshot, field.lat, field.lon) if mm_active else None
+            fut_mm_tact = pool.submit(meteomatics.fetch_tactical_forecast, field.lat, field.lon) if mm_active else None
+            fut_mm_slope = (
+                pool.submit(meteomatics.fetch_srtm_slope_pct, field.lat, field.lon)
+                if (mm_active and not gee_active)
+                else None
+            )
+            fut_mm_daily = (
+                pool.submit(
+                    meteomatics.fetch_daily_weather,
+                    field.lat,
+                    field.lon,
+                    max(start, end - timedelta(days=90)),
+                    end,
+                )
+                if mm_active
+                else None
+            )
 
             all_futs = [
                 f
@@ -482,6 +608,10 @@ def _build_base_profile(
                     fut_imerg,
                     fut_firms,
                     fut_ndvi,
+                    fut_mm_snap,
+                    fut_mm_tact,
+                    fut_mm_slope,
+                    fut_mm_daily,
                 )
                 if f is not None
             ]
@@ -497,6 +627,13 @@ def _build_base_profile(
             imerg_series = _collect_future(fut_imerg)
             fire_df = _collect_future(fut_firms)
             ndvi_df = _collect_future(fut_ndvi)
+            mm_snap = _collect_future(fut_mm_snap)
+            mm_tactical = _collect_future(fut_mm_tact)
+            mm_slope = _collect_future(fut_mm_slope)
+            mm_daily_recent = _collect_future(fut_mm_daily)
+            if mm_slope is not None:
+                slope_val = mm_slope
+                slope_from_mm = True
         except Exception as exc:  # noqa: BLE001
             log.warning("Parallel external fetcher pool error: %s", exc)
         finally:
@@ -509,6 +646,25 @@ def _build_base_profile(
     if weather is None:
         weather = nasa_power.synthetic_daily_weather(field.lat, field.lon, (start.year, end.year))
         power_mode = "regional_climatology"
+
+    if mm_daily_recent is not None and not mm_daily_recent.empty:
+        # Fuse 90m Meteomatics recent observations onto multi-year NASA POWER / baseline series
+        # without collapsing the multi-year climatology span down to 90 days.
+        weather = weather.copy()
+        mm_corr = nasa_power.apply_igp_irrigation_bias_correction(mm_daily_recent.copy(), field.lat, field.lon)
+        if "ET0" in mm_corr.columns and "ET0" not in weather.columns:
+            weather["ET0"] = np.nan
+        common_cols = [
+            c
+            for c in ("T2M_MAX", "T2M_MIN", "PRECTOTCORR", "ALLSKY_SFC_SW_DWN", "RH2M", "WS2M", "ET0")
+            if c in weather.columns and c in mm_corr.columns
+        ]
+        if common_cols:
+            weather.update(mm_corr[common_cols])
+            new_rows = mm_corr.loc[~mm_corr.index.isin(weather.index), common_cols]
+            if not new_rows.empty:
+                weather = pd.concat([weather, new_rows]).sort_index()
+            fused_mm_weather = True
 
     from . import region_registry
 
@@ -529,18 +685,33 @@ def _build_base_profile(
         prov_mode=power_mode,
         bias_corrected=bool(reg_cfg.igp_merra2_bias_correction),
     )
+    if fused_mm_weather and mm_daily_recent is not None:
+        mm_clim_prov = meteomatics.METEOMATICS_MIX_PROVENANCE.model_copy(
+            update={
+                "period": f"{mm_daily_recent.index.min().date().isoformat()} to {mm_daily_recent.index.max().date().isoformat()}",
+                "mode": "observed",
+            }
+        )
+        if not any(p.source == mm_clim_prov.source for p in climate.provenance):
+            climate.provenance.append(mm_clim_prov)
 
     if not props:
         props = regional_indian_soil_fallback(field.lat, field.lon)
         soil_mode = "regional_climatology"
     soil_summary = summarise_soil(props, prov_mode=soil_mode)
 
-    # 1. Slope from NASADEM (TASK-D06)
+    # 1. Slope from NASADEM / Meteomatics SRTM 90m (TASK-D06)
     if slope_val is not None:
         soil_summary.slope_pct = slope_val
-        nasadem_prov = gee.provenance_with_mode(gee.NASADEM_PROVENANCE)
-        if not any(p.source == nasadem_prov.source for p in soil_summary.provenance):
-            soil_summary.provenance.append(nasadem_prov)
+        slope_prov = (
+            meteomatics.METEOMATICS_MIX_PROVENANCE.model_copy(
+                update={"product": "elevation:m (NASA SRTM 90m via Meteomatics)", "mode": "observed"}
+            )
+            if slope_from_mm
+            else gee.provenance_with_mode(gee.NASADEM_PROVENANCE)
+        )
+        if not any(p.source == slope_prov.source and p.product == slope_prov.product for p in soil_summary.provenance):
+            soil_summary.provenance.append(slope_prov)
 
     # 2. Water summary + GRACE-FO + SMAP (TASK-D04, D05)
     water_prov = list(climate.provenance)
@@ -608,7 +779,31 @@ def _build_base_profile(
             elif float(dry_sm.mean()) < 0.17 and not has_dry_crop:
                 water.irrigation_detected = False
 
-    # Erosion screening using NASADEM slope
+    # Erosion screening using NASADEM / Meteomatics SRTM slope & TASK-M04 kinetic R factor
+    snap_meta, reg_tactical = meteomatics.estimate_regional_tactical_and_hazards(
+        field.lat, field.lon, climate, soil_summary, water, hazards
+    )
+    active_snap = mm_snap if mm_snap is not None else snap_meta
+    snap_prov = active_snap.get("provenance")
+
+    water.soil_moisture_deficit_mm = active_snap.get("soil_moisture_deficit_mm")
+    water.soil_moisture_index_layers = active_snap.get("soil_moisture_index_layers")
+    water.volumetric_soil_water_layers = active_snap.get("volumetric_soil_water_layers")
+    water.seedbed_temp_5cm_c = active_snap.get("seedbed_temp_5cm_c")
+    if snap_prov is not None and not any(p.source == snap_prov.source for p in water.provenance):
+        water.provenance.append(snap_prov)
+
+    hazards.late_blight_risk_idx = active_snap.get("late_blight_risk_idx")
+    hazards.canopy_wetness_idx = active_snap.get("canopy_wetness_idx")
+    hazards.hail_probability_pct = active_snap.get("hail_probability_pct")
+    hazards.fire_weather_index = active_snap.get("fire_weather_index")
+    hazards.meteorological_drought_idx = active_snap.get("meteorological_drought_idx")
+    hazards.max_30m_precip_rate_mmh = active_snap.get("max_30m_precip_rate_mmh")
+    if snap_prov is not None and not any(p.source == snap_prov.source for p in hazards.provenance):
+        hazards.provenance.append(snap_prov)
+
+    tactical_advisory = mm_tactical if mm_tactical is not None else reg_tactical
+
     if soil_summary.sand_pct is not None and soil_summary.soc_g_per_kg is not None:
         k = rusle.k_factor_williams(
             soil_summary.sand_pct,
@@ -616,7 +811,14 @@ def _build_base_profile(
             soil_summary.clay_pct or 0,
             soil_summary.soc_g_per_kg / 10,
         )
-        r = rusle.r_factor_annual(climate.annual_precip_mm)
+        if hazards.max_30m_precip_rate_mmh is not None:
+            r = rusle.r_factor_intensity(
+                climate.annual_precip_mm,
+                max_30m_rate_mmh=hazards.max_30m_precip_rate_mmh,
+                extreme_rain_days_per_yr=hazards.extreme_rain_days_per_year,
+            )
+        else:
+            r = rusle.r_factor_annual(climate.annual_precip_mm)
         slope = soil_summary.slope_pct if soil_summary.slope_pct is not None else 1.0
         a = rusle.soil_loss(r, k, rusle.ls_factor(slope), c=0.3)
         hazards.erosion_risk_class = rusle.erosion_class(a)  # type: ignore[assignment]
@@ -650,5 +852,6 @@ def _build_base_profile(
         validation_message=reg_cfg.validation_message,
         is_fallback=is_fallback,
         data_mode=data_mode,  # type: ignore[arg-type]
+        tactical_advisory=tactical_advisory,
     )
     return profile

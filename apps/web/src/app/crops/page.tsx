@@ -236,7 +236,7 @@ export default function CropsPage() {
   return (
     <AppShell
       pageStep="05"
-      pageBadge="FAO-56 KC PARAMETERS · ICRISAT · PAU LUDHIANA · USDA-NRCS"
+      pageBadge={t("nav.badge.crops")}
       pageTitle={t("crops.pageTitle", { count: String(crops.length || 23) })}
       pageDescription={t("crops.pageDesc", { count: String(crops.length || 23) })}
       headerActions={

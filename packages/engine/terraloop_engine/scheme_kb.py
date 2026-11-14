@@ -9,6 +9,7 @@ from __future__ import annotations
 import functools
 import logging
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -44,19 +45,31 @@ def load_all_schemes() -> dict[str, list[dict]]:
     return schemes_by_source
 
 
+def _scheme_title(scheme: dict[str, Any], language: str) -> str:
+    """Return scheme display title localized for 'hi'/'pa' with English fallback."""
+    if language in ("hi", "pa"):
+        localized = scheme.get(f"display_title_{language}")
+        if isinstance(localized, str) and localized.strip():
+            return localized
+    return str(scheme.get("display_title", scheme["name"]))
+
+
 def get_matching_schemes(
     state: str | None,
     planted_crops: set[str],
     practices: set[str],
     urea_bags_saved: float = 0.0,
     region_id: str | None = None,
+    language: str = "en",
 ) -> list[str]:
     """Return matching central and state government agricultural scheme display titles."""
     if not state:
         return []
 
+    lang = language if language in ("en", "hi", "pa") else "en"
     all_schemes = load_all_schemes()
     matched_titles: list[str] = []
+    matched_ids: set[str] = set()
 
     # 1. State schemes (only if state is determined and matches)
     state_key_map = {
@@ -70,16 +83,21 @@ def get_matching_schemes(
     if target_key and target_key in all_schemes:
         for s in all_schemes[target_key]:
             if _is_scheme_eligible(s, planted_crops, practices, urea_bags_saved, region_id=region_id):
-                matched_titles.append(s.get("display_title", s["name"]))
+                sid = str(s.get("id", ""))
+                if sid:
+                    matched_ids.add(sid)
+                matched_titles.append(_scheme_title(s, lang))
 
     # 2. Central schemes (Indian national schemes only when in India)
     central = all_schemes.get("central", [])
     for s in central:
         # Don't duplicate mechanization if state CRM already matched
-        if s.get("id") == "smam_mechanization" and any("CRM Sub-Mission" in t for t in matched_titles):
+        if s.get("id") == "smam_mechanization" and (
+            "crm_punjab" in matched_ids or "up_crm_mechanization" in matched_ids
+        ):
             continue
         if _is_scheme_eligible(s, planted_crops, practices, urea_bags_saved, region_id=region_id):
-            matched_titles.append(s.get("display_title", s["name"]))
+            matched_titles.append(_scheme_title(s, lang))
 
     return matched_titles
 

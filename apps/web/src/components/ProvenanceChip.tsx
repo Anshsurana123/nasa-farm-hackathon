@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import type { DataProvenance } from "@/types/api";
 import { useI18n } from "@/i18n";
 

@@ -5,6 +5,8 @@ schemes:
   - id: "maharashtra_pocra"
     name: "Maharashtra PoCRA"
     display_title: "Maharashtra PoCRA (Nanaji Deshmukh Krishi Sanjivani Climate-Resilient Agriculture Subsidy)"
+    display_title_hi: "महाराष्ट्र PoCRA (नानाजी देशमुख कृषि संजीवनी जलवायु-सहिष्णु खेती सब्सिडी)"
+    display_title_pa: "ਮਹਾਰਾਸ਼ਟਰ PoCRA (ਨਾਨਾਜੀ ਦੇਸ਼ਮੁਖ ਕ੍ਰਿਸ਼ੀ ਸੰਜੀਵਨੀ ਜਲਵਾਯੂ-ਅਨੁਕੂਲ ਖੇਤੀ ਸਬਸਿਡੀ)"
     state: "Maharashtra"
     eligible_crops: null
     amount: null
@@ -16,6 +18,8 @@ schemes:
   - id: "maharashtra_in_situ_moisture"
     name: "Maharashtra Soil Health & In-Situ Moisture Conservation"
     display_title: "Maharashtra Soil Health & In-Situ Moisture Conservation Incentive"
+    display_title_hi: "महाराष्ट्र मृदा स्वास्थ्य एवं खेत-स्तरीय नमी संरक्षण प्रोत्साहन"
+    display_title_pa: "ਮਹਾਰਾਸ਼ਟਰ ਮਿੱਟੀ ਸਿਹਤ ਅਤੇ ਖੇਤ-ਅੰਦਰ ਨਮੀ ਸੰਭਾਲ ਪ੍ਰੋਤਸਾਹਨ"
     state: "Maharashtra"
     eligible_practices: ["broad_bed_furrow", "zero_till", "residue_retained"]
     amount: null

@@ -5,6 +5,8 @@ schemes:
   - id: "punjab_dsr"
     name: "Punjab DSR Promotion Scheme"
     display_title: "Punjab DSR Promotion Scheme (₹3,750/ha direct-seeding incentive)"
+    display_title_hi: "पंजाब DSR प्रोत्साहन योजना (₹3,750/हेक्टेयर सीधी बुवाई प्रोत्साहन)"
+    display_title_pa: "ਪੰਜਾਬ DSR ਪ੍ਰੋਤਸਾਹਨ ਸਕੀਮ (₹3,750/ਹੈਕਟੇਅਰ ਸਿੱਧੀ ਬਿਜਾਈ ਪ੍ਰੋਤਸਾਹਨ)"
     state: "Punjab"
     eligible_crops: ["rice_dsr"]
     eligible_practices: ["direct_seeded", "awd"]
@@ -17,6 +19,8 @@ schemes:
   - id: "punjab_crop_diversification"
     name: "Punjab Crop Diversification Mission"
     display_title: "Punjab Crop Diversification Mission (support for non-paddy Kharif alternatives)"
+    display_title_hi: "पंजाब फसल विविधीकरण मिशन (गैर-धान खरीफ विकल्पों हेतु सहायता)"
+    display_title_pa: "ਪੰਜਾਬ ਫ਼ਸਲੀ ਵਿਭਿੰਨਤਾ ਮਿਸ਼ਨ (ਝੋਨੇ ਤੋਂ ਇਲਾਵਾ ਸਾਉਣੀ ਫ਼ਸਲਾਂ ਲਈ ਸਹਾਇਤਾ)"
     state: "Punjab"
     eligible_crops: ["maize", "moong", "cotton", "soybean", "groundnut"]
     ineligible_crops: ["rice_puddled"]
@@ -29,6 +33,8 @@ schemes:
   - id: "crm_punjab"
     name: "CRM Sub-Mission on Crop Residue Management"
     display_title: "CRM Sub-Mission on Crop Residue Management (50–80% Happy Seeder / CHC subsidy)"
+    display_title_hi: "CRM फसल अवशेष प्रबंधन उप-मिशन (हैप्पी सीडर / CHC पर 50–80% सब्सिडी)"
+    display_title_pa: "CRM ਪਰਾਲੀ ਪ੍ਰਬੰਧਨ ਉਪ-ਮਿਸ਼ਨ (ਹੈਪੀ ਸੀਡਰ / CHC 'ਤੇ 50–80% ਸਬਸਿਡੀ)"
     state: "Punjab"
     eligible_practices: ["happy_seeder", "zero_till", "residue_retained", "super_seeder"]
     ineligible_practices: ["residue_burned", "burning"]

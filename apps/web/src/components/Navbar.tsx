@@ -218,7 +218,7 @@ export function Navbar() {
             </span>
             <span className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/35 w-fit">
               <Satellite className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-              <span>NASA EO · v2.6</span>
+              <span>{t("nav.brandTag")}</span>
             </span>
           </div>
         </Link>

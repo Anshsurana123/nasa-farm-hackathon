@@ -34,6 +34,7 @@ interface ProjectedPt {
 
 export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
   const { t } = useI18n();
+  const tr = t;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Interactive 3D camera state
@@ -73,6 +74,14 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
       : [42, 45, 38, 30, 25, 35, 62, 74, 68, 52, 44, 41];
   const currentSmap = smapArray[monthIdx] ?? 50;
   const monthlyRain = climate.monthly_precip_mm?.[monthIdx] ?? 45;
+  const topSmi = water.soil_moisture_index_layers?.["-5cm"];
+  const topVwc = water.volumetric_soil_water_layers?.["-5cm"];
+  const rzSmi =
+    water.soil_moisture_index_layers?.["-50cm"] ??
+    water.soil_moisture_index_layers?.["-15cm"];
+  const rzVwc =
+    water.volumetric_soil_water_layers?.["-50cm"] ??
+    water.volumetric_soil_water_layers?.["-15cm"];
 
   // Auto-advance month when playing
   useEffect(() => {
@@ -659,29 +668,33 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
         const callouts = [
           {
             anchor: pOrbit[1],
-            tag: "ORBITAL // HLS · SMAP · GRACE",
-            val: `${MONTHS[monthIdx]} Rain ${Math.round(monthlyRain)} mm`,
+            tag: tr("soil3d.orbitalTag"),
+            val: tr("soil3d.orbitalRainVal", { month: MONTHS[monthIdx], rain: Math.round(monthlyRain) }),
             color: isDark ? "#52b778" : "#2e6f40",
           },
           {
             anchor: tsSlab.pTop[1],
-            tag: "HORIZON A // 0–30 cm TOPSOIL",
-            val: `SOC ${soc.toFixed(1)} g/kg · ${reg > 0.5 ? `+${socDeltaTop.toFixed(1)}` : socDeltaBase.toFixed(1)} t C/ha`,
+            tag: tr("soil3d.horizonATag"),
+            val: `SOC ${soc.toFixed(1)} g/kg · ${reg > 0.5 ? `+${socDeltaTop.toFixed(1)}` : socDeltaBase.toFixed(1)} t C/ha${
+              topSmi != null ? ` · SMI ${topSmi.toFixed(2)}` : ""
+            }${topVwc != null ? ` (${topVwc.toFixed(2)})` : ""}`,
             color: isDark ? "#d97746" : "#b85d35",
           },
           {
             anchor: rzSlab.pTop[1],
-            tag: "HORIZON B // 30–100 cm ROOT ZONE",
-            val: `SMAP Moisture ${Math.round(currentSmap)}th %ile`,
+            tag: tr("soil3d.horizonBTag"),
+            val: `${tr("soil3d.smapCallout", { pct: Math.round(currentSmap) })}${
+              rzSmi != null ? ` · SMI ${rzSmi.toFixed(2)}` : ""
+            }${rzVwc != null ? ` (${rzVwc.toFixed(2)})` : ""}`,
             color: isDark ? "#4da8da" : "#1d6fa5",
           },
           {
             anchor: aqSlab.pTop[1],
-            tag: "HORIZON C // >100 cm AQUIFER",
+            tag: tr("soil3d.horizonCTag"),
             val:
               reg > 0.5
-                ? `Saved ${savedWaterPct}% Irrig (${gwTrend.toFixed(1)} cm/yr)`
-                : `GRACE Drawdown ${gwTrend.toFixed(2)} cm/yr`,
+                ? tr("soil3d.savedCallout", { pct: savedWaterPct, trend: gwTrend.toFixed(1) })
+                : tr("soil3d.drawdownCallout", { trend: gwTrend.toFixed(2) }),
             color: reg > 0.5 ? (isDark ? "#4da8da" : "#1d6fa5") : "#e11d48",
           },
         ];
@@ -744,7 +757,12 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
     savedWaterPct,
     socDeltaBase,
     socDeltaTop,
+    topSmi,
+    topVwc,
+    rzSmi,
+    rzVwc,
     hazards.residue_burning_detected,
+    tr,
   ]);
 
   // Pointer drag handlers for 3D orbit
@@ -889,36 +907,41 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
 
         {/* Accessible screen-reader data table fallback */}
         <table className="sr-only">
-          <caption>Stratigraphic Soil and Subsurface Water Profile for {profile.field.name ?? "Selected Parcel"}</caption>
+          <caption>{t("soil3d.srCaption", { name: profile.field.name ?? t("soil3d.srSelectedParcel") })}</caption>
           <thead>
             <tr>
-              <th>Horizon Layer</th>
-              <th>Depth</th>
-              <th>Metric</th>
-              <th>Value</th>
+              <th>{t("soil3d.srThLayer")}</th>
+              <th>{t("soil3d.srThDepth")}</th>
+              <th>{t("soil3d.srThMetric")}</th>
+              <th>{t("soil3d.srThValue")}</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>Topsoil Horizon A</td>
-              <td>0 to 30 cm</td>
-              <td>Soil Organic Carbon &amp; Texture</td>
+              <td>{t("soil3d.srLayerA")}</td>
+              <td>{t("soil3d.srDepthA")}</td>
+              <td>{t("soil3d.srMetricA")}</td>
               <td>
-                {soc.toFixed(1)} g/kg, {soil.texture_class ?? "Loam"} ({Math.round(sand)}% sand, {Math.round(silt)}% silt,{" "}
-                {Math.round(clay)}% clay)
+                {t("soil3d.srSocTextureVal", {
+                  soc: soc.toFixed(1),
+                  texture: soil.texture_class ?? "Loam",
+                  sand: Math.round(sand),
+                  silt: Math.round(silt),
+                  clay: Math.round(clay),
+                })}
               </td>
             </tr>
             <tr>
-              <td>Root Zone Horizon B</td>
-              <td>30 to 100 cm</td>
-              <td>SMAP Root-Zone Soil Moisture ({MONTHS[monthIdx]})</td>
-              <td>{Math.round(currentSmap)}th percentile</td>
+              <td>{t("soil3d.srLayerB")}</td>
+              <td>{t("soil3d.srDepthB")}</td>
+              <td>{t("soil3d.srMetricB", { month: MONTHS[monthIdx] })}</td>
+              <td>{t("soil3d.srPctValue", { pct: Math.round(currentSmap) })}</td>
             </tr>
             <tr>
-              <td>Deep Aquifer Horizon C</td>
-              <td>Below 100 cm</td>
-              <td>GRACE-FO Groundwater Trend</td>
-              <td>{gwTrend.toFixed(2)} cm/yr</td>
+              <td>{t("soil3d.srLayerC")}</td>
+              <td>{t("soil3d.srDepthC")}</td>
+              <td>{t("soil3d.srMetricC")}</td>
+              <td>{t("soil3d.srCmYrValue", { trend: gwTrend.toFixed(2) })}</td>
             </tr>
           </tbody>
         </table>

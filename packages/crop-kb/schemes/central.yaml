@@ -5,6 +5,8 @@ schemes:
   - id: "pm_pranam"
     name: "PM-PRANAM"
     display_title: "PM-PRANAM Alternative Fertiliser & Bio-N Incentive"
+    display_title_hi: "PM-PRANAM वैकल्पिक उर्वरक एवं जैव-नाइट्रोजन प्रोत्साहन"
+    display_title_pa: "PM-PRANAM ਵਿਕਲਪਿਕ ਖਾਦ ਅਤੇ ਜੈਵਿਕ-ਨਾਈਟ੍ਰੋਜਨ ਪ੍ਰੋਤਸਾਹਨ"
     state: "Central"
     trigger_min_urea_bags_saved: 1.5
     amount: null
@@ -16,6 +18,8 @@ schemes:
   - id: "nfsm_pulses"
     name: "NFSM-Pulses & NAFED e-Samridhi"
     display_title: "NFSM-Pulses & NAFED e-Samridhi Assured MSP Procurement"
+    display_title_hi: "NFSM-दलहन एवं NAFED ई-समृद्धि सुनिश्चित MSP खरीद"
+    display_title_pa: "NFSM-ਦਾਲਾਂ ਅਤੇ NAFED ਈ-ਸਮ੍ਰਿਧੀ ਯਕੀਨੀ MSP ਖਰੀਦ"
     state: "Central"
     eligible_crops: ["moong", "urad", "chickpea", "lentil", "pigeon_pea"]
     amount: null
@@ -27,6 +31,8 @@ schemes:
   - id: "nmeo_oilseeds"
     name: "NMEO-Oilseeds"
     display_title: "National Mission on Edible Oils (NMEO-Oilseeds) Seed & Procurement Support"
+    display_title_hi: "राष्ट्रीय खाद्य तेल मिशन (NMEO-तिलहन) बीज एवं खरीद सहायता"
+    display_title_pa: "ਰਾਸ਼ਟਰੀ ਖਾਣਯੋਗ ਤੇਲ ਮਿਸ਼ਨ (NMEO-ਤੇਲ ਬੀਜ) ਬੀਜ ਅਤੇ ਖਰੀਦ ਸਹਾਇਤਾ"
     state: "Central"
     eligible_crops: ["mustard", "groundnut", "sunflower", "soybean"]
     amount: null
@@ -38,6 +44,8 @@ schemes:
   - id: "smam_mechanization"
     name: "SMAM Conservation Tillage"
     display_title: "Sub-Mission on Agricultural Mechanization (SMAM / Conservation Tillage Subsidy)"
+    display_title_hi: "कृषि मशीनीकरण उप-मिशन (SMAM / संरक्षण जुताई सब्सिडी)"
+    display_title_pa: "ਖੇਤੀਬਾੜੀ ਮਸ਼ੀਨੀਕਰਨ ਉਪ-ਮਿਸ਼ਨ (SMAM / ਜ਼ੀਰੋ-ਟਿੱਲ ਸਬਸਿਡੀ)"
     state: "Central"
     eligible_practices: ["happy_seeder", "zero_till", "residue_retained", "super_seeder"]
     ineligible_practices: ["residue_burned", "burning"]

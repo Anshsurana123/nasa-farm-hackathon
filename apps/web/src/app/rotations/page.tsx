@@ -14,7 +14,7 @@ export default function RotationsPage() {
   return (
     <AppShell
       pageStep="03"
-      pageBadge="FAO-56 / FAO-33 · RothC-26.3 · RUSLE · NSGA-II Multi-Objective"
+      pageBadge={t("nav.badge.rotations")}
       pageTitle={t("rotations.pageTitle")}
       pageDescription={t("rotations.pageDesc")}
       headerActions={

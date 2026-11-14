@@ -5,9 +5,120 @@ import type {
   FieldProfile,
   HazardSummary,
   SoilSummary,
+  TacticalAdvisory,
+  TacticalDayForecast,
   WaterSummary,
 } from "@/types/api";
 import { isSouthAsia, regionContext } from "./ui";
+
+export function attachFallbackMeteomatics(prof: FieldProfile): FieldProfile {
+  const meanTemp = Number(((prof.climate.mean_tmax_c + prof.climate.mean_tmin_c) / 2).toFixed(1));
+  const regClimProv: DataProvenance = {
+    source: "Regional Climatology Baseline (Meteomatics Schema)",
+    product: "Synthesized 7-Day Field Operations & Soil Moisture Climatology (Live API Credentials Unset)",
+    resolution: "Regional agro-zone",
+    period: "Next 7 days",
+    mode: "regional_climatology",
+  };
+  const smiLayers = prof.water.soil_moisture_index_layers ?? {
+    "-5cm": 0.62,
+    "-15cm": 0.68,
+    "-50cm": 0.71,
+    "-150cm": 0.54,
+  };
+  const vwcLayers = prof.water.volumetric_soil_water_layers ?? {
+    "-5cm": 0.22,
+    "-15cm": 0.24,
+    "-50cm": 0.26,
+    "-150cm": 0.23,
+  };
+  const waterProv = prof.water.provenance ?? [];
+  const hazardsProv = prof.hazards.provenance ?? [];
+  const hasMmWaterProv = waterProv.some((p) => p.source.includes("Meteomatics"));
+  const hasMmHazProv = hazardsProv.some((p) => p.source.includes("Meteomatics"));
+
+  const water: WaterSummary = {
+    ...prof.water,
+    soil_moisture_deficit_mm: prof.water.soil_moisture_deficit_mm ?? 28.5,
+    seedbed_temp_5cm_c: prof.water.seedbed_temp_5cm_c ?? meanTemp,
+    soil_moisture_index_layers: smiLayers,
+    volumetric_soil_water_layers: vwcLayers,
+    provenance: hasMmWaterProv ? waterProv : [...waterProv, regClimProv],
+  };
+  const hazards: HazardSummary = {
+    ...prof.hazards,
+    late_blight_risk_idx: prof.hazards.late_blight_risk_idx ?? 65.0,
+    canopy_wetness_idx: prof.hazards.canopy_wetness_idx ?? 0.18,
+    hail_probability_pct: prof.hazards.hail_probability_pct ?? 4.0,
+    fire_weather_index: prof.hazards.fire_weather_index ?? 11.5,
+    meteorological_drought_idx: prof.hazards.meteorological_drought_idx ?? 0.4,
+    max_30m_precip_rate_mmh: prof.hazards.max_30m_precip_rate_mmh ?? 24.5,
+    provenance: hasMmHazProv ? hazardsProv : [...hazardsProv, regClimProv],
+  };
+
+  let tactical = prof.tactical_advisory ?? null;
+  if (!tactical) {
+    const baseDate = new Date();
+    const m = baseDate.getMonth();
+    const baseTx = prof.climate.monthly_tmax_c?.[m] ?? prof.climate.mean_tmax_c;
+    const baseTn = prof.climate.monthly_tmin_c?.[m] ?? prof.climate.mean_tmin_c;
+    const dailyPrecip = Number(((prof.climate.monthly_precip_mm?.[m] ?? 20) / 30).toFixed(1));
+    const dailyEt0 = Number(((prof.climate.annual_et0_mm ?? 1400) / 365).toFixed(1));
+    const daySeedTemp = water.seedbed_temp_5cm_c ?? Number(((baseTx + baseTn) / 2).toFixed(1));
+
+    const forecastDays: TacticalDayForecast[] = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(baseDate.getTime() + i * 86400000);
+      const rainDay = i === 2 || i === 5 ? dailyPrecip : Number((dailyPrecip * 0.2).toFixed(1));
+      return {
+        date: d.toISOString().slice(0, 10),
+        tmax_c: Number((baseTx + (i % 3 === 0 ? 0.4 : -0.3)).toFixed(1)),
+        tmin_c: Number((baseTn + (i % 2 === 0 ? 0.3 : -0.2)).toFixed(1)),
+        precip_mm: rainDay,
+        prob_precip_pct: rainDay >= 2.0 ? 45 : 15,
+        et0_mm: dailyEt0,
+        wind_speed_ms: 2.1,
+        soil_temp_5cm_c: daySeedTemp,
+        soil_moisture_deficit_mm: water.soil_moisture_deficit_mm ?? 28.5,
+      };
+    });
+
+    const next7dPrecip = Number(forecastDays.reduce((s, d) => s + d.precip_mm, 0).toFixed(1));
+    const next7dEt0 = Number(forecastDays.reduce((s, d) => s + d.et0_mm, 0).toFixed(1));
+    const sowingCode: TacticalAdvisory["sowing_status_code"] =
+      daySeedTemp < 12 ? "too_cold" : daySeedTemp > 34 ? "too_hot" : (water.soil_moisture_deficit_mm ?? 0) > 45 ? "too_dry" : "optimal";
+    const irrAction: TacticalAdvisory["irrigation_action"] =
+      next7dPrecip >= 15 ? "hold_rain_ahead" : (water.soil_moisture_deficit_mm ?? 0) >= 35 ? "irrigate_soon" : "adequate_moisture";
+
+    tactical = {
+      sowing_ready: sowingCode === "optimal",
+      sowing_status_code: sowingCode,
+      irrigation_action: irrAction,
+      urea_spray_safe: next7dPrecip < 10,
+      next_7d_precip_mm: next7dPrecip,
+      next_7d_et0_mm: next7dEt0,
+      seedbed_temp_5cm_c: daySeedTemp,
+      soil_moisture_deficit_mm: water.soil_moisture_deficit_mm,
+      fire_weather_index: hazards.fire_weather_index,
+      forecast_days: forecastDays,
+      provenance: [
+        {
+          source: "Regional Climatology",
+          product: "Offline 7-day operational climatology fallback",
+          resolution: "Regional agro-zone",
+          period: "Next 7 days",
+          mode: "regional_climatology",
+        },
+      ],
+    };
+  }
+
+  return {
+    ...prof,
+    water,
+    hazards,
+    tactical_advisory: tactical,
+  };
+}
 
 export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
   const lat = field.lat;
@@ -228,7 +339,7 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
     );
   }
 
-  return {
+  return attachFallbackMeteomatics({
     field,
     climate,
     water,
@@ -250,5 +361,5 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
     validation_message: isSA
       ? undefined
       : "Engine is calibrated for Indian agro-climatic zones; global results are for qualitative exploration.",
-  };
+  });
 }

@@ -226,6 +226,9 @@ def quantile_map_df(
                 corr_cols[obs_col] = quantile_map(obs_df[obs_col], model_hist_df[mod_col], model_future_df[mod_col])
 
     res = pd.DataFrame(corr_cols, index=model_future_df.index)
+    for extra_col in ("ALLSKY_SFC_SW_DWN", "RH2M", "WS2M"):
+        if extra_col in model_future_df.columns and extra_col not in res.columns:
+            res[extra_col] = model_future_df[extra_col]
     return _derive_missing_surface_vars(res, obs_df=obs_df, lat=lat)
 
 
@@ -253,7 +256,7 @@ def build_scenario_set(
         return scenario_set, members
 
     if kind == "cmip6":
-        from ..data import gee
+        from ..data import gee, meteomatics
 
         ssp = ssp or "ssp245"
         horizon = horizon or "2050s"
@@ -279,17 +282,46 @@ def build_scenario_set(
             member_id = f"{model.lower().replace('-', '_')}_{ssp}_{horizon}"
             members[member_id] = corrected_df
 
+        mm_active = False
+        if meteomatics.is_configured():
+            mm_fut = meteomatics.fetch_cmip6_daily(lat, lon, ssp, f"{start_year}-01-01", f"{end_year}-12-31")
+            if mm_fut is not None and not mm_fut.empty:
+                mm_hist = meteomatics.fetch_cmip6_daily(lat, lon, "historical", "1995-01-01", "2014-12-31")
+                if mm_hist is None or mm_hist.empty:
+                    try:
+                        mm_hist = gee.cmip6_daily(lat, lon, "MRI-ESM2-0", "historical", "1995-01-01", "2014-12-31")
+                    except Exception:  # noqa: BLE001
+                        mm_hist = None
+                if not power_hist.empty and mm_hist is not None and not mm_hist.empty:
+                    mm_corr = quantile_map_df(power_hist, mm_hist, mm_fut, lat=lat)
+                else:
+                    mm_corr = mm_fut.rename(
+                        columns={"tasmax": "T2M_MAX", "tasmin": "T2M_MIN", "pr": "PRECTOTCORR"}
+                    )
+                    mm_corr = _derive_missing_surface_vars(
+                        mm_corr, obs_df=power_hist if not power_hist.empty else None, lat=lat
+                    )
+                members[f"mri_esm2_0_{ssp}_{horizon}"] = mm_corr
+                mm_active = True
+
         scen_id = f"cmip6_{ssp}_{horizon}"
         cmip_prov = gee.provenance_with_mode(gee.CMIP6_PROVENANCE).model_copy(
             update={"period": f"{start_year}-{end_year}"}
         )
+        provs = [cmip_prov]
+        if mm_active:
+            provs.append(
+                meteomatics.METEOMATICS_CMIP6_PROVENANCE.model_copy(
+                    update={"period": f"{start_year}-{end_year}", "mode": "observed"}
+                )
+            )
         scenario_set = ScenarioSet(
             id=scen_id,
             kind="cmip6",
             ssp=ssp,
             horizon=horizon,
             members=list(members.keys()),
-            provenance=[cmip_prov],
+            provenance=provs,
         )
         return scenario_set, members
 

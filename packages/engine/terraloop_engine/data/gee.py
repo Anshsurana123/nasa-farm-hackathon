@@ -725,11 +725,18 @@ def _cmip6_daily_live(lat: float, lon: float, model: str, scenario: str, start: 
 
 def cmip6_daily(lat: float, lon: float, model: str, scenario: str, start: str, end: str) -> pd.DataFrame:
     """TASK-D09: NEX-GDDP-CMIP6 daily tasmax/tasmin (C) and pr (mm/day)."""
+    from . import meteomatics
+
+    if model == "MRI-ESM2-0" and meteomatics.is_configured():
+        mm_df = meteomatics.fetch_cmip6_daily(lat, lon, scenario, start, end)
+        if mm_df is not None and not mm_df.empty:
+            return mm_df
+
     if init():
         try:
             return _cmip6_daily_live(lat, lon, model, scenario, start, end)
         except Exception as exc:  # noqa: BLE001
-            log.warning("GEE CMIP6 call failed: %s, using regional delta projection", exc)
+            log.warning("GEE CMIP6 call failed: %s, falling back to regional delta", exc)
 
     idx = pd.date_range(start, end, freq="D")
     doy = idx.dayofyear.to_numpy()

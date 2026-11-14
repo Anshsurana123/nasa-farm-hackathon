@@ -14,6 +14,30 @@ from pathlib import Path
 
 import numpy as np
 import yaml
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class EconomicsCropConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    price_per_tonne: float = Field(..., ge=0.0)
+    price_usd_per_tonne: float | None = Field(None, ge=0.0)
+    cost_per_ha: float = Field(..., ge=0.0)
+    labor_cost_per_ha: float = Field(0.0, ge=0.0)
+    cost_usd_per_ha: float | None = Field(None, ge=0.0)
+    market_risk: float = Field(0.10, ge=0.0, le=1.0)
+    procurement_type: str = "mandi"
+    sources: list[str] = Field(default_factory=list)
+
+
+class EconomicsConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    currency: str = "INR"
+    usd_exchange_rate: float = Field(83.5, gt=0.0)
+    state: str | None = None
+    economics_basis: str = "local_verified"
+    crops: dict[str, EconomicsCropConfig] = Field(default_factory=dict)
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -69,6 +93,7 @@ def load_economics(region_or_state: str | None = "punjab") -> dict:
         if proxy_path.exists():
             data = yaml.safe_load(proxy_path.read_text(encoding="utf-8"))
             if isinstance(data, dict):
+                data = EconomicsConfig.model_validate(data).model_dump()
                 data["economics_basis"] = "punjab_proxy"
                 data["proxy_for"] = raw or "unvalidated_global"
                 if key == "unvalidated_global":
@@ -99,6 +124,7 @@ def load_economics(region_or_state: str | None = "punjab") -> dict:
     if path.exists():
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
         if isinstance(data, dict):
+            data = EconomicsConfig.model_validate(data).model_dump()
             if "economics_basis" not in data:
                 data["economics_basis"] = "local_verified"
             return data
@@ -108,6 +134,7 @@ def load_economics(region_or_state: str | None = "punjab") -> dict:
     if proxy_path.exists():
         data = yaml.safe_load(proxy_path.read_text(encoding="utf-8"))
         if isinstance(data, dict):
+            data = EconomicsConfig.model_validate(data).model_dump()
             data["economics_basis"] = "punjab_proxy"
             data["proxy_for"] = region_or_state
             return data

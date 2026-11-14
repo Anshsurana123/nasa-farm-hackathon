@@ -115,6 +115,18 @@ class WaterSummary(BaseModel):
     groundwater_trend_cm_per_year: float | None = Field(None, description="GRACE/GRACE-FO")
     climatic_water_balance_mm: float | None = Field(None, description="P - ET0, annual")
     irrigation_detected: bool | None = None
+    soil_moisture_deficit_mm: float | None = Field(
+        None, description="Meteomatics 90m root-zone soil moisture deficit (mm)"
+    )
+    soil_moisture_index_layers: dict[str, float] | None = Field(
+        None, description="Meteomatics 4-layer soil moisture index (-5cm, -15cm, -50cm, -150cm)"
+    )
+    volumetric_soil_water_layers: dict[str, float] | None = Field(
+        None, description="Meteomatics 4-layer volumetric soil water content (m3/m3) at -5cm, -15cm, -50cm, -150cm"
+    )
+    seedbed_temp_5cm_c: float | None = Field(
+        None, description="Meteomatics 5cm topsoil temperature (C) for sowing readiness"
+    )
     provenance: list[DataProvenance] = []
 
 
@@ -148,7 +160,55 @@ class HazardSummary(BaseModel):
         None,
         description="Days with Tmax > 32 C during wheat grain-fill (1 Mar - 15 Apr in NH, 1 Sep - 15 Oct in SH)",
     )
+    late_blight_risk_idx: float | None = Field(
+        None, description="Meteomatics phytophthora_negative:idx (potato/solanaceae blight warning > 150)"
+    )
+    canopy_wetness_idx: float | None = Field(
+        None, description="Meteomatics leaf_wetness:idx (0-1 fungal spore germination risk)"
+    )
+    hail_probability_pct: float | None = Field(
+        None, description="Derived hail risk indicator (%) from Meteomatics hail_24h:cm during Rabi grain filling"
+    )
+    fire_weather_index: float | None = Field(
+        None, description="Meteomatics fosberg_fire_weather_index:idx (0-100 turnaround smoke/spread risk)"
+    )
+    meteorological_drought_idx: float | None = Field(
+        None, description="Meteomatics drought_index:idx (-4 severe drought to +4 wet)"
+    )
+    max_30m_precip_rate_mmh: float | None = Field(
+        None, description="Peak 30-min storm precipitation intensity (mm/h) derived from Meteomatics precip_30min:mm for RUSLE EI30"
+    )
     provenance: list[DataProvenance] = []
+
+
+class TacticalDayForecast(BaseModel):
+    """Daily tactical field operation weather and seedbed state (Meteomatics 90m / Regional)."""
+
+    date: str
+    tmax_c: float
+    tmin_c: float
+    precip_mm: float
+    prob_precip_pct: float
+    et0_mm: float
+    wind_speed_ms: float
+    soil_temp_5cm_c: float | None = None
+    soil_moisture_deficit_mm: float | None = None
+
+
+class TacticalAdvisory(BaseModel):
+    """7-day operational farm advisory (sowing readiness, irrigation timing, Urea/spray safety)."""
+
+    sowing_ready: bool = True
+    sowing_status_code: Literal["optimal", "too_cold", "too_hot", "too_dry", "waterlogged"] = "optimal"
+    irrigation_action: Literal["hold_rain_ahead", "irrigate_soon", "adequate_moisture"] = "adequate_moisture"
+    urea_spray_safe: bool = True
+    next_7d_precip_mm: float = 0.0
+    next_7d_et0_mm: float = 0.0
+    seedbed_temp_5cm_c: float | None = None
+    soil_moisture_deficit_mm: float | None = None
+    fire_weather_index: float | None = None
+    forecast_days: list[TacticalDayForecast] = Field(default_factory=list)
+    provenance: list[DataProvenance] = Field(default_factory=list)
 
 
 class InferredSeason(BaseModel):
@@ -183,6 +243,7 @@ class FieldProfile(BaseModel):
     data_mode: Literal["observed", "hybrid_regional", "fallback_synthetic", "regional_climatology"] = "observed"
     validation_status: Literal["validated_india", "unvalidated_global"] = "validated_india"
     validation_message: str | None = None
+    tactical_advisory: TacticalAdvisory | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +258,7 @@ class CropFamily(str, Enum):
     malvaceae = "malvaceae"  # cotton
     asteraceae = "asteraceae"  # sunflower
     amaranthaceae = "amaranthaceae"
-    pedaliaceae = "pedaliaceae"  # sesame
+    pedaliaceae = "pedaliaceae"  # oilseed family
     euphorbiaceae = "euphorbiaceae"  # cassava
     convolvulaceae = "convolvulaceae"  # sweet potato
     polygonaceae = "polygonaceae"  # buckwheat
@@ -417,6 +478,7 @@ class SuitabilityRequest(BaseModel):
     constraints: FarmConstraints = Field(default_factory=FarmConstraints)
     profile: FieldProfile | None = None
     soil_health_card: SoilHealthCardInput | None = None
+    language: Literal["en", "pa", "hi"] = "en"
 
 
 class SuitabilityItem(BaseModel):

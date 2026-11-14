@@ -9,9 +9,10 @@ import { Printer, CheckCircle2, FileText, Award, ShieldCheck } from "lucide-reac
 interface AgronomicBriefProps {
   profile: FieldProfile;
   strategies: StrategyRecommendation[];
+  areaHaOverride?: number;
 }
 
-export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
+export function AgronomicBrief({ profile, strategies, areaHaOverride }: AgronomicBriefProps) {
   const { t } = useI18n();
   const { selectedRank, unitSystem } = useField();
   const { field, soil, water, hazards, agro_climatic_notes } = profile;
@@ -30,16 +31,17 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
   const baseRes = baseline?.results[0];
   const topRes = topStrategy?.results[0];
   const pm = topStrategy?.practical_metrics;
+  const effAreaHa = areaHaOverride ?? pm?.area_ha ?? 1.0;
 
   const baseIrr = baseRes?.irrigation_mm?.length
     ? Math.round(baseRes.irrigation_mm.reduce((a, b) => a + b, 0) / baseRes.irrigation_mm.length)
-    : 1400;
+    : 0;
   const topIrr = topRes?.irrigation_mm?.length
     ? Math.round(topRes.irrigation_mm.reduce((a, b) => a + b, 0) / topRes.irrigation_mm.length)
-    : 950;
+    : 0;
 
   const waterSavedPct = baseIrr > 0 ? Math.round(((baseIrr - topIrr) / baseIrr) * 100) : 0;
-  const carbonDelta = (topRes?.soc_delta_t_ha_10yr ?? 2.1) - (baseRes?.soc_delta_t_ha_10yr ?? -0.8);
+  const carbonDelta = (topRes?.soc_delta_t_ha_10yr ?? 0) - (baseRes?.soc_delta_t_ha_10yr ?? 0);
 
   return (
     <div className="glass rounded-2xl p-6 sm:p-10 border border-line shadow-xl space-y-7 font-sans reticle-frame print:p-0 print:border-none print:shadow-none print:bg-white print:text-black">
@@ -184,7 +186,7 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
               <div>
                 <span className="text-muted block text-[9px] uppercase">{t("brief.soc10yr")}</span>
                 <span className="font-bold text-rose-500">
-                  {fmtSigned(baseRes?.soc_delta_t_ha_10yr ?? -0.8, 1, " t C/ha")}
+                  {fmtSigned(baseRes?.soc_delta_t_ha_10yr ?? 0, 1, " t C/ha")}
                 </span>
               </div>
               <div>
@@ -378,6 +380,13 @@ export function AgronomicBrief({ profile, strategies }: AgronomicBriefProps) {
               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
               <span>
                 {t("brief.netImpact")}: {t("brief.conserves")} <strong>{baseIrr - topIrr} mm/yr</strong> {t("brief.irrWaterMitigates")} <strong>{fmtSigned(carbonDelta, 1, " t C/ha")}</strong> {t("brief.vsBaseline10Yr")}
+                {Math.abs(effAreaHa - 1.0) > 1e-3 && (
+                  <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 font-mono text-[10px] text-emerald-700 dark:text-emerald-300">
+                    {t("brief.holdingMultiplier")}: {effAreaHa.toFixed(1)} {t("unit.haShort")}
+                    {topRes?.profit_p50 != null &&
+                      ` · ${currencySymbol}${Math.round(topRes.profit_p50 * effAreaHa).toLocaleString()}`}
+                  </span>
+                )}
               </span>
             </li>
           </ul>

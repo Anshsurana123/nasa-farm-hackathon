@@ -110,6 +110,13 @@ def evaluate_rotation(
         else:
             start_years = [2015]
 
+        has_live_mm_deficit = bool(
+            scenario_set_id == "historical"
+            and profile.water.soil_moisture_deficit_mm is not None
+            and any(p.source.startswith("Meteomatics") and p.mode == "observed" for p in profile.water.provenance)
+        )
+        init_dep_mm = profile.water.soil_moisture_deficit_mm if has_live_mm_deficit else None
+
         for sub_idx, start_year in enumerate(start_years):
             step_sims = aquacrop_runner.simulate_rotation(
                 rotation=rotation,
@@ -119,6 +126,7 @@ def evaluate_rotation(
                 start_year=start_year,
                 lat=profile.field.lat,
                 step_cache=step_cache,
+                initial_depletion_mm=init_dep_mm,
             )
 
             tot_irr = 0.0
@@ -299,12 +307,17 @@ def evaluate_rotation(
         annual_c_input_t_ha=ann_residue_c,
         crop_cover_months=sorted(covered_months_set) if covered_months_set else None,
         years=10,
+        lat=profile.field.lat,
     )
     soc_delta = float(rothc_res["soc_delta_10yr"])
 
-    # RUSLE erosion calculation with rotation C factor
+    # RUSLE erosion calculation with rotation C factor & storm kinetic intensity
     rot_c_factor = compute_rotation_c_factor(rotation, crops)
-    r_fact = rusle.r_factor_annual(profile.climate.annual_precip_mm)
+    r_fact = rusle.r_factor_intensity(
+        profile.climate.annual_precip_mm,
+        max_30m_rate_mmh=profile.hazards.max_30m_precip_rate_mmh,
+        extreme_rain_days_per_yr=profile.hazards.extreme_rain_days_per_year,
+    )
     soc_pct = (soil.soc_g_per_kg or 7.5) / 10.0
     k_fact = rusle.k_factor_williams(
         sand_pct=soil.sand_pct or 40.0,
@@ -431,6 +444,121 @@ def _format_doy_window(doy: int, span_lo: int = -5, span_hi: int = 10) -> str:
     return f"{lo_dt.strftime('%b %d')} – {hi_dt.strftime('%b %d')}"
 
 
+_SEASON_NAMES_I18N: dict[str, dict[str, dict[int, str]]] = {
+    "cauvery": {
+        "en": {0: "Kuruvai (SW Monsoon)", 1: "Samba (NE Monsoon)", 2: "Navarai / Thaladi (Summer)"},
+        "hi": {0: "कुरुवई (दक्षिण-पश्चिम मानसून)", 1: "सांबा (उत्तर-पूर्व मानसून)", 2: "नवरई / थलाडी (गर्मी)"},
+        "pa": {0: "ਕੁਰੂਵਈ (ਦੱਖਣ-ਪੱਛਮੀ ਮੌਨਸੂਨ)", 1: "ਸਾਂਬਾ (ਉੱਤਰ-ਪੂਰਬੀ ਮੌਨਸੂਨ)", 2: "ਨਵਰਈ / ਥਲਾਡੀ (ਗਰਮੀ)"},
+    },
+    "south": {
+        "en": {0: "Warm Wet Season", 1: "Cool Winter Season", 2: "Spring Shoulder"},
+        "hi": {0: "गर्म आर्द्र मौसम", 1: "ठंडा सर्दी का मौसम", 2: "वसंत मध्यवर्ती मौसम"},
+        "pa": {0: "ਗਰਮ ਨਮੀ ਵਾਲਾ ਸੀਜ਼ਨ", 1: "ਠੰਢਾ ਸਰਦੀਆਂ ਦਾ ਸੀਜ਼ਨ", 2: "ਬਸੰਤ ਵਿਚਕਾਰਲਾ ਸੀਜ਼ਨ"},
+    },
+    "north": {
+        "en": {0: "Kharif (Monsoon)", 1: "Rabi (Winter)", 2: "Zaid (Summer)"},
+        "hi": {0: "खरीफ (मानसून)", 1: "रबी (सर्दी)", 2: "जायद (गर्मी)"},
+        "pa": {0: "ਖਰੀਫ਼ (ਮੌਨਸੂਨ)", 1: "ਰਬੀ (ਸਰਦੀਆਂ)", 2: "ਜ਼ੈਦ (ਗਰਮੀਆਂ)"},
+    },
+}
+
+_SEASON_FALLBACK_I18N = {"en": "Season", "hi": "सीज़न", "pa": "ਸੀਜ਼ਨ"}
+
+_FALLOW_TEXT_I18N = {
+    "crop_name": {
+        "en": "Seasonal Fallow / Residue Mulch",
+        "hi": "मौसमी परती / फसल अवशेष मल्च",
+        "pa": "ਮੌਸਮੀ ਖਾਲੀ ਖੇਤ / ਪਰਾਲੀ ਮਲਚ",
+    },
+    "guidance": {
+        "en": "Retain anchored crop stubble mulch on soil surface; avoid unnecessary tillage.",
+        "hi": "मिट्टी की सतह पर खड़ी पराली/अवशेष मल्च बनाए रखें; अनावश्यक जुताई से बचें।",
+        "pa": "ਮਿੱਟੀ ਦੀ ਸਤ੍ਹਾ 'ਤੇ ਖੜ੍ਹੀ ਪਰਾਲੀ ਦੀ ਮਲਚ ਰੱਖੋ; ਬੇਲੋੜੀ ਵਹਾਈ ਤੋਂ ਬਚੋ।",
+    },
+}
+
+_MSP_LEVELS_I18N = {
+    "global_proxy": {
+        "en": "Global Proxy Benchmark (India Reference Market Risk)",
+        "hi": "वैश्विक प्रॉक्सी बेंचमार्क (भारत संदर्भ बाज़ार जोखिम)",
+        "pa": "ਗਲੋਬਲ ਪ੍ਰੌਕਸੀ ਬੈਂਚਮਾਰਕ (ਭਾਰਤ ਹਵਾਲਾ ਬਾਜ਼ਾਰ ਜੋਖਮ)",
+    },
+    "msp_assured": {
+        "en": "MSP Assured (FCI / State)",
+        "hi": "सुनिश्चित MSP (FCI / राज्य खरीद)",
+        "pa": "ਯਕੀਨੀ MSP (FCI / ਰਾਜ ਖਰੀਦ)",
+    },
+    "mandi_linked": {
+        "en": "Mandi Market-Linked",
+        "hi": "मंडी बाज़ार-आधारित मूल्य",
+        "pa": "ਮੰਡੀ ਬਾਜ਼ਾਰ-ਅਧਾਰਤ ਕੀਮਤ",
+    },
+    "nafed_pss": {
+        "en": "NAFED / PSS Supported",
+        "hi": "NAFED / PSS मूल्य समर्थन",
+        "pa": "NAFED / PSS ਕੀਮਤ ਸਹਾਇਤਾ",
+    },
+}
+
+_GUIDANCE_NOTES_I18N: dict[str, dict[str, str]] = {
+    "rice_dsr": {
+        "en": "Drill-seed at 20 kg/ha after 75 mm pre-sowing rauni irrigation; apply AWD wetting/drying",
+        "hi": "75 मिमी बुवाई-पूर्व रौनी सिंचाई के बाद 20 किग्रा/हेक्टेयर सीधी बुवाई (DSR) करें; AWD से सिंचाई अंतराल रखें",
+        "pa": "75 ਮਿ.ਮੀ. ਰੌਣੀ ਸਿੰਚਾਈ ਤੋਂ ਬਾਅਦ 20 ਕਿਲੋ/ਹੈਕਟੇਅਰ ਸਿੱਧੀ ਬਿਜਾਈ (DSR) ਕਰੋ; AWD ਤਰੀਕੇ ਨਾਲ ਪਾਣੀ ਦਿਓ",
+    },
+    "rice_short": {
+        "en": "Transplant 25-day short-duration seedlings; stop irrigation 14 days before harvest for early clearance",
+        "hi": "25 दिन की कम अवधि की पौध रोपें; समय पर खेत खाली करने के लिए कटाई से 14 दिन पहले सिंचाई बंद करें",
+        "pa": "25 ਦਿਨਾਂ ਦੀ ਘੱਟ ਸਮੇਂ ਵਾਲੀ ਪਨੀਰੀ ਲਗਾਓ; ਜਲਦੀ ਵਾਢੀ ਲਈ ਕਟਾਈ ਤੋਂ 14 ਦਿਨ ਪਹਿਲਾਂ ਪਾਣੀ ਬੰਦ ਕਰੋ",
+    },
+    "rice_puddled": {
+        "en": "Conventional puddled transplanted paddy (high percolation & narrow turnaround)",
+        "hi": "पारंपरिक कद्दू (पडलिंग) धान रोपाई (अधिक पानी रिसाव और कम बुवाई अंतराल)",
+        "pa": "ਰਵਾਇਤੀ ਕੱਦੂ ਕੀਤੇ ਝੋਨੇ ਦੀ ਲੁਆਈ (ਵੱਧ ਪਾਣੀ ਰਿਸਾਅ ਅਤੇ ਘੱਟ ਸਮਾਂ)",
+    },
+    "broad_bed_furrow": {
+        "en": "Plant on ICRISAT Broad-Bed & Furrow (BBF) beds to drain storm excess and store subsoil moisture",
+        "hi": "तेज़ बारिश का अतिरिक्त पानी निकालने और नमी संचयन के लिए ICRISAT चौड़ी मेड़-नाली (BBF) पर बुवाई करें",
+        "pa": "ਭਾਰੀ ਮੀਂਹ ਦਾ ਵਾਧੂ ਪਾਣੀ ਕੱਢਣ ਅਤੇ ਨਮੀ ਸਾਂਭਣ ਲਈ ICRISAT ਚੌੜੀ ਵੱਟ-ਖਾਲੀ (BBF) 'ਤੇ ਬਿਜਾਈ ਕਰੋ",
+    },
+    "happy_seeder": {
+        "en": "Direct-drill with PAU Happy Seeder / Super SMS into standing rice mulch without burning",
+        "hi": "पराली जलाए बिना खड़ी मल्च में PAU हैप्पी सीडर / सुपर SMS से सीधी बुवाई करें",
+        "pa": "ਪਰਾਲੀ ਸਾੜੇ ਬਿਨਾਂ ਖੜ੍ਹੇ ਕਰਚਿਆਂ ਵਿੱਚ PAU ਹੈਪੀ ਸੀਡਰ / ਸੁਪਰ SMS ਨਾਲ ਸਿੱਧੀ ਬਿਜਾਈ ਕਰੋ",
+    },
+    "zero_till": {
+        "en": "Zero-till seed-cum-fertilizer drill into anchored crop residue",
+        "hi": "खड़े फसल अवशेष में ज़ीरो-टिल सीड-कम-फर्टिलाइज़र ड्रिल से बुवाई करें",
+        "pa": "ਖੜ੍ਹੇ ਫ਼ਸਲੀ ਅਵਸ਼ੇਸ਼ਾਂ ਵਿੱਚ ਜ਼ੀਰੋ-ਟਿੱਲ ਸੀਡ-ਕਮ-ਖਾਦ ਡਰਿੱਲ ਨਾਲ ਬਿਜਾਈ ਕਰੋ",
+    },
+    "residue_retained": {
+        "en": "Retain surface crop residue as organic soil armor to conserve root-zone moisture",
+        "hi": "जड़-क्षेत्र की नमी बचाने के लिए सतह पर फसल अवशेष को जैविक मल्च के रूप में रखें",
+        "pa": "ਜੜ੍ਹ-ਖੇਤਰ ਦੀ ਨਮੀ ਬਚਾਉਣ ਲਈ ਸਤ੍ਹਾ 'ਤੇ ਫ਼ਸਲੀ ਅਵਸ਼ੇਸ਼ਾਂ ਦੀ ਜੈਵਿਕ ਮਲਚ ਰੱਖੋ",
+    },
+    "prec_leg": {
+        "en": "Reduce basal Urea dose by 25 kg N/ha (~55 kg Urea/ha) using preceding legume BNF credit",
+        "hi": "पिछली दलहनी फसल के नाइट्रोजन लाभ से आधार यूरिया खुराक 25 किग्रा N/हेक्टेयर (~55 किग्रा यूरिया) कम करें",
+        "pa": "ਪਿਛਲੀ ਦਾਲ ਵਾਲੀ ਫ਼ਸਲ ਦੇ ਨਾਈਟ੍ਰੋਜਨ ਲਾਭ ਸਦਕਾ ਮੁੱਢਲੀ ਯੂਰੀਆ ਖੁਰਾਕ 25 ਕਿਲੋ N/ਹੈਕਟੇਅਰ (~55 ਕਿਲੋ ਯੂਰੀਆ) ਘਟਾਓ",
+    },
+    "irr_none": {
+        "en": "Rainfed conservation profile (ridge-furrow / compartment bunding)",
+        "hi": "वर्षा आधारित नमी संरक्षण प्रणाली (मेड़-नाली / बंध निर्माण)",
+        "pa": "ਬਰਸਾਤੀ ਨਮੀ ਸੰਭਾਲ ਪ੍ਰਣਾਲੀ (ਵੱਟ-ਖਾਲੀ / ਖੇਤ ਬੰਨ੍ਹ)",
+    },
+    "irr_limited": {
+        "en": "Deficit irrigation only at critical flowering and grain-filling stages",
+        "hi": "केवल फूल आने और दाना भरने की महत्वपूर्ण अवस्था में ही सीमित सिंचाई दें",
+        "pa": "ਸਿਰਫ਼ ਫੁੱਲ ਆਉਣ ਅਤੇ ਦਾਣੇ ਭਰਨ ਦੇ ਨਾਜ਼ੁਕ ਪੜਾਵਾਂ 'ਤੇ ਹੀ ਸੀਮਤ ਪਾਣੀ ਦਿਓ",
+    },
+    "default_cycle": {
+        "en": "Standard regional package of practices ({dur_days}d field cycle)",
+        "hi": "मानक क्षेत्रीय कृषि पद्धतियाँ ({dur_days} दिन का फसल चक्र)",
+        "pa": "ਮਿਆਰੀ ਖੇਤਰੀ ਖੇਤੀਬਾੜੀ ਵਿਧੀਆਂ ({dur_days} ਦਿਨਾਂ ਦਾ ਫ਼ਸਲੀ ਚੱਕਰ)",
+    },
+}
+
+
 def _build_step_guidance(
     crop_id: str,
     season_index: int,
@@ -440,8 +568,10 @@ def _build_step_guidance(
     dur_days: int,
     sowing_doy: int | None = None,
     lat: float = 30.0,
+    language: str = "en",
 ) -> tuple[str, str, str]:
     """Return (sowing_window, harvest_window, agronomic_guidance) for a rotation step."""
+    lang = language if language in ("en", "hi", "pa") else "en"
     if sowing_doy is not None:
         sow_win = _format_doy_window(sowing_doy, -5, 10)
         harv_win = _format_doy_window(((sowing_doy + dur_days - 1) % 365) + 1, -7, 8)
@@ -469,30 +599,31 @@ def _build_step_guidance(
 
     notes: list[str] = []
     if crop_id == "rice_dsr":
-        notes.append("Drill-seed at 20 kg/ha after 75 mm pre-sowing rauni irrigation; apply AWD wetting/drying")
+        notes.append(_GUIDANCE_NOTES_I18N["rice_dsr"][lang])
     elif crop_id == "rice_short":
-        notes.append("Transplant 25-day short-duration seedlings; stop irrigation 14 days before harvest for early clearance")
+        notes.append(_GUIDANCE_NOTES_I18N["rice_short"][lang])
     elif crop_id == "rice_puddled":
-        notes.append("Conventional puddled transplanted paddy (high percolation & narrow turnaround)")
+        notes.append(_GUIDANCE_NOTES_I18N["rice_puddled"][lang])
     elif "broad_bed_furrow" in practices:
-        notes.append("Plant on ICRISAT Broad-Bed & Furrow (BBF) beds to drain storm excess and store subsoil moisture")
+        notes.append(_GUIDANCE_NOTES_I18N["broad_bed_furrow"][lang])
     elif "happy_seeder" in practices:
-        notes.append("Direct-drill with PAU Happy Seeder / Super SMS into standing rice mulch without burning")
+        notes.append(_GUIDANCE_NOTES_I18N["happy_seeder"][lang])
     elif any(p in ("zero_till", "no_till") for p in practices):
-        notes.append("Zero-till seed-cum-fertilizer drill into anchored crop residue")
+        notes.append(_GUIDANCE_NOTES_I18N["zero_till"][lang])
     elif "residue_retained" in practices:
-        notes.append("Retain surface crop residue as organic soil armor to conserve root-zone moisture")
+        notes.append(_GUIDANCE_NOTES_I18N["residue_retained"][lang])
 
     if prec_leg:
-        notes.append("Reduce basal Urea dose by 25 kg N/ha (~55 kg Urea/ha) using preceding legume BNF credit")
+        notes.append(_GUIDANCE_NOTES_I18N["prec_leg"][lang])
     if irrigation_mode == "none":
-        notes.append("Rainfed conservation profile (ridge-furrow / compartment bunding)")
+        notes.append(_GUIDANCE_NOTES_I18N["irr_none"][lang])
     elif irrigation_mode == "limited":
-        notes.append("Deficit irrigation only at critical flowering and grain-filling stages")
+        notes.append(_GUIDANCE_NOTES_I18N["irr_limited"][lang])
 
     if not notes:
-        notes.append(f"Standard regional package of practices ({dur_days}d field cycle)")
-    return sow_win, harv_win, "; ".join(notes) + "."
+        notes.append(_GUIDANCE_NOTES_I18N["default_cycle"][lang].format(dur_days=dur_days))
+    end_punct = "।" if lang == "hi" else ("।" if lang == "pa" else ".")
+    return sow_win, harv_win, "; ".join(notes) + end_punct
 
 
 def compute_practical_farmer_metrics(
@@ -506,8 +637,10 @@ def compute_practical_farmer_metrics(
     shc_n_credit: float | None = None,
     price_shock_pct: float = 0.0,
     fertilizer_shock_pct: float = 0.0,
+    language: str = "en",
 ) -> PracticalFarmerMetrics:
     """Translate biophysical simulation outputs into practical farmer decision metrics."""
+    lang = language if language in ("en", "hi", "pa") else "en"
     if crops is None:
         crops = crop_kb.load_crops()
     state_to_use = None
@@ -599,11 +732,11 @@ def compute_practical_farmer_metrics(
     proc_types: list[str] = []
     seasonal_ops: list[SeasonalOperationStep] = []
     if region_id == "cauvery":
-        season_names = {0: "Kuruvai (SW Monsoon)", 1: "Samba (NE Monsoon)", 2: "Navarai / Thaladi (Summer)"}
+        season_names = _SEASON_NAMES_I18N["cauvery"][lang]
     elif lat_val < 0:
-        season_names = {0: "Warm Wet Season", 1: "Cool Winter Season", 2: "Spring Shoulder"}
+        season_names = _SEASON_NAMES_I18N["south"][lang]
     else:
-        season_names = {0: "Kharif (Monsoon)", 1: "Rabi (Winter)", 2: "Zaid (Summer)"}
+        season_names = _SEASON_NAMES_I18N["north"][lang]
 
     n_steps = len(rotation.steps)
     unit_n_cost = 14.0 if currency == "INR" else 0.18
@@ -611,7 +744,7 @@ def compute_practical_farmer_metrics(
     price_mult = max(0.25, 1.0 + price_shock_pct / 100.0)
 
     for idx, s in enumerate(rotation.steps):
-        s_name = season_names.get(s.season_index, f"Season {s.season_index + 1}")
+        s_name = season_names.get(s.season_index, f"{_SEASON_FALLBACK_I18N[lang]} {s.season_index + 1}")
         step_key = f"{s.year_index}:{s.season_index}:{s.crop_id}"
         if s.crop_id in crops and s.crop_id != "fallow":
             c_spec = crops[s.crop_id]
@@ -673,7 +806,15 @@ def compute_practical_farmer_metrics(
             step_irr_cnt = max(0, round(step_irr_mm / 70.0)) if step_irr_mm > 20.0 else 0
             dur_d = int(rot_mod._step_duration_days(s.crop_id, crops))
             sow_win, harv_win, guidance = _build_step_guidance(
-                s.crop_id, s.season_index, s.practices, prec_leg, irr_mode, dur_d, sowing_doy=s.sowing_doy, lat=lat_val
+                s.crop_id,
+                s.season_index,
+                s.practices,
+                prec_leg,
+                irr_mode,
+                dur_d,
+                sowing_doy=s.sowing_doy,
+                lat=lat_val,
+                language=lang,
             )
             seasonal_ops.append(
                 SeasonalOperationStep(
@@ -705,7 +846,7 @@ def compute_practical_farmer_metrics(
                     season_index=s.season_index,
                     season_name=s_name,
                     crop_id="fallow",
-                    crop_name="Seasonal Fallow / Residue Mulch",
+                    crop_name=_FALLOW_TEXT_I18N["crop_name"][lang],
                     sowing_window=f_sow,
                     harvest_window=f_harv,
                     duration_days=60,
@@ -718,7 +859,7 @@ def compute_practical_farmer_metrics(
                     net_profit_inr_ha=0.0,
                     n_fixation_kg_ha=0.0,
                     urea_saved_kg_ha=0.0,
-                    agronomic_guidance="Retain anchored crop stubble mulch on soil surface; avoid unnecessary tillage.",
+                    agronomic_guidance=_FALLOW_TEXT_I18N["guidance"][lang],
                 )
             )
 
@@ -728,7 +869,7 @@ def compute_practical_farmer_metrics(
     # 3. MSP Assurance Level / Global Proxy Disclaimer
     is_global_proxy = bool((profile is not None and profile.validation_status == "unvalidated_global") or currency != "INR")
     if is_global_proxy:
-        msp_level = "Global Proxy Benchmark (India Reference Market Risk)"
+        msp_level = _MSP_LEVELS_I18N["global_proxy"][lang]
     else:
         main_proc_types = [
             str(econ_crops.get(s.crop_id, {}).get("procurement_type", "nafed_pss"))
@@ -736,13 +877,13 @@ def compute_practical_farmer_metrics(
             if s.crop_id in crops and s.crop_id != "fallow" and s.season_index in (0, 1)
         ]
         if main_proc_types and all(p == "msp_assured" for p in main_proc_types) and not any(p == "mandi_linked" for p in proc_types):
-            msp_level = "MSP Assured (FCI / State)"
+            msp_level = _MSP_LEVELS_I18N["msp_assured"][lang]
         elif any(p == "mandi_linked" for p in proc_types):
-            msp_level = "Mandi Market-Linked"
+            msp_level = _MSP_LEVELS_I18N["mandi_linked"][lang]
         elif any(p == "msp_assured" for p in main_proc_types):
-            msp_level = "MSP Assured (FCI / State)"
+            msp_level = _MSP_LEVELS_I18N["msp_assured"][lang]
         else:
-            msp_level = "NAFED / PSS Supported"
+            msp_level = _MSP_LEVELS_I18N["nafed_pss"][lang]
 
     # 4. Matching Regional & National Government Support Schemes (YAML-driven via scheme_kb)
     planted_ids = {s.crop_id for s in rotation.steps if s.crop_id != "fallow"}
@@ -755,6 +896,7 @@ def compute_practical_farmer_metrics(
         practices=all_practices,
         urea_bags_saved=urea_bags_saved,
         region_id=region_id,
+        language=lang,
     )
 
     ann_labor = round(tot_labor_inr / rotation_years, 0)
@@ -796,6 +938,29 @@ def prescreen_rotations_with_surrogate(
     fx_scale = 1.0 if currency == "INR" else 0.012
     norm_val = 100000.0 if currency == "INR" else 1200.0
 
+    # Site-specific soil, water, and climate boundary conditions for biophysical interaction terms
+    soil_obj = profile.soil
+    water_obj = profile.water
+    clim_obj = profile.climate
+    haz_obj = profile.hazards
+    soc_g_kg = float(soil_obj.soc_g_per_kg) if (soil_obj and soil_obj.soc_g_per_kg is not None) else 6.0
+    clay_pct = float(soil_obj.clay_pct) if (soil_obj and soil_obj.clay_pct is not None) else 22.0
+    ph_val = float(soil_obj.ph) if (soil_obj and soil_obj.ph is not None) else 7.2
+    annual_p = float(clim_obj.annual_precip_mm) if clim_obj else 750.0
+    annual_et0 = float(clim_obj.annual_et0_mm) if (clim_obj and clim_obj.annual_et0_mm is not None) else 1500.0
+    gw_trend = (
+        float(water_obj.groundwater_trend_cm_per_year)
+        if (water_obj and water_obj.groundwater_trend_cm_per_year is not None)
+        else -0.5
+    )
+    drought_freq = float(haz_obj.drought_frequency) if (haz_obj and haz_obj.drought_frequency is not None) else 0.15
+    aquifer_depl = max(0.0, -gw_trend)
+    low_soc_factor = max(0.0, 12.0 - soc_g_kg)
+    aridity_idx = annual_et0 / max(annual_p, 250.0)
+
+    from .. import suitability
+
+    crop_ph_ranges = {cid: suitability._crop_ph_range(spec) for cid, spec in crops.items()}
     features: list[list[float]] = []
     targets: list[float] = []
     for rot in rotations:
@@ -823,9 +988,54 @@ def prescreen_rotations_with_surrogate(
         has_leg = 0.25 if any(crops[cid].n_fixation_kg_ha > 0 for cid in active_cids) else 0.0
         has_cereal_fiber = 0.20 if any(crops[cid].group in ("cereal", "fiber", "fibre") for cid in active_cids) else 0.0
         fams = len({crops[cid].family for cid in active_cids})
-        x_vec = [water_req / yrs, n_fix / yrs, dur_tot / yrs, mean_suit * 100.0, float(fams), val_est / yrs]
-        # Multi-pillar composite: suitability + legume biological N + cereal/fiber anchor + botanical diversity + economic gross margin
-        score_proxy = mean_suit + has_leg + has_cereal_fiber + 0.10 * fams + (val_est / yrs) / norm_val
+
+        water_req_yr = water_req / yrs
+        n_fix_yr = n_fix / yrs
+        dur_yr = dur_tot / yrs
+        val_yr = val_est / yrs
+        water_deficit_ratio = max(0.0, (water_req_yr - annual_p) / max(annual_p, 250.0))
+        residue_steps = sum(
+            1
+            for s in rot.steps
+            if any(p in ("happy_seeder", "residue_retained", "zero_till", "no_till") for p in s.practices)
+        )
+        residue_ratio = residue_steps / max(1, len(rot.steps))
+        ph_mismatch = sum(
+            1.0
+            for cid in active_cids
+            if ph_val < crop_ph_ranges[cid][0] or ph_val > crop_ph_ranges[cid][1]
+        )
+
+        x_vec = [
+            water_req_yr,
+            n_fix_yr,
+            dur_yr,
+            mean_suit * 100.0,
+            float(fams),
+            val_yr,
+            water_deficit_ratio * 100.0,
+            water_req_yr * aquifer_depl / 100.0,
+            n_fix_yr * low_soc_factor,
+            residue_ratio * aridity_idx,
+        ]
+        # Multi-pillar + site interaction composite: suitability + legume BNF + cereal anchor + diversity + margin + soil/climate interactions
+        aquifer_stress_pen = 0.08 * water_deficit_ratio * (1.0 + 0.35 * aquifer_depl + 0.50 * drought_freq)
+        low_soc_leg_bonus = 0.07 * (n_fix_yr / 60.0) * max(0.4, (10.0 - soc_g_kg) / 5.0)
+        mulch_climate_bonus = 0.05 * residue_ratio * min(
+            2.5, max(0.5, 0.4 * aridity_idx + (0.3 if clay_pct >= 25.0 or soc_g_kg < 8.0 else 0.0))
+        )
+        ph_pen = 0.08 * ph_mismatch
+        score_proxy = (
+            mean_suit
+            + has_leg
+            + has_cereal_fiber
+            + 0.10 * fams
+            + val_yr / norm_val
+            - aquifer_stress_pen
+            + low_soc_leg_bonus
+            + mulch_climate_bonus
+            - ph_pen
+        )
         features.append(x_vec)
         targets.append(score_proxy)
     X_arr = np.asarray(features, dtype=float)
@@ -844,11 +1054,19 @@ def prescreen_rotations_with_surrogate(
         if r.is_baseline:
             selected_indices.add(r_i)
 
-    # Include top 2 candidates from each distinct primary pair to preserve diversity
+    # Include up to 2 candidates from each distinct primary pair (ordered by site-adapted score)
+    sorted_groups = []
     for c_list in pair_to_cands.values():
         c_list.sort(key=lambda x: -x[0])
-        for _, i in c_list[:2]:
-            selected_indices.add(i)
+        sorted_groups.append(c_list)
+    sorted_groups.sort(key=lambda c_list: -c_list[0][0])
+
+    for rank_pos in range(2):
+        for c_list in sorted_groups:
+            if len(selected_indices) >= max_candidates:
+                break
+            if rank_pos < len(c_list):
+                selected_indices.add(c_list[rank_pos][1])
 
     # Fill remaining capacity with top surrogate predictions
     order = np.argsort(-preds)

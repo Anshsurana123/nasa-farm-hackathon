@@ -15,7 +15,7 @@ export default function DiagnosticsPage() {
   return (
     <AppShell
       pageStep="02"
-      pageBadge="NASA POWER · SMAP L4 · GRACE-FO · ISRIC 250m · HLS 30m"
+      pageBadge={t("nav.badge.diagnostics")}
       pageTitle={t("diagnostics.pageTitle")}
       pageDescription={t("diagnostics.pageDesc")}
       headerActions={

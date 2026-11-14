@@ -243,7 +243,7 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
           el.className =
             "px-2 py-0.5 rounded bg-stone-950/90 border border-amber-400/80 text-amber-300 shadow-lg flex items-center justify-center text-[10px] font-mono font-bold cursor-pointer hover:scale-110 transition-transform hover:z-20";
           el.textContent = regionFlag(gf.id);
-          el.title = `${gf.name} — Click to load benchmark profile`;
+          el.title = t("map.beaconTooltip", { name: gf.name });
           el.addEventListener("click", (ev) => {
             ev.stopPropagation();
             setIsOrbiting(false);
@@ -298,7 +298,7 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
           el.className =
             "px-2 py-0.5 rounded bg-stone-950/90 border border-amber-400/80 text-amber-300 shadow-lg flex items-center justify-center text-[10px] font-mono font-bold cursor-pointer hover:scale-110 transition-transform hover:z-20";
           el.textContent = regionFlag(gf.id);
-          el.title = `${gf.name} — Click to load benchmark profile`;
+          el.title = t("map.beaconTooltip", { name: gf.name });
           el.addEventListener("click", (ev) => {
             ev.stopPropagation();
             setIsOrbiting(false);
@@ -486,8 +486,8 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
 
       {/* Top Right below NavigationControl: Camera Telemetry Readout */}
       <div className="absolute top-28 right-3 glass-strong px-2.5 py-1.5 rounded-lg border border-line text-[10px] font-mono text-muted pointer-events-none hidden sm:flex flex-col items-end gap-0.5 z-10">
-        <span>PITCH {cameraHud.pitch}° · BRG {cameraHud.bearing}°</span>
-        <span className="text-emerald-400">NASADEM 30m + 3D PARCEL</span>
+        <span>{t("map.cameraHud", { zoom: cameraHud.zoom, pitch: cameraHud.pitch, bearing: cameraHud.bearing })}</span>
+        <span className="text-emerald-400">{t("map.terrainBadge")}</span>
       </div>
 
       {/* Bottom Floating Telemetry Bar */}

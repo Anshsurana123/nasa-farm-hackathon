@@ -91,7 +91,7 @@ const DEFAULT_CONSTRAINTS: FarmConstraints = {
 const FieldContext = createContext<FieldContextValue | null>(null);
 
 export function FieldProvider({ children }: { children: ReactNode }) {
-  const { lang } = useI18n();
+  const { t, lang } = useI18n();
   const [goldenFields, setGoldenFields] = useState<GoldenField[]>([]);
   const [selectedField, setSelectedField] = useState<SelectedParcel>(DEFAULT_PARCEL);
   const [selectedGoldenId, setSelectedGoldenId] = useState<string | null>("sangrur");
@@ -251,8 +251,8 @@ export function FieldProvider({ children }: { children: ReactNode }) {
           key: requestKey,
           msg:
             err instanceof Error
-              ? `Live satellite profile unavailable (${err.message}); showing regional climatology estimate.`
-              : "Live satellite profile unavailable; showing regional climatology estimate.",
+              ? `${t("error.profileLoadFailed")} (${err.message})`
+              : t("error.profileLoadFailed"),
         });
         setSettledProfileKey(requestKey);
       }
@@ -299,8 +299,8 @@ export function FieldProvider({ children }: { children: ReactNode }) {
             key: requestKey,
             msg:
               err instanceof Error
-                ? `Live optimizer error: ${err.message}`
-                : "Live rotation optimizer failed; please retry.",
+                ? `${t("error.optimizationFailed")} (${err.message})`
+                : t("error.optimizationFailed"),
           });
         }
       } finally {
@@ -456,14 +456,14 @@ export function FieldProvider({ children }: { children: ReactNode }) {
           key: requestKey,
           msg:
             err instanceof Error
-              ? `Live optimization failed: ${err.message}`
-              : "Live optimization failed; please check connection and retry.",
+              ? `${t("error.optimizationFailed")} (${err.message})`
+              : t("error.optimizationFailed"),
         });
       } finally {
         setManualOptimizing(false);
       }
     },
-    [selectedField, selectedGoldenId, profile?.currency_symbol, requestKey, priorities, constraints, lang, soilHealthCard, baselineOverride]
+    [selectedField, selectedGoldenId, profile?.currency_symbol, requestKey, priorities, constraints, lang, soilHealthCard, baselineOverride, t]
   );
 
   return (

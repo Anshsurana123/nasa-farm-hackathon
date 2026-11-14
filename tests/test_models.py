@@ -248,4 +248,37 @@ def test_aquacrop_puddled_vs_dsr_calibration():
     assert yield_diff_pct <= 15.0, f"Yield diff {yield_diff_pct}% exceeds 15%"
 
 
+def test_rusle_r_factor_intensity():
+    base_r = rusle.r_factor_annual(900.0)
+    assert rusle.r_factor_intensity(900.0) == pytest.approx(base_r)
+
+    cloudburst_r = rusle.r_factor_intensity(900.0, max_30m_rate_mmh=65.0, extreme_rain_days_per_yr=6.0)
+    drizzle_r = rusle.r_factor_intensity(900.0, max_30m_rate_mmh=6.0, extreme_rain_days_per_yr=0.5)
+    assert cloudburst_r > base_r
+    assert drizzle_r < cloudburst_r
+
+
+def test_fao56_initial_depletion_mm():
+    from terraloop_engine.models import fao56_runner
+    from terraloop_schemas import FarmConstraints, Rotation, RotationStep, SoilSummary
+
+    idx = pd.date_range("2015-01-01", "2016-12-31", freq="D")
+    tmax = np.full(len(idx), 28.0)
+    tmin = np.full(len(idx), 14.0)
+    precip = np.full(len(idx), 0.4)
+    w_df = pd.DataFrame({"T2M_MAX": tmax, "T2M_MIN": tmin, "PRECTOTCORR": precip}, index=idx)
+    soil_s = SoilSummary(texture_class="loam", sand_pct=45.0, silt_pct=35.0, clay_pct=20.0, soc_g_per_kg=6.0)
+    rot = Rotation(id="wheat_dep", steps=[RotationStep(year_index=0, season_index=1, crop_id="wheat")])
+
+    res_wet = fao56_runner.simulate_rotation(
+        rot, w_df, soil_s, FarmConstraints(irrigation="none"), start_year=2015, initial_depletion_mm=0.0
+    )
+    res_dry = fao56_runner.simulate_rotation(
+        rot, w_df, soil_s, FarmConstraints(irrigation="none"), start_year=2015, initial_depletion_mm=95.0
+    )
+    assert res_dry[0]["yield_t_ha"] <= res_wet[0]["yield_t_ha"]
+    assert res_dry[0]["water_stress_coefficient"] <= res_wet[0]["water_stress_coefficient"]
+
+
+
 

@@ -20,12 +20,45 @@ def r_factor_annual(annual_precip_mm: float) -> float:
     """Rainfall erosivity from annual precipitation.
 
     Renard & Freimund (1994), J. Hydrology 157:287-306. Converted to SI.
-    Used until a GPM IMERG intensity-based R factor is implemented (TASK-M04).
+    Base annual climatology approximation; refined by r_factor_intensity (TASK-M04).
     """
     p = max(annual_precip_mm, 0.0)
     if p < 850:
         return 0.0483 * p**1.61
     return 587.8 - 1.219 * p + 0.004105 * p**2
+
+
+def r_factor_intensity(
+    annual_precip_mm: float,
+    max_30m_rate_mmh: float | None = None,
+    extreme_rain_days_per_yr: float | None = None,
+) -> float:
+    """Kinetic storm-intensity RUSLE R factor (TASK-M04).
+
+    Couples Renard & Freimund (1994) base erosivity with Wischmeier & Smith (1978) /
+    Brown & Foster (1987) unit rainfall kinetic energy:
+      e_r = 0.29 * (1 - 0.72 * exp(-0.05 * I_30))   [MJ ha-1 mm-1]
+    driven by 30-min peak rainfall rate I_30 (mm h-1) and extreme rain frequency (>50 mm/d).
+    Returns exact r_factor_annual when no sub-daily intensity signals are supplied.
+    """
+    r_base = r_factor_annual(annual_precip_mm)
+    if max_30m_rate_mmh is None and extreme_rain_days_per_yr is None:
+        return r_base
+
+    e_ref = 0.29 * (1.0 - 0.72 * math.exp(-0.05 * 25.0))
+    intensity_mult = 1.0
+    if max_30m_rate_mmh is not None:
+        i30 = max(0.0, float(max_30m_rate_mmh))
+        if i30 > 25.0:
+            e_storm = 0.29 * (1.0 - 0.72 * math.exp(-0.05 * i30))
+            intensity_mult = max(1.0, e_storm / e_ref)
+
+    extreme_mult = 1.0
+    if extreme_rain_days_per_yr is not None:
+        extreme_mult = 1.0 + 0.04 * max(0.0, float(extreme_rain_days_per_yr) - 2.0)
+
+    combined = max(1.0, min(1.85, 0.65 * intensity_mult + 0.35 * extreme_mult))
+    return r_base * combined
 
 
 def k_factor_williams(sand_pct: float, silt_pct: float, clay_pct: float, soc_pct: float) -> float:

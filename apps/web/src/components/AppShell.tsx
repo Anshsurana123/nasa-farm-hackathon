@@ -168,7 +168,7 @@ export function AppShell({
                 {t("profile.loading")}
               </p>
               <p className="text-xs font-mono text-muted mt-1.5 max-w-lg mx-auto">
-                SYNCHRONIZING: NASA POWER AG · ISRIC SOILGRIDS 250M · SMAP L4 · GRACE-FO TELLUS · HLS 30M
+                {t("app.syncingTelemetry")}
               </p>
             </div>
           </div>
@@ -182,7 +182,7 @@ export function AppShell({
               <span>{t("app.syncingCoords")}</span>
             </span>
             <span className="text-[10px] text-muted hidden sm:inline font-mono">
-              POWER AG · SoilGrids 250m · SMAP L4 · GRACE-FO
+              {t("app.syncingCompact")}
             </span>
           </div>
         )}
@@ -316,7 +316,7 @@ export function AppShell({
 
           <div className="pt-4 border-t border-line flex flex-wrap items-center justify-between gap-4 text-[11px]">
             <span>
-              SENSORS: NASA POWER · GPM IMERG · SMAP L4 · GRACE-FO · NASADEM · FIRMS · HLS 30M · ISRIC SOILGRIDS
+              {t("app.footerSensors")}
             </span>
             <Link
               href="/methodology"

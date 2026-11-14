@@ -5,6 +5,8 @@ schemes:
   - id: "tn_rice_fallow_pulses"
     name: "Tamil Nadu Kalaignarin Rice Fallow Pulses Mission"
     display_title: "Tamil Nadu Kalaignarin Rice Fallow Pulses Mission (100% certified seed subsidy)"
+    display_title_hi: "तमिलनाडु कलैगनारिन धान परती दलहन मिशन (100% प्रमाणित बीज सब्सिडी)"
+    display_title_pa: "ਤਾਮਿਲਨਾਡੂ ਕਲੈਗਨਾਰਿਨ ਝੋਨੇ-ਬਾਅਦ ਦਾਲਾਂ ਮਿਸ਼ਨ (100% ਪ੍ਰਮਾਣਿਤ ਬੀਜ ਸਬਸਿਡੀ)"
     state: "Tamil Nadu"
     eligible_crops: ["urad", "blackgram", "moong"]
     amount: null
@@ -16,6 +18,8 @@ schemes:
   - id: "tn_water_conservation"
     name: "Tamil Nadu Sustainable Dryland & Water Conservation Mission"
     display_title: "Tamil Nadu Sustainable Dryland & Water Conservation Mission"
+    display_title_hi: "तमिलनाडु टिकाऊ शुष्कभूमि एवं जल संरक्षण मिशन"
+    display_title_pa: "ਤਾਮਿਲਨਾਡੂ ਟਿਕਾਊ ਖੁਸ਼ਕ ਜ਼ਮੀਨ ਅਤੇ ਜਲ ਸੰਭਾਲ ਮਿਸ਼ਨ"
     state: "Tamil Nadu"
     eligible_crops: ["rice_dsr", "maize", "groundnut"]
     eligible_practices: ["direct_seeded", "drip_irrigation"]

@@ -7,6 +7,7 @@ Writes data/golden/<id>/{profile.json, weather.json, recommendations.json}, whic
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 from datetime import UTC, date, datetime
@@ -64,7 +65,13 @@ def main(ids: list[str]) -> None:
 
         # 1. Build and save FieldProfile with honest provenance & demo_snapshot tagging
         existing_prof_path = field_dir / "profile.json"
-        snapshot_dt = datetime.now(UTC).date().isoformat()
+        existing_snap_dt = None
+        if existing_prof_path.exists() and not os.environ.get("TERRALOOP_REFRESH_SNAPSHOT_DATE"):
+            try:
+                existing_snap_dt = json.loads(existing_prof_path.read_text(encoding="utf-8")).get("snapshot_date")
+            except (json.JSONDecodeError, OSError):
+                existing_snap_dt = None
+        snapshot_dt = os.environ.get("TERRALOOP_SNAPSHOT_DATE") or existing_snap_dt or datetime.now(UTC).date().isoformat()
         prof = profiler.build_profile(FieldGeometry(id=fid, lat=lat, lon=lon, name=name))
         prof.field.id = fid
         prof.served_from = "demo_snapshot"

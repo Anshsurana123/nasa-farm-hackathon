@@ -43,7 +43,7 @@ Everything we build is judged against those core dimensions. Before starting wor
 
 ## 2. Current Phase: Hardening, Not Building
 
-All 44 original backlog items, all 15 audit findings from `docs/AUDIT.md`, all Round-2 audit hardening items from `docs/AUDIT_V3.md`, all 20 Round-3 hardening defect items from `TERRALOOP_ROUND3_FIX_PROMPT.md`, and all 94 codebase audit findings are implemented, integrated, and verified with **94/94 passing offline tests**. There is no "next unchecked task".
+All 44 original backlog items, all 15 audit findings from `docs/AUDIT.md`, all Round-2 audit hardening items from `docs/AUDIT_V3.md`, all 20 Round-3 hardening defect items from `TERRALOOP_ROUND3_FIX_PROMPT.md`, and all codebase audit findings are implemented, integrated, and verified with **112/112 passing offline tests**. There is no "next unchecked task".
 
 Work comes from, in this strict order of priority:
 1. **The user's explicit request.**
@@ -66,21 +66,23 @@ packages/engine/terraloop_engine/    All biophysical science and logic. NO web c
   suitability.py                     Heuristic crop pre-filter (rank_crops)
   crop_kb.py                         Loads & validates packages/crop-kb/crops/*.yaml -> CropSpec
   cache.py                           @disk_cache(namespace=...) with serverless unwritable /tmp fallback
-  data/                              nasa_power, soilgrids, gee (8 NASA collections: IMERG, SMAP, GRACE, etc.)
+  data/                              nasa_power, soilgrids, gee (8 NASA collections: IMERG, SMAP, GRACE, etc.), meteomatics
   eo/                                phenology (Savitzky-Golay 30m HLS NDVI), classifier (Gaussian ML crop classifier)
-  climate/ensembles.py               Historical moving blocks + NEX-GDDP-CMIP6 with quantile mapping
+  climate/ensembles.py               Historical moving blocks + NEX-GDDP-CMIP6 & MRI-ESM2.0 with quantile mapping
   models/                            agroclimate (ET0, GDD), soil (texture, Saxton-Rawls),
                                      fao56_runner (FAO-56 dual Kc, rice hydrology, March heat),
                                      soil_health (RothC-lite 26.3, N balance, NRCS index),
                                      rusle (Universal Soil Loss Equation), economics (CACP MSP, CVaR-10),
-                                     surrogate (polynomial ridge pre-screening),
+                                     nutrition (protein/calorie yield), surrogate (polynomial ridge pre-screening),
                                      aquacrop_runner (backward-compatibility shim forwarding to fao56_runner)
   optimize/                          rotations (seasonal candidates + constraints),
                                      evaluate (multi-member simulation, practical metrics),
                                      selection (NSGA-II Pareto + priority-weighted top-3)
   explain/why_cards.py               Deterministic multilingual why-cards + grounded Gemini 2.0 Flash LLM summary (verified by numeric grounding validator; deterministic fallback)
-packages/crop-kb/                    crops/*.yaml (23 crops + _template.yaml), aquacrop_params/, economics/punjab.yaml
-apps/api/terraloop_api/main.py       FastAPI backend: /health /crops /golden/* /geocode /profile /suitability /recommend
+  region_registry.py                 Indian state/agro-zone configs, bias-correction flags & regional baselines
+  scheme_kb.py                       State/central government agricultural support scheme loader
+packages/crop-kb/                    crops/*.yaml (23 crops + _template.yaml), aquacrop_params/*.yaml, economics/*.yaml, regions/*.yaml, schemes/*.yaml
+apps/api/terraloop_api/main.py       FastAPI backend: /health /tactical-advisory /crops /golden/* /geocode /profile /suitability /recommend
 apps/web/                            Next.js 16 + React 19 + Tailwind CSS v4; i18n in src/i18n/{en,hi,pa}.json
 data/golden/<id>/                    Precomputed profile, recommendations, weather. data/benchmarks/ = ground truth CSV
 scripts/                             run_validation_benchmarks.py, precompute_golden.py, md_to_docx.py

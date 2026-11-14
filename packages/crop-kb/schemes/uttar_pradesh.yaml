@@ -5,6 +5,8 @@ schemes:
   - id: "up_bundelkhand_package"
     name: "Bundelkhand Drought Mitigation & Pulses Promotion Mission"
     display_title: "Bundelkhand Drought Mitigation & Pulses Promotion Mission (Special Package)"
+    display_title_hi: "बुंदेलखंड सूखा राहत एवं दलहन प्रोत्साहन मिशन (विशेष पैकेज)"
+    display_title_pa: "ਬੁੰਦੇਲਖੰਡ ਸੋਕਾ ਰਾਹਤ ਅਤੇ ਦਾਲਾਂ ਪ੍ਰੋਤਸਾਹਨ ਮਿਸ਼ਨ (ਵਿਸ਼ੇਸ਼ ਪੈਕੇਜ)"
     state: "Uttar Pradesh"
     eligible_zones: ["bundelkhand"]
     eligible_crops: ["chickpea", "lentil", "mustard", "sorghum", "pigeon_pea"]
@@ -17,6 +19,8 @@ schemes:
   - id: "up_crm_mechanization"
     name: "CRM Sub-Mission on Crop Residue Management (UP)"
     display_title: "CRM Sub-Mission on Crop Residue Management (UP Happy Seeder / Zero-Till 50–80% Subsidy)"
+    display_title_hi: "CRM फसल अवशेष प्रबंधन उप-मिशन (UP हैप्पी सीडर / ज़ीरो-टिल 50–80% सब्सिडी)"
+    display_title_pa: "CRM ਪਰਾਲੀ ਪ੍ਰਬੰਧਨ ਉਪ-ਮਿਸ਼ਨ (UP ਹੈਪੀ ਸੀਡਰ / ਜ਼ੀਰੋ-ਟਿੱਲ 50–80% ਸਬਸਿਡੀ)"
     state: "Uttar Pradesh"
     eligible_practices: ["happy_seeder", "zero_till", "residue_retained", "super_seeder"]
     ineligible_practices: ["residue_burned", "burning"]
@@ -29,6 +33,8 @@ schemes:
   - id: "up_pulses_oilseeds_minikit"
     name: "UP Free Oilseeds & Pulses Seed Minikit Scheme"
     display_title: "UP Free Certified Pulses & Oilseeds Seed Minikit Scheme"
+    display_title_hi: "UP निःशुल्क प्रमाणित दलहन एवं तिलहन बीज मिनीकिट योजना"
+    display_title_pa: "UP ਮੁਫ਼ਤ ਪ੍ਰਮਾਣਿਤ ਦਾਲਾਂ ਅਤੇ ਤੇਲ ਬੀਜ ਮਿਨੀਕਿੱਟ ਯੋਜਨਾ"
     state: "Uttar Pradesh"
     eligible_crops: ["chickpea", "lentil", "mustard", "moong", "urad", "groundnut", "pigeon_pea", "soybean"]
     amount: null
@@ -40,6 +46,8 @@ schemes:
   - id: "up_dsr_diversification"
     name: "UP Direct-Seeded Rice & Soil Conservation Incentive"
     display_title: "UP Direct-Seeded Rice & Kharif Diversification Mechanisation Support"
+    display_title_hi: "UP सीधी बुवाई धान (DSR) एवं खरीफ विविधीकरण मशीनीकरण सहायता"
+    display_title_pa: "UP ਸਿੱਧੀ ਬਿਜਾਈ ਝੋਨਾ (DSR) ਅਤੇ ਸਾਉਣੀ ਵਿਭਿੰਨਤਾ ਮਸ਼ੀਨੀਕਰਨ ਸਹਾਇਤਾ"
     state: "Uttar Pradesh"
     eligible_crops: ["rice_dsr", "maize", "moong", "pigeon_pea"]
     eligible_practices: ["direct_seeded", "awd"]

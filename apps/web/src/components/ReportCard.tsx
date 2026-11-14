@@ -177,7 +177,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
               <span className="w-2.5 h-2.5 rounded-xs bg-cyan-400 inline-block" /> {t("report.peakWetSeason")}
             </span>
             <span className="flex items-center gap-1.5 text-amber-500 dark:text-amber-300 font-semibold">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> Tmax / Tmin (°C)
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> {t("report.tempLegend")}
             </span>
           </div>
         </div>
@@ -212,7 +212,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                 </span>
               </div>
               <span className="text-base font-bold text-foreground">
-                {activeSmap.toFixed(0)}th %ile (SMAP L4)
+                {t("report.smapPercentileTag", { pct: activeSmap.toFixed(0) })}
               </span>
             </div>
           </div>
@@ -277,13 +277,13 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
           </div>
 
           <table className="sr-only">
-            <caption>Monthly Precipitation and Temperature for {field.name ?? "Parcel"}</caption>
+            <caption>{t("report.climateTableCaption", { name: field.name ?? t("report.defaultParcelName") })}</caption>
             <thead>
               <tr>
-                <th>Month</th>
-                <th>Precipitation (mm)</th>
-                <th>Mean Max Temp (°C)</th>
-                <th>Mean Min Temp (°C)</th>
+                <th>{t("report.thMonth")}</th>
+                <th>{t("report.thPrecipMm")}</th>
+                <th>{t("report.thTmaxC")}</th>
+                <th>{t("report.thTminC")}</th>
               </tr>
             </thead>
             <tbody>
@@ -351,7 +351,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                   {climate.annual_et0_mm ? climate.annual_et0_mm.toFixed(0) : "—"}{" "}
                   <span className="text-xs font-normal text-muted">{t("unit.mmYr")}</span>
                 </p>
-                <p className="text-[10px] text-muted mt-1 font-mono">Hargreaves-Samani ET₀</p>
+                <p className="text-[10px] text-muted mt-1 font-mono">{t("report.et0Method")}</p>
               </div>
 
               <div className="p-3.5 rounded-xl bg-background/60 border border-line">
@@ -406,7 +406,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                     {soil.soc_g_per_kg ? soil.soc_g_per_kg.toFixed(1) : "—"}{" "}
                     <span className="text-xs font-normal text-muted">{t("unit.gkg")}</span>
                   </p>
-                  <p className="text-[10px] text-muted mt-1 font-mono">0–30 cm Horizon A</p>
+                  <p className="text-[10px] text-muted mt-1 font-mono">{t("report.horizonADepth")}</p>
                 </div>
                 <ProgressRing
                   value={Math.min(100, Math.round(((soil.soc_g_per_kg ?? 8) / 16) * 100))}
@@ -600,7 +600,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                   FIG. 04 // {t("section.water")} &amp; {t("report.aquifer")}
                 </span>
               </h3>
-              <span className="text-[10px] font-mono text-muted">SMAP L4 · GRACE-FO</span>
+              <span className="text-[10px] font-mono text-muted">{t("report.sensorSourceTag")}</span>
             </div>
 
             <div className="p-5 grid grid-cols-2 gap-3">
@@ -686,6 +686,79 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                   </div>
                 </div>
               )}
+
+              {water.soil_moisture_index_layers && (
+                <div className="col-span-2 p-3.5 rounded-xl bg-background/60 border border-line space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-mono">
+                    <span className="font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                      <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{t("water.smiLayers")}</span>
+                    </span>
+                    <div className="flex flex-wrap items-center gap-3 text-muted">
+                      {water.soil_moisture_deficit_mm != null && (
+                        <span>
+                          {t("water.rootDeficit")}:{" "}
+                          <strong className="text-foreground">
+                            {water.soil_moisture_deficit_mm.toFixed(1)} mm
+                          </strong>
+                        </span>
+                      )}
+                      {water.seedbed_temp_5cm_c != null && (
+                        <span>
+                          {t("water.seedbed5cm")}:{" "}
+                          <strong className="text-amber-500 dark:text-amber-400">
+                            {water.seedbed_temp_5cm_c.toFixed(1)}°C
+                          </strong>
+                        </span>
+                      )}
+                      {water.volumetric_soil_water_layers && (
+                        <span className="text-sky-600 dark:text-sky-400">
+                          {t("water.vwcLayers")}
+                        </span>
+                      )}
+                      {(water.seedbed_temp_5cm_c != null || water.volumetric_soil_water_layers != null) && (
+                        <span className="px-1.5 py-0.5 rounded bg-foreground/5 border border-line text-muted text-[9px] uppercase">
+                          {t("badge.contextOnly")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {(["-5cm", "-15cm", "-50cm", "-150cm"] as const).map((depth) => {
+                      const val = water.soil_moisture_index_layers?.[depth];
+                      const pct = val != null ? Math.max(4, Math.min(100, Math.round(val * 100))) : 0;
+                      const barColor =
+                        val == null
+                          ? "bg-muted/30"
+                          : val < 0.25
+                          ? "bg-rose-500"
+                          : val < 0.5
+                          ? "bg-amber-400"
+                          : val > 0.75
+                          ? "bg-emerald-400"
+                          : "bg-cyan-400";
+                      return (
+                        <div key={depth} className="space-y-1">
+                          <div className="flex items-center justify-between text-[10px] font-mono">
+                            <span className="text-muted">{depth}</span>
+                            <span className="font-bold text-foreground">
+                              {val != null ? val.toFixed(2) : "—"}
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-foreground/10 overflow-hidden">
+                            <div style={{ width: `${pct}%` }} className={`h-full rounded-full ${barColor}`} />
+                          </div>
+                          {water.volumetric_soil_water_layers?.[depth] != null && (
+                            <p className="text-[9px] font-mono text-sky-600 dark:text-sky-400 tabular-nums">
+                              {water.volumetric_soil_water_layers[depth]?.toFixed(2)} m³/m³
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -725,7 +798,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                 <p className="text-xl font-bold text-foreground mt-1 uppercase font-mono">
                   {hazards.erosion_risk_class ?? "Low"}
                 </p>
-                <p className="text-[10px] text-muted mt-1 font-mono">RUSLE A = R·K·LS·C·P</p>
+                <p className="text-[10px] text-muted mt-1 font-mono">{t("report.rusleFormula")}</p>
               </div>
 
               <div className="p-3.5 rounded-xl bg-background/60 border border-line">
@@ -757,12 +830,86 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                     </p>
                   </div>
                 )}
+
+              {(hazards.late_blight_risk_idx != null ||
+                hazards.canopy_wetness_idx != null ||
+                hazards.fire_weather_index != null ||
+                hazards.max_30m_precip_rate_mmh != null ||
+                hazards.hail_probability_pct != null ||
+                hazards.meteorological_drought_idx != null) && (
+                <div className="col-span-2 grid grid-cols-2 gap-2.5">
+                  <div className="p-3 rounded-xl bg-background/60 border border-line">
+                    <p className="text-[10px] font-mono uppercase tracking-wider text-muted truncate">
+                      {t("hazards.lateBlight")}
+                    </p>
+                    <p className="text-base font-bold font-mono text-foreground mt-0.5">
+                      {hazards.late_blight_risk_idx != null
+                        ? hazards.late_blight_risk_idx.toFixed(0)
+                        : "—"}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-background/60 border border-line">
+                    <p className="text-[10px] font-mono uppercase tracking-wider text-muted truncate">
+                      {t("hazards.canopyWetness")}
+                    </p>
+                    <p className="text-base font-bold font-mono text-foreground mt-0.5">
+                      {hazards.canopy_wetness_idx != null
+                        ? hazards.canopy_wetness_idx.toFixed(2)
+                        : "—"}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-background/60 border border-line">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-[10px] font-mono uppercase tracking-wider text-muted truncate">
+                        {t("hazards.fireWeather")}
+                      </p>
+                      <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-foreground/5 border border-line text-muted shrink-0">
+                        {t("badge.contextOnly")}
+                      </span>
+                    </div>
+                    <p className="text-base font-bold font-mono text-amber-500 dark:text-amber-400 mt-0.5">
+                      {hazards.fire_weather_index != null
+                        ? `${hazards.fire_weather_index.toFixed(1)} FFWI`
+                        : "—"}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-background/60 border border-line">
+                    <p className="text-[10px] font-mono uppercase tracking-wider text-muted truncate">
+                      {t("hazards.peakRainIntensity")}
+                    </p>
+                    <p className="text-base font-bold font-mono text-cyan-500 dark:text-cyan-400 mt-0.5">
+                      {hazards.max_30m_precip_rate_mmh != null
+                        ? `${hazards.max_30m_precip_rate_mmh.toFixed(1)} mm/h`
+                        : "—"}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-background/60 border border-line">
+                    <p className="text-[10px] font-mono uppercase tracking-wider text-muted truncate">
+                      {t("hazards.hailRisk")}
+                    </p>
+                    <p className="text-base font-bold font-mono text-sky-600 dark:text-sky-400 mt-0.5">
+                      {hazards.hail_probability_pct != null
+                        ? `${hazards.hail_probability_pct.toFixed(1)}%`
+                        : "—"}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-background/60 border border-line">
+                    <p className="text-[10px] font-mono uppercase tracking-wider text-muted truncate">
+                      {t("hazards.droughtIndex")}
+                    </p>
+                    <p className="text-base font-bold font-mono text-orange-500 dark:text-orange-400 mt-0.5">
+                      {hazards.meteorological_drought_idx != null
+                        ? `${hazards.meteorological_drought_idx.toFixed(2)} SPI`
+                        : "—"}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="px-5 pb-4 pt-2 border-t border-line text-[10px] font-mono text-muted flex items-center justify-between">
-            <span>NASA FIRMS MODIS/VIIRS [375m]</span>
-            <span>NASADEM + RUSLE v2.1</span>
+          <div className="px-5 pb-4 pt-2 border-t border-line">
+            <ProvenanceChip provenance={hazards.provenance} />
           </div>
         </div>
       </div>
@@ -776,7 +923,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
               <span>FIG. 06 // {t("section.cropHistory")}</span>
             </h3>
             <span className="text-[10px] font-mono text-emerald-500 font-bold px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/35">
-              NASA HLS L30/S30 · MOD13Q1 ({t("badge.contextOnly")})
+              NASA HLS L30/S30 ({t("badge.contextOnly")})
             </span>
           </div>
 

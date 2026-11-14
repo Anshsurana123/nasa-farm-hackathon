@@ -29,6 +29,8 @@ from .models import (
     StrategyRecommendation,
     SuitabilityItem,
     SuitabilityRequest,
+    TacticalAdvisory,
+    TacticalDayForecast,
     WaterSummary,
 )
 
@@ -56,5 +58,7 @@ __all__ = [
     "StrategyRecommendation",
     "SuitabilityItem",
     "SuitabilityRequest",
+    "TacticalAdvisory",
+    "TacticalDayForecast",
     "WaterSummary",
 ]

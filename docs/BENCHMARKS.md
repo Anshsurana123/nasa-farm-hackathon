@@ -84,10 +84,10 @@ Evaluates 30-member ensemble outcomes on Sangrur Alluvial Loam across four manag
 
 | Rotation System | Armor (/15) | Min Disturbance (/15) | Diversity (/15) | Living Roots (/15) | Organic N (/15) | SOC Mod | Erosion Mod | Soil Cond Mod | Burn Penalty | Total (/100) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Baseline: Puddled Rice → Wheat (Residue Burned) | 6.4 | 6.5 | 4.0 | 12.8 | 4.5 | -8.7 | +2.1 | +2.8 | -5.0 | **25.4** |
-| PR-126 Short Rice → Happy Seeder Wheat → Summer Moong | 14.4 | 11.8 | 10.1 | 14.9 | 12.5 | +15.0 | +2.7 | +2.8 | +0.0 | **84.1** |
-| Direct-Seeded Rice (DSR) → Zero-Till Wheat → Summer Moong | 14.4 | 14.0 | 10.1 | 15.0 | 12.5 | +15.0 | +2.7 | +2.8 | +0.0 | **86.4** |
-| Kharif Maize → Happy Seeder Wheat → Summer Moong | 14.4 | 12.7 | 10.1 | 14.7 | 12.5 | +15.0 | +2.7 | +2.8 | +0.0 | **84.7** |
+| Baseline: Puddled Rice → Wheat (Residue Burned) | 6.4 | 6.5 | 4.0 | 12.8 | 4.5 | -8.7 | +2.0 | +2.8 | -5.0 | **25.4** |
+| PR-126 Short Rice → Happy Seeder Wheat → Summer Moong | 14.4 | 11.8 | 10.1 | 14.9 | 12.5 | +15.0 | +2.6 | +2.8 | +0.0 | **84.1** |
+| Direct-Seeded Rice (DSR) → Zero-Till Wheat → Summer Moong | 14.4 | 14.0 | 10.1 | 15.0 | 12.5 | +15.0 | +2.6 | +2.8 | +0.0 | **86.4** |
+| Kharif Maize → Happy Seeder Wheat → Summer Moong | 14.4 | 12.7 | 10.1 | 14.7 | 12.5 | +15.0 | +2.6 | +2.8 | +0.0 | **84.7** |
 
 ## 6. Six Indian Agro-Climatic Golden Benchmark Fields (Precomputed Engine Outputs)
 
@@ -99,3 +99,24 @@ Evaluates 30-member ensemble outcomes on Sangrur Alluvial Loam across four manag
 | **Yavatmal (Vidarbha), Maharashtra** (`vidarbha`) | Western / Central Deccan Plateau (Vidarbha Black Cotton Vertisol Belt) | Cotton → Chickpea → Fallow | **Maize → Chickpea → Fallow** | **+0.0%** | **₹119,939** | **+0.69** | **64/100** |
 | **Jhansi (Bundelkhand), Uttar Pradesh** (`bundelkhand`) | Central Plateau & Hills (Bundelkhand Semi-Arid Zone) | Sorghum → Wheat → Fallow | **Pigeon pea → Barley → Fallow** | **+0.0%** | **₹94,040** | **+0.96** | **68/100** |
 | **Thanjavur (Cauvery Delta), Tamil Nadu** (`thanjavur`) | East Coast Plains & Deltas (Cauvery / Coastal Alluvial Zone) | Puddled Rice → Puddled Rice → Blackgram | **Groundnut → DSR Rice → Blackgram** | **-56.2%** | **₹292,517** | **+2.29** | **84/100** |
+
+## 7. Meteomatics 90m Storm Intensity Erosivity & Seedbed Moisture Deficit Sensitivity
+
+Verifies `models/rusle.py::r_factor_intensity` across sub-daily storm regimes ($I_{30}$) so dry-snapshot snapshots (`0.0 mm/h`) never halve annual RUSLE $R$, while extreme monsoon cells escalate soil loss dynamically, alongside `models/fao56_runner.py::simulate_rotation` sensitivity to Meteomatics root-zone `initial_depletion_mm` across both puddled rice and DSR + AWD.
+
+### 7a. Sub-Daily Storm Intensity Erosivity (`rusle.r_factor_intensity`, Sangrur Loam)
+
+| Storm Intensity Regime | 30-Min Peak Rate ($I_{30}$, mm/h) | Extreme Rain Days/Yr | Effective $R$ Factor (MJ·mm/ha/h/yr) | Soil Loss $A$ (t/ha/yr) | Delta vs Static Annual $R$ |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| Static Annual Climatology (`r_factor_annual`) | — | — | **1,624.4** | 1.60 | +0.0% |
+| Dry Snapshot Day (`0.0 mm/h` — non-suppression guard) | 0.0 | 1.1 | **1,624.4** | 1.60 | +0.0% |
+| Moderate Monsoon Cell (`25.0 mm/h`) | 25.0 | 1.1 | **1,624.4** | 1.60 | +0.0% |
+| Extreme Convective Cloudburst (`55.0 mm/h`) | 55.0 | 1.1 | **1,837.6** | 1.82 | +13.1% |
+
+### 7b. Seedbed Root-Zone Deficit Coupling (`initial_depletion_mm`, Rice Puddled vs DSR + AWD)
+
+| Initial Seedbed Deficit (mm) | Puddled Rice Irrigation (mm) | Puddled Yield (t/ha) | DSR + AWD Irrigation (mm) | DSR + AWD Yield (t/ha) | Irrigation Delta vs 15 mm (Puddled / DSR) |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| **15.0** | 844.6 | 7.12 | 690.8 | 6.48 | +0.0 mm / +0.0 mm |
+| **55.0** | 855.6 | 7.12 | 698.8 | 6.48 | +11.0 mm / +8.0 mm |
+| **80.0** | 869.3 | 7.12 | 708.8 | 6.48 | +24.7 mm / +18.0 mm |

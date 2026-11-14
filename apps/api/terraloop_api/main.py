@@ -39,7 +39,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 from terraloop_engine import cache, crop_kb, profiler, region_registry, suitability
 from terraloop_engine.climate import ensembles
-from terraloop_engine.data import nasa_power
+from terraloop_engine.data import meteomatics, nasa_power
 from terraloop_engine.explain import why_cards
 from terraloop_engine.models import economics, nutrition
 from terraloop_engine.optimize import evaluate, rotations, selection
@@ -53,6 +53,7 @@ from terraloop_schemas import (
     StrategyRecommendation,
     SuitabilityItem,
     SuitabilityRequest,
+    TacticalAdvisory,
 )
 
 log = logging.getLogger("terraloop.api")
@@ -107,9 +108,11 @@ _LAST_NOMINATIM_CALL_TIME: float = 0.0
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
-    # Only rate-limit compute-heavy endpoints (/recommend and /profile) to prevent abuse (Issue 19 / WS-K4)
+    # Rate-limit compute-heavy and external-API endpoints (Issue 19 / WS-K4)
     path = request.url.path
-    if not path.startswith(("/recommend", "/profile")):
+    if API_PATH_PREFIX != "/" and path.startswith(API_PATH_PREFIX + "/"):
+        path = path[len(API_PATH_PREFIX) :]
+    if not path.startswith(("/recommend", "/profile", "/tactical-advisory", "/suitability", "/geocode")):
         return await call_next(request)
     if path.startswith("/recommend/jobs"):
         return await call_next(request)
@@ -122,12 +125,17 @@ async def rate_limit_middleware(request: Request, call_next):
     now = time.time()
 
     with _RATE_LIMIT_LOCK:
-        timestamps = _RATE_LIMIT_BUCKET.setdefault(client_ip, [])
-        # Prune timestamps older than 60s
-        timestamps = [t for t in timestamps if now - t < 60.0]
-        _RATE_LIMIT_BUCKET[client_ip] = timestamps
+        # Evict stale idle IPs so the in-memory bucket stays bounded across requests
+        if len(_RATE_LIMIT_BUCKET) > 512:
+            for ip_key in [k for k, ts_list in _RATE_LIMIT_BUCKET.items() if not ts_list or (now - ts_list[-1] >= 60.0)]:
+                _RATE_LIMIT_BUCKET.pop(ip_key, None)
+
+        timestamps = [t for t in _RATE_LIMIT_BUCKET.get(client_ip, []) if now - t < 60.0]
+        if not timestamps:
+            _RATE_LIMIT_BUCKET.pop(client_ip, None)
 
         if len(timestamps) >= limit_per_min:
+            _RATE_LIMIT_BUCKET[client_ip] = timestamps
             retry_after = int(60.0 - (now - timestamps[0])) + 1
             return JSONResponse(
                 status_code=429,
@@ -139,6 +147,7 @@ async def rate_limit_middleware(request: Request, call_next):
                 headers={"Retry-After": str(retry_after)},
             )
         timestamps.append(now)
+        _RATE_LIMIT_BUCKET[client_ip] = timestamps
 
     return await call_next(request)
 
@@ -148,7 +157,25 @@ async def rate_limit_middleware(request: Request, call_next):
 # ---------------------------------------------------------------------------
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok"}
+    return {"status": "ok", "meteomatics_configured": meteomatics.is_configured()}
+
+
+@app.get("/tactical-advisory", response_model=TacticalAdvisory)
+def tactical_advisory(lat: float, lon: float) -> TacticalAdvisory:
+    """Return 7-day Meteomatics 90m tactical farm advisory (or regional climatology baseline)."""
+    if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+        raise HTTPException(status_code=422, detail="lat/lon coordinates out of range")
+    if meteomatics.is_configured():
+        live_adv = meteomatics.fetch_tactical_forecast(lat, lon)
+        if live_adv is not None:
+            return live_adv
+    prof = profiler.build_profile(FieldGeometry(lat=lat, lon=lon), use_live_network=False)
+    if prof.tactical_advisory is not None:
+        return prof.tactical_advisory
+    _, reg_adv = meteomatics.estimate_regional_tactical_and_hazards(
+        lat, lon, prof.climate, prof.soil, prof.water, prof.hazards
+    )
+    return reg_adv
 
 
 @app.get("/crops", response_model=list[CropSpec])
@@ -195,6 +222,74 @@ def golden_fields() -> list[dict]:
     return _golden_index()
 
 
+def _apply_snap_to_profile(
+    prof: FieldProfile, snap: dict, *, only_if_none: bool = False, append_prov: bool = True
+) -> None:
+    """Populate Meteomatics soil moisture and hazard fields + provenance onto a FieldProfile."""
+    water_keys = (
+        "soil_moisture_deficit_mm",
+        "soil_moisture_index_layers",
+        "volumetric_soil_water_layers",
+        "seedbed_temp_5cm_c",
+    )
+    hazard_keys = (
+        "late_blight_risk_idx",
+        "canopy_wetness_idx",
+        "hail_probability_pct",
+        "fire_weather_index",
+        "meteorological_drought_idx",
+        "max_30m_precip_rate_mmh",
+    )
+    for k in water_keys:
+        if (not only_if_none or getattr(prof.water, k) is None) and snap.get(k) is not None:
+            setattr(prof.water, k, snap.get(k))
+    for k in hazard_keys:
+        if (not only_if_none or getattr(prof.hazards, k) is None) and snap.get(k) is not None:
+            setattr(prof.hazards, k, snap.get(k))
+    if append_prov and (sp := snap.get("provenance")) is not None:
+        if not any(p.source == sp.source and p.product == sp.product for p in prof.water.provenance):
+            prof.water.provenance.append(sp)
+        if not any(p.source == sp.source and p.product == sp.product for p in prof.hazards.provenance):
+            prof.hazards.provenance.append(sp)
+
+
+def _attach_tactical_advisory(prof: FieldProfile) -> FieldProfile:
+    """Attach live Meteomatics 90m or regional climatology tactical advisory & hazards to a profile."""
+    if prof.tactical_advisory is not None:
+        return prof
+    prof = prof.model_copy(deep=True)
+    snap_ref_date: date | None = None
+    if prof.snapshot_date:
+        try:
+            snap_ref_date = date.fromisoformat(prof.snapshot_date)
+        except ValueError:
+            snap_ref_date = None
+    live_snap = None
+    if meteomatics.is_configured():
+        tact_kwargs = {"start_date": snap_ref_date} if snap_ref_date is not None else {}
+        snap_kwargs = {"ref_date": snap_ref_date} if snap_ref_date is not None else {}
+        live_adv = meteomatics.fetch_tactical_forecast(prof.field.lat, prof.field.lon, **tact_kwargs)
+        live_snap = meteomatics.fetch_soil_and_hazards_snapshot(prof.field.lat, prof.field.lon, **snap_kwargs)
+        if live_snap is not None:
+            _apply_snap_to_profile(prof, live_snap, only_if_none=False, append_prov=True)
+        if live_adv is not None:
+            prof.tactical_advisory = live_adv
+            prof.agro_climatic_notes = profiler.build_notes(
+                prof.climate, prof.soil, prof.water, prof.hazards, lat=prof.field.lat
+            )
+            return prof
+    reg_kwargs = {"ref_date": snap_ref_date} if snap_ref_date is not None else {}
+    snap_meta, reg_adv = meteomatics.estimate_regional_tactical_and_hazards(
+        prof.field.lat, prof.field.lon, prof.climate, prof.soil, prof.water, prof.hazards, **reg_kwargs
+    )
+    _apply_snap_to_profile(prof, snap_meta, only_if_none=True, append_prov=(live_snap is None))
+    prof.tactical_advisory = reg_adv
+    prof.agro_climatic_notes = profiler.build_notes(
+        prof.climate, prof.soil, prof.water, prof.hazards, lat=prof.field.lat
+    )
+    return prof
+
+
 @app.get("/golden/{field_id}/profile", response_model=FieldProfile)
 def golden_profile(field_id: str) -> FieldProfile:
     path = GOLDEN_DIR / field_id / "profile.json"
@@ -206,14 +301,14 @@ def golden_profile(field_id: str) -> FieldProfile:
         prof.snapshot_date = prof.snapshot_date or datetime.now(UTC).date().isoformat()
         if not prof.agro_zone:
             prof.agro_zone = economics.detect_agro_zone(prof.field.lat, prof.field.lon)
-        return prof
+        return _attach_tactical_advisory(prof)
     match = next((f for f in _golden_index() if f["id"] == field_id), None)
     if not match:
         raise HTTPException(404, f"Unknown golden field '{field_id}'")
     prof = profiler.build_profile(FieldGeometry(lat=match["lat"], lon=match["lon"], name=match["name"], id=field_id))
     prof.served_from = "demo_snapshot"
     prof.snapshot_date = datetime.now(UTC).date().isoformat()
-    return prof
+    return _attach_tactical_advisory(prof)
 
 
 @app.get("/golden/{field_id}/recommendations", response_model=list[StrategyRecommendation])
@@ -473,7 +568,7 @@ def build_profile(field: FieldGeometry) -> FieldProfile:
     prof.currency_symbol = reg_cfg.currency_symbol
     prof.validation_status = reg_cfg.validation_status
     prof.validation_message = reg_cfg.validation_message
-    return prof
+    return _attach_tactical_advisory(prof)
 
 
 @app.post("/suitability", response_model=list[SuitabilityItem])
@@ -485,10 +580,20 @@ def crop_suitability(req: SuitabilityRequest) -> list[SuitabilityItem]:
         prof = golden_profile(matched_id) if matched_id else profiler.build_profile(req.field)
     if req.soil_health_card is not None:
         prof = profiler.apply_soil_health_card_override(prof, req.soil_health_card)
+
+    if req.language in ("hi", "pa") or prof.served_from != "live_computation":
+        prof.agro_climatic_notes = profiler.build_notes(
+            prof.climate,
+            prof.soil,
+            prof.water,
+            prof.hazards,
+            lat=prof.field.lat,
+            language=req.language,
+        )
     crops = crop_kb.load_crops()
     return [
         SuitabilityItem(name=crops[r.crop_id].name, **r.__dict__)
-        for r in suitability.rank_crops(prof, crops, req.constraints)
+        for r in suitability.rank_crops(prof, crops, req.constraints, language=req.language)
     ]
 
 
@@ -657,6 +762,16 @@ def _recommend_impl(
     if req.soil_health_card is not None:
         prof = profiler.apply_soil_health_card_override(prof, req.soil_health_card)
 
+    if req.language in ("hi", "pa") or prof.served_from != "live_computation":
+        prof.agro_climatic_notes = profiler.build_notes(
+            prof.climate,
+            prof.soil,
+            prof.water,
+            prof.hazards,
+            lat=prof.field.lat,
+            language=req.language,
+        )
+
     if progress_cb:
         progress_cb("weather", 0.25)
 
@@ -679,6 +794,31 @@ def _recommend_impl(
     if weather_df is None or weather_df.empty:
         weather_df = nasa_power.synthetic_daily_weather(req.field.lat, req.field.lon, (1995, 2024))
         used_fallback_weather = True
+    elif matched_golden_id is None and meteomatics.is_configured():
+        try:
+            mm_recent = meteomatics.fetch_daily_weather(
+                req.field.lat, req.field.lon, date(2024, 10, 2), date(2024, 12, 31)
+            )
+            if mm_recent is not None and not mm_recent.empty:
+                weather_df = weather_df.copy()
+                mm_corr = nasa_power.apply_igp_irrigation_bias_correction(
+                    mm_recent.copy(), req.field.lat, req.field.lon
+                )
+                if "ET0" in mm_corr.columns and "ET0" not in weather_df.columns:
+                    weather_df["ET0"] = np.nan
+                has_obs_imerg = any(
+                    "IMERG" in p.source and p.mode == "observed" for p in prof.climate.provenance
+                )
+                allowed_cols = (
+                    ("T2M_MAX", "T2M_MIN", "ALLSKY_SFC_SW_DWN", "RH2M", "WS2M", "ET0")
+                    if has_obs_imerg
+                    else ("T2M_MAX", "T2M_MIN", "PRECTOTCORR", "ALLSKY_SFC_SW_DWN", "RH2M", "WS2M", "ET0")
+                )
+                common_cols = [c for c in allowed_cols if c in weather_df.columns and c in mm_corr.columns]
+                if common_cols:
+                    weather_df.update(mm_corr[common_cols])
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Live Meteomatics recent daily weather overlay skipped: %s", exc)
 
     rot_years = req.constraints.rotation_years
     if req.climate_scenario == "historical":
@@ -807,6 +947,7 @@ def _recommend_impl(
         region_id=reg_cfg.region_id,
         price_shock_pct=req.price_shock_pct,
         fertilizer_shock_pct=req.fertilizer_shock_pct,
+        language=req.language,
     )
 
     # 6. Map to objective scores for Pareto / Priority selection (incorporating procurement_type & market_risk)
@@ -843,6 +984,7 @@ def _recommend_impl(
             region_id=reg_cfg.region_id,
             price_shock_pct=req.price_shock_pct,
             fertilizer_shock_pct=req.fertilizer_shock_pct,
+            language=req.language,
         )
         cand_pms.append(pm)
         obj_dict = _build_objective_dict(r, res, pm)
@@ -892,6 +1034,7 @@ def _recommend_impl(
         list(prof.climate.provenance)
         + list(prof.water.provenance)
         + list(prof.soil.provenance)
+        + list(prof.hazards.provenance)
         + list(scenario_set.provenance)
         + [why_cards._FAO56_PROV, why_cards._ROTHC_PROV, why_cards._CACP_PROV]
     )
@@ -987,8 +1130,18 @@ def _recommend_impl(
             snapshot_date=None,
         )
         cards, provs = why_cards.why_cards(prof, rec, baseline_rec, language=req.language)
+        provs = list(provs)
         if scenario_set.kind == "cmip6":
-            provs = list(provs) + list(scenario_set.provenance)
+            provs.extend(scenario_set.provenance)
+        seen_sources = {p.source for p in provs}
+        if (
+            prof.water.soil_moisture_deficit_mm is not None
+            or prof.hazards.max_30m_precip_rate_mmh is not None
+        ):
+            for p in (*prof.water.provenance, *prof.hazards.provenance):
+                if "Meteomatics" in p.source and p.source not in seen_sources:
+                    provs.append(p)
+                    seen_sources.add(p.source)
         rec.why = cards
         rec.provenance = provs
         out_recs.append(rec)
@@ -1130,6 +1283,16 @@ def _async_recommend_worker(job_id: str, req: RecommendRequest) -> None:
 @app.post("/recommend/async")
 def recommend_async(req: RecommendRequest) -> dict:
     """Submit an asynchronous crop-rotation recommendation simulation job (TASK-H02)."""
+    now = time.time()
+    with _JOBS_LOCK:
+        active_jobs = sum(
+            1
+            for j in _RECOMMEND_JOBS.values()
+            if j.get("status") == "running" and now - float(j.get("created_at", 0.0)) < 120.0
+        )
+        if active_jobs >= 8:
+            raise HTTPException(status_code=429, detail="Too many concurrent optimization jobs running")
+
     job_id = str(uuid.uuid4())
     init_state = {
         "job_id": job_id,
@@ -1138,7 +1301,7 @@ def recommend_async(req: RecommendRequest) -> dict:
         "step": "profile",
         "result": None,
         "error": None,
-        "created_at": time.time(),
+        "created_at": now,
     }
     _save_job(job_id, init_state)
     if os.environ.get("VERCEL"):

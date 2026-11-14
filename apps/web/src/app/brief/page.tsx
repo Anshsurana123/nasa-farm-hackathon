@@ -22,6 +22,15 @@ export default function BriefPage() {
   const { t } = useI18n();
   const { profile, strategies, selectedField, constraints } = useField();
   const [areaHa, setAreaHa] = useState<number>(() => constraints.area_ha ?? 2.5);
+  const [prevConstraintArea, setPrevConstraintArea] = useState<number | undefined>(
+    constraints.area_ha
+  );
+  if (constraints.area_ha !== prevConstraintArea) {
+    setPrevConstraintArea(constraints.area_ha);
+    if (constraints.area_ha != null) {
+      setAreaHa(constraints.area_ha);
+    }
+  }
   const [selectedRank, setSelectedRank] = useState<number>(1);
 
   const isSA = isSouthAsia(selectedField.lat, selectedField.lon);
@@ -77,7 +86,7 @@ export default function BriefPage() {
   return (
     <AppShell
       pageStep="06"
-      pageBadge="EXECUTIVE EXTENSION DOSSIER · FARM-SCALE IMPACT CALCULATOR · PRINT-READY PDF"
+      pageBadge={t("nav.badge.brief")}
       pageTitle={t("brief.title")}
       pageDescription={t("brief.subtitle")}
       headerActions={
@@ -279,7 +288,7 @@ export default function BriefPage() {
 
         {/* Printable 1-Page Executive Brief */}
         {profile && strategies.length > 0 && (
-          <AgronomicBrief profile={profile} strategies={strategies} />
+          <AgronomicBrief profile={profile} strategies={strategies} areaHaOverride={areaHa} />
         )}
       </div>
     </AppShell>

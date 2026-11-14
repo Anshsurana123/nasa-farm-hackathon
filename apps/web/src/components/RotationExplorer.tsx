@@ -102,13 +102,13 @@ export function RotationExplorer({
           "groundnut",
           "pearl_millet",
           "sorghum",
-          "pigeonpea",
+          "pigeon_pea",
           "lentil",
           "barley",
           "potato",
-          "onion",
+          "common_bean",
           "sunflower",
-          "sesame",
+          "berseem",
           "urad",
           "dhaincha",
         ];
@@ -324,7 +324,7 @@ export function RotationExplorer({
   }, []);
 
   useEffect(() => {
-    if (externalStrategies || !field) return;
+    if (externalStrategies !== undefined || externalLoading || !field) return;
     if (autoFetchInFlightRef.current === fieldKey) return;
     autoFetchInFlightRef.current = fieldKey;
     let isCancelled = false;
@@ -1055,16 +1055,15 @@ export function RotationExplorer({
                   <Globe className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" />
                   <div>
                     <strong className="font-bold block uppercase tracking-wider text-[11px] text-sky-600 dark:text-sky-400">
-                      Scope Notice // International Location
+                      {t("rotations.scopeNoticeTitle")}
                     </strong>
                     <p className="mt-0.5 text-muted leading-relaxed">
-                      {baseline.validation_message ||
-                        "This field is located outside TerraLoop's calibrated Indian agro-climatic zones. Biophysical soil-water models are simulated using global NASA Earth observations, but regional crop calendars and CACP MSP economic data are unvalidated for this region."}
+                      {baseline.validation_message || t("rotations.scopeNoticeBody")}
                     </p>
                   </div>
                 </div>
                 <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 font-bold">
-                  NASA Global EO
+                  {t("rotations.scopeNoticeBadge")}
                 </span>
               </div>
             )}
@@ -2074,7 +2073,7 @@ export function RotationExplorer({
                     const normP = res?.profit_p50 ?? (isSA ? 85000 : 950);
                     const normIrr = res?.irrigation_mm?.length
                       ? res.irrigation_mm.reduce((a, b) => a + b, 0) / res.irrigation_mm.length
-                      : 1200;
+                      : 0;
 
                     const matchedEngineStress = stressedStrategies?.find(
                       (s) => s.rotation.id === strat.rotation.id || (strat.rank === 0 && s.rank === 0)
@@ -2108,9 +2107,9 @@ export function RotationExplorer({
                       if (matched) return matched.group === "legume";
                       return [
                         "moong",
-                        "summer_moong",
+                        "common_bean",
                         "chickpea",
-                        "pigeonpea",
+                        "pigeon_pea",
                         "lentil",
                         "urad",
                         "dhaincha",
@@ -2422,7 +2421,7 @@ function StrategyCard({
   const res = strategy.results[0];
   const irr = res?.irrigation_mm?.length
     ? Math.round(res.irrigation_mm.reduce((a, b) => a + b, 0) / res.irrigation_mm.length)
-    : 1200;
+    : 0;
 
   const isRainfedBase = strategy.vs_baseline?.is_rainfed_baseline === 1.0;
   const waterChange =
@@ -2642,7 +2641,7 @@ function StrategyCard({
               }`}
             >
               {(res?.soc_delta_t_ha_10yr ?? 0) > 0 ? "+" : ""}
-              {(res?.soc_delta_t_ha_10yr ?? -0.8).toFixed(1)} t C/ha
+              {(res?.soc_delta_t_ha_10yr ?? 0).toFixed(1)} t C/ha
             </span>
           </div>
 
@@ -2704,8 +2703,8 @@ function ParetoCube3D({
   strategies,
   selectedRank,
   onSelectRank,
-  currencySymbol = "$",
-  unitSystem = "hectare",
+  currencySymbol = "₹",
+  unitSystem = "acre",
 }: {
   strategies: StrategyRecommendation[];
   selectedRank: number | null;
@@ -2833,7 +2832,7 @@ function ParetoCube3D({
 
     const irrs = strategies.map((s) => {
       const arr = s.results[0]?.irrigation_mm;
-      return arr?.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 1000;
+      return arr?.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
     });
     const profits = strategies.map((s) => scaleByUnit(s.results[0]?.profit_p50 ?? 1000, unitSystem));
     const soils = strategies.map((s) => s.results[0]?.soil_health_score ?? 50);
@@ -3026,8 +3025,8 @@ function ParetoScatterPlot({
   strategies,
   selectedRank,
   onSelectRank,
-  currencySymbol = "$",
-  unitSystem = "hectare",
+  currencySymbol = "₹",
+  unitSystem = "acre",
 }: {
   strategies: StrategyRecommendation[];
   selectedRank: number | null;
@@ -3050,7 +3049,7 @@ function ParetoScatterPlot({
   const allProfits = strategies.map((s) => scaleByUnit(s.results[0]?.profit_p50 ?? 1000, unitSystem));
   const allIrrs = strategies.map((s) => {
     const irrs = s.results[0]?.irrigation_mm;
-    return irrs?.length ? irrs.reduce((a, b) => a + b, 0) / irrs.length : 800;
+    return irrs?.length ? irrs.reduce((a, b) => a + b, 0) / irrs.length : 0;
   });
 
   const rawMinP = Math.min(...allProfits);
@@ -3079,7 +3078,7 @@ function ParetoScatterPlot({
     const res = s.results[0];
     const irr = res?.irrigation_mm?.length
       ? res.irrigation_mm.reduce((a, b) => a + b, 0) / res.irrigation_mm.length
-      : 800;
+      : 0;
     const p = scaleByUnit(res?.profit_p50 ?? 1000, unitSystem);
     const score = res?.soil_health_score ?? 50;
     return {
