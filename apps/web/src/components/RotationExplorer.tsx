@@ -2193,6 +2193,8 @@ export function RotationExplorer({
                 </tbody>
               </table>
             </div>
+
+            <ProvenanceChip provenance={(stressedStrategies ?? strategies)[0]?.provenance} />
           </div>
         )}
       </div>

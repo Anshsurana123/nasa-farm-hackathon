@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { useI18n } from "@/i18n";
 import { cropName } from "@/lib/ui";
 import { ProgressRing } from "./ProgressRing";
+import { ProvenanceChip } from "./ProvenanceChip";
 import {
   Droplets,
   CloudSunRain,
@@ -434,6 +435,7 @@ export function TelemetryBar({ profile }: { profile: FieldProfile }) {
                       <span className="font-bold text-foreground">{day.date.slice(5)}</span>
                       <span className="text-sky-600 dark:text-sky-400 font-semibold">
                         {day.precip_mm.toFixed(1)}mm
+                        {day.prob_precip_pct != null ? ` (${Math.round(day.prob_precip_pct)}%)` : ""}
                       </span>
                     </div>
                     <div className="text-foreground font-semibold">
@@ -450,6 +452,8 @@ export function TelemetryBar({ profile }: { profile: FieldProfile }) {
               </div>
             </div>
           )}
+
+          <ProvenanceChip provenance={tactical_advisory.provenance} />
         </div>
       )}
     </div>

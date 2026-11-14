@@ -258,6 +258,13 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 25000): 
             const droughtBonus =
               (prof.hazards.meteorological_drought_idx ?? 0) < -1.5 && c.drought_tolerance >= 4 ? 0.05 : 0;
             const score = Math.max(0, Math.min(1, Number((thermalFit * waterFit + droughtBonus).toFixed(3))));
+            const fitPct = Math.round(score * 100);
+            const reasonText =
+              sReq.language === "pa"
+                ? `ਆਫ਼ਲਾਈਨ ਖੇਤਰੀ ਅਨੁਕੂਲਤਾ ਅੰਦਾਜ਼ਾ (${fitPct}% ਢੁਕਵਾਂ)`
+                : sReq.language === "hi"
+                ? `ऑफ़लाइन क्षेत्रीय उपयुक्तता अनुमान (${fitPct}% उपयुक्त)`
+                : `Offline regional suitability estimate (${fitPct}% fit)`;
             return {
               crop_id: c.id,
               name: c.name,
@@ -265,7 +272,7 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 25000): 
               thermal_fit: Number(thermalFit.toFixed(2)),
               water_fit: Number(waterFit.toFixed(2)),
               sowing_months: c.season_type.includes("cool") ? [11] : [6],
-              reasons: [`Offline regional suitability estimate (${Math.round(score * 100)}% fit)`],
+              reasons: [reasonText],
             };
           })
           .sort((a, b) => b.score - a.score);

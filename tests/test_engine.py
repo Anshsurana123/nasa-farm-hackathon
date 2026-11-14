@@ -1338,13 +1338,14 @@ def test_shc_nitrogen_credit_economics(punjab_profile):
     assert pm_with_shc.input_cost_inr_per_ha < pm_no_shc.input_cost_inr_per_ha
 
 
-def test_async_recommend_job_lifecycle():
+def test_async_recommend_job_lifecycle(monkeypatch):
     """Verify asynchronous recommendation job submission and status polling (TASK-H02)."""
     import time
 
     from fastapi.testclient import TestClient
     from terraloop_api.main import app
 
+    monkeypatch.setattr("terraloop_engine.explain.why_cards._call_gemini_api", lambda *a, **kw: None)
     client = TestClient(app)
     payload = {
         "field": {"id": "sangrur", "lat": 30.19, "lon": 75.78, "name": "Sangrur Hero Field"},
@@ -1359,9 +1360,9 @@ def test_async_recommend_job_lifecycle():
     assert 0.0 <= job_data["progress"] <= 1.0
 
     job_id = job_data["job_id"]
-    # Poll for completion (with golden field, it finishes within ~10-15s under test load)
+    # Poll for completion (up to 60s under heavy Windows/CI load)
     pdata = {}
-    for _ in range(150):
+    for _ in range(300):
         poll = client.get(f"/recommend/jobs/{job_id}")
         assert poll.status_code == 200
         pdata = poll.json()
@@ -3301,18 +3302,21 @@ def test_meteomatics_http_token_401_retry_and_endpoints(monkeypatch, tmp_path):
                 assert auth == ("demo_user", "demo_pass")
                 return _FakeResponse(200, {"access_token": "tok_test_123", "expires_in": 3600})
 
+            params_seg = url.split("/json")[0].split("/")[-2].split(",")
+            assert 1 <= len(params_seg) <= 10, f"Exceeded 10-param Meteomatics limit: {params_seg}"
+
             if not bearer_401_triggered["done"] and auth_hdr == "Bearer tok_test_123":
                 bearer_401_triggered["done"] = True
                 return _FakeResponse(401, {"error": "expired"})
 
-            if "elevation:m" in url:
+            if "elevation:m" in params_seg:
                 assert "2024-01-01T00:00:00Z" in url
                 coords = []
                 for elev in (250.4, 249.8, 250.2, 249.9):
                     coords.append({"dates": [{"date": "2024-01-01T00:00:00Z", "value": elev}]})
                 return _FakeResponse(200, {"data": [{"parameter": "elevation:m", "coordinates": coords}]})
 
-            if "volumetric_soil_water_-5cm:m3m3" in url:
+            if "2026-11-14T06:00:00Z" in url:
                 vals = {
                     "soil_moisture_deficit:mm": 31.2,
                     "soil_moisture_index_-5cm:idx": 0.45,
@@ -3332,18 +3336,18 @@ def test_meteomatics_http_token_401_retry_and_endpoints(monkeypatch, tmp_path):
                     "precip_30min:mm": 0.0,
                 }
                 data = [
-                    {"parameter": k, "coordinates": [{"dates": [{"date": "2026-11-14T06:00:00Z", "value": v}]}]}
-                    for k, v in vals.items()
+                    {"parameter": k, "coordinates": [{"dates": [{"date": "2026-11-14T06:00:00Z", "value": vals[k]}]}]}
+                    for k in params_seg
                 ]
                 return _FakeResponse(200, {"data": data})
 
-            # Tactical 7-day forecast query
+            # Tactical 7-day forecast query (include one sentinel -999 on day 2 t_min to verify NaN guard)
             assert "T12:00:00Z--" in url
             dates_d1 = {"date": "2026-11-14T12:00:00Z"}
             dates_d2 = {"date": "2026-11-15T12:00:00Z"}
             tact_vals = {
                 "t_max_2m_24h:C": [28.0, 27.5],
-                "t_min_2m_24h:C": [14.0, 13.5],
+                "t_min_2m_24h:C": [14.0, -999.0],
                 "precip_24h:mm": [0.0, 0.5],
                 "prob_precip_24h:p": [5.0, 15.0],
                 "evapotranspiration_24h:mm": [3.2, 3.0],
@@ -3355,9 +3359,9 @@ def test_meteomatics_http_token_401_retry_and_endpoints(monkeypatch, tmp_path):
             data = [
                 {
                     "parameter": k,
-                    "coordinates": [{"dates": [{**dates_d1, "value": vs[0]}, {**dates_d2, "value": vs[1]}]}],
+                    "coordinates": [{"dates": [{**dates_d1, "value": tact_vals[k][0]}, {**dates_d2, "value": tact_vals[k][1]}]}],
                 }
-                for k, vs in tact_vals.items()
+                for k in params_seg
             ]
             return _FakeResponse(200, {"data": data})
 
@@ -3368,14 +3372,53 @@ def test_meteomatics_http_token_401_retry_and_endpoints(monkeypatch, tmp_path):
     assert bearer_401_triggered["done"] is True
     assert any(auth == ("demo_user", "demo_pass") and url != meteomatics.TOKEN_URL for url, _, auth in seen_requests)
     assert snap["volumetric_soil_water_layers"] == {"-5cm": 0.221, "-15cm": 0.242, "-50cm": 0.265, "-150cm": 0.28}
+    assert snap["late_blight_risk_idx"] == 92.0
+    assert snap["fire_weather_index"] == 29.5
     assert snap["hail_probability_pct"] is None
     assert snap["max_30m_precip_rate_mmh"] is None
 
     adv = meteomatics.fetch_tactical_forecast(30.19, 75.78, days=2, start_date=date(2026, 11, 14))
     assert adv is not None and len(adv.forecast_days) == 2
+    assert adv.forecast_days[1].tmin_c == pytest.approx(17.5)  # 27.5 - 10.0 fallback for -999 sentinel
 
     slope = meteomatics.fetch_srtm_slope_pct(30.19, 75.78)
     assert slope is not None and slope >= 0.0
+
+    # Verify sentinel-only parameter filtering and UTC offset normalization in _extract_param_series
+    extracted = meteomatics._extract_param_series(
+        {
+            "data": [
+                {
+                    "parameter": "t_2m:C",
+                    "coordinates": [{"dates": [{"date": "2026-11-14T02:00:00+02:00", "value": 21.5}]}],
+                },
+                {
+                    "parameter": "precip_24h:mm",
+                    "coordinates": [{"dates": [{"date": "2026-11-14T00:00:00Z", "value": -888.0}]}],
+                },
+                {
+                    "parameter": "hail_24h:cm",
+                    "coordinates": [{"dates": [{"date": "2026-11-14T00:00:00Z", "value": -999.0}]}],
+                },
+            ]
+        }
+    )
+    assert list(extracted.keys()) == ["t_2m:C"]
+    assert extracted["t_2m:C"].index[0] == pd.Timestamp("2026-11-14")
+    assert meteomatics.METEOMATICS_CMIP6_PROVENANCE.url.endswith("/climate-data/")
+
+    # Verify fetch_cmip6_daily handles missing precip_24h:mm cleanly (e.g. sentinel-only or tier-restricted)
+    monkeypatch.setattr(
+        meteomatics,
+        "_query_param_batches",
+        lambda vrange, params, loc, extra_query="": {
+            "t_max_2m_24h:C": pd.Series([31.0, 32.0], index=pd.date_range("2030-01-01", periods=2)),
+            "t_min_2m_24h:C": pd.Series([16.0, 17.0], index=pd.date_range("2030-01-01", periods=2)),
+        },
+    )
+    cmip_no_precip = meteomatics.fetch_cmip6_daily(30.19, 75.78, "ssp245", "2030-01-01", "2030-01-02")
+    assert cmip_no_precip is not None
+    assert (cmip_no_precip["pr"] == 0.0).all()
 
 
 def test_profiler_power_outage_with_meteomatics_daily_overlay(monkeypatch, tmp_path):

@@ -132,7 +132,7 @@ function computeParcelSuitability(
 }
 
 export default function CropsPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { crops, profile, selectedField, constraints, soilHealthCard } = useField();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -152,6 +152,7 @@ export default function CropsPage() {
         constraints,
         profile,
         soil_health_card: soilHealthCard,
+        language: (lang as "en" | "pa" | "hi") || "en",
       })
       .then((items) => {
         if (cancelled || !items) return;
@@ -167,7 +168,7 @@ export default function CropsPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedField.lat, selectedField.lon, selectedField.name, constraints, profile, soilHealthCard]);
+  }, [selectedField.lat, selectedField.lon, selectedField.name, constraints, profile, soilHealthCard, lang]);
 
   const enrichedCrops = useMemo(() => {
     return crops.map((crop) => {

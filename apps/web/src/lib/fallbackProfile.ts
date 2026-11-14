@@ -18,6 +18,7 @@ export function attachFallbackMeteomatics(prof: FieldProfile): FieldProfile {
     product: "Synthesized 7-Day Field Operations & Soil Moisture Climatology (Live API Credentials Unset)",
     resolution: "Regional agro-zone",
     period: "Next 7 days",
+    url: "https://www.meteomatics.com/en/api/getting-started/",
     mode: "regional_climatology",
   };
   const smiLayers = prof.water.soil_moisture_index_layers ?? {
@@ -66,7 +67,7 @@ export function attachFallbackMeteomatics(prof: FieldProfile): FieldProfile {
     const dailyEt0 = Number(((prof.climate.annual_et0_mm ?? 1400) / 365).toFixed(1));
     const daySeedTemp = water.seedbed_temp_5cm_c ?? Number(((baseTx + baseTn) / 2).toFixed(1));
 
-    const forecastDays: TacticalDayForecast[] = Array.from({ length: 7 }, (_, i) => {
+    const forecastDays: TacticalDayForecast[] = Array.from({ length: 7 }, (_, i): TacticalDayForecast => {
       const d = new Date(baseDate.getTime() + i * 86400000);
       const rainDay = i === 2 || i === 5 ? dailyPrecip : Number((dailyPrecip * 0.2).toFixed(1));
       return {
@@ -82,18 +83,38 @@ export function attachFallbackMeteomatics(prof: FieldProfile): FieldProfile {
       };
     });
 
+    const deficit = water.soil_moisture_deficit_mm ?? 28.5;
     const next7dPrecip = Number(forecastDays.reduce((s, d) => s + d.precip_mm, 0).toFixed(1));
     const next7dEt0 = Number(forecastDays.reduce((s, d) => s + d.et0_mm, 0).toFixed(1));
-    const sowingCode: TacticalAdvisory["sowing_status_code"] =
-      daySeedTemp < 12 ? "too_cold" : daySeedTemp > 34 ? "too_hot" : (water.soil_moisture_deficit_mm ?? 0) > 45 ? "too_dry" : "optimal";
+    const next3dPrecip = forecastDays.slice(0, 3).reduce((s, d) => s + d.precip_mm, 0);
+    const first2d = forecastDays.slice(0, 2);
+    const highRainOrWind2d = first2d.some(
+      (d) => d.prob_precip_pct >= 55.0 || d.precip_mm >= 8.0 || d.wind_speed_ms >= 5.5
+    );
+    let sowingCode: TacticalAdvisory["sowing_status_code"] = "optimal";
+    if (daySeedTemp < 11.0) {
+      sowingCode = "too_cold";
+    } else if (daySeedTemp > 34.0) {
+      sowingCode = "too_hot";
+    }
+    if (deficit > 65.0) {
+      sowingCode = "too_dry";
+    } else if (next3dPrecip > 75.0) {
+      sowingCode = "waterlogged";
+    }
+
     const irrAction: TacticalAdvisory["irrigation_action"] =
-      next7dPrecip >= 15 ? "hold_rain_ahead" : (water.soil_moisture_deficit_mm ?? 0) >= 35 ? "irrigate_soon" : "adequate_moisture";
+      next3dPrecip >= 15.0 || (forecastDays[0]?.prob_precip_pct ?? 0) >= 65.0
+        ? "hold_rain_ahead"
+        : deficit >= 40.0 || next7dEt0 - next7dPrecip > 24.0
+        ? "irrigate_soon"
+        : "adequate_moisture";
 
     tactical = {
       sowing_ready: sowingCode === "optimal",
       sowing_status_code: sowingCode,
       irrigation_action: irrAction,
-      urea_spray_safe: next7dPrecip < 10,
+      urea_spray_safe: !highRainOrWind2d,
       next_7d_precip_mm: next7dPrecip,
       next_7d_et0_mm: next7dEt0,
       seedbed_temp_5cm_c: daySeedTemp,
@@ -106,6 +127,7 @@ export function attachFallbackMeteomatics(prof: FieldProfile): FieldProfile {
           product: "Offline 7-day operational climatology fallback",
           resolution: "Regional agro-zone",
           period: "Next 7 days",
+          url: "https://www.meteomatics.com/en/api/getting-started/",
           mode: "regional_climatology",
         },
       ],

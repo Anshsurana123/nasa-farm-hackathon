@@ -42,6 +42,7 @@ BASE_URL = os.environ.get("METEOMATICS_BASE_URL", "https://api.meteomatics.com")
 TOKEN_URL = "https://login.meteomatics.com/api/v1/token"
 
 _SENTINEL_MISSING = {-666.0, -777.0, -888.0, -999.0}
+MAX_PARAMS_PER_QUERY = 10
 _TOKEN_LOCK = threading.Lock()
 _CACHED_TOKEN: dict[str, Any] = {"token": None, "expires_at": 0.0, "user": None}
 
@@ -57,7 +58,7 @@ METEOMATICS_CMIP6_PROVENANCE = DataProvenance(
     source="Meteomatics CMIP6 (MRI-ESM2.0)",
     product="mri-esm2-ssp126/245/370/585 (90m Downscaled)",
     resolution="90 m, daily",
-    url="https://www.meteomatics.com/en/api/available-parameters/climate-scenarios/",
+    url="https://www.meteomatics.com/en/api/available-parameters/climate-data/",
     mode="observed",
 )
 
@@ -191,11 +192,12 @@ def _extract_param_series(payload: dict) -> dict[str, pd.Series]:
             if not ts_str:
                 continue
             v = _clean_val(item.get("value"))
-            idx_vals.append(pd.to_datetime(ts_str).tz_localize(None).floor("D"))
+            idx_vals.append(pd.to_datetime(ts_str, utc=True).tz_localize(None).floor("D"))
             num_vals.append(float("nan") if v is None else v)
         if idx_vals:
             ser = pd.Series(num_vals, index=pd.DatetimeIndex(idx_vals), name=pname, dtype=float)
-            out[pname] = ser[~ser.index.duplicated(keep="last")].sort_index()
+            if ser.notna().any():
+                out[pname] = ser[~ser.index.duplicated(keep="last")].sort_index()
     return out
 
 
@@ -205,24 +207,30 @@ def _query_param_batches(
     location: str,
     extra_query: str = "",
 ) -> dict[str, pd.Series]:
-    """Query parameters together, degrading gracefully to smaller chunks if account tier restricts any."""
+    """Query parameters in Meteomatics-compliant batches (max 10/request), degrading per-parameter on tier errors."""
     if not params:
         return {}
-    try:
-        payload = _fetch_meteomatics_json(valid_datetime, ",".join(params), location, extra_query=extra_query)
-        return _extract_param_series(payload)
-    except httpx.HTTPStatusError as exc:
-        # 400 / 403 / 404 often means one optional parameter in the batch isn't in user's license tier.
-        if exc.response.status_code in (400, 403, 404) and len(params) > 1:
-            merged: dict[str, pd.Series] = {}
-            for p in params:
-                try:
-                    sub_payload = _fetch_meteomatics_json(valid_datetime, p, location, extra_query=extra_query)
-                    merged.update(_extract_param_series(sub_payload))
-                except Exception as sub_exc:  # noqa: BLE001
-                    log.debug("Meteomatics parameter %s unavailable on current plan: %s", p, sub_exc)
-            return merged
-        raise
+    merged: dict[str, pd.Series] = {}
+    for i in range(0, len(params), MAX_PARAMS_PER_QUERY):
+        chunk = params[i : i + MAX_PARAMS_PER_QUERY]
+        try:
+            payload = _fetch_meteomatics_json(valid_datetime, ",".join(chunk), location, extra_query=extra_query)
+            merged.update(_extract_param_series(payload))
+        except httpx.HTTPStatusError as exc:
+            # 400 / 403 / 404 often means one optional parameter in the batch isn't in user's license tier.
+            if exc.response.status_code in (400, 403, 404) and len(params) > 1:
+                if len(chunk) > 1:
+                    for p in chunk:
+                        try:
+                            sub_payload = _fetch_meteomatics_json(valid_datetime, p, location, extra_query=extra_query)
+                            merged.update(_extract_param_series(sub_payload))
+                        except Exception as sub_exc:  # noqa: BLE001
+                            log.debug("Meteomatics parameter %s unavailable on current plan: %s", p, sub_exc)
+                else:
+                    log.debug("Meteomatics parameter %s unavailable on current plan: %s", chunk[0], exc)
+            else:
+                raise
+    return merged
 
 
 def fetch_daily_weather(
@@ -266,7 +274,11 @@ def fetch_daily_weather(
     df.index.name = "date"
     df["T2M_MAX"] = series_map["t_max_2m_24h:C"]
     df["T2M_MIN"] = series_map["t_min_2m_24h:C"]
-    df["PRECTOTCORR"] = series_map.get("precip_24h:mm", 0.0)
+    df["PRECTOTCORR"] = (
+        series_map["precip_24h:mm"].reindex(df.index).fillna(0.0).clip(lower=0.0)
+        if "precip_24h:mm" in series_map
+        else 0.0
+    )
     if "global_rad_24h:Wh" in series_map:
         # 1 Wh/m2 = 0.0036 MJ/m2
         df["ALLSKY_SFC_SW_DWN"] = (series_map["global_rad_24h:Wh"] * 0.0036).clip(lower=1.0, upper=35.0)
@@ -276,7 +288,8 @@ def fetch_daily_weather(
         df["WS2M"] = series_map["wind_speed_2m:ms"].clip(lower=0.1, upper=30.0)
     if "evapotranspiration_24h:mm" in series_map:
         df["ET0"] = series_map["evapotranspiration_24h:mm"].clip(lower=0.0, upper=20.0)
-    return df.dropna(subset=["T2M_MAX", "T2M_MIN"]).sort_index()
+    clean_df = df.dropna(subset=["T2M_MAX", "T2M_MIN"]).sort_index()
+    return None if clean_df.empty else clean_df
 
 
 def fetch_cmip6_daily(
@@ -334,14 +347,19 @@ def fetch_cmip6_daily(
         sub.index.name = "date"
         sub["tasmax"] = series_map["t_max_2m_24h:C"]
         sub["tasmin"] = series_map["t_min_2m_24h:C"]
-        sub["pr"] = series_map.get("precip_24h:mm", 0.0).fillna(0.0).clip(lower=0.0)
+        sub["pr"] = (
+            series_map["precip_24h:mm"].reindex(sub.index).fillna(0.0).clip(lower=0.0)
+            if "precip_24h:mm" in series_map
+            else 0.0
+        )
         if "global_rad_24h:Wh" in series_map:
             sub["ALLSKY_SFC_SW_DWN"] = (series_map["global_rad_24h:Wh"] * 0.0036).clip(lower=1.0, upper=35.0)
         if "relative_humidity_2m:p" in series_map:
             sub["RH2M"] = series_map["relative_humidity_2m:p"].clip(lower=5.0, upper=100.0)
         if "wind_speed_2m:ms" in series_map:
             sub["WS2M"] = series_map["wind_speed_2m:ms"].clip(lower=0.1, upper=30.0)
-        return sub.dropna(subset=["tasmax", "tasmin"]).sort_index()
+        clean_sub = sub.dropna(subset=["tasmax", "tasmin"]).sort_index()
+        return None if clean_sub.empty else clean_sub
 
     if span_days <= 366:
         df = _fetch_span(start, end)
@@ -610,13 +628,17 @@ def fetch_tactical_forecast(
 
     tx_s = series_map.get("t_max_2m_24h:C")
     tn_s = series_map.get("t_min_2m_24h:C")
-    if tx_s is None or tn_s is None or tx_s.empty:
+    if tx_s is None or tn_s is None or tx_s.dropna().empty:
         return None
 
     days_out: list[TacticalDayForecast] = []
-    for ts in tx_s.index[:days]:
+    for ts in tx_s.dropna().index[:days]:
         tmax = float(tx_s.loc[ts])
-        tmin = float(tn_s.loc[ts]) if ts in tn_s.index else tmax - 10.0
+        tmin = (
+            float(tn_s.loc[ts])
+            if (ts in tn_s.index and not pd.isna(tn_s.loc[ts]))
+            else tmax - 10.0
+        )
 
         def _at(key: str, default: float | None = 0.0, _ts: pd.Timestamp = ts) -> float | None:
             s = series_map.get(key)
