@@ -1,0 +1,310 @@
+# Global Cropping Calendar Archetypes for TerraLoop
+# Consumed by region_registry.py, suitability.py, optimize/rotations.py, models/fao56_runner.py, and eo/phenology.py.
+# Every calendar defines 3 indexed seasonal slots (0, 1, 2) for uniform matrix compatibility across annual/multi-year rotations.
+
+calendars:
+  india_igp:
+    name: "Indo-Gangetic & Indian Monsoon Calendar (Kharif / Rabi / Zaid)"
+    slots:
+      - slot_index: 0
+        slot_id: "kharif"
+        name: "Kharif (SW Monsoon)"
+        season_type: "warm"
+        sowing_months: [6, 7]
+        default_sowing_doy: 165
+        max_duration_days: 165
+        typical_harvest_months: [9, 10, 11]
+        overwintering: false
+        optional: false
+      - slot_index: 1
+        slot_id: "rabi"
+        name: "Rabi (Winter)"
+        season_type: "cool"
+        sowing_months: [10, 11]
+        default_sowing_doy: 305
+        max_duration_days: 175
+        typical_harvest_months: [3, 4]
+        overwintering: false
+        optional: false
+      - slot_index: 2
+        slot_id: "zaid"
+        name: "Zaid (Pre-Monsoon Summer)"
+        season_type: "warm"
+        sowing_months: [4]
+        default_sowing_doy: 100
+        max_duration_days: 75
+        typical_harvest_months: [5, 6]
+        overwintering: false
+        optional: true
+
+  india_delta:
+    name: "South Coastal / Cauvery Delta Calendar (Kuruvai / Samba / Navarai)"
+    slots:
+      - slot_index: 0
+        slot_id: "kharif_kuruvai"
+        name: "Kuruvai (SW Monsoon)"
+        season_type: "warm"
+        sowing_months: [6, 7]
+        default_sowing_doy: 165
+        max_duration_days: 135
+        typical_harvest_months: [9, 10]
+        overwintering: false
+        optional: false
+      - slot_index: 1
+        slot_id: "rabi_samba"
+        name: "Samba / Thaladi (NE Monsoon)"
+        season_type: "warm"
+        sowing_months: [10, 11]
+        default_sowing_doy: 295
+        max_duration_days: 150
+        typical_harvest_months: [1, 2, 3]
+        overwintering: false
+        optional: false
+      - slot_index: 2
+        slot_id: "summer_navarai"
+        name: "Navarai / Rice-Fallow Pulse"
+        season_type: "warm"
+        sowing_months: [2, 3]
+        default_sowing_doy: 55
+        max_duration_days: 80
+        typical_harvest_months: [4, 5]
+        overwintering: false
+        optional: true
+
+  temperate_spring_summer:
+    name: "Northern Temperate Continental (Spring–Summer / Overwinter Cereal–Cover / Early Spring Break)"
+    slots:
+      - slot_index: 0
+        slot_id: "spring_summer"
+        name: "Spring–Summer Main"
+        season_type: "warm"
+        sowing_months: [4, 5]
+        default_sowing_doy: 120
+        max_duration_days: 170
+        typical_harvest_months: [9, 10]
+        overwintering: false
+        optional: false
+      - slot_index: 1
+        slot_id: "winter_overwinter"
+        name: "Autumn–Spring Overwinter"
+        season_type: "cool"
+        sowing_months: [9, 10]
+        default_sowing_doy: 270
+        max_duration_days: 265
+        typical_harvest_months: [6, 7]
+        overwintering: true
+        optional: true
+      - slot_index: 2
+        slot_id: "early_spring_break"
+        name: "Early Spring Cool Break"
+        season_type: "cool"
+        sowing_months: [3, 4]
+        default_sowing_doy: 85
+        max_duration_days: 125
+        typical_harvest_months: [6, 7]
+        overwintering: false
+        optional: true
+
+  maritime_temperate:
+    name: "Maritime Temperate (Autumn Winter Cereal / Spring Break / Autumn Catch Cover)"
+    slots:
+      - slot_index: 0
+        slot_id: "winter_cereal"
+        name: "Autumn-Sown Winter Crop"
+        season_type: "cool"
+        sowing_months: [9, 10, 11]
+        default_sowing_doy: 280
+        max_duration_days: 285
+        typical_harvest_months: [7, 8]
+        overwintering: true
+        optional: true
+      - slot_index: 1
+        slot_id: "spring_break"
+        name: "Spring–Summer Break Crop"
+        season_type: "warm"
+        sowing_months: [3, 4, 5]
+        default_sowing_doy: 95
+        max_duration_days: 175
+        typical_harvest_months: [8, 9, 10]
+        overwintering: false
+        optional: true
+      - slot_index: 2
+        slot_id: "autumn_catch"
+        name: "Autumn Catch / Cover"
+        season_type: "cool"
+        sowing_months: [8, 9]
+        default_sowing_doy: 235
+        max_duration_days: 95
+        typical_harvest_months: [11, 12]
+        overwintering: false
+        optional: true
+
+  tropical_savanna_sh:
+    name: "Southern Hemisphere Tropical Savanna (Safra / Safrinha / Dry-Season Cover)"
+    slots:
+      - slot_index: 0
+        slot_id: "safra_principal"
+        name: "Safra Principal (Main Wet)"
+        season_type: "warm"
+        sowing_months: [9, 10, 11]
+        default_sowing_doy: 285
+        max_duration_days: 145
+        typical_harvest_months: [1, 2, 3]
+        overwintering: true
+        optional: false
+      - slot_index: 1
+        slot_id: "safrinha"
+        name: "Safrinha (Second Rainy)"
+        season_type: "warm"
+        sowing_months: [1, 2, 3]
+        default_sowing_doy: 45
+        max_duration_days: 140
+        typical_harvest_months: [6, 7]
+        overwintering: false
+        optional: true
+      - slot_index: 2
+        slot_id: "offseason_cover"
+        name: "Dry-Season Cover / Relay"
+        season_type: "cool"
+        sowing_months: [6, 7, 8]
+        default_sowing_doy: 175
+        max_duration_days: 95
+        typical_harvest_months: [9, 10]
+        overwintering: false
+        optional: true
+
+  equatorial_bimodal:
+    name: "Equatorial / East African Highlands Bimodal (Long Rains / Short Rains / Highland Cool)"
+    slots:
+      - slot_index: 0
+        slot_id: "long_rains"
+        name: "Long Rains (Masika)"
+        season_type: "warm"
+        sowing_months: [3, 4]
+        default_sowing_doy: 75
+        max_duration_days: 165
+        typical_harvest_months: [7, 8, 9]
+        overwintering: false
+        optional: false
+      - slot_index: 1
+        slot_id: "short_rains"
+        name: "Short Rains (Vuli)"
+        season_type: "warm"
+        sowing_months: [10, 11]
+        default_sowing_doy: 290
+        max_duration_days: 135
+        typical_harvest_months: [1, 2, 3]
+        overwintering: true
+        optional: true
+      - slot_index: 2
+        slot_id: "dry_relay_forage"
+        name: "Highland Cool / Forage Relay"
+        season_type: "cool"
+        sowing_months: [7, 8]
+        default_sowing_doy: 195
+        max_duration_days: 105
+        typical_harvest_months: [10]
+        overwintering: false
+        optional: true
+
+  southern_mediterranean:
+    name: "Southern Hemisphere Mediterranean / Semi-Arid Belt (Autumn–Spring Winter / Summer Opportunity)"
+    slots:
+      - slot_index: 0
+        slot_id: "winter_break"
+        name: "Autumn–Spring Winter Crop"
+        season_type: "cool"
+        sowing_months: [4, 5, 6]
+        default_sowing_doy: 135
+        max_duration_days: 205
+        typical_harvest_months: [11, 12]
+        overwintering: false
+        optional: false
+      - slot_index: 1
+        slot_id: "summer_opportunity"
+        name: "Summer Opportunity Crop"
+        season_type: "warm"
+        sowing_months: [11, 12, 1]
+        default_sowing_doy: 325
+        max_duration_days: 145
+        typical_harvest_months: [3, 4]
+        overwintering: true
+        optional: true
+      - slot_index: 2
+        slot_id: "autumn_cover"
+        name: "Pre-Break Pasture / Cover"
+        season_type: "cool"
+        sowing_months: [2, 3]
+        default_sowing_doy: 65
+        max_duration_days: 80
+        typical_harvest_months: [5]
+        overwintering: false
+        optional: true
+
+  mediterranean_nh:
+    name: "Northern Mediterranean / Winter-Rain Belt (Winter Rainfed / Summer Irrigated / Autumn Cover)"
+    slots:
+      - slot_index: 0
+        slot_id: "winter_rainfed"
+        name: "Winter Wet Season"
+        season_type: "cool"
+        sowing_months: [10, 11, 12]
+        default_sowing_doy: 305
+        max_duration_days: 225
+        typical_harvest_months: [5, 6, 7]
+        overwintering: true
+        optional: false
+      - slot_index: 1
+        slot_id: "summer_irrigated"
+        name: "Summer Irrigated / Warm Crop"
+        season_type: "warm"
+        sowing_months: [4, 5]
+        default_sowing_doy: 115
+        max_duration_days: 155
+        typical_harvest_months: [8, 9, 10]
+        overwintering: false
+        optional: true
+      - slot_index: 2
+        slot_id: "autumn_catch"
+        name: "Autumn Cover / Legume"
+        season_type: "cool"
+        sowing_months: [9, 10]
+        default_sowing_doy: 260
+        max_duration_days: 80
+        typical_harvest_months: [11, 12]
+        overwintering: false
+        optional: true
+
+  humid_subtropical_nh:
+    name: "Northern Humid Subtropical (Main Summer / Cool Overwinter / Early Spring)"
+    slots:
+      - slot_index: 0
+        slot_id: "warm_monsoon_main"
+        name: "Main Summer Season"
+        season_type: "warm"
+        sowing_months: [4, 5, 6]
+        default_sowing_doy: 130
+        max_duration_days: 165
+        typical_harvest_months: [9, 10]
+        overwintering: false
+        optional: false
+      - slot_index: 1
+        slot_id: "cool_winter"
+        name: "Overwinter Cereal / Oilseed"
+        season_type: "cool"
+        sowing_months: [10, 11]
+        default_sowing_doy: 305
+        max_duration_days: 190
+        typical_harvest_months: [4, 5]
+        overwintering: true
+        optional: true
+      - slot_index: 2
+        slot_id: "spring_early"
+        name: "Early Spring Break / Catch"
+        season_type: "warm"
+        sowing_months: [3, 4]
+        default_sowing_doy: 80
+        max_duration_days: 90
+        typical_harvest_months: [6]
+        overwintering: false
+        optional: true

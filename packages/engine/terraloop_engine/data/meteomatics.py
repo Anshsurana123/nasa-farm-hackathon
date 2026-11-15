@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import math
 import os
+import re
 import threading
 import time
 from datetime import UTC, date, datetime, timedelta
@@ -45,6 +46,19 @@ _SENTINEL_MISSING = {-666.0, -777.0, -888.0, -999.0}
 MAX_PARAMS_PER_QUERY = 10
 _TOKEN_LOCK = threading.Lock()
 _CACHED_TOKEN: dict[str, Any] = {"token": None, "expires_at": 0.0, "user": None}
+_CAPABILITY_LOCK = threading.Lock()
+_UNSUPPORTED_SOURCES: set[tuple[str, str, str]] = set()
+_MAX_GRANTED_DATE: dict[tuple[str, str], date] = {}
+_DATE_LIMIT_RE = re.compile(r"later than (\d{4}-\d{2}-\d{2})")
+
+
+class _MeteomaticsNonParamError(RuntimeError):
+    """Raised on source-level or subscription date-limit HTTP errors where 1-by-1 param retries cannot succeed."""
+
+    def __init__(self, reason: str, detail: str = "", max_date: date | None = None) -> None:
+        super().__init__(detail or reason)
+        self.reason = reason
+        self.max_date = max_date
 
 METEOMATICS_MIX_PROVENANCE = DataProvenance(
     source="Meteomatics 90m Weather & Soil API",
@@ -179,23 +193,39 @@ def _fetch_meteomatics_json(valid_datetime: str, parameters: str, location: str,
 def _extract_param_series(payload: dict) -> dict[str, pd.Series]:
     """Parse Meteomatics single-point JSON payload into {parameter: Series(DatetimeIndex)}."""
     out: dict[str, pd.Series] = {}
+    prev_ts_key: tuple[str, ...] | None = None
+    prev_dt_index: pd.DatetimeIndex | None = None
     for entry in payload.get("data", []):
         pname = str(entry.get("parameter", ""))
         coords = entry.get("coordinates") or []
         if not pname or not coords:
             continue
         dates_list = coords[0].get("dates") or []
-        idx_vals: list[pd.Timestamp] = []
+        ts_strs: list[str] = []
         num_vals: list[float] = []
         for item in dates_list:
             ts_str = item.get("date")
             if not ts_str:
                 continue
+            ts_strs.append(ts_str)
             v = _clean_val(item.get("value"))
-            idx_vals.append(pd.to_datetime(ts_str, utc=True).tz_localize(None).floor("D"))
             num_vals.append(float("nan") if v is None else v)
-        if idx_vals:
-            ser = pd.Series(num_vals, index=pd.DatetimeIndex(idx_vals), name=pname, dtype=float)
+        if ts_strs:
+            ts_key = tuple(ts_strs)
+            if ts_key == prev_ts_key and prev_dt_index is not None:
+                dt_index = prev_dt_index
+            else:
+                try:
+                    dt_index = pd.DatetimeIndex(
+                        pd.to_datetime(ts_strs, format="ISO8601", utc=True)
+                    ).tz_localize(None).floor("D")
+                except (ValueError, TypeError):
+                    dt_index = pd.DatetimeIndex(
+                        pd.to_datetime(ts_strs, utc=True)
+                    ).tz_localize(None).floor("D")
+                prev_ts_key = ts_key
+                prev_dt_index = dt_index
+            ser = pd.Series(num_vals, index=dt_index, name=pname, dtype=float)
             if ser.notna().any():
                 out[pname] = ser[~ser.index.duplicated(keep="last")].sort_index()
     return out
@@ -217,6 +247,27 @@ def _query_param_batches(
             payload = _fetch_meteomatics_json(valid_datetime, ",".join(chunk), location, extra_query=extra_query)
             merged.update(_extract_param_series(payload))
         except httpx.HTTPStatusError as exc:
+            err_body = ""
+            if exc.response is not None:
+                try:
+                    err_body = exc.response.text or ""
+                except Exception:  # noqa: BLE001
+                    err_body = ""
+            err_lower = err_body.lower()
+            if "as a source" in err_lower:
+                raise _MeteomaticsNonParamError("source", err_body[:200]) from exc
+            if (
+                "requires data access later than" in err_lower
+                or "not granted with this subscription" in err_lower
+            ):
+                parsed_max: date | None = None
+                m_date = _DATE_LIMIT_RE.search(err_body)
+                if m_date:
+                    try:
+                        parsed_max = date.fromisoformat(m_date.group(1)) - timedelta(days=2)
+                    except ValueError:
+                        parsed_max = None
+                raise _MeteomaticsNonParamError("date_limit", err_body[:200], max_date=parsed_max) from exc
             # 400 / 403 / 404 often means one optional parameter in the batch isn't in user's license tier.
             if exc.response.status_code in (400, 403, 404) and len(params) > 1:
                 if len(chunk) > 1:
@@ -231,6 +282,9 @@ def _query_param_batches(
             else:
                 raise
     return merged
+
+
+_ORIG_QUERY_PARAM_BATCHES = _query_param_batches
 
 
 def fetch_daily_weather(
@@ -332,10 +386,23 @@ def fetch_cmip6_daily(
         "wind_speed_2m:ms",
     ]
 
+    is_mocked = _query_param_batches is not _ORIG_QUERY_PARAM_BATCHES
+    cred_key = (os.environ.get("METEOMATICS_BASE_URL", BASE_URL).rstrip("/"), _credentials()[0])
+    known_max_date: date | None = None
+    if not is_mocked:
+        with _CAPABILITY_LOCK:
+            if (cred_key[0], cred_key[1], mm_source) in _UNSUPPORTED_SOURCES:
+                return None
+            known_max_date = _MAX_GRANTED_DATE.get(cred_key)
+        if known_max_date is not None and start_ts.date() > known_max_date:
+            return None
+
     def _fetch_span(q_start: str, q_end: str) -> pd.DataFrame | None:
         vrange = f"{q_start}T00:00:00Z--{q_end}T00:00:00Z:P1D"
         try:
             series_map = _query_param_batches(vrange, params, loc, extra_query=f"source={mm_source}")
+        except _MeteomaticsNonParamError:
+            raise
         except Exception as exc:  # noqa: BLE001
             log.warning("Meteomatics CMIP6 (%s) fetch failed: %s", mm_source, exc)
             return None
@@ -361,21 +428,90 @@ def fetch_cmip6_daily(
         clean_sub = sub.dropna(subset=["tasmax", "tasmin"]).sort_index()
         return None if clean_sub.empty else clean_sub
 
+    def _to_by_doy(sub: pd.DataFrame) -> pd.DataFrame:
+        sub_doy = sub.copy()
+        sub_doy["_doy"] = sub_doy.index.dayofyear
+        return sub_doy.groupby("_doy").mean(numeric_only=True).reindex(range(1, 367)).bfill().ffill()
+
+    def _record_non_param(np_err: _MeteomaticsNonParamError) -> None:
+        if is_mocked:
+            return
+        with _CAPABILITY_LOCK:
+            if np_err.reason == "source":
+                _UNSUPPORTED_SOURCES.add((cred_key[0], cred_key[1], mm_source))
+            elif np_err.reason == "date_limit" and np_err.max_date is not None:
+                prev = _MAX_GRANTED_DATE.get(cred_key)
+                if prev is None or np_err.max_date < prev:
+                    _MAX_GRANTED_DATE[cred_key] = np_err.max_date
+
     if span_days <= 366:
-        df = _fetch_span(start, end)
-        return df
+        eff_end = end
+        if not is_mocked and known_max_date is not None:
+            clamped = min(end_ts.date(), known_max_date)
+            if clamped < start_ts.date():
+                return None
+            eff_end = clamped.isoformat()
+        try:
+            return _fetch_span(start, eff_end)
+        except _MeteomaticsNonParamError as np_err:
+            _record_non_param(np_err)
+            if (
+                not is_mocked
+                and np_err.reason == "date_limit"
+                and np_err.max_date is not None
+                and np_err.max_date >= start_ts.date()
+            ):
+                try:
+                    return _fetch_span(start, min(end_ts.date(), np_err.max_date).isoformat())
+                except _MeteomaticsNonParamError:
+                    return None
+            return None
 
     # Sample early, mid, and late representative years to preserve interannual climate variance
     # while bounding each REST call to <= 1 year.
     sample_years = list(dict.fromkeys([start_ts.year, (start_ts.year + end_ts.year) // 2, end_ts.year]))
+    active_max_date = known_max_date
+    if not is_mocked and active_max_date is not None:
+        sample_years = [y for y in sample_years if date(y, 1, 1) <= active_max_date]
+        if len(sample_years) == 1:
+            alt_yr = min(end_ts.year, active_max_date.year - (1 if active_max_date < date(active_max_date.year, 12, 15) else 0))
+            if alt_yr > sample_years[0] and date(alt_yr, 1, 1) <= active_max_date:
+                sample_years.append(alt_yr)
+
     sample_by_doy: list[pd.DataFrame] = []
     for yr in sample_years:
-        sub = _fetch_span(f"{yr}-01-01", f"{yr}-12-31")
+        yr_end = date(yr, 12, 31)
+        if not is_mocked and active_max_date is not None and yr_end > active_max_date:
+            yr_end = active_max_date
+        if yr_end < date(yr, 1, 1):
+            continue
+        try:
+            sub = _fetch_span(f"{yr}-01-01", yr_end.isoformat())
+        except _MeteomaticsNonParamError as np_err:
+            _record_non_param(np_err)
+            log.info("Meteomatics CMIP6 (%s) stopped at %s (%s)", mm_source, yr, np_err.reason)
+            if np_err.reason == "source":
+                return None
+            if np_err.reason == "date_limit" and np_err.max_date is not None:
+                active_max_date = np_err.max_date
+                if start_ts.date() > active_max_date:
+                    return None
+                if len(sample_by_doy) == 1:
+                    alt_yr = min(
+                        end_ts.year,
+                        active_max_date.year - (1 if active_max_date < date(active_max_date.year, 12, 15) else 0),
+                    )
+                    if alt_yr > sample_years[0] and date(alt_yr, 1, 1) <= active_max_date:
+                        alt_end = min(date(alt_yr, 12, 31), active_max_date)
+                        try:
+                            alt_sub = _fetch_span(f"{alt_yr}-01-01", alt_end.isoformat())
+                            if alt_sub is not None and not alt_sub.empty:
+                                sample_by_doy.append(_to_by_doy(alt_sub))
+                        except _MeteomaticsNonParamError:
+                            pass
+            break
         if sub is not None and not sub.empty:
-            sub_doy = sub.copy()
-            sub_doy["_doy"] = sub_doy.index.dayofyear
-            by_doy = sub_doy.groupby("_doy").mean(numeric_only=True).reindex(range(1, 367)).bfill().ffill()
-            sample_by_doy.append(by_doy)
+            sample_by_doy.append(_to_by_doy(sub))
 
     if not sample_by_doy:
         return None
@@ -606,8 +742,9 @@ def fetch_tactical_forecast(
         return None
     d0 = start_date or datetime.now(UTC).date()
     d1 = d0 + timedelta(days=max(1, days - 1))
-    # Query at 12:00 UTC (17:30 IST afternoon) so wind_speed_2m and soil heat reflect daytime operational conditions
-    vrange = f"{d0.isoformat()}T12:00:00Z--{d1.isoformat()}T12:00:00Z:P1D"
+    # Query at ~13:00 local solar time UTC equivalent so wind_speed_2m and soil heat reflect daytime operational conditions
+    solar_utc_hr = int((13 - round(lon / 15.0)) % 24)
+    vrange = f"{d0.isoformat()}T{solar_utc_hr:02d}:00:00Z--{d1.isoformat()}T{solar_utc_hr:02d}:00:00Z:P1D"
     loc = f"{round(lat, 4)},{round(lon, 4)}"
     params = [
         "t_max_2m_24h:C",
@@ -749,8 +886,12 @@ def estimate_regional_tactical_and_hazards(
         85.0 + (75.0 if 14.0 <= m_tmean <= 24.0 and leaf_wetness >= 0.50 else 15.0) + min(40.0, m_pr_day * 4.0),
         1,
     )
+    from .. import region_registry
+
+    reg = region_registry.detect_region_config(lat, lon)
+    hail_months = (9, 10, 11) if reg.hemisphere == "SH" else ((2, 3, 4) if reg.validation_status == "validated_india" else (3, 4, 5))
     fire_idx = round(float(np.clip((m_tx - 18.0) * 1.6 + (65.0 - rh_est) * 0.65, 8.0, 78.0)), 1)
-    hail_prob = 12.0 if (d0.month in (2, 3, 4) and m_tn < 18.0) else 2.0
+    hail_prob = 12.0 if (d0.month in hail_months and m_tn < 18.0) else 2.0
     drought_idx = round(float(np.clip((smi_base - 0.50) * 4.0, -3.5, 3.5)), 2)
 
     forecast_days: list[TacticalDayForecast] = []

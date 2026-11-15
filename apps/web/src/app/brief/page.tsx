@@ -6,7 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { AgronomicBrief } from "@/components/AgronomicBrief";
 import { useField } from "@/context/FieldContext";
 import { useI18n } from "@/i18n";
-import { fmtMoney, isSouthAsia } from "@/lib/ui";
+import { fmtMoney } from "@/lib/ui";
 import {
   BookOpen,
   Coins,
@@ -20,7 +20,7 @@ import {
 
 export default function BriefPage() {
   const { t } = useI18n();
-  const { profile, strategies, selectedField, constraints } = useField();
+  const { profile, strategies, constraints } = useField();
   const [areaHa, setAreaHa] = useState<number>(() => constraints.area_ha ?? 2.5);
   const [prevConstraintArea, setPrevConstraintArea] = useState<number | undefined>(
     constraints.area_ha
@@ -33,8 +33,7 @@ export default function BriefPage() {
   }
   const [selectedRank, setSelectedRank] = useState<number>(1);
 
-  const isSA = isSouthAsia(selectedField.lat, selectedField.lon);
-  const currencySymbol = profile?.currency_symbol ?? (isSA ? "₹" : "$");
+  const currencySymbol = profile?.currency_symbol ?? "$";
 
   const baseline = strategies.find((s) => s.rank === 0) ?? strategies[0];
   const activeStrategy =

@@ -1,0 +1,38 @@
+id: sweet_potato
+name: Sweet Potato
+family: convolvulaceae
+group: tuber
+season_type: [warm]
+gdd_to_maturity: 1850
+base_temp_c: 12
+optimal_temp_c: [22, 30]
+max_temp_c: 36
+min_temp_c: 10
+duration_days: [120, 150]
+water_requirement_mm: [450, 680]
+kc: [0.40, 1.15, 0.65]
+root_depth_m: 0.9
+drought_tolerance: 4
+heat_tolerance: 4
+waterlogging_tolerance: 1
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 70
+residue_t_ha: 3.0
+residue_cn_ratio: 28
+typical_yield_t_ha: [12.0, 22.0]
+ph_range: [4.8, 7.2]
+lethal_frost_c: 0.0
+cultivar_profiles:
+  tropical_highland:
+    typical_yield_t_ha: [10.0, 17.0]
+    duration_days: [120, 150]
+    notes: "East Africa orange-fleshed vitamin-A biofortified sweet potato (CIP/KALRO)."
+  tropical_high_input:
+    typical_yield_t_ha: [16.0, 24.0]
+    duration_days: [115, 145]
+    notes: "Brazil tropical commercial sweet potato (EMBRAPA)."
+aquacrop_name: null
+good_predecessors: [maize, common_bean, sorghum, soybean]
+bad_predecessors: [sweet_potato, cassava, potato]
+notes: "Fast-canopy tropical root crop offering rapid ground cover against intense monsoon erosion."
+sources: ["FAO-56 Table 12 (sweet potato)", "CIP Sweetpotato Agronomy", "USDA FoodData Central"]

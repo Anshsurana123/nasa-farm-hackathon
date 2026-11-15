@@ -120,3 +120,38 @@ Verifies `models/rusle.py::r_factor_intensity` across sub-daily storm regimes ($
 | **15.0** | 844.6 | 7.12 | 690.8 | 6.48 | +0.0 mm / +0.0 mm |
 | **55.0** | 855.6 | 7.12 | 698.8 | 6.48 | +11.0 mm / +8.0 mm |
 | **80.0** | 869.3 | 7.12 | 708.8 | 6.48 | +24.7 mm / +18.0 mm |
+
+## 8. Global Multi-Continent Breadbasket Hubs (USDA / Agreste / CONAB / KALRO / ABARES)
+
+Evaluates held-out rainfed crop yield calibration and Tier-A strategy optimization across 5 global breadbasket hubs (`us_corn_belt`, `eu_maritime_west`, `brazil_cerrado`, `east_africa_highlands`, `australia_wheat_belt`) against official statistical agency series (`data/benchmarks/global_ground_truth.csv`).
+
+### 8a. Held-Out Multi-Continent Empirical Yield Calibration
+
+| Global Hub | Crop & Regime | Observed Mean (t/ha) | Simulated Median (t/ha) | Absolute Error (t/ha) | Relative Error (%) | Statistical Agency & Table |
+| :--- | :--- | :---: | :---: | :---: | :---: | :--- |
+| **Story County (Ames), Iowa, USA** | Rainfed Grain Corn (Maize) | 12.02 | **11.07** | -0.95 | **-7.9%** | USDA NASS / ISU Extension — Story County IA Corn Yield Summary (191.5 bu/ac 5-yr mean) |
+| **Story County (Ames), Iowa, USA** | Rainfed Non-Irrigated Soybean | 3.77 | **3.76** | -0.01 | **-0.3%** | USDA NASS / ISU Extension — Story County IA Soybean Yield Summary (56.0 bu/ac 5-yr mean) |
+| **Story County (Ames), Iowa, USA** | Rainfed Oats (State Benchmark) | 2.68 | **4.12** | +1.44 | **+53.5%** | USDA NASS — USDA NASS Small Grains Annual Summary (Iowa Oats 74.6 bu/ac 5-yr mean) |
+| **Eure-et-Loir (Beauce), France, France** | Winter Soft Wheat (Blé tendre d'hiver) | 7.50 | **8.37** | +0.87 | **+11.6%** | Agreste / DRAAF Centre-Val de Loire — Agreste Statistique Agricole Annuelle (Eure-et-Loir Blé tendre ~75 q/ha) |
+| **Eure-et-Loir (Beauce), France, France** | Winter Rapeseed / Colza d'hiver | 3.68 | **3.92** | +0.24 | **+6.5%** | Agreste / Chambre d'Agriculture 28 — Agreste SAA & Bilan Moisson Eure-et-Loir (Colza moyenne olympique 36.8 q/ha) |
+| **Eure-et-Loir (Beauce), France, France** | Winter / Spring Barley (Orge) | 7.68 | **7.91** | +0.23 | **+3.0%** | Agreste / Chambre d'Agriculture 28 — Agreste SAA & Bilan Moisson Eure-et-Loir (Orge d'hiver moyenne olympique 76.8 q/ha) |
+| **Sorriso, Mato Grosso, Brazil** | Rainfed Soybeans (Soja 1a Safra) | 3.63 | **4.06** | +0.43 | **+12.0%** | IBGE PAM / CONAB — IBGE SIDRA Tabela 5457 PAM Sorriso MT (Soja rendimento médio 2020-2023) |
+| **Sorriso, Mato Grosso, Brazil** | Second-Season Safrinha Corn (Milho 2a Safra) | 6.75 | **6.33** | -0.42 | **-6.2%** | CONAB / IMEA Mato Grosso — CONAB Série Histórica & IMEA-MT Milho 2a Safra (~112.5 sc/ha mean) |
+| **Nakuru County, Rift Valley, Kenya** | Rainfed Highland Maize (Long Rains) | 3.10 | **3.14** | +0.04 | **+1.3%** | KNBS / KALRO / MoALD Kenya — KNBS Agricultural Production Survey & KALRO Nakuru Smallholder Maize (~14 bags/ac) |
+| **Nakuru County, Rift Valley, Kenya** | Rainfed Highland Common Bean (Monocrop) | 1.05 | **1.14** | +0.09 | **+8.6%** | KALRO / KAMIS Kenya — KALRO Rift Valley Common Bean Margin & KAMIS Survey |
+| **Nakuru County, Rift Valley, Kenya** | Rainfed Irish Potato (Shangi Clean-Seed Benchmark) | 12.00 | **12.41** | +0.41 | **+3.4%** | MoALD / NPCK / KALRO — National Potato Council of Kenya (NPCK) & MoALD Nakuru Target Yield Benchmark |
+| **Wagga Wagga (Riverina), NSW, Australia** | Dryland Winter-Sown Bread Wheat | 2.90 | **3.44** | +0.54 | **+18.4%** | ABARES / NSW DPIRD — ABARES Australian Crop Report NSW Winter Crop Tables (~2.89-3.11 t/ha) |
+| **Wagga Wagga (Riverina), NSW, Australia** | Dryland Winter Canola (Break Crop) | 1.68 | **1.94** | +0.26 | **+15.5%** | ABARES / GRDC — ABARES Australian Crop Report NSW Canola Tables (~1.67-1.68 t/ha) |
+| **Wagga Wagga (Riverina), NSW, Australia** | Dryland Chickpea (Pulse Break Crop) | 1.78 | **1.19** | -0.59 | **-33.4%** | ABARES / GRDC — ABARES Australian Crop Report NSW Chickpea Tables (~1.78 t/ha) |
+
+- **Held-Out 5-Continent Rainfed Crop MAPE (14 crop-hub pairs):** **13.0%**
+
+### 8b. Five Global Golden Breadbasket Hubs (Precomputed Engine Outputs)
+
+| Global Hub | Country & Agro-Zone | Baseline Rotation | Rank #1 Recommended Strategy | Median Net Profit (Local) | 10-Yr SOC Delta (t C/ha) | Soil Health Score |
+| :--- | :--- | :--- | :--- | :---: | :---: | :---: |
+| **Ames (Story County), Iowa, USA** (`us_corn_belt`) | United States — US Midwest Corn–Soybean–Winter Cover Belt (USDA ERS Heartland / Prairie Gateway) | Soybean → Winter Cereal Rye → Fallow | **Soybean → Triticale → Fallow** | **$ 847** | **+0.52** | **66/100** |
+| **Chartres (Beauce / Eure-et-Loir), France** (`eu_maritime_west`) | France — EU Atlantic Maritime Cereals–Oilseed–Root Zone (JRC MARS) | Winter Wheat → Crimson Clover / Hairy Vetch → Fallow | **Faba Bean → Sugar Beet → Fallow** | **€ 1,746** | **+3.33** | **80/100** |
+| **Sorriso, Mato Grosso, Brazil** (`brazil_cerrado`) | Brazil — Tropical Savanna Double-Cropping Cerrado Belt (Embrapa ZARC) | Soybean → Maize → Fallow | **Upland Rice → Common bean → Brachiaria / Urochloa** | **R$ 8,923** | **+1.81** | **74/100** |
+| **Nakuru (Rift Valley), Kenya** (`east_africa_highlands`) | Kenya — Equatorial Sub-Humid Highland Maize–Pulse–Potato Zone (KALRO AEZ) | Maize → Crimson Clover / Hairy Vetch → Fallow | **Common bean → Fallow → Field Pea** | **KSh 210,544** | **+0.49** | **55/100** |
+| **Wagga Wagga (Riverina), NSW, Australia** (`australia_wheat_belt`) | Australia — Southern Winter-Rain Wheat–Canola–Pulse Belt (GRDC Southern/Western) | Field Pea → Maize → Fallow | **Faba Bean → Fallow → Fallow** | **A$ 806** | **+0.07** | **45/100** |

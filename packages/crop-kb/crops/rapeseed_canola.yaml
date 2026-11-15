@@ -1,0 +1,56 @@
+id: rapeseed_canola
+name: Rapeseed / Canola
+family: brassicaceae
+group: oilseed
+season_type: [cool]
+gdd_to_maturity: 1850
+base_temp_c: 4
+optimal_temp_c: [10, 22]
+max_temp_c: 31
+min_temp_c: -12
+duration_days: [155, 290]
+water_requirement_mm: [320, 480]
+kc: [0.35, 1.10, 0.35]
+root_depth_m: 1.4
+drought_tolerance: 3
+heat_tolerance: 2
+waterlogging_tolerance: 2
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 135
+residue_t_ha: 4.2
+residue_cn_ratio: 55
+typical_yield_t_ha: [2.2, 3.8]
+ph_range: [5.6, 8.0]
+vernalization_required: true
+vernalization_chill_days: 30
+winter_dormancy: true
+dormancy_temp_c: 2.0
+lethal_frost_c: -14.0
+cultivar_profiles:
+  maritime_europe:
+    gdd_to_maturity: 1950
+    typical_yield_t_ha: [3.1, 3.9]
+    duration_days: [265, 295]
+    water_requirement_mm: [380, 500]
+    notes: "Beauce France winter colza (Agreste/Terres Inovia ~3.5 t/ha)."
+  mediterranean_dryland:
+    gdd_to_maturity: 1700
+    typical_yield_t_ha: [1.8, 2.5]
+    duration_days: [145, 175]
+    water_requirement_mm: [280, 420]
+    min_temp_c: -3
+    vernalization_required: false
+    winter_dormancy: false
+    notes: "Riverina NSW spring-habit Clearfield/TT canola (ABARES/GRDC ~2.1 t/ha)."
+  temperate_high_input:
+    gdd_to_maturity: 1450
+    typical_yield_t_ha: [2.1, 2.8]
+    duration_days: [105, 125]
+    vernalization_required: false
+    winter_dormancy: false
+    notes: "North America spring canola."
+aquacrop_name: null
+good_predecessors: [wheat_winter, wheat_spring, barley, wheat, oats]
+bad_predecessors: [rapeseed_canola, mustard, sunflower]
+notes: "High-value Brassica break crop interrupting cereal take-all and eyespot disease cycles."
+sources: ["FAO-56 Table 12 (rapeseed/canola)", "Agreste / Terres Inovia Colza", "GRDC Canola GrowNotes"]

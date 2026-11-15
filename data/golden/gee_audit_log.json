@@ -202,5 +202,185 @@
     "firms_residue_burning_detected": false,
     "grace_tws_trend_cm_yr": 1.11,
     "smap_root_zone_months": 12
+  },
+  "us_corn_belt": {
+    "field_id": "us_corn_belt",
+    "field_name": "Ames (Story County), Iowa, USA",
+    "coordinates": {
+      "lat": 42.03,
+      "lon": -93.62
+    },
+    "timestamp_utc": "2026-11-14T13:38:17.351759+00:00",
+    "gee_live": true,
+    "data_mode": "observed",
+    "is_fallback": false,
+    "soil_source": "modelled",
+    "soil_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "water_provenance_modes": [
+      "observed",
+      "observed",
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "hazards_provenance_modes": [
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "crop_history_provenance_modes": [
+      "observed"
+    ],
+    "crop_history_seasons_detected": 8,
+    "firms_residue_burning_detected": false,
+    "grace_tws_trend_cm_yr": -0.14,
+    "smap_root_zone_months": 12
+  },
+  "eu_maritime_west": {
+    "field_id": "eu_maritime_west",
+    "field_name": "Chartres (Beauce / Eure-et-Loir), France",
+    "coordinates": {
+      "lat": 48.44,
+      "lon": 1.49
+    },
+    "timestamp_utc": "2026-11-14T13:38:25.194542+00:00",
+    "gee_live": true,
+    "data_mode": "observed",
+    "is_fallback": false,
+    "soil_source": "modelled",
+    "soil_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "water_provenance_modes": [
+      "observed",
+      "observed",
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "hazards_provenance_modes": [
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "crop_history_provenance_modes": [
+      "observed"
+    ],
+    "crop_history_seasons_detected": 10,
+    "firms_residue_burning_detected": false,
+    "grace_tws_trend_cm_yr": -0.45,
+    "smap_root_zone_months": 12
+  },
+  "brazil_cerrado": {
+    "field_id": "brazil_cerrado",
+    "field_name": "Sorriso, Mato Grosso, Brazil",
+    "coordinates": {
+      "lat": -12.55,
+      "lon": -55.72
+    },
+    "timestamp_utc": "2026-11-14T13:38:56.972544+00:00",
+    "gee_live": true,
+    "data_mode": "hybrid_regional",
+    "is_fallback": false,
+    "soil_source": "modelled",
+    "soil_provenance_modes": [
+      "regional_climatology",
+      "observed"
+    ],
+    "water_provenance_modes": [
+      "observed",
+      "observed",
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "hazards_provenance_modes": [
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "crop_history_provenance_modes": [
+      "observed"
+    ],
+    "crop_history_seasons_detected": 14,
+    "firms_residue_burning_detected": true,
+    "grace_tws_trend_cm_yr": -0.26,
+    "smap_root_zone_months": 12
+  },
+  "east_africa_highlands": {
+    "field_id": "east_africa_highlands",
+    "field_name": "Nakuru (Rift Valley), Kenya",
+    "coordinates": {
+      "lat": -0.3,
+      "lon": 36.07
+    },
+    "timestamp_utc": "2026-11-14T13:39:06.267801+00:00",
+    "gee_live": true,
+    "data_mode": "observed",
+    "is_fallback": false,
+    "soil_source": "modelled",
+    "soil_provenance_modes": [
+      "observed",
+      "observed"
+    ],
+    "water_provenance_modes": [
+      "observed",
+      "observed",
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "hazards_provenance_modes": [
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "crop_history_provenance_modes": [
+      "observed"
+    ],
+    "crop_history_seasons_detected": 9,
+    "firms_residue_burning_detected": false,
+    "grace_tws_trend_cm_yr": 2.55,
+    "smap_root_zone_months": 12
+  },
+  "australia_wheat_belt": {
+    "field_id": "australia_wheat_belt",
+    "field_name": "Wagga Wagga (Riverina), NSW, Australia",
+    "coordinates": {
+      "lat": -35.12,
+      "lon": 147.37
+    },
+    "timestamp_utc": "2026-11-14T13:39:21.906071+00:00",
+    "gee_live": true,
+    "data_mode": "hybrid_regional",
+    "is_fallback": false,
+    "soil_source": "modelled",
+    "soil_provenance_modes": [
+      "regional_climatology",
+      "observed"
+    ],
+    "water_provenance_modes": [
+      "observed",
+      "observed",
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "hazards_provenance_modes": [
+      "observed",
+      "observed",
+      "observed"
+    ],
+    "crop_history_provenance_modes": [
+      "observed"
+    ],
+    "crop_history_seasons_detected": 9,
+    "firms_residue_burning_detected": true,
+    "grace_tws_trend_cm_yr": 0.68,
+    "smap_root_zone_months": 12
   }
 }

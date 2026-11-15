@@ -1,0 +1,42 @@
+id: oats
+name: Oats
+family: poaceae
+group: cereal
+season_type: [cool, warm]
+gdd_to_maturity: 1350
+base_temp_c: 4
+optimal_temp_c: [12, 22]
+max_temp_c: 33
+min_temp_c: -5
+duration_days: [100, 145]
+water_requirement_mm: [300, 450]
+kc: [0.30, 1.15, 0.25]
+root_depth_m: 1.0
+drought_tolerance: 3
+heat_tolerance: 2
+waterlogging_tolerance: 3
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 80
+residue_t_ha: 4.5
+residue_cn_ratio: 75
+typical_yield_t_ha: [2.6, 4.2]
+ph_range: [5.0, 8.0]
+lethal_frost_c: -6.0
+cultivar_profiles:
+  temperate_high_input:
+    typical_yield_t_ha: [3.0, 4.2]
+    duration_days: [95, 115]
+    notes: "US Midwest spring oats nurse/grain crop (USDA NASS Iowa ~85 bu/ac = 3.05 t/ha)."
+  maritime_europe:
+    typical_yield_t_ha: [4.2, 5.6]
+    duration_days: [120, 145]
+    notes: "NW Europe spring/winter oats."
+  mediterranean_dryland:
+    typical_yield_t_ha: [2.2, 3.4]
+    duration_days: [130, 160]
+    notes: "Southern Australia milling/hay oats (NSW DPIRD)."
+aquacrop_name: null
+good_predecessors: [soybean, field_pea, faba_bean, maize, rapeseed_canola]
+bad_predecessors: [oats]
+notes: "Tolerates lower pH (down to 5.0) than wheat/barley and serves as an oat-clover nurse crop."
+sources: ["FAO-56 Table 12 (oats Kc=0.30, 1.15, 0.25)", "USDA NASS Oats", "ISU Ag Decision Maker A1-20"]

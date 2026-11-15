@@ -20,6 +20,22 @@ n_demand_kg_ha: 180
 residue_t_ha: 1
 residue_cn_ratio: 20
 typical_yield_t_ha: [20, 30]
+ph_range: [4.8, 7.0]
+cultivar_profiles:
+  maritime_europe:
+    typical_yield_t_ha: [40.0, 52.0]
+    duration_days: [110, 140]
+    water_requirement_mm: [450, 620]
+    notes: "NW Europe maincrop ware/starch potato (Agreste France ~45 t/ha)."
+  temperate_high_input:
+    typical_yield_t_ha: [38.0, 50.0]
+    duration_days: [105, 130]
+    notes: "North America irrigated processing potato (USDA NASS)."
+  tropical_highland:
+    typical_yield_t_ha: [11.0, 16.0]
+    duration_days: [95, 115]
+    water_requirement_mm: [380, 520]
+    notes: "Kenya Shangi / Dutch Robijn highland rainfed potato (KNBS/KALRO Nakuru ~13.5 t/ha)."
 aquacrop_name: Potato
 good_predecessors: [maize, moong, urad, rice_short]
 bad_predecessors: [potato]

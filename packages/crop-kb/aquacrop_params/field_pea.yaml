@@ -1,0 +1,14 @@
+crop_id: field_pea
+base_crop: Soybean
+wp: 16.0
+hi0: 0.40
+ccx: 0.82
+cgc: 0.09
+cdc: 0.07
+z_max: 0.90
+t_base: 4.0
+t_upper: 28.0
+ky: 1.05
+p_up: [0.40, 0.55, 0.75]
+notes: "Cool-season proteaginous grain pea; flowering/pod-fill sensitive to moisture and heat stress."
+sources: ["FAO Irrigation and Drainage Paper 66", "FAO-33 Pea Ky"]

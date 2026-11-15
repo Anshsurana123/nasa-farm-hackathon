@@ -1,0 +1,615 @@
+{
+  "field": {
+    "id": "brazil_cerrado",
+    "lat": -12.55,
+    "lon": -55.72,
+    "polygon": null,
+    "name": "Sorriso, Mato Grosso, Brazil"
+  },
+  "climate": {
+    "baseline_period": "1985-2004",
+    "recent_period": "2005-2024",
+    "mean_tmax_c": 30.59,
+    "mean_tmin_c": 20.91,
+    "annual_precip_mm": 1709.0,
+    "recent_annual_precip_mm": 1386.7,
+    "precip_change_pct": -18.9,
+    "tmax_change_c": 1.0,
+    "heat_days_per_year": 49.9,
+    "recent_heat_days_per_year": 72.8,
+    "frost_days_per_year": 0.0,
+    "longest_dry_spell_days_mean": 4.0,
+    "annual_et0_mm": 1324.6,
+    "gdd_base10_per_year": 5415.0,
+    "monthly_precip_mm": [
+      246.4,
+      266.0,
+      238.6,
+      109.1,
+      26.3,
+      7.1,
+      4.9,
+      11.1,
+      48.3,
+      146.0,
+      198.8,
+      245.3
+    ],
+    "monthly_tmax_c": [
+      27.9,
+      28.0,
+      28.1,
+      28.2,
+      28.2,
+      29.6,
+      32.2,
+      35.2,
+      36.4,
+      34.0,
+      30.5,
+      28.5
+    ],
+    "monthly_tmin_c": [
+      21.6,
+      21.6,
+      21.7,
+      21.4,
+      19.7,
+      18.3,
+      17.8,
+      20.1,
+      22.5,
+      22.6,
+      22.0,
+      21.8
+    ],
+    "wettest_months": [
+      12,
+      1,
+      2,
+      3
+    ],
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": "10.5067/POWER/0001",
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA GPM IMERG",
+        "product": "GPM_3IMERGDF (V07)",
+        "period": "2000-2024",
+        "resolution": "0.1 deg, daily",
+        "doi": "10.5067/GPM/IMERGDF/DAY/07",
+        "url": "https://gpm.nasa.gov/data/imerg",
+        "mode": "observed"
+      },
+      {
+        "source": "Meteomatics 90m Weather & Soil API",
+        "product": "EURO1k / MIX (NASA SRTM 90m Downscaled)",
+        "period": "2024-10-02 to 2024-12-31",
+        "resolution": "90 m, daily / hourly",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "observed"
+      }
+    ]
+  },
+  "water": {
+    "root_zone_moisture_percentile": [
+      48.0,
+      45.1,
+      29.0,
+      21.3,
+      20.6,
+      21.3,
+      30.0,
+      37.1,
+      42.3,
+      32.3,
+      41.0,
+      28.2
+    ],
+    "groundwater_trend_cm_per_year": -0.26,
+    "climatic_water_balance_mm": 223.2,
+    "irrigation_detected": null,
+    "soil_moisture_deficit_mm": 121.5,
+    "soil_moisture_index_layers": {
+      "-5cm": 0.11,
+      "-15cm": 0.27,
+      "-50cm": 0.15,
+      "-150cm": 0.31
+    },
+    "volumetric_soil_water_layers": {
+      "-5cm": 0.3,
+      "-15cm": 0.32,
+      "-50cm": 0.3,
+      "-150cm": 0.33
+    },
+    "seedbed_temp_5cm_c": 25.7,
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": "10.5067/POWER/0001",
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA GPM IMERG",
+        "product": "GPM_3IMERGDF (V07)",
+        "period": "2000-2024",
+        "resolution": "0.1 deg, daily",
+        "doi": "10.5067/GPM/IMERGDF/DAY/07",
+        "url": "https://gpm.nasa.gov/data/imerg",
+        "mode": "observed"
+      },
+      {
+        "source": "Meteomatics 90m Weather & Soil API",
+        "product": "EURO1k / MIX (NASA SRTM 90m Downscaled)",
+        "period": "2024-10-02 to 2024-12-31",
+        "resolution": "90 m, daily / hourly",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA GRACE / GRACE-FO",
+        "product": "Tellus Regional Terrestrial Water Storage (TWS) Mascon (JPL V04, 3° native)",
+        "period": "2002-2024",
+        "resolution": "0.5 deg grid (native ~3 deg mascon), monthly",
+        "doi": "10.5067/TEMSC-3MJ62",
+        "url": "https://grace.jpl.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA SMAP",
+        "product": "SPL4SMGP V008 (L4 Root-Zone Soil Moisture)",
+        "period": "2015-2024",
+        "resolution": "9 km, daily",
+        "doi": "10.5067/K2VT90DE20GV",
+        "url": "https://smap.jpl.nasa.gov/",
+        "mode": "observed"
+      }
+    ]
+  },
+  "soil": {
+    "texture_class": "clay",
+    "sand_pct": 44.0,
+    "silt_pct": 12.0,
+    "clay_pct": 44.0,
+    "soc_g_per_kg": 15.0,
+    "ph": 5.7,
+    "bulk_density_g_cm3": 1.24,
+    "cec_cmol_kg": null,
+    "nitrogen_g_kg": 1.4,
+    "available_p_kg_ha": null,
+    "available_k_kg_ha": null,
+    "field_capacity_vol": 0.387,
+    "wilting_point_vol": 0.27,
+    "slope_pct": 2.55,
+    "source": "modelled",
+    "provenance": [
+      {
+        "source": "FAO-UNESCO / ISRIC SoilGrids",
+        "product": "Embrapa Solos SISB3 Red Ferralsol / Latossolo Vermelho Distrofico (Sorriso, MT)",
+        "period": null,
+        "resolution": "250 m Regional Benchmark",
+        "doi": "10.5194/soil-7-217-2021",
+        "url": "https://soilgrids.org/",
+        "mode": "regional_climatology"
+      },
+      {
+        "source": "NASA NASADEM",
+        "product": "NASADEM_HGT (30 m DEM)",
+        "period": null,
+        "resolution": "30 m",
+        "doi": "10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001",
+        "url": "https://earthdata.nasa.gov/",
+        "mode": "observed"
+      }
+    ]
+  },
+  "hazards": {
+    "drought_frequency": 0.21,
+    "extreme_rain_days_per_year": 1.2,
+    "heat_stress_probability": 1.0,
+    "frost_risk": 0.0,
+    "erosion_risk_class": "high",
+    "residue_burning_detected": true,
+    "terminal_heat_days_per_year": 39.7,
+    "late_blight_risk_idx": 517.9,
+    "canopy_wetness_idx": 1.0,
+    "hail_probability_pct": null,
+    "fire_weather_index": 2.1,
+    "meteorological_drought_idx": -4.0,
+    "max_30m_precip_rate_mmh": null,
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": "10.5067/POWER/0001",
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA FIRMS",
+        "product": "MODIS / VIIRS Active Fire Detections",
+        "period": "2019-2024",
+        "resolution": "375 m / 1 km",
+        "doi": "10.5067/FIRMS/MODIS",
+        "url": "https://firms.modaps.eosdis.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "Meteomatics 90m Weather & Soil API",
+        "product": "EURO1k / MIX (NASA SRTM 90m Downscaled)",
+        "period": "2026-11-14",
+        "resolution": "90 m, daily / hourly",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "observed"
+      }
+    ]
+  },
+  "seasons_per_year": 3,
+  "crop_history": [
+    {
+      "year": 2020,
+      "season_index": 0,
+      "start": "2020-09-28",
+      "peak": "2020-12-07",
+      "end": "2020-12-07",
+      "crop_group": "brachiaria",
+      "crop_id": "brachiaria_cover",
+      "confidence": 0.84,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2020,
+      "season_index": 1,
+      "start": "2020-05-31",
+      "peak": "2020-05-31",
+      "end": "2020-09-08",
+      "crop_group": "rice",
+      "crop_id": "rice_upland",
+      "confidence": 0.81,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2021,
+      "season_index": 0,
+      "start": "2020-09-28",
+      "peak": "2021-01-26",
+      "end": "2021-01-26",
+      "crop_group": "rice",
+      "crop_id": "rice_upland",
+      "confidence": 0.83,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2021,
+      "season_index": 1,
+      "start": "2021-06-15",
+      "peak": "2021-06-15",
+      "end": "2021-08-19",
+      "crop_group": "brachiaria",
+      "crop_id": "brachiaria_cover",
+      "confidence": 0.74,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2021,
+      "season_index": 2,
+      "start": "2021-09-13",
+      "peak": "2021-10-13",
+      "end": "2021-10-13",
+      "crop_group": "brachiaria",
+      "crop_id": "brachiaria_cover",
+      "confidence": 0.78,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2022,
+      "season_index": 0,
+      "start": "2021-09-13",
+      "peak": "2022-01-06",
+      "end": "2022-01-06",
+      "crop_group": "rice",
+      "crop_id": "rice_upland",
+      "confidence": 0.8,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2022,
+      "season_index": 1,
+      "start": "2022-05-21",
+      "peak": "2022-05-21",
+      "end": "2022-08-24",
+      "crop_group": "rice",
+      "crop_id": "rice_upland",
+      "confidence": 0.76,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2022,
+      "season_index": 2,
+      "start": "2022-09-18",
+      "peak": "2022-10-18",
+      "end": "2022-10-18",
+      "crop_group": "brachiaria",
+      "crop_id": "brachiaria_cover",
+      "confidence": 0.76,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2023,
+      "season_index": 0,
+      "start": "2022-09-23",
+      "peak": "2023-02-15",
+      "end": "2023-02-15",
+      "crop_group": "rice",
+      "crop_id": "rice_upland",
+      "confidence": 0.79,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2023,
+      "season_index": 1,
+      "start": "2023-05-01",
+      "peak": "2023-05-01",
+      "end": "2023-08-14",
+      "crop_group": "rice",
+      "crop_id": "rice_upland",
+      "confidence": 0.77,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2023,
+      "season_index": 2,
+      "start": "2023-09-03",
+      "peak": "2023-10-13",
+      "end": "2023-10-13",
+      "crop_group": "brachiaria",
+      "crop_id": "brachiaria_cover",
+      "confidence": 0.74,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2024,
+      "season_index": 0,
+      "start": "2024-04-25",
+      "peak": "2024-04-25",
+      "end": "2024-09-07",
+      "crop_group": "rice",
+      "crop_id": "rice_upland",
+      "confidence": 0.84,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2024,
+      "season_index": 1,
+      "start": "2024-05-30",
+      "peak": "2024-05-30",
+      "end": "2024-09-07",
+      "crop_group": "rice",
+      "crop_id": "rice_upland",
+      "confidence": 0.81,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2024,
+      "season_index": 2,
+      "start": "2024-09-22",
+      "peak": "2024-10-12",
+      "end": "2024-10-12",
+      "crop_group": "brachiaria",
+      "crop_id": "brachiaria_cover",
+      "confidence": 0.78,
+      "confirmed_by_farmer": false
+    }
+  ],
+  "crop_history_provenance": [
+    {
+      "source": "NASA HLS",
+      "product": "HLSL30 / HLSS30 (Harmonized Landsat Sentinel-2)",
+      "period": "2019-2024",
+      "resolution": "30 m, 2-3 day",
+      "doi": "10.5067/HLS/HLSL30.002",
+      "url": "https://hls.gsfc.nasa.gov/",
+      "mode": "observed"
+    }
+  ],
+  "agro_climatic_notes": [
+    "Heat-stress days (>35 C) rose from 50 to 73 per year (1985-2004 vs 2005-2024).",
+    "Wheat terminal heat stress: grain-fill period (1 Sep-15 Oct) averages 39.7 days/yr with Tmax > 32 C.",
+    "Annual rainfall has decreased by 19% between periods.",
+    "Post-harvest residue burning detected near field via NASA FIRMS: in-situ mulching or alternative rotations recommended.",
+    "High Phytophthora late-blight index (518 > 150): monitor potato and solanaceous canopies.",
+    "Meteomatics SPI drought index is negative (-4.0): prioritize drought-tolerant pulses, oilseeds, or deficit irrigation."
+  ],
+  "currency": "BRL",
+  "currency_symbol": "R$",
+  "country": "Brazil",
+  "country_code": "BRA",
+  "agro_zone": "Tropical Savanna Double-Cropping Cerrado Belt (Embrapa ZARC)",
+  "state": "Mato Grosso",
+  "aez_class": "Aw",
+  "calendar_id": "tropical_savanna_sh",
+  "calendar_slots": [
+    {
+      "slot_index": 0,
+      "slot_id": "safra_principal",
+      "name": "Safra Principal (Main Wet)",
+      "season_type": "warm",
+      "sowing_months": [
+        9,
+        10,
+        11
+      ],
+      "default_sowing_doy": 285,
+      "max_duration_days": 145,
+      "typical_harvest_months": [
+        1,
+        2,
+        3
+      ],
+      "overwintering": true,
+      "notes": null
+    },
+    {
+      "slot_index": 1,
+      "slot_id": "safrinha",
+      "name": "Safrinha (Second Rainy)",
+      "season_type": "warm",
+      "sowing_months": [
+        1,
+        2,
+        3
+      ],
+      "default_sowing_doy": 45,
+      "max_duration_days": 140,
+      "typical_harvest_months": [
+        6,
+        7
+      ],
+      "overwintering": false,
+      "notes": null
+    },
+    {
+      "slot_index": 2,
+      "slot_id": "offseason_cover",
+      "name": "Dry-Season Cover / Relay",
+      "season_type": "cool",
+      "sowing_months": [
+        6,
+        7,
+        8
+      ],
+      "default_sowing_doy": 175,
+      "max_duration_days": 95,
+      "typical_harvest_months": [
+        9,
+        10
+      ],
+      "overwintering": false,
+      "notes": null
+    }
+  ],
+  "unit_convention": "metric",
+  "served_from": "demo_snapshot",
+  "snapshot_date": "2026-11-14",
+  "is_fallback": false,
+  "data_mode": "hybrid_regional",
+  "validation_status": "validated_regional",
+  "validation_message": "Calibrated regional model for Brazilian Cerrado (Mato Grosso Soy–Safrinha Corn/Cotton Belt) (enterprise budgets: brazil_mt; climate biome: Aw).",
+  "tactical_advisory": {
+    "sowing_ready": false,
+    "sowing_status_code": "too_dry",
+    "irrigation_action": "hold_rain_ahead",
+    "urea_spray_safe": false,
+    "next_7d_precip_mm": 131.1,
+    "next_7d_et0_mm": 27.3,
+    "seedbed_temp_5cm_c": 34.0,
+    "soil_moisture_deficit_mm": 123.5,
+    "fire_weather_index": 8.1,
+    "forecast_days": [
+      {
+        "date": "2026-11-14",
+        "tmax_c": 33.9,
+        "tmin_c": 22.4,
+        "precip_mm": 0.0,
+        "prob_precip_pct": 1.2,
+        "et0_mm": 5.2,
+        "wind_speed_ms": 0.8,
+        "soil_temp_5cm_c": 34.0,
+        "soil_moisture_deficit_mm": 123.5
+      },
+      {
+        "date": "2026-11-15",
+        "tmax_c": 33.9,
+        "tmin_c": 22.8,
+        "precip_mm": 2.9,
+        "prob_precip_pct": 81.3,
+        "et0_mm": 5.0,
+        "wind_speed_ms": 1.1,
+        "soil_temp_5cm_c": 32.5,
+        "soil_moisture_deficit_mm": 124.7
+      },
+      {
+        "date": "2026-11-16",
+        "tmax_c": 30.9,
+        "tmin_c": 22.9,
+        "precip_mm": 16.7,
+        "prob_precip_pct": 95.0,
+        "et0_mm": 3.8,
+        "wind_speed_ms": 1.1,
+        "soil_temp_5cm_c": 29.3,
+        "soil_moisture_deficit_mm": 123.4
+      },
+      {
+        "date": "2026-11-17",
+        "tmax_c": 28.5,
+        "tmin_c": 22.3,
+        "precip_mm": 34.0,
+        "prob_precip_pct": 95.0,
+        "et0_mm": 3.2,
+        "wind_speed_ms": 1.0,
+        "soil_temp_5cm_c": 27.7,
+        "soil_moisture_deficit_mm": 113.4
+      },
+      {
+        "date": "2026-11-18",
+        "tmax_c": 27.8,
+        "tmin_c": 21.7,
+        "precip_mm": 26.9,
+        "prob_precip_pct": 95.0,
+        "et0_mm": 3.2,
+        "wind_speed_ms": 1.2,
+        "soil_temp_5cm_c": 27.7,
+        "soil_moisture_deficit_mm": 107.4
+      },
+      {
+        "date": "2026-11-19",
+        "tmax_c": 29.2,
+        "tmin_c": 22.4,
+        "precip_mm": 28.4,
+        "prob_precip_pct": 95.0,
+        "et0_mm": 3.3,
+        "wind_speed_ms": 1.0,
+        "soil_temp_5cm_c": 27.9,
+        "soil_moisture_deficit_mm": 93.9
+      },
+      {
+        "date": "2026-11-20",
+        "tmax_c": 28.2,
+        "tmin_c": 22.3,
+        "precip_mm": 22.2,
+        "prob_precip_pct": 95.0,
+        "et0_mm": 3.6,
+        "wind_speed_ms": 0.9,
+        "soil_temp_5cm_c": 29.5,
+        "soil_moisture_deficit_mm": 97.6
+      }
+    ],
+    "provenance": [
+      {
+        "source": "Meteomatics 90m Weather & Soil API",
+        "product": "EURO1k / MIX (NASA SRTM 90m Downscaled)",
+        "period": "2026-11-14 to 2026-11-20",
+        "resolution": "90 m, daily / hourly",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "observed"
+      }
+    ]
+  }
+}

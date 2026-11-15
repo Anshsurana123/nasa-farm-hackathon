@@ -1,0 +1,14 @@
+crop_id: rice_upland
+base_crop: PaddyRice
+wp: 17.0
+hi0: 0.42
+ccx: 0.85
+cgc: 0.09
+cdc: 0.07
+z_max: 0.75
+t_base: 10.0
+t_upper: 34.0
+ky: 1.15
+p_up: [0.30, 0.50, 0.70]
+notes: "Non-flooded aerobic upland rice."
+sources: ["FAO Irrigation and Drainage Paper 66", "EMBRAPA Terras Altas"]

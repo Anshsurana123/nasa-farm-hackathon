@@ -10,13 +10,13 @@ import { TelemetryBar } from "@/components/TelemetryBar";
 import { useField } from "@/context/FieldContext";
 import { useI18n } from "@/i18n";
 import { api } from "@/lib/api";
+import type { SupportedLanguage } from "@/types/api";
 import {
   avgIrrigation,
   buildSectorBriefing,
   fmtAreaMoney,
   fmtAreaUnit,
   fmtDMS,
-  isSouthAsia,
   regionContext,
   regionFlag,
   waterSavedPct,
@@ -65,9 +65,8 @@ export default function MissionControlPage() {
     setCustomLon(selectedField.lon.toFixed(4));
   }, [selectedField.lat, selectedField.lon]);
 
-  const regCtx = regionContext(selectedField.lat, selectedField.lon, selectedGoldenId);
-  const isSA = isSouthAsia(selectedField.lat, selectedField.lon);
-  const currencySymbol = profile?.currency_symbol ?? (isSA ? "₹" : "$");
+  const regCtx = regionContext(selectedField.lat, selectedField.lon, selectedGoldenId, profile);
+  const currencySymbol = profile?.currency_symbol ?? regCtx.currencySymbol ?? "$";
 
   const baseline = strategies.find((s) => s.rank === 0) ?? strategies[0];
   const topRec = strategies.find((s) => s.rank === 1) ?? strategies[1] ?? null;
@@ -130,7 +129,7 @@ export default function MissionControlPage() {
     selectedGoldenId,
     profile,
     topRec ?? undefined,
-    lang === "hi" || lang === "pa" ? lang : "en"
+    (lang as SupportedLanguage) || "en"
   );
 
   return (
@@ -626,7 +625,7 @@ export default function MissionControlPage() {
                     </div>
                     <div className="min-w-0">
                       <span className="text-[10px] font-mono font-bold text-emerald-500 uppercase block">
-                        {t("home.mod05Tag", { count: String(crops.length || 23) })}
+                        {t("home.mod05Tag", { count: String(crops.length || 40) })}
                       </span>
                       <h3 className="font-display font-bold text-sm text-foreground truncate">
                         {t("home.mod05Title")}
@@ -649,7 +648,9 @@ export default function MissionControlPage() {
                         {t("home.mod06Tag")}
                       </span>
                       <h3 className="font-display font-bold text-sm text-foreground truncate">
-                        {t("home.mod06Title")}
+                        {profile && profile.country_code && profile.country_code !== "IND"
+                          ? t("home.mod06GlobalTitle")
+                          : t("home.mod06Title")}
                       </h3>
                     </div>
                   </div>

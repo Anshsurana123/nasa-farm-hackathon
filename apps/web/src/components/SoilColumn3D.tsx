@@ -74,6 +74,8 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
       : [42, 45, 38, 30, 25, 35, 62, 74, 68, 52, 44, 41];
   const currentSmap = smapArray[monthIdx] ?? 50;
   const monthlyRain = climate.monthly_precip_mm?.[monthIdx] ?? 45;
+  const monthlyTmin = climate.monthly_tmin_c?.[monthIdx] ?? 10;
+  const hasFrostCap = monthlyTmin < 0;
   const topSmi = water.soil_moisture_index_layers?.["-5cm"];
   const topVwc = water.volumetric_soil_water_layers?.["-5cm"];
   const rzSmi =
@@ -463,6 +465,20 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
       // -----------------------------------------------------------------------
       // LAYER 4: Surface Canopy, Ponding Water / Mulch, Roots & BNF Nodules
       // -----------------------------------------------------------------------
+      if (hasFrostCap) {
+        const frostH = tsTop + 0.05;
+        const frostCorners: Vec3[] = [
+          { x: -1.04, y: frostH + slopeTilt, z: -1.04 },
+          { x: 1.04, y: frostH - slopeTilt, z: -1.04 },
+          { x: 1.04, y: frostH - slopeTilt, z: 1.04 },
+          { x: -1.04, y: frostH + slopeTilt, z: 1.04 },
+        ];
+        const pFrost = frostCorners.map((v) =>
+          project(v, cx, cy, baseScale, cosY, sinY, cosP, sinP)
+        ) as [ProjectedPt, ProjectedPt, ProjectedPt, ProjectedPt];
+        drawQuad(ctx, pFrost, "rgba(224, 242, 254, 0.56)", "rgba(186, 230, 253, 0.85)", 1.2);
+      }
+
       // If baseline mode, render flooded paddy ponding sheet on top of topsoil
       if (reg < 0.85) {
         const pondAlpha = (1 - reg) * 0.42;
@@ -754,6 +770,8 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
     gwTrend,
     currentSmap,
     monthlyRain,
+    monthlyTmin,
+    hasFrostCap,
     savedWaterPct,
     socDeltaBase,
     socDeltaTop,
@@ -971,7 +989,12 @@ export function SoilColumn3D({ profile, strategies = [] }: SoilColumn3DProps) {
                 </span>
               </span>
               <span className="text-sky-600 dark:text-sky-400 font-bold">
-                {t("soil3d.rootZone")}: {Math.round(currentSmap)}th %ile · {t("soil3d.rain")}: {Math.round(monthlyRain)} mm
+                <span>{t("soil3d.rootZone")}: {Math.round(currentSmap)}th %ile · {t("soil3d.rain")}: {Math.round(monthlyRain)} mm</span>
+                {hasFrostCap && (
+                  <span className="ml-2 px-1.5 py-0.5 rounded bg-sky-200/20 text-sky-300 border border-sky-300/40 font-mono text-[9px]">
+                    {t("soil3d.frostShort", { temp: monthlyTmin.toFixed(1) })}
+                  </span>
+                )}
               </span>
             </div>
 

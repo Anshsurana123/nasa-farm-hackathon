@@ -1,0 +1,38 @@
+# United States Federal Conservation Schemes (USDA NRCS)
+# Official Source: USDA Natural Resources Conservation Service (2024 Farm Bill / IRA Conservation Programs)
+
+schemes:
+  - id: "usda_eqip_cover_notill"
+    name: "USDA NRCS EQIP Conservation Cover & No-Till"
+    display_title: "USDA NRCS EQIP Cover Crop & No-Till Practice Payment (340/329)"
+    display_title_hi: "USDA NRCS EQIP कवर क्रॉप एवं नो-टिल सहायता (340/329)"
+    display_title_pa: "USDA NRCS EQIP ਕਵਰ ਫ਼ਸਲ ਅਤੇ ਨੋ-ਟਿੱਲ ਸਹਾਇਤਾ (340/329)"
+    display_title_es: "USDA NRCS EQIP Pago por Cultivos de Cobertura y Siembra Directa (340/329)"
+    display_title_pt: "USDA NRCS EQIP Pagamento por Cultura de Cobertura e Plantio Direto (340/329)"
+    display_title_fr: "USDA NRCS EQIP Aide Couverts Végétaux et Semis Direct (340/329)"
+    country_code: "USA"
+    eligible_zones: ["us_corn_belt"]
+    eligible_practices: ["happy_seeder", "zero_till", "no_till", "residue_retained"]
+    eligible_crops: ["rye_winter", "crimson_clover_vetch", "alfalfa", "oats"]
+    amount: null
+    unit: null
+    source_url: "https://www.nrcs.usda.gov/programs-initiatives/eqip-environmental-quality-incentives-program"
+    as_of_date: "2024-01-01"
+    description: "USDA NRCS Environmental Quality Incentives Program financial assistance for Cover Crop (Code 340) and No-Till Residue Management (Code 329)."
+
+  - id: "usda_csp_rotation"
+    name: "USDA NRCS CSP Conservation Crop Rotation"
+    display_title: "USDA NRCS Conservation Stewardship Program (CSP) 3-Crop / Legume Enhancement"
+    display_title_hi: "USDA NRCS CSP बहु-फसल चक्र एवं दलहन प्रोत्साहन"
+    display_title_pa: "USDA NRCS CSP ਬਹੁ-ਫ਼ਸਲੀ ਚੱਕਰ ਅਤੇ ਦਾਲਾਂ ਪ੍ਰੋਤਸਾਹਨ"
+    display_title_es: "USDA NRCS CSP Incentivo por Rotación Diversa y Leguminosas"
+    display_title_pt: "USDA NRCS CSP Incentivo à Rotação Diversificada e Leguminosas"
+    display_title_fr: "USDA NRCS CSP Prime Diversification et Légumineuses"
+    country_code: "USA"
+    eligible_zones: ["us_corn_belt"]
+    eligible_crops: ["soybean", "alfalfa", "oats", "field_pea", "wheat_winter", "rye_winter", "crimson_clover_vetch"]
+    amount: null
+    unit: null
+    source_url: "https://www.nrcs.usda.gov/programs-initiatives/csp-conservation-stewardship-program"
+    as_of_date: "2024-01-01"
+    description: "Conservation Stewardship Program (CSP) enhancement payments for integrating small grains, legumes, or perennial forage into Corn-Soybean rotations."

@@ -1,0 +1,2703 @@
+{
+  "$defs": {
+    "CalendarSlotSpec": {
+      "description": "Season slot definition from regional cropping calendar archetypes.",
+      "properties": {
+        "slot_index": {
+          "title": "Slot Index",
+          "type": "integer"
+        },
+        "slot_id": {
+          "title": "Slot Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "season_type": {
+          "enum": [
+            "warm",
+            "cool"
+          ],
+          "title": "Season Type",
+          "type": "string"
+        },
+        "sowing_months": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Sowing Months",
+          "type": "array"
+        },
+        "default_sowing_doy": {
+          "default": 165,
+          "title": "Default Sowing Doy",
+          "type": "integer"
+        },
+        "max_duration_days": {
+          "default": 165,
+          "title": "Max Duration Days",
+          "type": "integer"
+        },
+        "typical_harvest_months": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Typical Harvest Months",
+          "type": "array"
+        },
+        "overwintering": {
+          "default": false,
+          "title": "Overwintering",
+          "type": "boolean"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        }
+      },
+      "required": [
+        "slot_index",
+        "slot_id",
+        "name",
+        "season_type"
+      ],
+      "title": "CalendarSlotSpec",
+      "type": "object"
+    },
+    "ClimateSummary": {
+      "properties": {
+        "baseline_period": {
+          "title": "Baseline Period",
+          "type": "string"
+        },
+        "recent_period": {
+          "title": "Recent Period",
+          "type": "string"
+        },
+        "mean_tmax_c": {
+          "title": "Mean Tmax C",
+          "type": "number"
+        },
+        "mean_tmin_c": {
+          "title": "Mean Tmin C",
+          "type": "number"
+        },
+        "annual_precip_mm": {
+          "title": "Annual Precip Mm",
+          "type": "number"
+        },
+        "recent_annual_precip_mm": {
+          "title": "Recent Annual Precip Mm",
+          "type": "number"
+        },
+        "precip_change_pct": {
+          "title": "Precip Change Pct",
+          "type": "number"
+        },
+        "tmax_change_c": {
+          "title": "Tmax Change C",
+          "type": "number"
+        },
+        "heat_days_per_year": {
+          "description": "Days with Tmax > 35 C",
+          "title": "Heat Days Per Year",
+          "type": "number"
+        },
+        "recent_heat_days_per_year": {
+          "title": "Recent Heat Days Per Year",
+          "type": "number"
+        },
+        "frost_days_per_year": {
+          "description": "Days with Tmin < 0 C",
+          "title": "Frost Days Per Year",
+          "type": "number"
+        },
+        "longest_dry_spell_days_mean": {
+          "title": "Longest Dry Spell Days Mean",
+          "type": "number"
+        },
+        "annual_et0_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Annual Et0 Mm"
+        },
+        "gdd_base10_per_year": {
+          "title": "Gdd Base10 Per Year",
+          "type": "number"
+        },
+        "monthly_precip_mm": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 12,
+          "minItems": 12,
+          "title": "Monthly Precip Mm",
+          "type": "array"
+        },
+        "monthly_tmax_c": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 12,
+          "minItems": 12,
+          "title": "Monthly Tmax C",
+          "type": "array"
+        },
+        "monthly_tmin_c": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 12,
+          "minItems": 12,
+          "title": "Monthly Tmin C",
+          "type": "array"
+        },
+        "wettest_months": {
+          "description": "Main rainy season (1-12)",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Wettest Months",
+          "type": "array"
+        },
+        "provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DataProvenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        }
+      },
+      "required": [
+        "baseline_period",
+        "recent_period",
+        "mean_tmax_c",
+        "mean_tmin_c",
+        "annual_precip_mm",
+        "recent_annual_precip_mm",
+        "precip_change_pct",
+        "tmax_change_c",
+        "heat_days_per_year",
+        "recent_heat_days_per_year",
+        "frost_days_per_year",
+        "longest_dry_spell_days_mean",
+        "gdd_base10_per_year",
+        "monthly_precip_mm",
+        "monthly_tmax_c",
+        "monthly_tmin_c"
+      ],
+      "title": "ClimateSummary",
+      "type": "object"
+    },
+    "CropFamily": {
+      "enum": [
+        "poaceae",
+        "fabaceae",
+        "brassicaceae",
+        "solanaceae",
+        "cucurbitaceae",
+        "malvaceae",
+        "asteraceae",
+        "amaranthaceae",
+        "pedaliaceae",
+        "euphorbiaceae",
+        "convolvulaceae",
+        "polygonaceae",
+        "other"
+      ],
+      "title": "CropFamily",
+      "type": "string"
+    },
+    "CropSpec": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "family": {
+          "$ref": "#/$defs/CropFamily"
+        },
+        "group": {
+          "enum": [
+            "cereal",
+            "legume",
+            "oilseed",
+            "tuber",
+            "vegetable",
+            "fibre",
+            "cover",
+            "fodder"
+          ],
+          "title": "Group",
+          "type": "string"
+        },
+        "season_type": {
+          "items": {
+            "enum": [
+              "warm",
+              "cool"
+            ],
+            "type": "string"
+          },
+          "title": "Season Type",
+          "type": "array"
+        },
+        "gdd_to_maturity": {
+          "description": "Growing degree days, base temp below",
+          "title": "Gdd To Maturity",
+          "type": "number"
+        },
+        "base_temp_c": {
+          "title": "Base Temp C",
+          "type": "number"
+        },
+        "optimal_temp_c": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Optimal Temp C",
+          "type": "array"
+        },
+        "max_temp_c": {
+          "title": "Max Temp C",
+          "type": "number"
+        },
+        "min_temp_c": {
+          "title": "Min Temp C",
+          "type": "number"
+        },
+        "duration_days": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "title": "Duration Days",
+          "type": "array"
+        },
+        "water_requirement_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Water Requirement Mm",
+          "type": "array"
+        },
+        "kc": {
+          "description": "FAO-56 Kc ini, mid, end",
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Kc",
+          "type": "array"
+        },
+        "root_depth_m": {
+          "title": "Root Depth M",
+          "type": "number"
+        },
+        "drought_tolerance": {
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Drought Tolerance",
+          "type": "integer"
+        },
+        "heat_tolerance": {
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Heat Tolerance",
+          "type": "integer"
+        },
+        "waterlogging_tolerance": {
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Waterlogging Tolerance",
+          "type": "integer"
+        },
+        "n_fixation_kg_ha": {
+          "default": 0.0,
+          "title": "N Fixation Kg Ha",
+          "type": "number"
+        },
+        "n_demand_kg_ha": {
+          "default": 0.0,
+          "title": "N Demand Kg Ha",
+          "type": "number"
+        },
+        "residue_t_ha": {
+          "default": 0.0,
+          "title": "Residue T Ha",
+          "type": "number"
+        },
+        "residue_cn_ratio": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Residue Cn Ratio"
+        },
+        "typical_yield_t_ha": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Typical Yield T Ha",
+          "type": "array"
+        },
+        "ph_range": {
+          "default": [
+            5.2,
+            8.6
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Ph Range",
+          "type": "array"
+        },
+        "vernalization_required": {
+          "default": false,
+          "title": "Vernalization Required",
+          "type": "boolean"
+        },
+        "vernalization_chill_days": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Vernalization Chill Days",
+          "type": "integer"
+        },
+        "winter_dormancy": {
+          "default": false,
+          "title": "Winter Dormancy",
+          "type": "boolean"
+        },
+        "dormancy_temp_c": {
+          "default": 2.0,
+          "title": "Dormancy Temp C",
+          "type": "number"
+        },
+        "lethal_frost_c": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lethal Frost C"
+        },
+        "is_perennial": {
+          "default": false,
+          "title": "Is Perennial",
+          "type": "boolean"
+        },
+        "perennial_cuts_per_yr": {
+          "default": 1,
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Perennial Cuts Per Yr",
+          "type": "integer"
+        },
+        "cultivar_profiles": {
+          "additionalProperties": {
+            "$ref": "#/$defs/CultivarAdaptation"
+          },
+          "title": "Cultivar Profiles",
+          "type": "object"
+        },
+        "aquacrop_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Aquacrop Name"
+        },
+        "good_predecessors": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Good Predecessors",
+          "type": "array"
+        },
+        "bad_predecessors": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Bad Predecessors",
+          "type": "array"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        },
+        "sources": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "family",
+        "group",
+        "season_type",
+        "gdd_to_maturity",
+        "base_temp_c",
+        "optimal_temp_c",
+        "max_temp_c",
+        "min_temp_c",
+        "duration_days",
+        "water_requirement_mm",
+        "kc",
+        "root_depth_m",
+        "drought_tolerance",
+        "heat_tolerance",
+        "waterlogging_tolerance",
+        "typical_yield_t_ha"
+      ],
+      "title": "CropSpec",
+      "type": "object"
+    },
+    "CultivarAdaptation": {
+      "description": "Optional ecotype / climate-zone cultivar parameter override.",
+      "properties": {
+        "gdd_to_maturity": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gdd To Maturity"
+        },
+        "typical_yield_t_ha": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Typical Yield T Ha"
+        },
+        "duration_days": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Days"
+        },
+        "water_requirement_mm": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Water Requirement Mm"
+        },
+        "kc": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kc"
+        },
+        "min_temp_c": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Temp C"
+        },
+        "vernalization_required": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vernalization Required"
+        },
+        "winter_dormancy": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Winter Dormancy"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        }
+      },
+      "title": "CultivarAdaptation",
+      "type": "object"
+    },
+    "DataProvenance": {
+      "properties": {
+        "source": {
+          "description": "Dataset short name, e.g. 'NASA POWER', 'SMAP SPL4SMGP'",
+          "title": "Source",
+          "type": "string"
+        },
+        "product": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Product ID / collection",
+          "title": "Product"
+        },
+        "period": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time range used, e.g. '1995-2024'",
+          "title": "Period"
+        },
+        "resolution": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolution"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doi"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "mode": {
+          "default": "observed",
+          "enum": [
+            "observed",
+            "regional_climatology",
+            "fallback_estimate",
+            "unknown"
+          ],
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "DataProvenance",
+      "type": "object"
+    },
+    "FarmConstraints": {
+      "properties": {
+        "area_ha": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Area Ha",
+          "type": "number"
+        },
+        "irrigation": {
+          "default": "limited",
+          "enum": [
+            "none",
+            "limited",
+            "full"
+          ],
+          "title": "Irrigation",
+          "type": "string"
+        },
+        "irrigation_cap_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Irrigation Cap Mm"
+        },
+        "must_grow": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Must Grow",
+          "type": "array"
+        },
+        "exclude": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Exclude",
+          "type": "array"
+        },
+        "has_livestock": {
+          "default": false,
+          "title": "Has Livestock",
+          "type": "boolean"
+        },
+        "rotation_years": {
+          "default": 1,
+          "maximum": 6,
+          "minimum": 1,
+          "title": "Rotation Years",
+          "type": "integer"
+        }
+      },
+      "title": "FarmConstraints",
+      "type": "object"
+    },
+    "FieldGeometry": {
+      "description": "A field as a point (lat/lon) and optional GeoJSON polygon.",
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        },
+        "polygon": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "GeoJSON Polygon geometry",
+          "title": "Polygon"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        }
+      },
+      "required": [
+        "lat",
+        "lon"
+      ],
+      "title": "FieldGeometry",
+      "type": "object"
+    },
+    "FieldProfile": {
+      "properties": {
+        "field": {
+          "$ref": "#/$defs/FieldGeometry"
+        },
+        "climate": {
+          "$ref": "#/$defs/ClimateSummary"
+        },
+        "water": {
+          "$ref": "#/$defs/WaterSummary"
+        },
+        "soil": {
+          "$ref": "#/$defs/SoilSummary"
+        },
+        "hazards": {
+          "$ref": "#/$defs/HazardSummary"
+        },
+        "seasons_per_year": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seasons Per Year"
+        },
+        "crop_history": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/InferredSeason"
+          },
+          "title": "Crop History",
+          "type": "array"
+        },
+        "crop_history_provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DataProvenance"
+          },
+          "title": "Crop History Provenance",
+          "type": "array"
+        },
+        "agro_climatic_notes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Agro Climatic Notes",
+          "type": "array"
+        },
+        "currency": {
+          "default": "INR",
+          "title": "Currency",
+          "type": "string"
+        },
+        "currency_symbol": {
+          "default": "\u20b9",
+          "title": "Currency Symbol",
+          "type": "string"
+        },
+        "country": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "India",
+          "title": "Country"
+        },
+        "country_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "IND",
+          "title": "Country Code"
+        },
+        "agro_zone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agro Zone"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "State"
+        },
+        "aez_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Aez Class"
+        },
+        "calendar_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "india_igp",
+          "title": "Calendar Id"
+        },
+        "calendar_slots": {
+          "items": {
+            "$ref": "#/$defs/CalendarSlotSpec"
+          },
+          "title": "Calendar Slots",
+          "type": "array"
+        },
+        "unit_convention": {
+          "default": "metric",
+          "enum": [
+            "metric",
+            "acre",
+            "imperial"
+          ],
+          "title": "Unit Convention",
+          "type": "string"
+        },
+        "served_from": {
+          "default": "live_computation",
+          "enum": [
+            "live_computation",
+            "demo_snapshot"
+          ],
+          "title": "Served From",
+          "type": "string"
+        },
+        "snapshot_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Snapshot Date"
+        },
+        "is_fallback": {
+          "default": false,
+          "title": "Is Fallback",
+          "type": "boolean"
+        },
+        "data_mode": {
+          "default": "observed",
+          "enum": [
+            "observed",
+            "hybrid_regional",
+            "fallback_synthetic",
+            "regional_climatology"
+          ],
+          "title": "Data Mode",
+          "type": "string"
+        },
+        "validation_status": {
+          "default": "validated_india",
+          "enum": [
+            "validated_india",
+            "validated_regional",
+            "biophysical_global",
+            "unvalidated_global"
+          ],
+          "title": "Validation Status",
+          "type": "string"
+        },
+        "validation_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Validation Message"
+        },
+        "tactical_advisory": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TacticalAdvisory"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "field",
+        "climate",
+        "water",
+        "soil",
+        "hazards"
+      ],
+      "title": "FieldProfile",
+      "type": "object"
+    },
+    "HazardSummary": {
+      "properties": {
+        "drought_frequency": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fraction of years in drought",
+          "title": "Drought Frequency"
+        },
+        "extreme_rain_days_per_year": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Extreme Rain Days Per Year"
+        },
+        "heat_stress_probability": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Heat Stress Probability"
+        },
+        "frost_risk": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Frost Risk"
+        },
+        "erosion_risk_class": {
+          "anyOf": [
+            {
+              "enum": [
+                "low",
+                "moderate",
+                "high",
+                "very_high"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Erosion Risk Class"
+        },
+        "residue_burning_detected": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "FIRMS active fire on field",
+          "title": "Residue Burning Detected"
+        },
+        "terminal_heat_days_per_year": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Days with Tmax > 32 C during wheat grain-fill (1 Mar - 15 Apr in NH, 1 Sep - 15 Oct in SH)",
+          "title": "Terminal Heat Days Per Year"
+        },
+        "late_blight_risk_idx": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Meteomatics phytophthora_negative:idx (potato/solanaceae blight warning > 150)",
+          "title": "Late Blight Risk Idx"
+        },
+        "canopy_wetness_idx": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Meteomatics leaf_wetness:idx (0-1 fungal spore germination risk)",
+          "title": "Canopy Wetness Idx"
+        },
+        "hail_probability_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Derived hail risk indicator (%) from Meteomatics hail_24h:cm during Rabi grain filling",
+          "title": "Hail Probability Pct"
+        },
+        "fire_weather_index": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Meteomatics fosberg_fire_weather_index:idx (0-100 turnaround smoke/spread risk)",
+          "title": "Fire Weather Index"
+        },
+        "meteorological_drought_idx": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Meteomatics drought_index:idx (-4 severe drought to +4 wet)",
+          "title": "Meteorological Drought Idx"
+        },
+        "max_30m_precip_rate_mmh": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Peak 30-min storm precipitation intensity (mm/h) derived from Meteomatics precip_30min:mm for RUSLE EI30",
+          "title": "Max 30M Precip Rate Mmh"
+        },
+        "provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DataProvenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        }
+      },
+      "title": "HazardSummary",
+      "type": "object"
+    },
+    "InferredSeason": {
+      "properties": {
+        "year": {
+          "title": "Year",
+          "type": "integer"
+        },
+        "season_index": {
+          "title": "Season Index",
+          "type": "integer"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start"
+        },
+        "peak": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Peak"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End"
+        },
+        "crop_group": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Crop Group"
+        },
+        "crop_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Crop Id"
+        },
+        "confidence": {
+          "default": 0.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "confirmed_by_farmer": {
+          "default": false,
+          "title": "Confirmed By Farmer",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "year",
+        "season_index"
+      ],
+      "title": "InferredSeason",
+      "type": "object"
+    },
+    "PracticalFarmerMetrics": {
+      "description": "Actionable farm-level metrics localized to region & units.",
+      "properties": {
+        "turnaround_days_kharif_rabi": {
+          "default": 20,
+          "description": "Days between primary harvest and successor sowing (>=20d reduces residue burning)",
+          "title": "Turnaround Days Kharif Rabi",
+          "type": "integer"
+        },
+        "turnaround_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turnaround Days"
+        },
+        "urea_bags_saved_per_ha": {
+          "default": 0.0,
+          "description": "45-kg Urea bags saved per ha/yr via biological N fixation and residue retention",
+          "title": "Urea Bags Saved Per Ha",
+          "type": "number"
+        },
+        "fertilizer_n_saved_kg_ha": {
+          "default": 0.0,
+          "title": "Fertilizer N Saved Kg Ha",
+          "type": "number"
+        },
+        "irrigations_saved_per_yr": {
+          "default": 0,
+          "description": "Standard 75 mm irrigations saved per year vs baseline",
+          "title": "Irrigations Saved Per Yr",
+          "type": "integer"
+        },
+        "pumping_hours_saved_per_ha": {
+          "default": 0,
+          "description": "Submersible borewell pumping hours saved per ha/yr vs baseline",
+          "title": "Pumping Hours Saved Per Ha",
+          "type": "integer"
+        },
+        "water_saved_m3_per_ha": {
+          "default": 0.0,
+          "title": "Water Saved M3 Per Ha",
+          "type": "number"
+        },
+        "msp_assurance_level": {
+          "default": "MSP Assured (FCI / State)",
+          "description": "Market procurement / insurance certainty level",
+          "title": "Msp Assurance Level",
+          "type": "string"
+        },
+        "market_assurance_level": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Market Assurance Level"
+        },
+        "eligible_schemes": {
+          "description": "Matching regional/national agricultural & conservation schemes",
+          "items": {
+            "type": "string"
+          },
+          "title": "Eligible Schemes",
+          "type": "array"
+        },
+        "currency": {
+          "default": "INR",
+          "title": "Currency",
+          "type": "string"
+        },
+        "currency_symbol": {
+          "default": "\u20b9",
+          "title": "Currency Symbol",
+          "type": "string"
+        },
+        "labor_cost_inr_per_ha": {
+          "default": 0.0,
+          "title": "Labor Cost Inr Per Ha",
+          "type": "number"
+        },
+        "input_cost_inr_per_ha": {
+          "default": 0.0,
+          "title": "Input Cost Inr Per Ha",
+          "type": "number"
+        },
+        "area_ha": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Area Ha",
+          "type": "number"
+        },
+        "total_farm_profit_p50": {
+          "default": 0.0,
+          "title": "Total Farm Profit P50",
+          "type": "number"
+        },
+        "total_farm_input_cost": {
+          "default": 0.0,
+          "title": "Total Farm Input Cost",
+          "type": "number"
+        },
+        "total_farm_urea_bags_saved": {
+          "default": 0.0,
+          "title": "Total Farm Urea Bags Saved",
+          "type": "number"
+        },
+        "total_farm_pumping_hours_saved": {
+          "default": 0,
+          "title": "Total Farm Pumping Hours Saved",
+          "type": "integer"
+        },
+        "seasonal_operations": {
+          "description": "Per-season actionable field operation, budget, irrigation, and nutrient ledger",
+          "items": {
+            "$ref": "#/$defs/SeasonalOperationStep"
+          },
+          "title": "Seasonal Operations",
+          "type": "array"
+        }
+      },
+      "title": "PracticalFarmerMetrics",
+      "type": "object"
+    },
+    "Priorities": {
+      "description": "Relative weights (normalised internally).",
+      "properties": {
+        "profit": {
+          "default": 1.0,
+          "minimum": 0,
+          "title": "Profit",
+          "type": "number"
+        },
+        "water_savings": {
+          "default": 1.0,
+          "minimum": 0,
+          "title": "Water Savings",
+          "type": "number"
+        },
+        "soil_health": {
+          "default": 1.0,
+          "minimum": 0,
+          "title": "Soil Health",
+          "type": "number"
+        },
+        "low_risk": {
+          "default": 1.0,
+          "minimum": 0,
+          "title": "Low Risk",
+          "type": "number"
+        },
+        "low_labour": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Low Labour",
+          "type": "number"
+        },
+        "food_security": {
+          "default": 1.0,
+          "minimum": 0,
+          "title": "Food Security",
+          "type": "number"
+        }
+      },
+      "title": "Priorities",
+      "type": "object"
+    },
+    "Rotation": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/RotationStep"
+          },
+          "title": "Steps",
+          "type": "array"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "is_baseline": {
+          "default": false,
+          "title": "Is Baseline",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "steps"
+      ],
+      "title": "Rotation",
+      "type": "object"
+    },
+    "RotationStep": {
+      "properties": {
+        "year_index": {
+          "title": "Year Index",
+          "type": "integer"
+        },
+        "season_index": {
+          "title": "Season Index",
+          "type": "integer"
+        },
+        "crop_id": {
+          "title": "Crop Id",
+          "type": "string"
+        },
+        "sowing_doy": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sowing Doy"
+        },
+        "practices": {
+          "description": "e.g. 'no_till', 'residue_retained'",
+          "items": {
+            "type": "string"
+          },
+          "title": "Practices",
+          "type": "array"
+        }
+      },
+      "required": [
+        "year_index",
+        "season_index",
+        "crop_id"
+      ],
+      "title": "RotationStep",
+      "type": "object"
+    },
+    "ScenarioSet": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "historical",
+            "cmip6"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "ssp": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ssp"
+        },
+        "horizon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Horizon"
+        },
+        "members": {
+          "description": "IDs of weather sequences (years or GCM-years)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Members",
+          "type": "array"
+        },
+        "provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DataProvenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "members"
+      ],
+      "title": "ScenarioSet",
+      "type": "object"
+    },
+    "SeasonalOperationStep": {
+      "description": "Actionable per-season field operation, water, nutrient, and margin entry.",
+      "properties": {
+        "year_index": {
+          "default": 0,
+          "title": "Year Index",
+          "type": "integer"
+        },
+        "season_index": {
+          "default": 0,
+          "title": "Season Index",
+          "type": "integer"
+        },
+        "season_name": {
+          "default": "Kharif",
+          "title": "Season Name",
+          "type": "string"
+        },
+        "crop_id": {
+          "default": "fallow",
+          "title": "Crop Id",
+          "type": "string"
+        },
+        "crop_name": {
+          "default": "Fallow",
+          "title": "Crop Name",
+          "type": "string"
+        },
+        "sowing_window": {
+          "default": "",
+          "title": "Sowing Window",
+          "type": "string"
+        },
+        "harvest_window": {
+          "default": "",
+          "title": "Harvest Window",
+          "type": "string"
+        },
+        "duration_days": {
+          "default": 60,
+          "title": "Duration Days",
+          "type": "integer"
+        },
+        "practices": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Practices",
+          "type": "array"
+        },
+        "yield_t_ha": {
+          "default": 0.0,
+          "title": "Yield T Ha",
+          "type": "number"
+        },
+        "irrigation_mm": {
+          "default": 0.0,
+          "title": "Irrigation Mm",
+          "type": "number"
+        },
+        "irrigations_count": {
+          "default": 0,
+          "title": "Irrigations Count",
+          "type": "integer"
+        },
+        "currency": {
+          "default": "INR",
+          "title": "Currency",
+          "type": "string"
+        },
+        "currency_symbol": {
+          "default": "\u20b9",
+          "title": "Currency Symbol",
+          "type": "string"
+        },
+        "input_cost_local_ha": {
+          "default": 0.0,
+          "title": "Input Cost Local Ha",
+          "type": "number"
+        },
+        "labor_cost_local_ha": {
+          "default": 0.0,
+          "title": "Labor Cost Local Ha",
+          "type": "number"
+        },
+        "net_profit_local_ha": {
+          "default": 0.0,
+          "title": "Net Profit Local Ha",
+          "type": "number"
+        },
+        "input_cost_inr_ha": {
+          "default": 0.0,
+          "title": "Input Cost Inr Ha",
+          "type": "number"
+        },
+        "labor_cost_inr_ha": {
+          "default": 0.0,
+          "title": "Labor Cost Inr Ha",
+          "type": "number"
+        },
+        "net_profit_inr_ha": {
+          "default": 0.0,
+          "title": "Net Profit Inr Ha",
+          "type": "number"
+        },
+        "n_fixation_kg_ha": {
+          "default": 0.0,
+          "title": "N Fixation Kg Ha",
+          "type": "number"
+        },
+        "urea_saved_kg_ha": {
+          "default": 0.0,
+          "title": "Urea Saved Kg Ha",
+          "type": "number"
+        },
+        "agronomic_guidance": {
+          "default": "",
+          "title": "Agronomic Guidance",
+          "type": "string"
+        }
+      },
+      "title": "SeasonalOperationStep",
+      "type": "object"
+    },
+    "SimulationResult": {
+      "properties": {
+        "rotation_id": {
+          "title": "Rotation Id",
+          "type": "string"
+        },
+        "scenario_set_id": {
+          "title": "Scenario Set Id",
+          "type": "string"
+        },
+        "yield_t_ha": {
+          "additionalProperties": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "description": "crop_id -> per-member mean yields",
+          "title": "Yield T Ha",
+          "type": "object"
+        },
+        "irrigation_mm": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Irrigation Mm",
+          "type": "array"
+        },
+        "profit_per_ha": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Profit Per Ha",
+          "type": "array"
+        },
+        "soc_delta_t_ha_10yr": {
+          "title": "Soc Delta T Ha 10Yr",
+          "type": "number"
+        },
+        "erosion_t_ha_yr": {
+          "title": "Erosion T Ha Yr",
+          "type": "number"
+        },
+        "n_balance_kg_ha_yr": {
+          "title": "N Balance Kg Ha Yr",
+          "type": "number"
+        },
+        "living_root_days_pct": {
+          "title": "Living Root Days Pct",
+          "type": "number"
+        },
+        "family_diversity_index": {
+          "title": "Family Diversity Index",
+          "type": "number"
+        },
+        "soil_health_score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Soil Health Score",
+          "type": "number"
+        },
+        "soil_health_breakdown": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "5 USDA-NRCS principles + SOC & erosion modifier component scores",
+          "title": "Soil Health Breakdown",
+          "type": "object"
+        },
+        "profit_p10": {
+          "title": "Profit P10",
+          "type": "number"
+        },
+        "profit_p50": {
+          "title": "Profit P50",
+          "type": "number"
+        },
+        "profit_p90": {
+          "title": "Profit P90",
+          "type": "number"
+        },
+        "cvar_profit_10": {
+          "title": "Cvar Profit 10",
+          "type": "number"
+        },
+        "cvar_ci_low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cvar Ci Low"
+        },
+        "cvar_ci_high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cvar Ci High"
+        },
+        "step_yields": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Per-step ensemble mean yields keyed by '{year_index}:{season_index}:{crop_id}'",
+          "title": "Step Yields",
+          "type": "object"
+        },
+        "step_irrigations_mm": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Per-step ensemble mean irrigation demand (mm) keyed by '{year_index}:{season_index}:{crop_id}'",
+          "title": "Step Irrigations Mm",
+          "type": "object"
+        }
+      },
+      "required": [
+        "rotation_id",
+        "scenario_set_id",
+        "yield_t_ha",
+        "irrigation_mm",
+        "profit_per_ha",
+        "soc_delta_t_ha_10yr",
+        "erosion_t_ha_yr",
+        "n_balance_kg_ha_yr",
+        "living_root_days_pct",
+        "family_diversity_index",
+        "soil_health_score",
+        "profit_p10",
+        "profit_p50",
+        "profit_p90",
+        "cvar_profit_10"
+      ],
+      "title": "SimulationResult",
+      "type": "object"
+    },
+    "SoilSummary": {
+      "properties": {
+        "texture_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Texture Class"
+        },
+        "sand_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sand Pct"
+        },
+        "silt_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Silt Pct"
+        },
+        "clay_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Clay Pct"
+        },
+        "soc_g_per_kg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Soc G Per Kg"
+        },
+        "ph": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ph"
+        },
+        "bulk_density_g_cm3": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bulk Density G Cm3"
+        },
+        "cec_cmol_kg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cec Cmol Kg"
+        },
+        "nitrogen_g_kg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nitrogen G Kg"
+        },
+        "available_p_kg_ha": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Available P Kg Ha"
+        },
+        "available_k_kg_ha": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Available K Kg Ha"
+        },
+        "field_capacity_vol": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field Capacity Vol"
+        },
+        "wilting_point_vol": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wilting Point Vol"
+        },
+        "slope_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Slope Pct"
+        },
+        "source": {
+          "default": "modelled",
+          "enum": [
+            "modelled",
+            "farmer_test"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DataProvenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        }
+      },
+      "title": "SoilSummary",
+      "type": "object"
+    },
+    "StrategyRecommendation": {
+      "properties": {
+        "rank": {
+          "title": "Rank",
+          "type": "integer"
+        },
+        "rotation": {
+          "$ref": "#/$defs/Rotation"
+        },
+        "results": {
+          "items": {
+            "$ref": "#/$defs/SimulationResult"
+          },
+          "title": "Results",
+          "type": "array"
+        },
+        "objective_scores": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Objective Scores",
+          "type": "object"
+        },
+        "vs_baseline": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Relative change vs farmer's current rotation",
+          "title": "Vs Baseline",
+          "type": "object"
+        },
+        "why": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Why",
+          "type": "array"
+        },
+        "provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DataProvenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "currency": {
+          "default": "INR",
+          "title": "Currency",
+          "type": "string"
+        },
+        "currency_symbol": {
+          "default": "\u20b9",
+          "title": "Currency Symbol",
+          "type": "string"
+        },
+        "practical_metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PracticalFarmerMetrics"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "narrative_summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Narrative Summary"
+        },
+        "country": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "India",
+          "title": "Country"
+        },
+        "region_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "State"
+        },
+        "served_from": {
+          "default": "live_computation",
+          "enum": [
+            "live_computation",
+            "demo_snapshot"
+          ],
+          "title": "Served From",
+          "type": "string"
+        },
+        "snapshot_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Snapshot Date"
+        },
+        "economics_basis": {
+          "default": "local_verified",
+          "enum": [
+            "local_verified",
+            "regional_verified",
+            "faostat_proxy",
+            "punjab_proxy",
+            "uncalibrated_proxy"
+          ],
+          "title": "Economics Basis",
+          "type": "string"
+        },
+        "is_fallback": {
+          "default": false,
+          "title": "Is Fallback",
+          "type": "boolean"
+        },
+        "data_mode": {
+          "default": "observed",
+          "enum": [
+            "observed",
+            "hybrid_regional",
+            "fallback_synthetic",
+            "regional_climatology"
+          ],
+          "title": "Data Mode",
+          "type": "string"
+        },
+        "validation_status": {
+          "default": "validated_india",
+          "enum": [
+            "validated_india",
+            "validated_regional",
+            "biophysical_global",
+            "unvalidated_global"
+          ],
+          "title": "Validation Status",
+          "type": "string"
+        },
+        "validation_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Validation Message"
+        }
+      },
+      "required": [
+        "rank",
+        "rotation",
+        "results",
+        "objective_scores"
+      ],
+      "title": "StrategyRecommendation",
+      "type": "object"
+    },
+    "TacticalAdvisory": {
+      "description": "7-day operational farm advisory (sowing readiness, irrigation timing, Urea/spray safety).",
+      "properties": {
+        "sowing_ready": {
+          "default": true,
+          "title": "Sowing Ready",
+          "type": "boolean"
+        },
+        "sowing_status_code": {
+          "default": "optimal",
+          "enum": [
+            "optimal",
+            "too_cold",
+            "too_hot",
+            "too_dry",
+            "waterlogged"
+          ],
+          "title": "Sowing Status Code",
+          "type": "string"
+        },
+        "irrigation_action": {
+          "default": "adequate_moisture",
+          "enum": [
+            "hold_rain_ahead",
+            "irrigate_soon",
+            "adequate_moisture"
+          ],
+          "title": "Irrigation Action",
+          "type": "string"
+        },
+        "urea_spray_safe": {
+          "default": true,
+          "title": "Urea Spray Safe",
+          "type": "boolean"
+        },
+        "next_7d_precip_mm": {
+          "default": 0.0,
+          "title": "Next 7D Precip Mm",
+          "type": "number"
+        },
+        "next_7d_et0_mm": {
+          "default": 0.0,
+          "title": "Next 7D Et0 Mm",
+          "type": "number"
+        },
+        "seedbed_temp_5cm_c": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seedbed Temp 5Cm C"
+        },
+        "soil_moisture_deficit_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Soil Moisture Deficit Mm"
+        },
+        "fire_weather_index": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fire Weather Index"
+        },
+        "forecast_days": {
+          "items": {
+            "$ref": "#/$defs/TacticalDayForecast"
+          },
+          "title": "Forecast Days",
+          "type": "array"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/DataProvenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        }
+      },
+      "title": "TacticalAdvisory",
+      "type": "object"
+    },
+    "TacticalDayForecast": {
+      "description": "Daily tactical field operation weather and seedbed state (Meteomatics 90m / Regional).",
+      "properties": {
+        "date": {
+          "title": "Date",
+          "type": "string"
+        },
+        "tmax_c": {
+          "title": "Tmax C",
+          "type": "number"
+        },
+        "tmin_c": {
+          "title": "Tmin C",
+          "type": "number"
+        },
+        "precip_mm": {
+          "title": "Precip Mm",
+          "type": "number"
+        },
+        "prob_precip_pct": {
+          "title": "Prob Precip Pct",
+          "type": "number"
+        },
+        "et0_mm": {
+          "title": "Et0 Mm",
+          "type": "number"
+        },
+        "wind_speed_ms": {
+          "title": "Wind Speed Ms",
+          "type": "number"
+        },
+        "soil_temp_5cm_c": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Soil Temp 5Cm C"
+        },
+        "soil_moisture_deficit_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Soil Moisture Deficit Mm"
+        }
+      },
+      "required": [
+        "date",
+        "tmax_c",
+        "tmin_c",
+        "precip_mm",
+        "prob_precip_pct",
+        "et0_mm",
+        "wind_speed_ms"
+      ],
+      "title": "TacticalDayForecast",
+      "type": "object"
+    },
+    "WaterSummary": {
+      "properties": {
+        "root_zone_moisture_percentile": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Monthly percentiles (SMAP L4), 12 values",
+          "title": "Root Zone Moisture Percentile"
+        },
+        "groundwater_trend_cm_per_year": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "GRACE/GRACE-FO",
+          "title": "Groundwater Trend Cm Per Year"
+        },
+        "climatic_water_balance_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "P - ET0, annual",
+          "title": "Climatic Water Balance Mm"
+        },
+        "irrigation_detected": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Irrigation Detected"
+        },
+        "soil_moisture_deficit_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Meteomatics 90m root-zone soil moisture deficit (mm)",
+          "title": "Soil Moisture Deficit Mm"
+        },
+        "soil_moisture_index_layers": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Meteomatics 4-layer soil moisture index (-5cm, -15cm, -50cm, -150cm)",
+          "title": "Soil Moisture Index Layers"
+        },
+        "volumetric_soil_water_layers": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Meteomatics 4-layer volumetric soil water content (m3/m3) at -5cm, -15cm, -50cm, -150cm",
+          "title": "Volumetric Soil Water Layers"
+        },
+        "seedbed_temp_5cm_c": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Meteomatics 5cm topsoil temperature (C) for sowing readiness",
+          "title": "Seedbed Temp 5Cm C"
+        },
+        "provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DataProvenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        }
+      },
+      "title": "WaterSummary",
+      "type": "object"
+    }
+  },
+  "title": "TerraLoop"
+}

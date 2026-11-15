@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 from terraloop_schemas import CropSpec, FarmConstraints, FieldProfile
 
-from terraloop_engine import region_registry
+from terraloop_engine import crop_kb, region_registry
 
 DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
@@ -43,7 +43,7 @@ _CROP_PH_RANGE: dict[str, tuple[float, float]] = {
 
 def _crop_ph_range(crop: CropSpec) -> tuple[float, float]:
     explicit = getattr(crop, "ph_range", None)
-    if explicit and len(explicit) == 2:
+    if explicit and len(explicit) == 2 and (abs(explicit[0] - 5.2) > 1e-6 or abs(explicit[1] - 8.6) > 1e-6):
         return float(explicit[0]), float(explicit[1])
     return _CROP_PH_RANGE.get(crop.id, _GROUP_PH_RANGE.get(crop.group, (5.8, 8.0)))
 
@@ -75,22 +75,42 @@ def score_crop(
 ) -> SuitabilityResult:
     c = profile.climate
     tmean = [(tx + tn) / 2 for tx, tn in zip(c.monthly_tmax_c, c.monthly_tmin_c)]
+    reg_cfg = region_registry.detect_region_config(profile.field.lat, profile.field.lon)
+    crop = crop_kb.resolve_crop_spec(crop, reg_cfg.cultivar_zone)
     duration = int(sum(crop.duration_days) / 2)
     opt_lo, opt_hi = crop.optimal_temp_c
     need_lo, need_hi = crop.water_requirement_mm
     irrigation = constraints.irrigation if constraints else "limited"
     irr_cap = constraints.irrigation_cap_mm if constraints else None
-    is_sh = region_registry.detect_region_config(profile.field.lat, profile.field.lon).hemisphere == "SH"
+    is_sh = reg_cfg.hemisphere == "SH"
     wet_months = c.wettest_months or ([12, 1, 2, 3] if is_sh else [7, 8, 9])
     monsoon_rain = sum(c.monthly_precip_mm[m - 1] for m in wet_months)
     post_wet_starts = {wet_months[-1], (wet_months[-1] % 12) + 1, ((wet_months[-1] + 1) % 12) + 1}
 
-    if "cool" in crop.season_type and "warm" not in crop.season_type:
-        preferred_starts = [4, 5, 6, 7, 8] if is_sh else [10, 11, 12, 1, 2]
-    elif "warm" in crop.season_type and "cool" not in crop.season_type:
-        preferred_starts = [10, 11, 12, 1, 2, 3] if is_sh else [4, 5, 6, 7, 8, 9]
+    cal_slots = region_registry.get_calendar_slots(profile.field.lat, profile.field.lon)
+    if reg_cfg.calendar_id == "india_igp":
+        if "cool" in crop.season_type and "warm" not in crop.season_type:
+            preferred_starts = [10, 11, 12, 1, 2]
+        elif "warm" in crop.season_type and "cool" not in crop.season_type:
+            preferred_starts = [4, 5, 6, 7, 8, 9]
+        else:
+            preferred_starts = list(range(1, 13))
     else:
-        preferred_starts = list(range(1, 13))
+        slot_starts: list[int] = []
+        for slot in cal_slots:
+            if slot.get("season_type") in crop.season_type:
+                for m in slot.get("sowing_months", []):
+                    if m not in slot_starts:
+                        slot_starts.append(int(m))
+        if not slot_starts:
+            if "cool" in crop.season_type and "warm" not in crop.season_type:
+                preferred_starts = [4, 5, 6, 7, 8] if is_sh else [10, 11, 12, 1, 2]
+            elif "warm" in crop.season_type and "cool" not in crop.season_type:
+                preferred_starts = [10, 11, 12, 1, 2, 3] if is_sh else [4, 5, 6, 7, 8, 9]
+            else:
+                preferred_starts = list(range(1, 13))
+        else:
+            preferred_starts = slot_starts
 
     smap_pcts = profile.water.root_zone_moisture_percentile
     gw_trend = profile.water.groundwater_trend_cm_per_year
@@ -105,8 +125,19 @@ def score_crop(
             gdd = sum(max(min(tmean[m - 1], crop.max_temp_c) - crop.base_temp_c, 0) * DAYS_IN_MONTH[m - 1] for m in months)
             if gdd < 0.85 * crop.gdd_to_maturity:
                 continue
-            if any(c.monthly_tmin_c[m - 1] < crop.min_temp_c for m in months):
+            if crop.winter_dormancy:
+                lethal_temp = crop.lethal_frost_c if crop.lethal_frost_c is not None else crop.min_temp_c
+                if any(c.monthly_tmin_c[m - 1] < lethal_temp for m in months):
+                    continue
+            elif any(c.monthly_tmin_c[m - 1] < crop.min_temp_c for m in months):
                 continue
+            if crop.vernalization_required and crop.vernalization_chill_days > 0:
+                chill_days = sum(
+                    DAYS_IN_MONTH[m - 1] * (1.0 if tmean[m - 1] <= 7.0 else (0.5 if c.monthly_tmin_c[m - 1] <= 5.0 else 0.0))
+                    for m in months
+                )
+                if chill_days < 0.65 * crop.vernalization_chill_days:
+                    continue
             if any(c.monthly_tmax_c[m - 1] > crop.max_temp_c + 4 for m in months):
                 continue
             in_opt = sum(1 for m in months if opt_lo <= tmean[m - 1] <= opt_hi) / len(months)
@@ -153,7 +184,9 @@ def score_crop(
                 adj -= min(0.18, abs(gw_trend + 1.0) * 0.045)
             if haz.drought_frequency and haz.drought_frequency > 0.25 and irrigation != "full" and crop.drought_tolerance <= 2:
                 adj -= 0.06
-            if haz.terminal_heat_days_per_year and haz.terminal_heat_days_per_year > 5.0 and crop.id in ("wheat", "potato", "lentil"):
+            if haz.terminal_heat_days_per_year and haz.terminal_heat_days_per_year > 5.0 and crop.id in (
+                "wheat", "wheat_winter", "wheat_spring", "potato", "lentil", "field_pea"
+            ):
                 adj -= 0.03
             if profile.water.irrigation_detected is False and irrigation == "limited" and need_lo > 750:
                 adj -= 0.12
@@ -212,18 +245,34 @@ def score_crop(
     if best_fit == 0.0 and len(preferred_starts) < 12:
         best_score, best_fit, water_fit, best_months, sowing = _eval_starts(list(range(1, 13)))
 
-    lang = language if language in ("en", "hi", "pa") else "en"
+    lang = language if language in ("en", "hi", "pa", "es", "pt", "fr") else "en"
 
-    def _tr(en: str, hi: str, pa: str) -> str:
-        return hi if lang == "hi" else pa if lang == "pa" else en
+    def _tr(
+        en: str,
+        hi: str,
+        pa: str,
+        es: str | None = None,
+        pt: str | None = None,
+        fr: str | None = None,
+    ) -> str:
+        return {
+            "hi": hi,
+            "pa": pa,
+            "es": es or en,
+            "pt": pt or en,
+            "fr": fr or en,
+        }.get(lang, en)
 
     reasons: list[str] = []
     if best_fit == 0:
         reasons.append(
             _tr(
-                "No sowing window satisfies temperature and heat-unit requirements.",
+                "No sowing window satisfies temperature, vernalization, and heat-unit requirements.",
                 "कोई भी बुवाई अवधि तापमान और ऊष्मा-इकाई (GDD) आवश्यकताओं को पूरा नहीं करती।",
                 "ਕੋਈ ਵੀ ਬਿਜਾਈ ਸਮਾਂ ਤਾਪਮਾਨ ਅਤੇ ਗਰਮੀ-ਇਕਾਈ (GDD) ਦੀਆਂ ਲੋੜਾਂ ਪੂਰੀਆਂ ਨਹੀਂ ਕਰਦਾ।",
+                "Ninguna ventana de siembra cumple los requisitos térmicos, de vernalización o de grados-día.",
+                "Nenhuma janela de plantio atende aos requisitos térmicos, de vernalização ou de graus-dia.",
+                "Aucune fenêtre de semis ne satisfait les exigences thermiques, de vernalisation ou de degrés-jours.",
             )
         )
         return SuitabilityResult(crop.id, 0.0, 0.0, 0.0, [], reasons)

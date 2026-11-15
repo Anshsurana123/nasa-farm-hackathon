@@ -46,12 +46,29 @@ def load_all_schemes() -> dict[str, list[dict]]:
 
 
 def _scheme_title(scheme: dict[str, Any], language: str) -> str:
-    """Return scheme display title localized for 'hi'/'pa' with English fallback."""
-    if language in ("hi", "pa"):
+    """Return scheme display title localized for supported languages with English fallback."""
+    if language in ("hi", "pa", "es", "pt", "fr"):
         localized = scheme.get(f"display_title_{language}")
         if isinstance(localized, str) and localized.strip():
             return localized
     return str(scheme.get("display_title", scheme["name"]))
+
+
+_COUNTRY_SCHEME_FILES: dict[str, str] = {
+    "USA": "us_usda",
+    "FRA": "eu_cap",
+    "BRA": "brazil",
+    "AUS": "australia",
+    "KEN": "kenya",
+}
+
+_REGION_SCHEME_FILES: dict[str, str] = {
+    "us_corn_belt": "us_usda",
+    "eu_maritime_west": "eu_cap",
+    "brazil_cerrado": "brazil",
+    "australia_wheat_belt": "australia",
+    "east_africa_highlands": "kenya",
+}
 
 
 def get_matching_schemes(
@@ -61,17 +78,32 @@ def get_matching_schemes(
     urea_bags_saved: float = 0.0,
     region_id: str | None = None,
     language: str = "en",
+    country_code: str | None = None,
+    validation_status: str | None = None,
 ) -> list[str]:
-    """Return matching central and state government agricultural scheme display titles."""
-    if not state:
+    """Return matching agricultural support/conservation scheme display titles for validated regions."""
+    if validation_status in ("biophysical_global", "unvalidated_global"):
+        return []
+    if not state and not country_code and not (region_id and region_id in _REGION_SCHEME_FILES):
         return []
 
-    lang = language if language in ("en", "hi", "pa") else "en"
+    lang = language if language in ("en", "hi", "pa", "es", "pt", "fr") else "en"
     all_schemes = load_all_schemes()
     matched_titles: list[str] = []
     matched_ids: set[str] = set()
 
-    # 1. State schemes (only if state is determined and matches)
+    # Check global regional scheme file first if non-India hub matches
+    hub_file = _REGION_SCHEME_FILES.get(region_id or "") or _COUNTRY_SCHEME_FILES.get((country_code or "").upper())
+    if hub_file and hub_file in all_schemes:
+        for s in all_schemes[hub_file]:
+            if _is_scheme_eligible(s, planted_crops, practices, urea_bags_saved, region_id=region_id):
+                matched_titles.append(_scheme_title(s, lang))
+        return matched_titles
+
+    if not state or (country_code and country_code.upper() != "IND"):
+        return []
+
+    # 1. Indian state schemes (only if Indian state is determined and matches)
     state_key_map = {
         "haryana": "haryana",
         "punjab": "punjab",

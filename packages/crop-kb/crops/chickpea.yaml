@@ -20,6 +20,12 @@ n_demand_kg_ha: 20
 residue_t_ha: 1.5
 residue_cn_ratio: 25
 typical_yield_t_ha: [1.0, 1.8]
+ph_range: [6.0, 8.5]
+cultivar_profiles:
+  mediterranean_dryland:
+    typical_yield_t_ha: [1.4, 2.2]
+    duration_days: [125, 150]
+    notes: "Southern Australia Desi/Kabuli winter-sown chickpea (GRDC/ABARES)."
 aquacrop_name: null
 good_predecessors: [maize, rice_dsr, sorghum, pearl_millet]
 bad_predecessors: [chickpea, lentil]

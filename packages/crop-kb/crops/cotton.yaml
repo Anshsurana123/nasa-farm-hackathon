@@ -20,6 +20,17 @@ n_demand_kg_ha: 120
 residue_t_ha: 4
 residue_cn_ratio: 50
 typical_yield_t_ha: [1.5, 2.5]
+ph_range: [5.5, 8.5]
+cultivar_profiles:
+  tropical_high_input:
+    typical_yield_t_ha: [3.8, 4.6]
+    duration_days: [160, 185]
+    water_requirement_mm: [700, 1100]
+    notes: "Mato Grosso Cerrado high-input cotton (seed-cotton ~4.2 t/ha, ~1.75 t/ha lint; IMEA/CONAB)."
+  temperate_high_input:
+    typical_yield_t_ha: [2.4, 3.4]
+    duration_days: [145, 175]
+    notes: "US Southern upland cotton (seed-cotton equivalent)."
 aquacrop_name: Cotton
 good_predecessors: [wheat, chickpea]
 bad_predecessors: [cotton]

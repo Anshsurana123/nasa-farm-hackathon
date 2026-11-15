@@ -24,13 +24,20 @@ class DataProvenance(BaseModel):
 
 
 class SoilHealthCardInput(BaseModel):
-    """Optional local laboratory values from an Indian Government Soil Health Card (SHC)."""
+    """Optional local laboratory values from Indian SHC or international soil lab reports."""
 
+    lab_standard: Literal["india_shc", "mehlich3", "olsen", "bray1", "iso_generic"] = "india_shc"
     ph: float | None = Field(None, ge=3.5, le=10.5)
-    soc_pct: float | None = Field(None, ge=0.05, le=5.0, description="Organic Carbon (%) on SHC")
+    soc_pct: float | None = Field(None, ge=0.05, le=10.0, description="Organic Carbon (%)")
+    organic_matter_pct: float | None = Field(
+        None, ge=0.05, le=15.0, description="Organic Matter (%); converted via Van Bemmelen factor (1.724) if soc_pct is absent"
+    )
     available_n_kg_ha: float | None = Field(None, ge=0, le=1000)
     available_p_kg_ha: float | None = Field(None, ge=0, le=500)
-    available_k_kg_ha: float | None = Field(None, ge=0, le=1500)
+    available_k_kg_ha: float | None = Field(None, ge=0, le=2000)
+    nitrate_n_ppm: float | None = Field(None, ge=0, le=500, description="Extractable NO3-N / mineral N (ppm)")
+    phosphorus_ppm: float | None = Field(None, ge=0, le=500, description="Extractable P (ppm)")
+    potassium_ppm: float | None = Field(None, ge=0, le=2500, description="Exchangeable K (ppm)")
 
 
 # ---------------------------------------------------------------------------
@@ -223,6 +230,21 @@ class InferredSeason(BaseModel):
     confirmed_by_farmer: bool = False
 
 
+class CalendarSlotSpec(BaseModel):
+    """Season slot definition from regional cropping calendar archetypes."""
+
+    slot_index: int
+    slot_id: str
+    name: str
+    season_type: Literal["warm", "cool"]
+    sowing_months: list[int] = Field(default_factory=list)
+    default_sowing_doy: int = 165
+    max_duration_days: int = 165
+    typical_harvest_months: list[int] = Field(default_factory=list)
+    overwintering: bool = False
+    notes: str | None = None
+
+
 class FieldProfile(BaseModel):
     field: FieldGeometry
     climate: ClimateSummary
@@ -235,13 +257,21 @@ class FieldProfile(BaseModel):
     agro_climatic_notes: list[str] = []
     currency: str = "INR"
     currency_symbol: str = "₹"
+    country: str | None = "India"
+    country_code: str | None = "IND"
     agro_zone: str | None = None
     state: str | None = None
+    aez_class: str | None = None
+    calendar_id: str | None = "india_igp"
+    calendar_slots: list[CalendarSlotSpec] = Field(default_factory=list)
+    unit_convention: Literal["metric", "acre", "imperial"] = "metric"
     served_from: Literal["live_computation", "demo_snapshot"] = "live_computation"
     snapshot_date: str | None = None
     is_fallback: bool = False
     data_mode: Literal["observed", "hybrid_regional", "fallback_synthetic", "regional_climatology"] = "observed"
-    validation_status: Literal["validated_india", "unvalidated_global"] = "validated_india"
+    validation_status: Literal["validated_india", "validated_regional", "biophysical_global", "unvalidated_global"] = (
+        "validated_india"
+    )
     validation_message: str | None = None
     tactical_advisory: TacticalAdvisory | None = None
 
@@ -263,6 +293,20 @@ class CropFamily(str, Enum):
     convolvulaceae = "convolvulaceae"  # sweet potato
     polygonaceae = "polygonaceae"  # buckwheat
     other = "other"
+
+
+class CultivarAdaptation(BaseModel):
+    """Optional ecotype / climate-zone cultivar parameter override."""
+
+    gdd_to_maturity: float | None = None
+    typical_yield_t_ha: tuple[float, float] | None = None
+    duration_days: tuple[int, int] | None = None
+    water_requirement_mm: tuple[float, float] | None = None
+    kc: tuple[float, float, float] | None = None
+    min_temp_c: float | None = None
+    vernalization_required: bool | None = None
+    winter_dormancy: bool | None = None
+    notes: str | None = None
 
 
 class CropSpec(BaseModel):
@@ -290,6 +334,15 @@ class CropSpec(BaseModel):
     residue_t_ha: float = 0.0
     residue_cn_ratio: float | None = None
     typical_yield_t_ha: tuple[float, float]
+    ph_range: tuple[float, float] = (5.2, 8.6)
+    vernalization_required: bool = False
+    vernalization_chill_days: int = Field(0, ge=0)
+    winter_dormancy: bool = False
+    dormancy_temp_c: float = 2.0
+    lethal_frost_c: float | None = None
+    is_perennial: bool = False
+    perennial_cuts_per_yr: int = Field(1, ge=1, le=10)
+    cultivar_profiles: dict[str, CultivarAdaptation] = Field(default_factory=dict)
     aquacrop_name: str | None = None
     good_predecessors: list[str] = []
     bad_predecessors: list[str] = []
@@ -397,6 +450,11 @@ class SeasonalOperationStep(BaseModel):
     yield_t_ha: float = 0.0
     irrigation_mm: float = 0.0
     irrigations_count: int = 0
+    currency: str = "INR"
+    currency_symbol: str = "₹"
+    input_cost_local_ha: float = 0.0
+    labor_cost_local_ha: float = 0.0
+    net_profit_local_ha: float = 0.0
     input_cost_inr_ha: float = 0.0
     labor_cost_inr_ha: float = 0.0
     net_profit_inr_ha: float = 0.0
@@ -406,27 +464,33 @@ class SeasonalOperationStep(BaseModel):
 
 
 class PracticalFarmerMetrics(BaseModel):
-    """Actionable farm-level metrics in Indian agricultural units."""
+    """Actionable farm-level metrics localized to region & units."""
 
     turnaround_days_kharif_rabi: int = Field(
-        20, description="Days between Kharif harvest and Rabi sowing (>=20d enables burn-free sowing)"
+        20, description="Days between primary harvest and successor sowing (>=20d reduces residue burning)"
     )
+    turnaround_days: int | None = None
     urea_bags_saved_per_ha: float = Field(
         0.0, description="45-kg Urea bags saved per ha/yr via biological N fixation and residue retention"
     )
+    fertilizer_n_saved_kg_ha: float = 0.0
     irrigations_saved_per_yr: int = Field(
-        0, description="Standard 75 mm flood irrigations saved per year vs baseline"
+        0, description="Standard 75 mm irrigations saved per year vs baseline"
     )
     pumping_hours_saved_per_ha: int = Field(
-        0, description="5 HP submersible borewell pumping hours saved per ha/yr vs baseline"
+        0, description="Submersible borewell pumping hours saved per ha/yr vs baseline"
     )
+    water_saved_m3_per_ha: float = 0.0
     msp_assurance_level: str = Field(
         "MSP Assured (FCI / State)",
-        description="Market procurement certainty: 'MSP Assured (FCI / State)', 'NAFED / PSS Supported', or 'Mandi Market-Linked'",
+        description="Market procurement / insurance certainty level",
     )
+    market_assurance_level: str | None = None
     eligible_schemes: list[str] = Field(
-        default_factory=list, description="Matching central/state Indian agricultural schemes"
+        default_factory=list, description="Matching regional/national agricultural & conservation schemes"
     )
+    currency: str = "INR"
+    currency_symbol: str = "₹"
     labor_cost_inr_per_ha: float = 0.0
     input_cost_inr_per_ha: float = 0.0
     area_ha: float = Field(1.0, gt=0)
@@ -454,13 +518,19 @@ class StrategyRecommendation(BaseModel):
     currency_symbol: str = "₹"
     practical_metrics: PracticalFarmerMetrics | None = None
     narrative_summary: str | None = None
+    country: str | None = "India"
+    region_id: str | None = None
     state: str | None = None
     served_from: Literal["live_computation", "demo_snapshot"] = "live_computation"
     snapshot_date: str | None = None
-    economics_basis: Literal["local_verified", "punjab_proxy"] = "local_verified"
+    economics_basis: Literal[
+        "local_verified", "regional_verified", "faostat_proxy", "punjab_proxy", "uncalibrated_proxy"
+    ] = "local_verified"
     is_fallback: bool = False
     data_mode: Literal["observed", "hybrid_regional", "fallback_synthetic", "regional_climatology"] = "observed"
-    validation_status: Literal["validated_india", "unvalidated_global"] = "validated_india"
+    validation_status: Literal["validated_india", "validated_regional", "biophysical_global", "unvalidated_global"] = (
+        "validated_india"
+    )
     validation_message: str | None = None
 
 
@@ -478,7 +548,7 @@ class SuitabilityRequest(BaseModel):
     constraints: FarmConstraints = Field(default_factory=FarmConstraints)
     profile: FieldProfile | None = None
     soil_health_card: SoilHealthCardInput | None = None
-    language: Literal["en", "pa", "hi"] = "en"
+    language: Literal["en", "pa", "hi", "es", "pt", "fr"] = "en"
 
 
 class SuitabilityItem(BaseModel):
@@ -495,7 +565,8 @@ class RecommendRequest(BaseModel):
     field: FieldGeometry
     priorities: Priorities = Field(default_factory=Priorities)
     constraints: FarmConstraints = Field(default_factory=FarmConstraints)
-    language: Literal["en", "pa", "hi"] = "en"
+    language: Literal["en", "pa", "hi", "es", "pt", "fr"] = "en"
+    unit_convention: Literal["metric", "acre", "imperial"] | None = None
     soil_health_card: SoilHealthCardInput | None = None
     profile: FieldProfile | None = None
     baseline_override: list[str] | None = None

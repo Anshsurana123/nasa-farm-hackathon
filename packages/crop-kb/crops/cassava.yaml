@@ -1,0 +1,38 @@
+id: cassava
+name: Cassava (mandioca)
+family: euphorbiaceae
+group: tuber
+season_type: [warm]
+gdd_to_maturity: 3200
+base_temp_c: 13
+optimal_temp_c: [24, 32]
+max_temp_c: 38
+min_temp_c: 12
+duration_days: [240, 300]
+water_requirement_mm: [650, 1100]
+kc: [0.30, 0.95, 0.55]
+root_depth_m: 1.4
+drought_tolerance: 5
+heat_tolerance: 5
+waterlogging_tolerance: 1
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 80
+residue_t_ha: 4.5
+residue_cn_ratio: 50
+typical_yield_t_ha: [15.0, 26.0]
+ph_range: [4.5, 7.5]
+lethal_frost_c: 1.0
+cultivar_profiles:
+  tropical_high_input:
+    typical_yield_t_ha: [18.0, 28.0]
+    duration_days: [240, 300]
+    notes: "Brazil Cerrado industrial/table mandioca (IBGE/EMBRAPA)."
+  tropical_highland:
+    typical_yield_t_ha: [11.0, 18.0]
+    duration_days: [250, 300]
+    notes: "East Africa mosaic-tolerant cassava (IITA/KALRO)."
+aquacrop_name: null
+good_predecessors: [common_bean, soybean, groundnut, maize]
+bad_predecessors: [cassava, sweet_potato]
+notes: "Ultra-drought-tolerant tropical carbohydrate staple yielding on acidic, low-fertility soils."
+sources: ["FAO-56 Table 12 (cassava)", "IITA Cassava Reference", "EMBRAPA Mandioca"]

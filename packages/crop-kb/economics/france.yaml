@@ -1,0 +1,145 @@
+# France / Western Europe Arable Crop Enterprise Budgets (Agreste, ARVALIS, Terres Inovia 2023-2024)
+# Operational + mechanization + labour costs excluding land rent (charges operationnelles + mecanisation + MO)
+currency: EUR
+currency_symbol: "€"
+usd_exchange_rate: 0.92
+ppp_spread_factor: 0.014
+cost_floor: 65.0
+labor_floor: 20.0
+state: Beauce
+economics_basis: regional_verified
+
+practice_adjustments:
+  happy_seeder_zero_till:
+    cost_delta: -55.0
+    labor_delta: -18.0
+  direct_seeded:
+    cost_delta: -70.0
+    labor_delta: -25.0
+  broad_bed_furrow:
+    cost_delta: 0.0
+    labor_delta: -12.0
+  legume_credit:
+    cost_delta: -42.0
+    labor_delta: 0.0
+
+crops:
+  wheat_winter:
+    price_per_tonne: 205.0
+    price_usd_per_tonne: 222.8
+    cost_per_ha: 980.0
+    labor_cost_per_ha: 165.0
+    cost_usd_per_ha: 1065.2
+    market_risk: 0.14
+    procurement_type: "euronext_or_coop"
+    sources: ["Agreste Cotations Ble Tendre (2023-2024)", "ARVALIS Marge Brute Ble Tendre d'Hiver"]
+
+  rapeseed_canola:
+    price_per_tonne: 465.0
+    price_usd_per_tonne: 505.4
+    cost_per_ha: 920.0
+    labor_cost_per_ha: 155.0
+    cost_usd_per_ha: 1000.0
+    market_risk: 0.16
+    procurement_type: "euronext_or_coop"
+    sources: ["Terres Inovia Colza d'Hiver References Economiques (2024)", "Agreste Oleagineux"]
+
+  maize:
+    price_per_tonne: 215.0
+    price_usd_per_tonne: 233.7
+    cost_per_ha: 1250.0
+    labor_cost_per_ha: 195.0
+    cost_usd_per_ha: 1358.7
+    market_risk: 0.15
+    procurement_type: "euronext_or_coop"
+    sources: ["ARVALIS / AGPM Mais Grain Enterprise Budget (2024)"]
+
+  barley:
+    price_per_tonne: 185.0
+    price_usd_per_tonne: 201.1
+    cost_per_ha: 830.0
+    labor_cost_per_ha: 145.0
+    cost_usd_per_ha: 902.2
+    market_risk: 0.14
+    procurement_type: "malting_coop_or_feed"
+    sources: ["Agreste Orge Fourragere / Brassicole & ARVALIS (2024)"]
+
+  field_pea:
+    price_per_tonne: 245.0
+    price_usd_per_tonne: 266.3
+    cost_per_ha: 680.0
+    labor_cost_per_ha: 125.0
+    cost_usd_per_ha: 739.1
+    market_risk: 0.16
+    procurement_type: "protein_coop_cap_aid"
+    sources: ["Terres Inovia Pois Proteagineux / EU Protein Coupled Aid Estimates (2024)"]
+
+  faba_bean:
+    price_per_tonne: 250.0
+    price_usd_per_tonne: 271.7
+    cost_per_ha: 690.0
+    labor_cost_per_ha: 125.0
+    cost_usd_per_ha: 750.0
+    market_risk: 0.16
+    procurement_type: "protein_coop_cap_aid"
+    sources: ["Terres Inovia Feverole de Printemps/Hiver Budgets (2024)"]
+
+  sugar_beet:
+    price_per_tonne: 38.0
+    price_usd_per_tonne: 41.3
+    cost_per_ha: 1850.0
+    labor_cost_per_ha: 310.0
+    cost_usd_per_ha: 2010.9
+    market_risk: 0.11
+    procurement_type: "sugar_refinery_contract"
+    sources: ["ITB / CGB Betterave Sucriere France Contract Returns (2024)"]
+
+  oats:
+    price_per_tonne: 195.0
+    price_usd_per_tonne: 212.0
+    cost_per_ha: 690.0
+    labor_cost_per_ha: 130.0
+    cost_usd_per_ha: 750.0
+    market_risk: 0.14
+    procurement_type: "milling_coop"
+    sources: ["Agreste Cereales Secondaires & Chambers of Agriculture (2024)"]
+
+  triticale:
+    price_per_tonne: 182.0
+    price_usd_per_tonne: 197.8
+    cost_per_ha: 710.0
+    labor_cost_per_ha: 130.0
+    cost_usd_per_ha: 771.7
+    market_risk: 0.13
+    procurement_type: "feed_coop"
+    sources: ["ARVALIS Triticale Enterprise Reference (2024)"]
+
+  alfalfa:
+    price_per_tonne: 175.0
+    price_usd_per_tonne: 190.2
+    cost_per_ha: 1180.0
+    labor_cost_per_ha: 260.0
+    cost_usd_per_ha: 1282.6
+    market_risk: 0.12
+    procurement_type: "dehydrated_or_hay_coop"
+    sources: ["La Cooperation Agricole Luzerne France Enterprise Data (2024)"]
+
+  potato:
+    price_per_tonne: 195.0
+    price_usd_per_tonne: 212.0
+    cost_per_ha: 3450.0
+    labor_cost_per_ha: 680.0
+    cost_usd_per_ha: 3750.0
+    market_risk: 0.24
+    procurement_type: "starch_or_fresh_contract"
+    sources: ["UNPT / CNIPT Pomme de Terre France Cost Survey (2024)"]
+
+  crimson_clover_vetch:
+    price_per_tonne: 0.0
+    price_usd_per_tonne: 0.0
+    cost_per_ha: 95.0
+    labor_cost_per_ha: 25.0
+    cost_usd_per_ha: 103.3
+    market_risk: 0.04
+    procurement_type: "cipan_cap_ecoscheme"
+    sources: ["ARVALIS Intercultures CIPAN / SIE Cost Reference (2024)"]

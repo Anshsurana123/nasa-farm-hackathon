@@ -14,6 +14,10 @@ C02 future (NEX-GDDP-CMIP6 via gee.cmip6_daily):
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from terraloop_schemas import DataProvenance, ScenarioSet
@@ -240,6 +244,7 @@ def build_scenario_set(
     horizon: str | None = None,
     lat: float = 30.2,
     lon: float = 75.92,
+    progress_cb: Callable[[str, float], None] | None = None,
 ) -> tuple[ScenarioSet, dict[str, pd.DataFrame]]:
     """Build a ScenarioSet and dictionary of daily weather sequences."""
     if kind == "historical":
@@ -268,10 +273,74 @@ def build_scenario_set(
         if power_df is not None:
             power_hist = power_df[(power_df.index.year >= 1985) & (power_df.index.year <= 2014)]
 
+        # Pre-warm GEE once on caller thread so parallel GCM queries share an initialized session.
+        gee.init()
+        if progress_cb is not None:
+            progress_cb("weather", 0.26)
+
+        mm_configured = meteomatics.is_configured()
+        gee_results: dict[tuple[str, str], pd.DataFrame] = {}
+        mm_fut: pd.DataFrame | None = None
+        mm_hist: pd.DataFrame | None = None
+
+        def _fetch_mm_hist_with_fallback() -> pd.DataFrame | None:
+            hist_df = meteomatics.fetch_cmip6_daily(lat, lon, "historical", "1995-01-01", "2014-12-31")
+            if hist_df is None or hist_df.empty:
+                try:
+                    hist_df = gee.cmip6_daily(lat, lon, "MRI-ESM2-0", "historical", "1995-01-01", "2014-12-31")
+                except Exception:  # noqa: BLE001
+                    hist_df = None
+            return hist_df
+
+        total_expected = 2 * len(CMIP6_MODELS) + (1 if mm_configured else 0)
+        completed = 0
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            fut_meta: dict[Future[Any], tuple[str, str, str]] = {}
+            for model in CMIP6_MODELS:
+                f_hist = executor.submit(gee.cmip6_daily, lat, lon, model, "historical", "1985-01-01", "2014-12-31")
+                fut_meta[f_hist] = ("gee", model, "hist")
+                f_fut = executor.submit(gee.cmip6_daily, lat, lon, model, ssp, f"{start_year}-01-01", f"{end_year}-12-31")
+                fut_meta[f_fut] = ("gee", model, "fut")
+
+            if mm_configured:
+                f_mm_fut = executor.submit(
+                    meteomatics.fetch_cmip6_daily,
+                    lat,
+                    lon,
+                    ssp,
+                    f"{start_year}-01-01",
+                    f"{end_year}-12-31",
+                )
+                fut_meta[f_mm_fut] = ("mm", "MRI-ESM2-0", "fut")
+
+            pending: set[Future[Any]] = set(fut_meta.keys())
+            while pending:
+                done, pending = wait(pending, return_when=FIRST_COMPLETED)
+                for done_fut in done:
+                    kind_tag, model_tag, period_tag = fut_meta[done_fut]
+                    val = done_fut.result()
+                    if kind_tag == "gee":
+                        gee_results[(model_tag, period_tag)] = val
+                    elif kind_tag == "mm" and period_tag == "fut":
+                        mm_fut = val
+                        if mm_fut is not None and not mm_fut.empty:
+                            total_expected += 1
+                            f_mm_hist = executor.submit(_fetch_mm_hist_with_fallback)
+                            fut_meta[f_mm_hist] = ("mm", "MRI-ESM2-0", "hist")
+                            pending.add(f_mm_hist)
+                    elif kind_tag == "mm" and period_tag == "hist":
+                        mm_hist = val
+
+                    completed += 1
+                    if progress_cb is not None and total_expected > 0:
+                        frac = min(1.0, completed / total_expected)
+                        progress_cb("weather", round(0.26 + 0.13 * frac, 3))
+
         members: dict[str, pd.DataFrame] = {}
         for model in CMIP6_MODELS:
-            hist_cmip = gee.cmip6_daily(lat, lon, model, "historical", "1985-01-01", "2014-12-31")
-            fut_cmip = gee.cmip6_daily(lat, lon, model, ssp, f"{start_year}-01-01", f"{end_year}-12-31")
+            hist_cmip = gee_results[(model, "hist")]
+            fut_cmip = gee_results[(model, "fut")]
             if not power_hist.empty:
                 corrected_df = quantile_map_df(power_hist, hist_cmip, fut_cmip, lat=lat)
             else:
@@ -283,26 +352,18 @@ def build_scenario_set(
             members[member_id] = corrected_df
 
         mm_active = False
-        if meteomatics.is_configured():
-            mm_fut = meteomatics.fetch_cmip6_daily(lat, lon, ssp, f"{start_year}-01-01", f"{end_year}-12-31")
-            if mm_fut is not None and not mm_fut.empty:
-                mm_hist = meteomatics.fetch_cmip6_daily(lat, lon, "historical", "1995-01-01", "2014-12-31")
-                if mm_hist is None or mm_hist.empty:
-                    try:
-                        mm_hist = gee.cmip6_daily(lat, lon, "MRI-ESM2-0", "historical", "1995-01-01", "2014-12-31")
-                    except Exception:  # noqa: BLE001
-                        mm_hist = None
-                if not power_hist.empty and mm_hist is not None and not mm_hist.empty:
-                    mm_corr = quantile_map_df(power_hist, mm_hist, mm_fut, lat=lat)
-                else:
-                    mm_corr = mm_fut.rename(
-                        columns={"tasmax": "T2M_MAX", "tasmin": "T2M_MIN", "pr": "PRECTOTCORR"}
-                    )
-                    mm_corr = _derive_missing_surface_vars(
-                        mm_corr, obs_df=power_hist if not power_hist.empty else None, lat=lat
-                    )
-                members[f"mri_esm2_0_{ssp}_{horizon}"] = mm_corr
-                mm_active = True
+        if mm_fut is not None and not mm_fut.empty:
+            if not power_hist.empty and mm_hist is not None and not mm_hist.empty:
+                mm_corr = quantile_map_df(power_hist, mm_hist, mm_fut, lat=lat)
+            else:
+                mm_corr = mm_fut.rename(
+                    columns={"tasmax": "T2M_MAX", "tasmin": "T2M_MIN", "pr": "PRECTOTCORR"}
+                )
+                mm_corr = _derive_missing_surface_vars(
+                    mm_corr, obs_df=power_hist if not power_hist.empty else None, lat=lat
+                )
+            members[f"mri_esm2_0_{ssp}_{horizon}"] = mm_corr
+            mm_active = True
 
         scen_id = f"cmip6_{ssp}_{horizon}"
         cmip_prov = gee.provenance_with_mode(gee.CMIP6_PROVENANCE).model_copy(

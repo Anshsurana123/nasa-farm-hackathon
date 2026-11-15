@@ -6,7 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { ProgressRing } from "@/components/ProgressRing";
 import { useField } from "@/context/FieldContext";
 import { api } from "@/lib/api";
-import type { CropSpec, FieldProfile, SuitabilityItem } from "@/types/api";
+import type { CropSpec, FieldProfile, SuitabilityItem, SupportedLanguage } from "@/types/api";
 import { cropMeta, cropName } from "@/lib/ui";
 import { useI18n } from "@/i18n";
 import {
@@ -152,7 +152,7 @@ export default function CropsPage() {
         constraints,
         profile,
         soil_health_card: soilHealthCard,
-        language: (lang as "en" | "pa" | "hi") || "en",
+        language: (lang as SupportedLanguage) || "en",
       })
       .then((items) => {
         if (cancelled || !items) return;
@@ -207,7 +207,7 @@ export default function CropsPage() {
           const inName = crop.name.toLowerCase().includes(q);
           const inFam = crop.family.toLowerCase().includes(q);
           const inId = crop.id.toLowerCase().includes(q);
-          const inLocal = cropName(crop.id).toLowerCase().includes(q);
+          const inLocal = cropName(crop.id, lang as SupportedLanguage).toLowerCase().includes(q);
           if (!inName && !inFam && !inId && !inLocal) return false;
         }
         return true;
@@ -219,7 +219,7 @@ export default function CropsPage() {
         if (sortBy === "residue") return b.crop.residue_t_ha - a.crop.residue_t_ha;
         return 0;
       });
-  }, [enrichedCrops, selectedGroup, selectedSeason, searchQuery, sortBy]);
+  }, [enrichedCrops, selectedGroup, selectedSeason, searchQuery, sortBy, lang]);
 
   const activeEntry =
     enrichedCrops.find((c) => c.crop.id === activeCropId) ??
@@ -238,8 +238,8 @@ export default function CropsPage() {
     <AppShell
       pageStep="05"
       pageBadge={t("nav.badge.crops")}
-      pageTitle={t("crops.pageTitle", { count: String(crops.length || 23) })}
-      pageDescription={t("crops.pageDesc", { count: String(crops.length || 23) })}
+      pageTitle={t("crops.pageTitle", { count: String(crops.length || 40) })}
+      pageDescription={t("crops.pageDesc", { count: String(crops.length || 40) })}
       headerActions={
         <Link
           href="/rotations"
@@ -378,7 +378,7 @@ export default function CropsPage() {
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-display font-bold text-base text-foreground group-hover:text-emerald-400 transition-colors">
-                            {cropName(crop.id)}
+                            {cropName(crop.id, lang as SupportedLanguage)}
                           </h3>
                           <span
                             className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${grpStyle.badge}`}
@@ -489,7 +489,7 @@ export default function CropsPage() {
                       {t("crops.botanicalSpec")} · ID: {activeEntry.crop.id}
                     </span>
                     <h2 className="text-xl font-display font-bold text-foreground">
-                      {cropName(activeEntry.crop.id)}
+                      {cropName(activeEntry.crop.id, lang as SupportedLanguage)}
                     </h2>
                     <p className="text-xs italic text-muted font-serif capitalize">
                       {t("crops.botanicalFamily")}: {activeEntry.crop.family} · GDD:{" "}
@@ -751,7 +751,7 @@ export default function CropsPage() {
                           >
                             <CheckCircle2 className="w-3 h-3" />
                             <span>{cropMeta(predId).emoji}</span>
-                            <span>{cropName(predId)}</span>
+                            <span>{cropName(predId, lang as SupportedLanguage)}</span>
                           </button>
                         ))
                       ) : (
@@ -775,7 +775,7 @@ export default function CropsPage() {
                           >
                             <XCircle className="w-3 h-3" />
                             <span>{cropMeta(badId).emoji}</span>
-                            <span>{cropName(badId)}</span>
+                            <span>{cropName(badId, lang as SupportedLanguage)}</span>
                           </button>
                         ))
                       ) : (

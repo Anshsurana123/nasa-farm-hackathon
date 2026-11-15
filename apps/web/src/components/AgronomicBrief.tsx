@@ -3,7 +3,7 @@
 import type { FieldProfile, StrategyRecommendation } from "@/types/api";
 import { useField } from "@/context/FieldContext";
 import { useI18n } from "@/i18n";
-import { fmtAreaMoney, fmtAreaUnit, fmtDMS, fmtSigned, isSouthAsia, scaleByUnit } from "@/lib/ui";
+import { fmtAreaMoney, fmtAreaUnit, fmtDMS, fmtSigned, scaleByUnit } from "@/lib/ui";
 import { Printer, CheckCircle2, FileText, Award, ShieldCheck } from "lucide-react";
 
 interface AgronomicBriefProps {
@@ -16,8 +16,7 @@ export function AgronomicBrief({ profile, strategies, areaHaOverride }: Agronomi
   const { t } = useI18n();
   const { selectedRank, unitSystem } = useField();
   const { field, soil, water, hazards, agro_climatic_notes } = profile;
-  const isSA = isSouthAsia(field.lat, field.lon);
-  const currencySymbol = profile.currency_symbol ?? (isSA ? "₹" : "$");
+  const currencySymbol = profile.currency_symbol ?? "$";
   const gwTrend = profile?.water?.groundwater_trend_cm_per_year ?? 0;
   const graceMult = gwTrend < -1.0 ? Math.min(1.5, 1.0 + 0.1 * (Math.abs(gwTrend) - 1.0)) : 1.0;
 
@@ -52,7 +51,7 @@ export function AgronomicBrief({ profile, strategies, areaHaOverride }: Agronomi
             <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 font-bold">
               DOC // FIELD-BRIEF-2026
             </span>
-            <span>{t("brief.badge")}</span>
+            <span>{profile.country_code === "IND" || !profile.country_code ? t("brief.badge") : t("brief.globalAdvisoryBadge")}</span>
             { profile.agro_zone && (
               <span className="px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border border-cyan-500/30 font-bold">
                 {profile.agro_zone}
@@ -67,6 +66,11 @@ export function AgronomicBrief({ profile, strategies, areaHaOverride }: Agronomi
             { topStrategy?.economics_basis === "punjab_proxy" && (
               <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30 font-bold" title={t("badge.punjabProxyTooltip")}>
                 {t("badge.punjabProxyEconomics")}
+              </span>
+            )}
+            { topStrategy?.economics_basis === "faostat_proxy" && (
+              <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30 font-bold" title={t("badge.faostatProxyTooltip")}>
+                {t("badge.faostatProxyEconomics")}
               </span>
             )}
           </div>
@@ -249,7 +253,7 @@ export function AgronomicBrief({ profile, strategies, areaHaOverride }: Agronomi
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className="font-mono text-[11px] font-bold text-cyan-600 dark:text-cyan-300 uppercase tracking-widest flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-cyan-400" />
-              <span>{t("brief.kvkTitle")}</span>
+              <span>{profile.country_code === "IND" || !profile.country_code ? t("brief.kvkTitle") : t("brief.globalActionTitle")}</span>
             </h4>
             {pm && (
               <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold">
@@ -297,6 +301,10 @@ export function AgronomicBrief({ profile, strategies, areaHaOverride }: Agronomi
                 <span className="text-[10px] text-muted block font-sans">
                   {currencySymbol === "₹"
                     ? `${t("brief.savesWord")} ₹${Math.round(scaleByUnit(pm.urea_bags_saved_per_ha, unitSystem) * 266.5)}${fmtAreaUnit(unitSystem)}`
+                    : pm.fertilizer_n_saved_kg_ha && pm.fertilizer_n_saved_kg_ha > 0
+                    ? t("brief.savesNitrogen", {
+                        kg: String(Math.round(scaleByUnit(pm.fertilizer_n_saved_kg_ha, unitSystem))),
+                      })
                     : t("brief.bioNSaved")}
                 </span>
               </div>

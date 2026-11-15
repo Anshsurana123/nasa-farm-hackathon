@@ -1,9 +1,9 @@
-"""Reproducible engine benchmark & empirical comparison suite for TerraLoop India.
+"""Reproducible engine benchmark & empirical comparison suite for TerraLoop (India + Global).
 
 Run (from repo root):
     uv run python scripts/run_validation_benchmarks.py --write-docs
 
-Executes the TerraLoop biophysical engine across 7 reproducible benchmarks:
+Executes the TerraLoop biophysical engine across 8 reproducible benchmarks:
   1. Empirical Ground-Truth Comparison against DES / ICRISAT District-Level Yield Statistics
   2. Soil Texture & Root-Zone Water Holding Sensitivity (Sandy Loam vs Alluvial Loam vs Vertisol Clay)
   3. March Terminal Heatwave Sensitivity (Reproducing the 2022 North India Wheat Heat Shock)
@@ -11,6 +11,7 @@ Executes the TerraLoop biophysical engine across 7 reproducible benchmarks:
   5. 10-Year RothC-Lite SOC, Biological N & Soil Health Score Component Breakdown
   6. 6 Indian Agro-Climatic Golden Benchmark Fields (Baseline vs Rank #1 Strategy)
   7. Meteomatics 90m Storm Intensity Erosivity (RUSLE I30) & Seedbed Moisture Deficit Sensitivity (Rice Puddled vs DSR)
+  8. Global Multi-Continent Breadbasket Hubs (USDA NASS, Agreste, CONAB/IBGE, KNBS/KALRO, ABARES Ground Truth)
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from terraloop_engine import crop_kb, profiler
+from terraloop_engine import crop_kb, profiler, region_registry
 from terraloop_engine.climate import ensembles
 from terraloop_engine.models import fao56_runner as aquacrop_runner
 from terraloop_engine.models import rusle, soil
@@ -42,6 +43,7 @@ if hasattr(sys.stdout, "reconfigure"):
 ROOT = Path(__file__).resolve().parents[1]
 GOLDEN = ROOT / "data" / "golden"
 GROUND_TRUTH_CSV = ROOT / "data" / "benchmarks" / "district_ground_truth.csv"
+GLOBAL_GROUND_TRUTH_CSV = ROOT / "data" / "benchmarks" / "global_ground_truth.csv"
 
 
 def _load_field_weather(field_id: str, lat: float, lon: float) -> pd.DataFrame:
@@ -517,6 +519,8 @@ def run_benchmarks() -> str:
         if not (p_path.exists() and r_path.exists()):
             continue
         prof_f = FieldProfile.model_validate_json(p_path.read_text(encoding="utf-8"))
+        if prof_f.validation_status != "validated_india":
+            continue
         recs_f = json.loads(r_path.read_text(encoding="utf-8"))
         base_r = recs_f[0]
         top_r = recs_f[1]
@@ -615,6 +619,99 @@ def run_benchmarks() -> str:
             f"{p_irr - base_pud_irr:+.1f} mm / {d_irr - base_dsr_irr:+.1f} mm |"
         )
     lines.append("")
+
+    # -----------------------------------------------------------------------
+    # Benchmark 8: Global Multi-Continent Breadbasket Hubs
+    # -----------------------------------------------------------------------
+    if GLOBAL_GROUND_TRUTH_CSV.exists():
+        lines.append("## 8. Global Multi-Continent Breadbasket Hubs (USDA / Agreste / CONAB / KALRO / ABARES)")
+        lines.append("")
+        lines.append(
+            "Evaluates held-out rainfed crop yield calibration and Tier-A strategy optimization across 5 global "
+            "breadbasket hubs (`us_corn_belt`, `eu_maritime_west`, `brazil_cerrado`, `east_africa_highlands`, "
+            "`australia_wheat_belt`) against official statistical agency series (`data/benchmarks/global_ground_truth.csv`)."
+        )
+        lines.append("")
+        lines.append("### 8a. Held-Out Multi-Continent Empirical Yield Calibration")
+        lines.append("")
+        lines.append(
+            "| Global Hub | Crop & Regime | Observed Mean (t/ha) | Simulated Median (t/ha) | Absolute Error (t/ha) | Relative Error (%) | Statistical Agency & Table |"
+        )
+        lines.append("| :--- | :--- | :---: | :---: | :---: | :---: | :--- |")
+
+        global_gt_df = pd.read_csv(GLOBAL_GROUND_TRUTH_CSV)
+        global_rel_errors: list[float] = []
+        for _, row in global_gt_df.iterrows():
+            hid = str(row["hub_id"])
+            h_name = f"{row['hub_name']}, {row['country']}"
+            cid = str(row["crop_id"])
+            c_label = str(row["crop_label"])
+            obs_y = float(row["observed_yield_t_ha"])
+            ref_src = f"{row['source_org']} — {row['publication_table']}"
+
+            p_path = GOLDEN / hid / "profile.json"
+            if not p_path.exists():
+                continue
+            prof_h = FieldProfile.model_validate_json(p_path.read_text(encoding="utf-8"))
+            w_h = _load_field_weather(hid, prof_h.field.lat, prof_h.field.lon)
+            slots_h = region_registry.get_calendar_slots(prof_h.field.lat, prof_h.field.lon)
+            s_idx = 0
+            if hid == "brazil_cerrado" and cid == "maize" and len(slots_h) > 1:
+                s_idx = 1
+            elif hid == "us_corn_belt" and cid == "oats" and len(slots_h) > 2:
+                s_idx = 2
+            sow_doy = int(slots_h[s_idx].get("default_sowing_doy", 165)) if slots_h else 165
+
+            rot_h = Rotation(
+                id=f"global_gt_{hid}_{cid}",
+                steps=[RotationStep(year_index=0, season_index=s_idx, crop_id=cid, sowing_doy=sow_doy, practices=["conventional"])],
+            )
+            _, mem_h = ensembles.build_scenario_set("historical", power_df=w_h, rotation_years=1)
+            ev_h = evaluate.evaluate_rotation(rot_h, mem_h, prof_h, FarmConstraints(irrigation="none"))
+            sim_vals = ev_h.yield_t_ha.get(cid, [0.0])
+            sim_med = float(np.median(sim_vals))
+            abs_err = sim_med - obs_y
+            rel_err = (abs_err / obs_y) * 100.0 if obs_y > 0 else 0.0
+            global_rel_errors.append(abs(rel_err))
+            lines.append(
+                f"| **{h_name}** | {c_label} | {obs_y:.2f} | **{sim_med:.2f}** | {abs_err:+.2f} | **{rel_err:+.1f}%** | {ref_src} |"
+            )
+        if global_rel_errors:
+            mean_mape = float(np.mean(global_rel_errors))
+            lines.append("")
+            lines.append(
+                f"- **Held-Out 5-Continent Rainfed Crop MAPE ({len(global_rel_errors)} crop-hub pairs):** **{mean_mape:.1f}%**"
+            )
+        lines.append("")
+
+        lines.append("### 8b. Five Global Golden Breadbasket Hubs (Precomputed Engine Outputs)")
+        lines.append("")
+        lines.append(
+            "| Global Hub | Country & Agro-Zone | Baseline Rotation | Rank #1 Recommended Strategy | Median Net Profit (Local) | 10-Yr SOC Delta (t C/ha) | Soil Health Score |"
+        )
+        lines.append("| :--- | :--- | :--- | :--- | :---: | :---: | :---: |")
+        for f in fields_idx:
+            fid = f["id"]
+            p_path = GOLDEN / fid / "profile.json"
+            r_path = GOLDEN / fid / "recommendations.json"
+            if not (p_path.exists() and r_path.exists()):
+                continue
+            prof_g = FieldProfile.model_validate_json(p_path.read_text(encoding="utf-8"))
+            if prof_g.validation_status != "validated_regional":
+                continue
+            recs_g = json.loads(r_path.read_text(encoding="utf-8"))
+            base_g = recs_g[0]
+            top_g = recs_g[1]
+            p50 = top_g["results"][0]["profit_p50"]
+            soc_d = top_g["results"][0]["soc_delta_t_ha_10yr"]
+            sh_s = top_g["results"][0]["soil_health_score"]
+            sym = prof_g.currency_symbol or prof_g.currency
+            ctry = prof_g.country or f["name"].split(",")[-1].strip()
+            lines.append(
+                f"| **{f['name']}** (`{fid}`) | {ctry} — {prof_g.agro_zone or f['region']} | {base_g['rotation']['label']} | "
+                f"**{top_g['rotation']['label']}** | **{sym} {p50:,.0f}** | **{soc_d:+.2f}** | **{sh_s:.0f}/100** |"
+            )
+        lines.append("")
     return "\n".join(lines)
 
 

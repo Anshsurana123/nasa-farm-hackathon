@@ -1,0 +1,552 @@
+{
+  "field": {
+    "id": "east_africa_highlands",
+    "lat": -0.3,
+    "lon": 36.07,
+    "polygon": null,
+    "name": "Nakuru (Rift Valley), Kenya"
+  },
+  "climate": {
+    "baseline_period": "1985-2004",
+    "recent_period": "2005-2024",
+    "mean_tmax_c": 25.16,
+    "mean_tmin_c": 12.44,
+    "annual_precip_mm": 1023.7,
+    "recent_annual_precip_mm": 1407.8,
+    "precip_change_pct": 37.5,
+    "tmax_change_c": -0.53,
+    "heat_days_per_year": 0.0,
+    "recent_heat_days_per_year": 0.0,
+    "frost_days_per_year": 0.0,
+    "longest_dry_spell_days_mean": 8.8,
+    "annual_et0_mm": 1457.9,
+    "gdd_base10_per_year": 3213.0,
+    "monthly_precip_mm": [
+      48.3,
+      32.8,
+      81.3,
+      196.5,
+      146.6,
+      91.0,
+      94.9,
+      112.9,
+      95.8,
+      105.1,
+      131.4,
+      79.2
+    ],
+    "monthly_tmax_c": [
+      25.9,
+      27.6,
+      28.1,
+      26.2,
+      24.7,
+      23.6,
+      22.8,
+      23.2,
+      24.9,
+      25.6,
+      24.6,
+      24.9
+    ],
+    "monthly_tmin_c": [
+      11.4,
+      11.8,
+      12.9,
+      13.7,
+      13.3,
+      12.7,
+      12.0,
+      12.0,
+      12.2,
+      12.7,
+      12.8,
+      11.9
+    ],
+    "wettest_months": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": "10.5067/POWER/0001",
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA GPM IMERG",
+        "product": "GPM_3IMERGDF (V07)",
+        "period": "2000-2024",
+        "resolution": "0.1 deg, daily",
+        "doi": "10.5067/GPM/IMERGDF/DAY/07",
+        "url": "https://gpm.nasa.gov/data/imerg",
+        "mode": "observed"
+      },
+      {
+        "source": "Meteomatics 90m Weather & Soil API",
+        "product": "EURO1k / MIX (NASA SRTM 90m Downscaled)",
+        "period": "2024-10-02 to 2024-12-31",
+        "resolution": "90 m, daily / hourly",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "observed"
+      }
+    ]
+  },
+  "water": {
+    "root_zone_moisture_percentile": [
+      24.9,
+      28.8,
+      33.5,
+      77.9,
+      85.9,
+      67.1,
+      64.5,
+      87.1,
+      76.2,
+      78.6,
+      60.4,
+      75.3
+    ],
+    "groundwater_trend_cm_per_year": 2.55,
+    "climatic_water_balance_mm": -242.2,
+    "irrigation_detected": null,
+    "soil_moisture_deficit_mm": 121.6,
+    "soil_moisture_index_layers": {
+      "-5cm": 0.96,
+      "-15cm": 0.79,
+      "-50cm": 0.22,
+      "-150cm": 0.48
+    },
+    "volumetric_soil_water_layers": {
+      "-5cm": 0.37,
+      "-15cm": 0.31,
+      "-50cm": 0.2,
+      "-150cm": 0.24
+    },
+    "seedbed_temp_5cm_c": 18.2,
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": "10.5067/POWER/0001",
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA GPM IMERG",
+        "product": "GPM_3IMERGDF (V07)",
+        "period": "2000-2024",
+        "resolution": "0.1 deg, daily",
+        "doi": "10.5067/GPM/IMERGDF/DAY/07",
+        "url": "https://gpm.nasa.gov/data/imerg",
+        "mode": "observed"
+      },
+      {
+        "source": "Meteomatics 90m Weather & Soil API",
+        "product": "EURO1k / MIX (NASA SRTM 90m Downscaled)",
+        "period": "2024-10-02 to 2024-12-31",
+        "resolution": "90 m, daily / hourly",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA GRACE / GRACE-FO",
+        "product": "Tellus Regional Terrestrial Water Storage (TWS) Mascon (JPL V04, 3° native)",
+        "period": "2002-2024",
+        "resolution": "0.5 deg grid (native ~3 deg mascon), monthly",
+        "doi": "10.5067/TEMSC-3MJ62",
+        "url": "https://grace.jpl.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA SMAP",
+        "product": "SPL4SMGP V008 (L4 Root-Zone Soil Moisture)",
+        "period": "2015-2024",
+        "resolution": "9 km, daily",
+        "doi": "10.5067/K2VT90DE20GV",
+        "url": "https://smap.jpl.nasa.gov/",
+        "mode": "observed"
+      }
+    ]
+  },
+  "soil": {
+    "texture_class": "clay",
+    "sand_pct": 35.3,
+    "silt_pct": 22.9,
+    "clay_pct": 41.7,
+    "soc_g_per_kg": 21.8,
+    "ph": 6.2,
+    "bulk_density_g_cm3": 1.22,
+    "cec_cmol_kg": 19.1,
+    "nitrogen_g_kg": 1.99,
+    "available_p_kg_ha": null,
+    "available_k_kg_ha": null,
+    "field_capacity_vol": 0.385,
+    "wilting_point_vol": 0.259,
+    "slope_pct": 0.95,
+    "source": "modelled",
+    "provenance": [
+      {
+        "source": "ISRIC SoilGrids 2.0",
+        "product": "Topsoil 0-30 cm weighted mean",
+        "period": null,
+        "resolution": "250 m",
+        "doi": "10.5194/soil-7-217-2021",
+        "url": "https://soilgrids.org/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA NASADEM",
+        "product": "NASADEM_HGT (30 m DEM)",
+        "period": null,
+        "resolution": "30 m",
+        "doi": "10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001",
+        "url": "https://earthdata.nasa.gov/",
+        "mode": "observed"
+      }
+    ]
+  },
+  "hazards": {
+    "drought_frequency": 0.21,
+    "extreme_rain_days_per_year": 0.1,
+    "heat_stress_probability": 0.0,
+    "frost_risk": 0.0,
+    "erosion_risk_class": "moderate",
+    "residue_burning_detected": false,
+    "terminal_heat_days_per_year": 0.0,
+    "late_blight_risk_idx": 1574.6,
+    "canopy_wetness_idx": 0.0,
+    "hail_probability_pct": null,
+    "fire_weather_index": 1.9,
+    "meteorological_drought_idx": -1.0,
+    "max_30m_precip_rate_mmh": null,
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": "10.5067/POWER/0001",
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA FIRMS",
+        "product": "MODIS / VIIRS Active Fire Detections",
+        "period": "2019-2024",
+        "resolution": "375 m / 1 km",
+        "doi": "10.5067/FIRMS/MODIS",
+        "url": "https://firms.modaps.eosdis.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "Meteomatics 90m Weather & Soil API",
+        "product": "EURO1k / MIX (NASA SRTM 90m Downscaled)",
+        "period": "2026-11-14",
+        "resolution": "90 m, daily / hourly",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "observed"
+      }
+    ]
+  },
+  "seasons_per_year": 2,
+  "crop_history": [
+    {
+      "year": 2020,
+      "season_index": 0,
+      "start": "2020-05-29",
+      "peak": "2020-05-29",
+      "end": "2020-10-06",
+      "crop_group": "maize",
+      "crop_id": "maize",
+      "confidence": 0.78,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2020,
+      "season_index": 1,
+      "start": "2020-12-15",
+      "peak": "2020-12-15",
+      "end": "2021-03-15",
+      "crop_group": "maize",
+      "crop_id": "maize",
+      "confidence": 0.71,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2021,
+      "season_index": 0,
+      "start": "2021-03-25",
+      "peak": "2021-05-24",
+      "end": "2021-05-24",
+      "crop_group": "crimson",
+      "crop_id": "crimson_clover_vetch",
+      "confidence": 0.69,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2021,
+      "season_index": 2,
+      "start": "2021-10-21",
+      "peak": "2021-10-21",
+      "end": "2021-11-20",
+      "crop_group": "crimson",
+      "crop_id": "crimson_clover_vetch",
+      "confidence": 0.71,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2022,
+      "season_index": 0,
+      "start": "2022-07-23",
+      "peak": "2022-09-06",
+      "end": "2023-01-29",
+      "crop_group": "maize",
+      "crop_id": "maize",
+      "confidence": 0.72,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2023,
+      "season_index": 0,
+      "start": "2023-04-04",
+      "peak": "2023-06-13",
+      "end": "2023-06-13",
+      "crop_group": "crimson",
+      "crop_id": "crimson_clover_vetch",
+      "confidence": 0.72,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2023,
+      "season_index": 1,
+      "start": "2023-12-15",
+      "peak": "2023-12-15",
+      "end": "2024-02-18",
+      "crop_group": "crimson",
+      "crop_id": "crimson_clover_vetch",
+      "confidence": 0.68,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2024,
+      "season_index": 0,
+      "start": "2024-03-29",
+      "peak": "2024-06-02",
+      "end": "2024-06-27",
+      "crop_group": "maize",
+      "crop_id": "maize",
+      "confidence": 0.72,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2024,
+      "season_index": 2,
+      "start": "2024-09-10",
+      "peak": "2024-09-30",
+      "end": "2024-10-30",
+      "crop_group": "crimson",
+      "crop_id": "crimson_clover_vetch",
+      "confidence": 0.67,
+      "confirmed_by_farmer": false
+    }
+  ],
+  "crop_history_provenance": [
+    {
+      "source": "NASA HLS",
+      "product": "HLSL30 / HLSS30 (Harmonized Landsat Sentinel-2)",
+      "period": "2019-2024",
+      "resolution": "30 m, 2-3 day",
+      "doi": "10.5067/HLS/HLSL30.002",
+      "url": "https://hls.gsfc.nasa.gov/",
+      "mode": "observed"
+    }
+  ],
+  "agro_climatic_notes": [
+    "High Phytophthora late-blight index (1575 > 150): monitor potato and solanaceous canopies."
+  ],
+  "currency": "KES",
+  "currency_symbol": "KSh",
+  "country": "Kenya",
+  "country_code": "KEN",
+  "agro_zone": "Equatorial Sub-Humid Highland Maize–Pulse–Potato Zone (KALRO AEZ)",
+  "state": "Kenya",
+  "aez_class": "Cfb",
+  "calendar_id": "equatorial_bimodal",
+  "calendar_slots": [
+    {
+      "slot_index": 0,
+      "slot_id": "long_rains",
+      "name": "Long Rains (Masika)",
+      "season_type": "warm",
+      "sowing_months": [
+        3,
+        4
+      ],
+      "default_sowing_doy": 75,
+      "max_duration_days": 165,
+      "typical_harvest_months": [
+        7,
+        8,
+        9
+      ],
+      "overwintering": false,
+      "notes": null
+    },
+    {
+      "slot_index": 1,
+      "slot_id": "short_rains",
+      "name": "Short Rains (Vuli)",
+      "season_type": "warm",
+      "sowing_months": [
+        10,
+        11
+      ],
+      "default_sowing_doy": 290,
+      "max_duration_days": 135,
+      "typical_harvest_months": [
+        1,
+        2,
+        3
+      ],
+      "overwintering": true,
+      "notes": null
+    },
+    {
+      "slot_index": 2,
+      "slot_id": "dry_relay_forage",
+      "name": "Highland Cool / Forage Relay",
+      "season_type": "cool",
+      "sowing_months": [
+        7,
+        8
+      ],
+      "default_sowing_doy": 195,
+      "max_duration_days": 105,
+      "typical_harvest_months": [
+        10
+      ],
+      "overwintering": false,
+      "notes": null
+    }
+  ],
+  "unit_convention": "acre",
+  "served_from": "demo_snapshot",
+  "snapshot_date": "2026-11-14",
+  "is_fallback": false,
+  "data_mode": "observed",
+  "validation_status": "validated_regional",
+  "validation_message": "Calibrated regional model for East African Highlands (Nakuru / Rift Valley Bimodal Belt) (enterprise budgets: kenya; climate biome: Cfb).",
+  "tactical_advisory": {
+    "sowing_ready": false,
+    "sowing_status_code": "too_dry",
+    "irrigation_action": "hold_rain_ahead",
+    "urea_spray_safe": false,
+    "next_7d_precip_mm": 56.8,
+    "next_7d_et0_mm": 25.8,
+    "seedbed_temp_5cm_c": 24.0,
+    "soil_moisture_deficit_mm": 121.4,
+    "fire_weather_index": 7.9,
+    "forecast_days": [
+      {
+        "date": "2026-11-14",
+        "tmax_c": 23.5,
+        "tmin_c": 14.3,
+        "precip_mm": 3.9,
+        "prob_precip_pct": 94.9,
+        "et0_mm": 3.5,
+        "wind_speed_ms": 0.7,
+        "soil_temp_5cm_c": 24.0,
+        "soil_moisture_deficit_mm": 121.4
+      },
+      {
+        "date": "2026-11-15",
+        "tmax_c": 24.3,
+        "tmin_c": 14.2,
+        "precip_mm": 8.9,
+        "prob_precip_pct": 95.0,
+        "et0_mm": 3.9,
+        "wind_speed_ms": 1.1,
+        "soil_temp_5cm_c": 24.6,
+        "soil_moisture_deficit_mm": 117.3
+      },
+      {
+        "date": "2026-11-16",
+        "tmax_c": 21.4,
+        "tmin_c": 14.2,
+        "precip_mm": 19.8,
+        "prob_precip_pct": 95.0,
+        "et0_mm": 3.3,
+        "wind_speed_ms": 0.6,
+        "soil_temp_5cm_c": 21.4,
+        "soil_moisture_deficit_mm": 111.4
+      },
+      {
+        "date": "2026-11-17",
+        "tmax_c": 23.4,
+        "tmin_c": 15.3,
+        "precip_mm": 10.6,
+        "prob_precip_pct": 95.0,
+        "et0_mm": 3.4,
+        "wind_speed_ms": 0.3,
+        "soil_temp_5cm_c": 22.8,
+        "soil_moisture_deficit_mm": 105.2
+      },
+      {
+        "date": "2026-11-18",
+        "tmax_c": 23.8,
+        "tmin_c": 15.4,
+        "precip_mm": 5.5,
+        "prob_precip_pct": 95.0,
+        "et0_mm": 3.8,
+        "wind_speed_ms": 0.2,
+        "soil_temp_5cm_c": 23.6,
+        "soil_moisture_deficit_mm": 104.2
+      },
+      {
+        "date": "2026-11-19",
+        "tmax_c": 23.9,
+        "tmin_c": 15.1,
+        "precip_mm": 5.0,
+        "prob_precip_pct": 95.0,
+        "et0_mm": 3.8,
+        "wind_speed_ms": 0.4,
+        "soil_temp_5cm_c": 24.5,
+        "soil_moisture_deficit_mm": 103.7
+      },
+      {
+        "date": "2026-11-20",
+        "tmax_c": 24.4,
+        "tmin_c": 14.5,
+        "precip_mm": 3.1,
+        "prob_precip_pct": 78.0,
+        "et0_mm": 4.1,
+        "wind_speed_ms": 0.8,
+        "soil_temp_5cm_c": 23.9,
+        "soil_moisture_deficit_mm": 103.0
+      }
+    ],
+    "provenance": [
+      {
+        "source": "Meteomatics 90m Weather & Soil API",
+        "product": "EURO1k / MIX (NASA SRTM 90m Downscaled)",
+        "period": "2026-11-14 to 2026-11-20",
+        "resolution": "90 m, daily / hourly",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "observed"
+      }
+    ]
+  }
+}

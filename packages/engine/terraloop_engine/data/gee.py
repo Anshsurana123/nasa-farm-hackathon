@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import zlib
 from concurrent.futures import ThreadPoolExecutor, wait
 from pathlib import Path
@@ -28,6 +29,7 @@ from ..cache import disk_cache
 log = logging.getLogger(__name__)
 
 _initialised = False
+_INIT_LOCK = threading.Lock()
 
 
 def _load_dotenv_if_needed() -> None:
@@ -109,6 +111,15 @@ CMIP6_PROVENANCE = DataProvenance(
     resolution="0.25 deg, daily",
     doi="10.7917/OASIS/NEX-GDDP-CMIP6",
     url="https://www.nasa.gov/nex/gddp",
+)
+
+WORLDCEREAL_PROVENANCE = DataProvenance(
+    source="ESA WorldCereal",
+    product="ESA/WorldCereal/2021/MODELS/v100",
+    period="2021",
+    resolution="10 m",
+    doi="10.5281/zenodo.7875105",
+    url="https://esa-worldcereal.org/",
 )
 
 
@@ -196,27 +207,30 @@ def init() -> bool:
         return False
     if _initialised:
         return True
-    try:
-        _load_dotenv_if_needed()
-        import ee
+    with _INIT_LOCK:
+        if _initialised:
+            return True
+        try:
+            _load_dotenv_if_needed()
+            import ee
 
-        creds, creds_proj = _resolve_credentials(ee)
-        project = os.environ.get("GEE_PROJECT") or creds_proj
-        if creds is not None:
-            ee.Initialize(credentials=creds, project=project)
-        else:
-            ee.Initialize(project=project)
-        deadline_ms = int(float(os.environ.get("GEE_DEADLINE_MS", "18000")))
-        if deadline_ms > 0:
-            try:
-                ee.data.setDeadline(deadline_ms)
-            except Exception as exc:  # noqa: BLE001
-                log.debug("ee.data.setDeadline ignored: %s", exc)
-        _initialised = True
-        return True
-    except Exception as exc:  # noqa: BLE001
-        log.info("GEE init skipped or failed: %s (using un-cached regional climatology)", exc)
-        return False
+            creds, creds_proj = _resolve_credentials(ee)
+            project = os.environ.get("GEE_PROJECT") or creds_proj
+            if creds is not None:
+                ee.Initialize(credentials=creds, project=project)
+            else:
+                ee.Initialize(project=project)
+            deadline_ms = int(float(os.environ.get("GEE_DEADLINE_MS", "18000")))
+            if deadline_ms > 0:
+                try:
+                    ee.data.setDeadline(deadline_ms)
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("ee.data.setDeadline ignored: %s", exc)
+            _initialised = True
+            return True
+        except Exception as exc:  # noqa: BLE001
+            log.info("GEE init skipped or failed: %s (using un-cached regional climatology)", exc)
+            return False
 
 
 def is_live() -> bool:
@@ -368,28 +382,46 @@ def imerg_daily(lat: float, lon: float, start: str, end: str) -> pd.Series:
     idx = pd.date_range(start, end, freq="D")
     rng = np.random.default_rng(int(abs(lat * 100 + lon * 10)))
 
-    # Regional Indian monsoon distribution
+    # Regional precipitation climatology fallback (Indian regions preserved; global AEZs use YAML params)
     from .. import region_registry
     reg = region_registry.detect_region_config(lat, lon)
 
-    if reg.region_id in ("cauvery", "southern_hills"):
-        # Southern Peninsula / Cauvery Delta (NE + SW monsoon, Oct-Dec peak + Jul-Sep)
-        wet_season = (idx.month >= 8) & (idx.month <= 12)
-        rain_prob = np.where(wet_season, 0.38, 0.07)
-        rain_amounts = np.where(wet_season, rng.gamma(1.3, 14.0, len(idx)), rng.gamma(0.8, 5.0, len(idx)))
-    elif reg.region_id in ("punjab_southwest", "rajasthan_arid"):
-        # Bathinda Semi-Arid SW Punjab (~420 mm/yr)
-        monsoon = (idx.month >= 7) & (idx.month <= 9)
-        rain_prob = np.where(monsoon, 0.24, 0.04)
-        rain_amounts = np.where(monsoon, rng.gamma(1.1, 11.5, len(idx)), rng.gamma(0.7, 4.0, len(idx)))
+    if reg.validation_status == "validated_india":
+        if reg.region_id in ("cauvery", "southern_hills"):
+            # Southern Peninsula / Cauvery Delta (NE + SW monsoon, Oct-Dec peak + Jul-Sep)
+            wet_season = (idx.month >= 8) & (idx.month <= 12)
+            rain_prob = np.where(wet_season, 0.38, 0.07)
+            rain_amounts = np.where(wet_season, rng.gamma(1.3, 14.0, len(idx)), rng.gamma(0.8, 5.0, len(idx)))
+        elif reg.region_id in ("punjab_southwest", "rajasthan_arid"):
+            # Bathinda Semi-Arid SW Punjab (~420 mm/yr)
+            monsoon = (idx.month >= 7) & (idx.month <= 9)
+            rain_prob = np.where(monsoon, 0.24, 0.04)
+            rain_amounts = np.where(monsoon, rng.gamma(1.1, 11.5, len(idx)), rng.gamma(0.7, 4.0, len(idx)))
+        else:
+            # Central Punjab / Bundelkhand / Vidarbha (~650-850 mm/yr Jul-Sep monsoon)
+            monsoon = (idx.month >= 7) & (idx.month <= 9)
+            rain_prob = np.where(monsoon, 0.35, 0.05)
+            rain_amounts = np.where(monsoon, rng.gamma(1.2, 14.0, len(idx)), rng.gamma(0.8, 5.0, len(idx)))
+        has_rain = rng.random(len(idx)) < rain_prob
+        rain = np.where(has_rain, np.round(rain_amounts, 1), 0.0)
     else:
-        # Central Punjab / Bundelkhand / Vidarbha (~650-850 mm/yr Jul-Sep monsoon)
-        monsoon = (idx.month >= 7) & (idx.month <= 9)
-        rain_prob = np.where(monsoon, 0.35, 0.05)
-        rain_amounts = np.where(monsoon, rng.gamma(1.2, 14.0, len(idx)), rng.gamma(0.8, 5.0, len(idx)))
-
-    has_rain = rng.random(len(idx)) < rain_prob
-    rain = np.where(has_rain, np.round(rain_amounts, 1), 0.0)
+        w_params = region_registry.get_regional_weather_params(lat, lon)
+        wet_start = int(w_params.get("wet_start_month", 5))
+        wet_end = int(w_params.get("wet_end_month", 9))
+        gamma_wet = w_params.get("gamma_wet", [0.6, 8.0])
+        gamma_dry = w_params.get("gamma_dry", [0.25, 4.0])
+        if wet_start <= wet_end:
+            wet = (idx.month >= wet_start) & (idx.month <= wet_end)
+        else:
+            wet = (idx.month >= wet_start) | (idx.month <= wet_end)
+        rain = np.round(
+            np.where(
+                wet,
+                rng.gamma(float(gamma_wet[0]), float(gamma_wet[1]), len(idx)),
+                rng.gamma(float(gamma_dry[0]), float(gamma_dry[1]), len(idx)),
+            ),
+            1,
+        )
     return pd.Series(rain, index=idx, name="precipitation_mm")
 
 
@@ -454,16 +486,25 @@ def smap_rootzone(lat: float, lon: float, start: str, end: str) -> pd.Series:
     from .. import region_registry
     reg = region_registry.detect_region_config(lat, lon)
 
-    if reg.region_id == "bundelkhand":
-        sm_base = 0.18 + 0.09 * np.sin(2 * np.pi * (doy - 205) / 365) - 0.004 * years
-    elif reg.region_id == "vidarbha":
-        sm_base = 0.24 + 0.10 * np.sin(2 * np.pi * (doy - 210) / 365) - 0.003 * years
-    elif reg.region_id in ("punjab_southwest", "rajasthan_arid"):
-        sm_base = 0.17 + 0.07 * np.sin(2 * np.pi * (doy - 200) / 365) - 0.002 * years
-    elif reg.region_id in ("cauvery", "southern_hills"):
-        sm_base = 0.28 + 0.08 * np.sin(2 * np.pi * (doy - 270) / 365) + 0.002 * years
+    if reg.validation_status == "validated_india":
+        if reg.region_id == "bundelkhand":
+            sm_base = 0.18 + 0.09 * np.sin(2 * np.pi * (doy - 205) / 365) - 0.004 * years
+        elif reg.region_id == "vidarbha":
+            sm_base = 0.24 + 0.10 * np.sin(2 * np.pi * (doy - 210) / 365) - 0.003 * years
+        elif reg.region_id in ("punjab_southwest", "rajasthan_arid"):
+            sm_base = 0.17 + 0.07 * np.sin(2 * np.pi * (doy - 200) / 365) - 0.002 * years
+        elif reg.region_id in ("cauvery", "southern_hills"):
+            sm_base = 0.28 + 0.08 * np.sin(2 * np.pi * (doy - 270) / 365) + 0.002 * years
+        else:
+            sm_base = 0.23 + 0.08 * np.sin(2 * np.pi * (doy - 200) / 365) - 0.001 * years
     else:
-        sm_base = 0.23 + 0.08 * np.sin(2 * np.pi * (doy - 200) / 365) - 0.001 * years
+        w_params = region_registry.get_regional_weather_params(lat, lon)
+        wet_end = int(w_params.get("wet_end_month", 9))
+        phase_shift = (wet_end * 30.4 - 106.0) % 365.0
+        gamma_wet = w_params.get("gamma_wet", [0.6, 8.0])
+        wet_mean = float(gamma_wet[0]) * float(gamma_wet[1])
+        sm_mean = 0.28 if wet_mean >= 5.0 else (0.19 if wet_mean < 2.5 else 0.24)
+        sm_base = sm_mean + 0.08 * np.sin(2 * np.pi * (doy - phase_shift) / 365)
 
     rng = np.random.default_rng(int(abs(lat * 100 + lon)))
     noise = rng.normal(0.0, 0.015, len(idx))
@@ -791,3 +832,29 @@ def cmip6_daily(lat: float, lon: float, model: str, scenario: str, start: str, e
         {"tasmax": np.round(tmax, 2), "tasmin": np.round(tmin, 2), "pr": np.round(pr, 2)},
         index=idx,
     )
+
+
+@disk_cache(namespace="gee_worldcereal_live")
+def _worldcereal_priors_live(lat: float, lon: float) -> dict[str, str]:
+    import ee
+
+    pt = ee.Geometry.Point([lon, lat]).buffer(30)
+    col = ee.ImageCollection("ESA/WorldCereal/2021/MODELS/v100").filterBounds(pt)
+    img = col.filter(ee.Filter.eq("product", "temporarycrops")).mosaic()
+    sample = img.reduceRegion(ee.Reducer.mode(), pt, 10).getInfo() or {}
+    val = sample.get("classification")
+    return {
+        "product": "ESA/WorldCereal/2021/MODELS/v100",
+        "active_cropland_class": "temporary_crops" if val == 100 else "non_cropland_or_mixed",
+    }
+
+
+def worldcereal_priors(lat: float, lon: float) -> dict[str, str] | None:
+    """Query ESA WorldCereal 10m cropland priors via GEE when online; returns None offline."""
+    if not init():
+        return None
+    try:
+        return _worldcereal_priors_live(lat, lon)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("GEE WorldCereal query failed: %s", exc)
+        return None

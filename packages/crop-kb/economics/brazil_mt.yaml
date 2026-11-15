@@ -1,0 +1,135 @@
+# Brazil Mato Grosso / Cerrado Crop Enterprise Budgets (CONAB Custos de Producao & IMEA-MT 2024-25)
+# COE (Custo Operacional Efetivo + mechanized labour excluding land lease, in BRL/ha)
+currency: BRL
+currency_symbol: "R$"
+usd_exchange_rate: 5.50
+ppp_spread_factor: 0.066
+cost_floor: 350.0
+labor_floor: 110.0
+state: Mato Grosso
+economics_basis: regional_verified
+
+practice_adjustments:
+  happy_seeder_zero_till:
+    cost_delta: -260.0
+    labor_delta: -85.0
+  direct_seeded:
+    cost_delta: -320.0
+    labor_delta: -120.0
+  broad_bed_furrow:
+    cost_delta: 0.0
+    labor_delta: -60.0
+  legume_credit:
+    cost_delta: -180.0
+    labor_delta: 0.0
+
+crops:
+  soybean:
+    price_per_tonne: 1833.0
+    price_usd_per_tonne: 333.3
+    cost_per_ha: 4150.0
+    labor_cost_per_ha: 580.0
+    cost_usd_per_ha: 754.5
+    market_risk: 0.14
+    procurement_type: "export_crush_coop"
+    sources: ["IMEA Mato Grosso Soy Production Cost 2024/25 (COE ~R$4,150/ha; ~60 bags/ha @ R$110/bag)", "CONAB Safra 2024/25"]
+
+  maize:
+    price_per_tonne: 833.0
+    price_usd_per_tonne: 151.5
+    cost_per_ha: 3300.0
+    labor_cost_per_ha: 490.0
+    cost_usd_per_ha: 600.0
+    market_risk: 0.17
+    procurement_type: "safrinha_export_or_ethanol"
+    sources: ["IMEA Mato Grosso Milho 2a Safra High-Tech 2024/25 (~R$3,300/ha COE; ~R$50/bag)", "CONAB Milho 2a Safra"]
+
+  cotton:
+    price_per_tonne: 3950.0
+    price_usd_per_tonne: 718.2
+    cost_per_ha: 10800.0
+    labor_cost_per_ha: 1450.0
+    cost_usd_per_ha: 1963.6
+    market_risk: 0.18
+    procurement_type: "export_lint_contract"
+    sources: ["IMEA Algodao Mato Grosso 2024/25 (seed-cotton eq. ~4.2 t/ha; COE ~R$10,800/ha)", "CONAB Algodao"]
+
+  rice_upland:
+    price_per_tonne: 1650.0
+    price_usd_per_tonne: 300.0
+    cost_per_ha: 3450.0
+    labor_cost_per_ha: 560.0
+    cost_usd_per_ha: 627.3
+    market_risk: 0.14
+    procurement_type: "conab_pgpm_or_mill"
+    sources: ["CONAB Arroz Sequeiro Mato Grosso / Goias Cost Series (2024)"]
+
+  sorghum:
+    price_per_tonne: 790.0
+    price_usd_per_tonne: 143.6
+    cost_per_ha: 2150.0
+    labor_cost_per_ha: 380.0
+    cost_usd_per_ha: 390.9
+    market_risk: 0.13
+    procurement_type: "safrinha_feed_contract"
+    sources: ["EMBRAPA Milho e Sorgo / CONAB Safrinha Sorghum Goias-MT (2024)"]
+
+  common_bean:
+    price_per_tonne: 3850.0
+    price_usd_per_tonne: 700.0
+    cost_per_ha: 3600.0
+    labor_cost_per_ha: 720.0
+    cost_usd_per_ha: 654.5
+    market_risk: 0.21
+    procurement_type: "domestic_wholesale_pgpm"
+    sources: ["CONAB Feijao Cores Mato Grosso / Goias (2024)"]
+
+  sunflower:
+    price_per_tonne: 1950.0
+    price_usd_per_tonne: 354.5
+    cost_per_ha: 2450.0
+    labor_cost_per_ha: 420.0
+    cost_usd_per_ha: 445.5
+    market_risk: 0.16
+    procurement_type: "crush_contract"
+    sources: ["EMBRAPA Soja / Parecis MT Girassol 2a Safra Data (2024)"]
+
+  pearl_millet:
+    price_per_tonne: 950.0
+    price_usd_per_tonne: 172.7
+    cost_per_ha: 1450.0
+    labor_cost_per_ha: 290.0
+    cost_usd_per_ha: 263.6
+    market_risk: 0.14
+    procurement_type: "silage_or_feed"
+    sources: ["EMBRAPA Cerrados Milheto Safrinha Reference"]
+
+  cassava:
+    price_per_tonne: 520.0
+    price_usd_per_tonne: 94.5
+    cost_per_ha: 6200.0
+    labor_cost_per_ha: 1850.0
+    cost_usd_per_ha: 1127.3
+    market_risk: 0.18
+    procurement_type: "starch_flour_mill"
+    sources: ["CEPEA/ESALQ & CONAB Mandioca Industria 2024"]
+
+  brachiaria_cover:
+    price_per_tonne: 0.0
+    price_usd_per_tonne: 0.0
+    cost_per_ha: 650.0
+    labor_cost_per_ha: 140.0
+    cost_usd_per_ha: 118.2
+    market_risk: 0.04
+    procurement_type: "plantio_direto_abc_plus"
+    sources: ["EMBRAPA Sistema Santa Fe / Plano ABC+ Straw Mulch Seeding Cost"]
+
+  dhaincha:
+    price_per_tonne: 0.0
+    price_usd_per_tonne: 0.0
+    cost_per_ha: 580.0
+    labor_cost_per_ha: 130.0
+    cost_usd_per_ha: 105.5
+    market_risk: 0.05
+    procurement_type: "green_manure_mulch"
+    sources: ["EMBRAPA Cerrados Cover Legume Establishment Benchmarks"]

@@ -1,0 +1,38 @@
+id: rice_japonica_temperate
+name: Rice (temperate japonica, flooded/AWD)
+family: poaceae
+group: cereal
+season_type: [warm]
+gdd_to_maturity: 1950
+base_temp_c: 10
+optimal_temp_c: [20, 30]
+max_temp_c: 36
+min_temp_c: 10
+duration_days: [125, 155]
+water_requirement_mm: [700, 1100]
+kc: [1.05, 1.20, 0.85]
+root_depth_m: 0.6
+drought_tolerance: 1
+heat_tolerance: 2
+waterlogging_tolerance: 5
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 140
+residue_t_ha: 5.5
+residue_cn_ratio: 65
+typical_yield_t_ha: [6.0, 9.5]
+ph_range: [5.0, 7.8]
+lethal_frost_c: 0.0
+cultivar_profiles:
+  mediterranean_dryland:
+    typical_yield_t_ha: [8.5, 11.0]
+    duration_days: [135, 160]
+    notes: "Murrumbidgee/Riverina irrigated japonica medium-grain rice (NSW DPIRD)."
+  maritime_europe:
+    typical_yield_t_ha: [6.0, 8.2]
+    duration_days: [130, 150]
+    notes: "Camargue/Po Valley Mediterranean japonica paddy rice."
+aquacrop_name: PaddyRice
+good_predecessors: [wheat_winter, barley, crimson_clover_vetch, alfalfa, faba_bean]
+bad_predecessors: [rice_japonica_temperate, rice_puddled, rice_dsr]
+notes: "Temperate-photoperiod japonica paddy rice for warm temperate deltas and Murray-Murrumbidgee irrigation."
+sources: ["FAO-56 Table 12 (rice)", "NSW DPIRD Rice Growing Guide", "Ente Nazionale Risi"]

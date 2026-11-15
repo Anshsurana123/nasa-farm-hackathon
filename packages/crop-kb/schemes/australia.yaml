@@ -1,0 +1,38 @@
+# Australian Soil Carbon, Drought Resilience & Break-Crop Programs
+# Official Sources: Clean Energy Regulator (ACCU Scheme), DAFF Future Drought Fund, GRDC
+
+schemes:
+  - id: "au_accu_soil_carbon"
+    name: "ACCU Soil Carbon & Future Drought Resilience"
+    display_title: "Australian Carbon Credit Units (ACCU) Soil Carbon & Stubble Retention Framework"
+    display_title_hi: "ऑस्ट्रेलिया ACCU मृदा कार्बन एवं सूखा सहनशीलता कार्यक्रम"
+    display_title_pa: "ਆਸਟ੍ਰੇਲੀਆ ACCU ਮਿੱਟੀ ਕਾਰਬਨ ਅਤੇ ਸੋਕਾ ਸਹਿਣਸ਼ੀਲਤਾ ਪ੍ਰੋਗਰਾਮ"
+    display_title_es: "ACCU Australia Créditos de Carbono Edáfico y Resiliencia a Sequías"
+    display_title_pt: "ACCU Austrália Créditos de Carbono do Solo e Resiliência à Seca"
+    display_title_fr: "ACCU Australie Crédits Carbone des Sols et Résilience Sécheresse"
+    country_code: "AUS"
+    eligible_zones: ["australia_wheat_belt"]
+    eligible_practices: ["happy_seeder", "zero_till", "no_till", "residue_retained"]
+    eligible_crops: ["lupin", "field_pea", "faba_bean", "chickpea", "alfalfa"]
+    amount: null
+    unit: null
+    source_url: "https://www.cleanenergyregulator.gov.au/"
+    as_of_date: "2024-01-01"
+    description: "Measurement-based Soil Carbon Method under the Australian Carbon Credit Units scheme rewarding zero-till stubble retention and legume phases."
+
+  - id: "au_grdc_breakcrop"
+    name: "GRDC Break-Crop & Pulse Rotation Initiative"
+    display_title: "GRDC Double-Break Pulse & Canola Nitrogen/Disease Break Extension"
+    display_title_hi: "GRDC कैनोला एवं दलहन ब्रेक-क्रॉप फसल चक्र सहायता"
+    display_title_pa: "GRDC ਕੈਨੋਲਾ ਅਤੇ ਦਾਲਾਂ ਬ੍ਰੇਕ-ਕ੍ਰੌਪ ਫ਼ਸਲੀ ਚੱਕਰ ਸਹਾਇਤਾ"
+    display_title_es: "GRDC Iniciativa de Rotación Canola-Leguminosas de Secano"
+    display_title_pt: "GRDC Iniciativa de Rotação Canola-Leguminosas de Sequeiro"
+    display_title_fr: "GRDC Programme Rotation Colza-Légumineuses en Zone Sèche"
+    country_code: "AUS"
+    eligible_zones: ["australia_wheat_belt"]
+    eligible_crops: ["rapeseed_canola", "lupin", "field_pea", "chickpea", "faba_bean"]
+    amount: null
+    unit: null
+    source_url: "https://grdc.com.au/"
+    as_of_date: "2024-01-01"
+    description: "Grains Research and Development Corporation rotation benchmarks for root-disease suppression and nitrogen carry-over in Southern/Western belts."

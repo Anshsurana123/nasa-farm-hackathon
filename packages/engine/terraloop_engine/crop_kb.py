@@ -55,6 +55,36 @@ def get_crop(crop_id: str) -> CropSpec:
     return crops[crop_id]
 
 
+def resolve_crop_spec(crop: CropSpec, cultivar_zone: str | None = None) -> CropSpec:
+    """Resolve regional cultivar adaptation without altering top-level defaults.
+
+    Returns ``crop`` unchanged when ``cultivar_zone`` is unset, ``"india_default"``,
+    or absent from ``crop.cultivar_profiles`` so Indian benchmark runs are bit-identical.
+    """
+    if not cultivar_zone or cultivar_zone == "india_default":
+        return crop
+    adapt = crop.cultivar_profiles.get(cultivar_zone)
+    if adapt is None:
+        return crop
+    updates: dict[str, object] = {}
+    for field_name in (
+        "gdd_to_maturity",
+        "typical_yield_t_ha",
+        "duration_days",
+        "water_requirement_mm",
+        "kc",
+        "min_temp_c",
+        "vernalization_required",
+        "winter_dormancy",
+    ):
+        val = getattr(adapt, field_name, None)
+        if val is not None:
+            updates[field_name] = val
+    if not updates:
+        return crop
+    return crop.model_copy(update=updates)
+
+
 _DEFAULT_PARAMS_DIR = _find_dir("aquacrop_params")
 
 

@@ -1,0 +1,47 @@
+id: alfalfa
+name: Alfalfa / Lucerne (perennial hay)
+family: fabaceae
+group: fodder
+season_type: [warm, cool]
+gdd_to_maturity: 1800
+base_temp_c: 5
+optimal_temp_c: [15, 28]
+max_temp_c: 36
+min_temp_c: -18
+duration_days: [140, 210]
+water_requirement_mm: [650, 950]
+kc: [0.40, 1.20, 1.15]
+root_depth_m: 1.8
+drought_tolerance: 4
+heat_tolerance: 3
+waterlogging_tolerance: 1
+n_fixation_kg_ha: 180
+n_demand_kg_ha: 0
+residue_t_ha: 4.0
+residue_cn_ratio: 16
+typical_yield_t_ha: [10.0, 16.0]
+ph_range: [6.2, 8.2]
+winter_dormancy: true
+dormancy_temp_c: 2.0
+lethal_frost_c: -20.0
+is_perennial: true
+perennial_cuts_per_yr: 4
+cultivar_profiles:
+  temperate_high_input:
+    typical_yield_t_ha: [10.5, 14.5]
+    duration_days: [145, 175]
+    notes: "US Midwest dormant hay alfalfa (3-4 cuts/yr DM equivalent; USDA NASS Iowa)."
+  maritime_europe:
+    typical_yield_t_ha: [11.0, 15.0]
+    duration_days: [160, 200]
+    notes: "France Champagne/Beauce dehydrated lucerne (luzerne)."
+  mediterranean_dryland:
+    winter_dormancy: false
+    typical_yield_t_ha: [8.0, 13.0]
+    duration_days: [160, 210]
+    notes: "NSW Riverina irrigated/dryland pasture phase lucerne (NSW DPIRD)."
+aquacrop_name: Alfalfa
+good_predecessors: [oats, barley, wheat_spring, wheat_winter, maize]
+bad_predecessors: [alfalfa, berseem]
+notes: "Deep-rooted perennial legume (dry-matter hay yield across 3-4 cuts/yr) building deep SOC, subsoil structure, and supplying 150-200 kg N/ha credit for subsequent corn/wheat."
+sources: ["FAO-56 Table 12 (alfalfa hay Kc=0.40, 1.20, 1.15)", "USDA NASS Alfalfa Hay", "NSW DPIRD Lucerne"]

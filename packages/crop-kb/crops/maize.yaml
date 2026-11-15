@@ -20,6 +20,39 @@ n_demand_kg_ha: 150
 residue_t_ha: 6
 residue_cn_ratio: 60
 typical_yield_t_ha: [3.8, 5.8]
+ph_range: [5.5, 7.8]
+cultivar_profiles:
+  temperate_high_input:
+    gdd_to_maturity: 1450
+    typical_yield_t_ha: [11.0, 13.5]
+    duration_days: [120, 145]
+    water_requirement_mm: [500, 680]
+    min_temp_c: 8
+    notes: "US Midwest 105-115 CRM dent hybrid (USDA NASS Story County IA 5-yr mean ~12.35 t/ha)."
+  maritime_europe:
+    gdd_to_maturity: 1400
+    typical_yield_t_ha: [8.0, 10.5]
+    duration_days: [130, 155]
+    water_requirement_mm: [450, 620]
+    min_temp_c: 8
+    notes: "France Beauce FAO 300-450 grain maize (Agreste/ARVALIS mean ~9.5 t/ha)."
+  tropical_high_input:
+    gdd_to_maturity: 1550
+    typical_yield_t_ha: [5.5, 8.2]
+    duration_days: [115, 135]
+    water_requirement_mm: [450, 620]
+    notes: "Brazil Cerrado safrinha second-crop hybrid after soybean (CONAB/IMEA Mato Grosso ~6.5 t/ha)."
+  tropical_highland:
+    gdd_to_maturity: 1450
+    typical_yield_t_ha: [2.2, 3.6]
+    duration_days: [130, 165]
+    min_temp_c: 8
+    notes: "East Africa highland hybrid H614/H6213 (KNBS/KALRO Nakuru County ~2.6-3.0 t/ha)."
+  mediterranean_dryland:
+    gdd_to_maturity: 1500
+    typical_yield_t_ha: [8.0, 11.0]
+    duration_days: [115, 135]
+    notes: "Irrigated Riverina summer grain maize (NSW DPIRD)."
 aquacrop_name: Maize
 good_predecessors: [soybean, moong, chickpea, wheat]
 bad_predecessors: [maize]

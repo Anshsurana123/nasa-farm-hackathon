@@ -118,6 +118,7 @@ zones:
     currency: "INR"
     currency_symbol: "₹"
     is_validated: true
+    calendar_id: "india_delta"
 
   rajasthan_arid:
     name: "Western Dry Region (Thar Arid & Marwar Belt, Rajasthan)"
@@ -244,6 +245,445 @@ zones:
     currency: "INR"
     currency_symbol: "₹"
     is_validated: true
+    calendar_id: "india_delta"
+
+# ---------------------------------------------------------------------------
+# Global Tier-A Verified Regional Hubs (validation_status: "validated_regional")
+# ---------------------------------------------------------------------------
+global_hubs:
+  us_corn_belt:
+    name: "US Corn Belt & Central Tallgrass Prairie (Iowa / Midwest)"
+    agro_zone: "US Midwest Corn–Soybean–Winter Cover Belt (USDA ERS Heartland / Prairie Gateway)"
+    country: "United States"
+    country_iso3: "USA"
+    admin1_names:
+      - "Iowa"
+      - "Illinois"
+      - "Indiana"
+      - "Nebraska"
+      - "Minnesota"
+      - "Ohio"
+      - "Missouri"
+      - "South Dakota"
+      - "Kansas"
+      - "Wisconsin"
+    koppen_classes: ["Dfa", "Dfb", "Cfa"]
+    calendar_id: "temperate_spring_summer"
+    cultivar_zone: "temperate_high_input"
+    unit_convention: "imperial"
+    economics_table: "usa_iowa"
+    currency: "USD"
+    currency_symbol: "$"
+    is_validated: true
+    validation_status: "validated_regional"
+    allow_economic_ranking: true
+    baseline_rotation: ["maize", "soybean", "fallow"]
+    baseline_slope_pct: 1.4
+    grace_trend_cm_yr: -0.35
+    grace_citation: "NASA GRACE-FO / USGS Midwest High Plains & Corn Belt Monitoring"
+    igp_merra2_bias_correction: false
+    c_eq_t_ha_yr: 1.85
+    soc_ref_g_kg: 18.0
+    priority_crops:
+      - "maize"
+      - "soybean"
+      - "wheat_winter"
+      - "oats"
+      - "rye_winter"
+      - "alfalfa"
+      - "crimson_clover_vetch"
+      - "field_pea"
+      - "sunflower"
+      - "wheat_spring"
+      - "barley"
+      - "triticale"
+
+  eu_maritime_west:
+    name: "Western European Maritime Arable Belt (Beauce / Northern France)"
+    agro_zone: "EU Atlantic Maritime Cereals–Oilseed–Root Zone (JRC MARS)"
+    country: "France"
+    country_iso3: "FRA"
+    admin1_names: []
+    koppen_classes: ["Cfb", "Cfc", "Dfb"]
+    calendar_id: "maritime_temperate"
+    cultivar_zone: "maritime_europe"
+    unit_convention: "metric"
+    economics_table: "france"
+    currency: "EUR"
+    currency_symbol: "€"
+    is_validated: true
+    validation_status: "validated_regional"
+    allow_economic_ranking: true
+    baseline_rotation: ["wheat_winter", "fallow", "fallow"]
+    baseline_slope_pct: 0.9
+    grace_trend_cm_yr: -0.55
+    grace_citation: "BRGM France / NASA GRACE-FO Beauce Limestone Aquifer Assessment"
+    igp_merra2_bias_correction: false
+    c_eq_t_ha_yr: 1.75
+    soc_ref_g_kg: 15.0
+    priority_crops:
+      - "wheat_winter"
+      - "rapeseed_canola"
+      - "maize"
+      - "barley"
+      - "field_pea"
+      - "faba_bean"
+      - "sugar_beet"
+      - "oats"
+      - "triticale"
+      - "crimson_clover_vetch"
+      - "alfalfa"
+      - "potato"
+
+  brazil_cerrado:
+    name: "Brazilian Cerrado (Mato Grosso Soy–Safrinha Corn/Cotton Belt)"
+    agro_zone: "Tropical Savanna Double-Cropping Cerrado Belt (Embrapa ZARC)"
+    country: "Brazil"
+    country_iso3: "BRA"
+    admin1_names:
+      - "Mato Grosso"
+      - "Goiás"
+      - "Mato Grosso do Sul"
+      - "Tocantins"
+      - "Distrito Federal"
+      - "Bahia"
+      - "Minas Gerais"
+    koppen_classes: ["Aw", "Am", "Cwa", "Cwb"]
+    calendar_id: "tropical_savanna_sh"
+    cultivar_zone: "tropical_high_input"
+    unit_convention: "metric"
+    economics_table: "brazil_mt"
+    currency: "BRL"
+    currency_symbol: "R$"
+    is_validated: true
+    validation_status: "validated_regional"
+    allow_economic_ranking: true
+    baseline_rotation: ["soybean", "maize", "fallow"]
+    baseline_slope_pct: 1.5
+    grace_trend_cm_yr: -0.30
+    grace_citation: "ANA Brazil / NASA GRACE-FO Cerrado Basin Groundwater Trends"
+    igp_merra2_bias_correction: false
+    c_eq_t_ha_yr: 2.05
+    soc_ref_g_kg: 14.0
+    priority_crops:
+      - "soybean"
+      - "maize"
+      - "cotton"
+      - "rice_upland"
+      - "sorghum"
+      - "common_bean"
+      - "brachiaria_cover"
+      - "dhaincha"
+      - "sunflower"
+      - "pearl_millet"
+      - "cassava"
+
+  east_africa_highlands:
+    name: "East African Highlands (Nakuru / Rift Valley Bimodal Belt)"
+    agro_zone: "Equatorial Sub-Humid Highland Maize–Pulse–Potato Zone (KALRO AEZ)"
+    country: "Kenya"
+    country_iso3: "KEN"
+    admin1_names: []
+    koppen_classes: ["Cfb", "Cfc", "Csb", "Cwb", "Cfa", "Aw"]
+    calendar_id: "equatorial_bimodal"
+    cultivar_zone: "tropical_highland"
+    unit_convention: "acre"
+    economics_table: "kenya"
+    currency: "KES"
+    currency_symbol: "KSh"
+    is_validated: true
+    validation_status: "validated_regional"
+    allow_economic_ranking: true
+    baseline_rotation: ["maize", "common_bean", "fallow"]
+    baseline_slope_pct: 3.2
+    grace_trend_cm_yr: 0.15
+    grace_citation: "NASA GRACE-FO East African Rift Lakes & Basin Assessment"
+    igp_merra2_bias_correction: false
+    c_eq_t_ha_yr: 1.65
+    soc_ref_g_kg: 16.0
+    priority_crops:
+      - "maize"
+      - "common_bean"
+      - "potato"
+      - "wheat_spring"
+      - "sorghum"
+      - "sweet_potato"
+      - "field_pea"
+      - "lupin"
+      - "crimson_clover_vetch"
+      - "rice_upland"
+      - "cassava"
+
+  australia_wheat_belt:
+    name: "Australian Southern Grain Belt (Riverina / Wagga Wagga NSW)"
+    agro_zone: "Southern Winter-Rain Wheat–Canola–Pulse Belt (GRDC Southern/Western)"
+    country: "Australia"
+    country_iso3: "AUS"
+    admin1_names:
+      - "New South Wales"
+      - "Victoria"
+      - "South Australia"
+      - "Western Australia"
+    koppen_classes: ["Cfa", "Cfb", "Csa", "Csb", "BSk", "BSh"]
+    calendar_id: "southern_mediterranean"
+    cultivar_zone: "mediterranean_dryland"
+    unit_convention: "metric"
+    economics_table: "australia_nsw"
+    currency: "AUD"
+    currency_symbol: "A$"
+    is_validated: true
+    validation_status: "validated_regional"
+    allow_economic_ranking: true
+    baseline_rotation: ["wheat_spring", "fallow", "fallow"]
+    baseline_slope_pct: 1.4
+    grace_trend_cm_yr: -0.45
+    grace_citation: "ABARES / NASA GRACE-FO Murray-Darling Basin Trends"
+    igp_merra2_bias_correction: false
+    c_eq_t_ha_yr: 1.45
+    soc_ref_g_kg: 10.0
+    priority_crops:
+      - "wheat_spring"
+      - "wheat_winter"
+      - "rapeseed_canola"
+      - "barley"
+      - "lupin"
+      - "oats"
+      - "field_pea"
+      - "chickpea"
+      - "faba_bean"
+      - "alfalfa"
+
+# ---------------------------------------------------------------------------
+# Global Köppen-Geiger Biophysical AEZ Archetypes (validation_status: "biophysical_global")
+# Used when a parcel falls outside India and outside the 5 Tier-A regional hubs.
+# ---------------------------------------------------------------------------
+global_aez_zones:
+  aez_temperate_continental:
+    name: "Temperate Continental Grain & Forage Zone"
+    agro_zone: "Koppen Dfa/Dfb/Dwa/Dwb/Dsa/Dsb Continental Agricultural Biome"
+    koppen_classes: ["Dfa", "Dfb", "Dwa", "Dwb", "Dsa", "Dsb"]
+    calendar_id: "temperate_spring_summer"
+    cultivar_zone: "temperate_high_input"
+    soil_key: "aez_temperate_continental"
+    weather_key: "aez_temperate_continental"
+    c_eq_t_ha_yr: 3.00
+    soc_ref_g_kg: 17.0
+    baseline_rotation: ["maize", "soybean", "fallow"]
+    baseline_slope_pct: 1.5
+    priority_crops:
+      - "maize"
+      - "soybean"
+      - "wheat_winter"
+      - "wheat_spring"
+      - "oats"
+      - "rye_winter"
+      - "barley"
+      - "sunflower"
+      - "field_pea"
+      - "alfalfa"
+      - "crimson_clover_vetch"
+      - "rapeseed_canola"
+
+  aez_maritime_temperate:
+    name: "Maritime Temperate Cropping Zone"
+    agro_zone: "Koppen Cfb/Cfc Maritime Oceanic Biome"
+    koppen_classes: ["Cfb", "Cfc"]
+    calendar_id: "maritime_temperate"
+    cultivar_zone: "maritime_europe"
+    soil_key: "aez_maritime_temperate"
+    weather_key: "aez_maritime_temperate"
+    c_eq_t_ha_yr: 2.80
+    soc_ref_g_kg: 15.0
+    baseline_rotation: ["wheat_winter", "fallow", "fallow"]
+    baseline_slope_pct: 1.2
+    priority_crops:
+      - "wheat_winter"
+      - "rapeseed_canola"
+      - "barley"
+      - "oats"
+      - "triticale"
+      - "sugar_beet"
+      - "field_pea"
+      - "faba_bean"
+      - "potato"
+      - "maize"
+      - "alfalfa"
+      - "crimson_clover_vetch"
+
+  aez_mediterranean_nh:
+    name: "Northern Mediterranean & Winter-Rain Dryland Belt"
+    agro_zone: "Koppen Csa/Csb Northern Winter-Rain Biome"
+    koppen_classes: ["Csa", "Csb"]
+    calendar_id: "mediterranean_nh"
+    cultivar_zone: "mediterranean_dryland"
+    soil_key: "aez_mediterranean"
+    weather_key: "aez_mediterranean"
+    c_eq_t_ha_yr: 2.15
+    soc_ref_g_kg: 10.0
+    baseline_rotation: ["wheat_spring", "fallow", "fallow"]
+    baseline_slope_pct: 2.4
+    priority_crops:
+      - "wheat_spring"
+      - "wheat_winter"
+      - "barley"
+      - "chickpea"
+      - "lentil"
+      - "faba_bean"
+      - "lupin"
+      - "oats"
+      - "rapeseed_canola"
+      - "sunflower"
+      - "maize"
+      - "crimson_clover_vetch"
+
+  aez_mediterranean_sh:
+    name: "Southern Mediterranean & Warm Dryland Grain Belt"
+    agro_zone: "Koppen Csa/Csb Southern Hemisphere Winter-Rain Biome"
+    koppen_classes: ["Csa", "Csb"]
+    calendar_id: "southern_mediterranean"
+    cultivar_zone: "mediterranean_dryland"
+    soil_key: "aez_mediterranean"
+    weather_key: "aez_mediterranean"
+    c_eq_t_ha_yr: 2.15
+    soc_ref_g_kg: 10.0
+    baseline_rotation: ["wheat_spring", "fallow", "fallow"]
+    baseline_slope_pct: 2.0
+    priority_crops:
+      - "wheat_spring"
+      - "rapeseed_canola"
+      - "barley"
+      - "lupin"
+      - "oats"
+      - "field_pea"
+      - "chickpea"
+      - "faba_bean"
+      - "alfalfa"
+      - "sorghum"
+
+  aez_humid_subtropical:
+    name: "Humid Subtropical Multiple-Cropping Zone"
+    agro_zone: "Koppen Cfa/Cwa Humid Subtropical Biome"
+    koppen_classes: ["Cfa", "Cwa"]
+    calendar_id: "humid_subtropical_nh"
+    cultivar_zone: "temperate_high_input"
+    soil_key: "aez_humid_subtropical"
+    weather_key: "aez_humid_subtropical"
+    c_eq_t_ha_yr: 2.75
+    soc_ref_g_kg: 13.0
+    baseline_rotation: ["maize", "wheat", "fallow"]
+    baseline_slope_pct: 1.6
+    priority_crops:
+      - "maize"
+      - "soybean"
+      - "rice_japonica_temperate"
+      - "rice_upland"
+      - "wheat"
+      - "wheat_winter"
+      - "cotton"
+      - "groundnut"
+      - "sweet_potato"
+      - "rapeseed_canola"
+      - "crimson_clover_vetch"
+      - "moong"
+
+  aez_tropical_wet:
+    name: "Equatorial & Humid Tropical Cropping Zone"
+    agro_zone: "Koppen Af/Am Humid Equatorial Biome"
+    koppen_classes: ["Af", "Am"]
+    calendar_id: "equatorial_bimodal"
+    cultivar_zone: "tropical_highland"
+    soil_key: "aez_tropical_wet"
+    weather_key: "aez_tropical_wet"
+    c_eq_t_ha_yr: 2.95
+    soc_ref_g_kg: 16.0
+    baseline_rotation: ["maize", "common_bean", "fallow"]
+    baseline_slope_pct: 2.5
+    priority_crops:
+      - "maize"
+      - "rice_upland"
+      - "cassava"
+      - "sweet_potato"
+      - "common_bean"
+      - "soybean"
+      - "groundnut"
+      - "pigeon_pea"
+      - "moong"
+      - "brachiaria_cover"
+      - "dhaincha"
+
+  aez_tropical_savanna:
+    name: "Tropical Savanna Wet–Dry Cropping Zone"
+    agro_zone: "Koppen Aw/As Tropical Savanna Biome"
+    koppen_classes: ["Aw", "As"]
+    calendar_id: "tropical_savanna_sh"
+    cultivar_zone: "tropical_high_input"
+    soil_key: "aez_tropical_savanna"
+    weather_key: "aez_tropical_savanna"
+    c_eq_t_ha_yr: 2.70
+    soc_ref_g_kg: 12.0
+    baseline_rotation: ["soybean", "maize", "fallow"]
+    baseline_slope_pct: 1.5
+    priority_crops:
+      - "maize"
+      - "soybean"
+      - "sorghum"
+      - "pearl_millet"
+      - "rice_upland"
+      - "groundnut"
+      - "common_bean"
+      - "cotton"
+      - "cassava"
+      - "pigeon_pea"
+      - "brachiaria_cover"
+      - "dhaincha"
+
+  aez_arid_semiarid:
+    name: "Arid & Semi-Arid Dryland Cropping Zone"
+    agro_zone: "Koppen BWh/BWk/BSh/BSk Arid–Steppe Biome"
+    koppen_classes: ["BWh", "BWk", "BSh", "BSk"]
+    calendar_id: "mediterranean_nh"
+    cultivar_zone: "mediterranean_dryland"
+    soil_key: "aez_arid_semiarid"
+    weather_key: "aez_arid_semiarid"
+    c_eq_t_ha_yr: 1.75
+    soc_ref_g_kg: 5.5
+    baseline_rotation: ["sorghum", "chickpea", "fallow"]
+    baseline_slope_pct: 1.6
+    priority_crops:
+      - "sorghum"
+      - "pearl_millet"
+      - "barley"
+      - "chickpea"
+      - "lentil"
+      - "lupin"
+      - "wheat_spring"
+      - "wheat_winter"
+      - "mustard"
+      - "sunflower"
+      - "field_pea"
+
+  aez_boreal_alpine:
+    name: "Boreal, Subarctic & High-Altitude Cool Zone"
+    agro_zone: "Koppen Dfc/Dfd/Dwc/Dwd/Dsc/ET Boreal–Montane Biome"
+    koppen_classes: ["Dfc", "Dfd", "Dwc", "Dwd", "Dsc", "Dsd", "ET", "EF", "Cwc"]
+    calendar_id: "temperate_spring_summer"
+    cultivar_zone: "maritime_europe"
+    soil_key: "aez_boreal_alpine"
+    weather_key: "aez_boreal_alpine"
+    c_eq_t_ha_yr: 2.25
+    soc_ref_g_kg: 22.0
+    baseline_rotation: ["oats", "field_pea", "fallow"]
+    baseline_slope_pct: 3.0
+    priority_crops:
+      - "oats"
+      - "barley"
+      - "rye_winter"
+      - "triticale"
+      - "wheat_spring"
+      - "rapeseed_canola"
+      - "field_pea"
+      - "potato"
+      - "crimson_clover_vetch"
 
 default_zone:
   name: "All-India Agricultural Plain Average"
@@ -257,3 +697,6 @@ default_zone:
   currency: "INR"
   currency_symbol: "₹"
   is_validated: true
+  calendar_id: "india_igp"
+  c_eq_t_ha_yr: 2.35
+  soc_ref_g_kg: 6.0

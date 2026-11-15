@@ -1,0 +1,38 @@
+# European Union CAP & France Eco-Schemes (2023-2027 Strategic Plan)
+# Official Source: French Ministry of Agriculture / EU Common Agricultural Policy
+
+schemes:
+  - id: "eu_cap_ecoscheme_diversification"
+    name: "EU CAP Eco-Scheme Diversified Rotation"
+    display_title: "EU CAP Eco-Scheme (Voie Pratiques / Rotation Diversifiée & Couverts)"
+    display_title_hi: "EU CAP इको-स्कीम विविध फसल चक्र एवं हरित आवरण सहायता"
+    display_title_pa: "EU CAP ਈਕੋ-ਸਕੀਮ ਵਿਭਿੰਨ ਫ਼ਸਲੀ ਚੱਕਰ ਅਤੇ ਹਰਾ ਕਵਰ ਸਹਾਇਤਾ"
+    display_title_es: "Eco-esquema PAC UE Diversificación de Cultivos y Coberturas Vegetales"
+    display_title_pt: "Eco-regime PAC UE Diversificação de Culturas e Coberturas Vegetais"
+    display_title_fr: "Écorégime PAC UE Diversification des Cultures et Couverts Intermédiaires (CIPAN)"
+    country_code: "FRA"
+    eligible_zones: ["eu_maritime_west"]
+    eligible_crops: ["rapeseed_canola", "field_pea", "faba_bean", "crimson_clover_vetch", "alfalfa", "oats"]
+    eligible_practices: ["happy_seeder", "zero_till", "no_till", "residue_retained"]
+    amount: null
+    unit: null
+    source_url: "https://agriculture.ec.europa.eu/common-agricultural-policy_en"
+    as_of_date: "2024-01-01"
+    description: "CAP Strategic Plan Eco-Scheme rewarding 4+ family crop diversification, catch crops (CIPAN), and reduced soil disturbance."
+
+  - id: "france_aide_proteines"
+    name: "France CAP Coupled Plant Protein Aid"
+    display_title: "France CAP Aide Couplée aux Légumineuses & Protéagineux"
+    display_title_hi: "फ्रांस CAP दलहनी एवं प्रोटीन फसल सहायता"
+    display_title_pa: "ਫ਼ਰਾਂਸ CAP ਦਾਲਾਂ ਅਤੇ ਪ੍ਰੋਟੀਨ ਫ਼ਸਲ ਸਹਾਇਤਾ"
+    display_title_es: "Francia PAC Ayuda Acoplada a Proteaginosas y Leguminosas"
+    display_title_pt: "França PAC Ajuda Associada a Proteaginosas e Leguminosas"
+    display_title_fr: "France PAC Aide Couplée aux Protéagineux et Légumineuses Fourragères"
+    country_code: "FRA"
+    eligible_zones: ["eu_maritime_west"]
+    eligible_crops: ["field_pea", "faba_bean", "alfalfa", "soybean"]
+    amount: null
+    unit: null
+    source_url: "https://agriculture.gouv.fr/"
+    as_of_date: "2024-01-01"
+    description: "Coupled income support under France PSN-PAC for field pea, faba bean, and alfalfa biological nitrogen fixation."

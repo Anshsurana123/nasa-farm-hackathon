@@ -1139,33 +1139,48 @@ def test_agro_zone_and_regional_soil_classification():
 
 
 def test_global_international_locations_scope_honesty():
-    """Verify scope honesty (Rule 8): global fields outside India are transparently labeled unvalidated_global."""
+    """Verify 3-tier global scope honesty: India (Tier 1), calibrated regional hubs (Tier 2), biophysical_global (Tier 3)."""
     from terraloop_engine import region_registry
 
-    # 5 Global benchmark sites
-    sites = [
-        {"name": "Ames, Iowa (US Corn Belt)", "lat": 42.03, "lon": -93.63, "hem": "NH"},
-        {"name": "Nairobi, Kenya (East Africa Highlands)", "lat": -1.29, "lon": 36.82, "hem": "SH"},
-        {"name": "Mato Grosso, Brazil (Cerrado Soybean Belt)", "lat": -12.55, "lon": -55.72, "hem": "SH"},
-        {"name": "NSW, Australia (Murray-Darling Wheat Belt)", "lat": -31.25, "lon": 146.92, "hem": "SH"},
-        {"name": "Montpellier, France (Mediterranean)", "lat": 43.61, "lon": 3.87, "hem": "NH"},
-    ]
-
-    for site in sites:
-        cfg = region_registry.detect_region_config(site["lat"], site["lon"])
-        assert not cfg.is_validated, f"Expected {site['name']} to be unvalidated"
-        assert cfg.validation_status == "unvalidated_global"
-        assert cfg.validation_message is not None and "outside TerraLoop's calibrated Indian" in cfg.validation_message
-        assert cfg.currency == "USD"
-        assert cfg.currency_symbol == "$"
-        assert cfg.hemisphere == site["hem"]
-
-    # Verify Indian coordinates are properly validated
+    # Tier 1: Indian coordinates are validated_india with INR
     pb_cfg = region_registry.detect_region_config(30.19, 75.78)
     assert pb_cfg.is_validated
     assert pb_cfg.validation_status == "validated_india"
+    assert pb_cfg.allow_economic_ranking is True
     assert pb_cfg.currency == "INR"
     assert pb_cfg.currency_symbol == "₹"
+
+    # Tier 2: 5 Calibrated global breadbasket hubs are validated_regional with local currency & agency budgets
+    hub_sites = [
+        {"name": "Ames, Iowa (US Corn Belt)", "lat": 42.03, "lon": -93.62, "hem": "NH", "curr": "USD", "status": "validated_regional"},
+        {"name": "Chartres (Beauce), France", "lat": 48.44, "lon": 1.49, "hem": "NH", "curr": "EUR", "status": "validated_regional"},
+        {"name": "Sorriso, Mato Grosso, Brazil", "lat": -12.55, "lon": -55.72, "hem": "SH", "curr": "BRL", "status": "validated_regional"},
+        {"name": "Nakuru, Rift Valley, Kenya", "lat": -0.30, "lon": 36.07, "hem": "SH", "curr": "KES", "status": "validated_regional"},
+        {"name": "Wagga Wagga, NSW, Australia", "lat": -35.12, "lon": 147.37, "hem": "SH", "curr": "AUD", "status": "validated_regional"},
+    ]
+    for site in hub_sites:
+        cfg = region_registry.detect_region_config(site["lat"], site["lon"])
+        assert cfg.is_validated, f"Expected Tier-2 hub {site['name']} to be validated"
+        assert cfg.validation_status == site["status"]
+        assert cfg.allow_economic_ranking is True
+        assert cfg.currency == site["curr"]
+        assert cfg.hemisphere == site["hem"]
+
+    # Tier 3: Uncalibrated international locations use honest biophysical_global mode & zero economic ranking
+    bio_sites = [
+        {"name": "Almaty, Kazakhstan (Central Asia)", "lat": 43.22, "lon": 76.85, "hem": "NH"},
+        {"name": "Cusco, Peru (Andean Valleys)", "lat": -13.53, "lon": -71.97, "hem": "SH"},
+        {"name": "Zaragoza, Spain (Semi-Arid Ebro)", "lat": 41.65, "lon": -0.88, "hem": "NH"},
+    ]
+    for site in bio_sites:
+        cfg = region_registry.detect_region_config(site["lat"], site["lon"])
+        assert not cfg.is_validated, f"Expected {site['name']} to be biophysical_global"
+        assert cfg.validation_status == "biophysical_global"
+        assert cfg.allow_economic_ranking is False
+        assert cfg.validation_message is not None and "biophysical global" in cfg.validation_message.lower()
+        assert cfg.currency == "USD"
+        assert cfg.currency_symbol == "$"
+        assert cfg.hemisphere == site["hem"]
 
 
 def test_golden_match_tightened_radius():
@@ -1658,22 +1673,22 @@ def test_merra2_bias_correction_provenance_and_toggle():
 
 
 def test_i18n_key_parity_and_no_hardcoded_jsx_error_strings():
-    """Enforce 100% key parity across en, hi, pa localization files and verify TSX has no raw English prose (WS-J / Issue 17)."""
+    """Enforce 100% key parity across en, hi, pa, es, pt, fr localization files and verify TSX has no raw English prose (WS-J / Issue 17)."""
     import json
     import re
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
     en = json.loads((root / "apps" / "web" / "src" / "i18n" / "en.json").read_text(encoding="utf-8"))
-    hi = json.loads((root / "apps" / "web" / "src" / "i18n" / "hi.json").read_text(encoding="utf-8"))
-    pa = json.loads((root / "apps" / "web" / "src" / "i18n" / "pa.json").read_text(encoding="utf-8"))
-
-    assert set(en.keys()) == set(hi.keys()), f"Key mismatch between en and hi: {set(en.keys()) ^ set(hi.keys())}"
-    assert set(en.keys()) == set(pa.keys()), f"Key mismatch between en and pa: {set(en.keys()) ^ set(pa.keys())}"
+    for loc in ("hi", "pa", "es", "pt", "fr"):
+        loc_map = json.loads((root / "apps" / "web" / "src" / "i18n" / f"{loc}.json").read_text(encoding="utf-8"))
+        assert set(en.keys()) == set(loc_map.keys()), (
+            f"Key mismatch between en and {loc}: {set(en.keys()) ^ set(loc_map.keys())}"
+        )
     assert "error.recommendFailedCustom" in en
     assert "error.recommendFailedDemo" in en
 
-    # Verify residual localization keys exist across en, hi, pa (WS-J4 / Issue A, B, C)
+    # Verify residual localization keys exist across all 6 locales
     new_keys = [
         "badge.graceUrgencyActive",
         "warning.rainfedYieldTitle",
@@ -1683,10 +1698,10 @@ def test_i18n_key_parity_and_no_hardcoded_jsx_error_strings():
         "data_mode.regional_climatology",
         "data_mode.fallback_synthetic",
     ]
-    for k in new_keys:
-        assert k in en, f"Missing key '{k}' in en.json"
-        assert k in hi, f"Missing key '{k}' in hi.json"
-        assert k in pa, f"Missing key '{k}' in pa.json"
+    for loc in ("en", "hi", "pa", "es", "pt", "fr"):
+        loc_map = json.loads((root / "apps" / "web" / "src" / "i18n" / f"{loc}.json").read_text(encoding="utf-8"))
+        for k in new_keys:
+            assert k in loc_map, f"Missing key '{k}' in {loc}.json"
 
     # Verify ReportCard.tsx and TelemetryBar.tsx use localized t("badge.contextOnly") and have no hardcoded >Context Only<
     report_card_code = (root / "apps" / "web" / "src" / "components" / "ReportCard.tsx").read_text(encoding="utf-8")
@@ -1727,6 +1742,12 @@ def test_i18n_key_parity_and_no_hardcoded_jsx_error_strings():
         content = tsx_path.read_text(encoding="utf-8")
         matches = raw_jsx_pat.findall(content)
         assert not matches, f"Unlocalized English JSX prose found in {tsx_path.relative_to(web_src)}: {matches}"
+        assert "isSouthAsia" not in content and not re.search(r"\bisSA\b", content), (
+            f"Hardcoded South Asia heuristic found in {tsx_path.relative_to(web_src)}"
+        )
+        assert "crops.length || 23" not in content, (
+            f"Hardcoded 23-crop fallback found in {tsx_path.relative_to(web_src)}"
+        )
 
     # Verify fallbackProfile.ts keeps canopy_wetness_idx in [0, 1] and populates VWC/drought/hazards provenance (#095)
     fallback_prof_code = (root / "apps" / "web" / "src" / "lib" / "fallbackProfile.ts").read_text(encoding="utf-8")
@@ -2560,7 +2581,7 @@ def test_area_ha_scaling_and_must_grow_exclude_irrigation_cap() -> None:
 
 
 def test_non_india_unvalidated_global_and_usd_currency(monkeypatch) -> None:
-    """Verify non-Indian field sets unvalidated_global, USD/$ currency, proxy economics, and no Indian schemes."""
+    """Verify biophysical_global proxy guard AND calibrated validated_regional USD/scheme routing."""
     from fastapi.testclient import TestClient
     from terraloop_api.main import app
     from terraloop_engine.data import gee, nasa_power, soilgrids
@@ -2577,32 +2598,55 @@ def test_non_india_unvalidated_global_and_usd_currency(monkeypatch) -> None:
 
     from terraloop_engine import profiler
 
-    global_prof = profiler.build_profile(FieldGeometry(lat=42.03, lon=-93.62, name="Ames, Iowa USA"))
-    assert isinstance(global_prof, FieldProfile)
-    assert global_prof.validation_status == "unvalidated_global"
-    assert global_prof.currency == "USD"
-    assert global_prof.currency_symbol == "$"
+    # 1. Uncalibrated international site -> biophysical_global + USD/$ + no regional schemes
+    bio_prof = profiler.build_profile(FieldGeometry(lat=43.22, lon=76.85, name="Almaty, Kazakhstan"))
+    assert isinstance(bio_prof, FieldProfile)
+    assert bio_prof.validation_status == "biophysical_global"
+    assert bio_prof.currency == "USD"
+    assert bio_prof.currency_symbol == "$"
 
     client = TestClient(app)
-    res = client.post(
+    res_bio = client.post(
         "/recommend",
         json={
-            "field": {"lat": 42.03, "lon": -93.62, "name": "Ames, Iowa USA"},
+            "field": {"lat": 43.22, "lon": 76.85, "name": "Almaty, Kazakhstan"},
             "constraints": {"irrigation": "limited"},
             "language": "en",
         },
     )
-    assert res.status_code == 200
-    recs = res.json()
-    assert len(recs) >= 2
-    for rec in recs:
-        assert rec["validation_status"] == "unvalidated_global"
+    assert res_bio.status_code == 200
+    recs_bio = res_bio.json()
+    assert len(recs_bio) >= 2
+    for rec in recs_bio:
+        assert rec["validation_status"] == "biophysical_global"
         assert rec["currency"] == "USD"
         assert rec["currency_symbol"] == "$"
-        assert rec["economics_basis"] == "punjab_proxy"
+        assert rec["economics_basis"] in ("punjab_proxy", "faostat_proxy")
         assert rec["practical_metrics"]["eligible_schemes"] == []
         for card in rec["why"]:
             assert "₹" not in card
+
+    # 2. Tier-2 calibrated hub (Ames, Iowa) -> validated_regional + USD/$ + regional_verified + USDA schemes
+    us_prof = profiler.build_profile(FieldGeometry(lat=42.03, lon=-93.62, name="Ames, Iowa USA"))
+    assert us_prof.validation_status == "validated_regional"
+    assert us_prof.currency == "USD"
+    res_us = client.post(
+        "/recommend",
+        json={
+            "field": {"lat": 42.03, "lon": -93.62, "name": "Ames, Iowa USA"},
+            "constraints": {"irrigation": "none"},
+            "language": "en",
+        },
+    )
+    assert res_us.status_code == 200
+    recs_us = res_us.json()
+    assert len(recs_us) >= 2
+    assert recs_us[1]["validation_status"] == "validated_regional"
+    assert recs_us[1]["currency"] == "USD"
+    assert recs_us[1]["economics_basis"] == "regional_verified"
+    assert recs_us[1]["practical_metrics"]["eligible_schemes"]
+    for card in recs_us[1]["why"]:
+        assert "₹" not in card
 
 
 def test_suitability_endpoint_honors_prebuilt_profile_and_shc(monkeypatch) -> None:
@@ -3341,10 +3385,10 @@ def test_meteomatics_http_token_401_retry_and_endpoints(monkeypatch, tmp_path):
                 ]
                 return _FakeResponse(200, {"data": data})
 
-            # Tactical 7-day forecast query (include one sentinel -999 on day 2 t_min to verify NaN guard)
-            assert "T12:00:00Z--" in url
-            dates_d1 = {"date": "2026-11-14T12:00:00Z"}
-            dates_d2 = {"date": "2026-11-15T12:00:00Z"}
+            # Tactical 7-day forecast query (~13:00 local solar time = 08:00 UTC for Punjab lon=75.78; include one sentinel -999 on day 2 t_min)
+            assert "T08:00:00Z--" in url
+            dates_d1 = {"date": "2026-11-14T08:00:00Z"}
+            dates_d2 = {"date": "2026-11-15T08:00:00Z"}
             tact_vals = {
                 "t_max_2m_24h:C": [28.0, 27.5],
                 "t_min_2m_24h:C": [14.0, -999.0],
@@ -3638,6 +3682,494 @@ def test_open_audit_hardening_items_regression():
     assert "Fosberg" not in en_dict
     assert "NSGA-II" not in en_dict
     assert "drought CVaR" not in en_dict
+
+
+def test_allow_economic_ranking_shifts_non_india_to_biophysical(monkeypatch) -> None:
+    """When allow_economic_ranking=False (non-India proxy economics), ranking ignores Punjab profit/risk/labour."""
+    from fastapi.testclient import TestClient
+    from terraloop_api.main import app
+    from terraloop_engine.data import gee, nasa_power, soilgrids
+    from terraloop_engine.optimize import selection
+    from terraloop_schemas import Priorities
+
+    # 1. Unit check on selection.effective_priorities and select_top(..., allow_economic_ranking=False)
+    econ_only = Priorities(profit=5.0, water_savings=0.0, soil_health=0.0, low_risk=3.0, low_labour=2.0, food_security=0.0)
+    eff_off = selection.effective_priorities(econ_only, allow_economic_ranking=False)
+    assert eff_off.profit == 0.0 and eff_off.low_risk == 0.0 and eff_off.low_labour == 0.0
+    assert eff_off.water_savings == 1.0 and eff_off.soil_health == 1.0 and eff_off.food_security == 1.0
+
+    # Candidate pool (>=10 to exercise viability floor too): index 0 is high profit / weak biophysical;
+    # indices 1..3 have negative Punjab-proxy profit but strong water_savings, soil_health, and food_security.
+    candidates = [
+        {
+            "profit": 350000.0,
+            "water_savings": -1200.0,
+            "soil_health": 45.0,
+            "low_risk": 220000.0,
+            "low_labour": -15000.0,
+            "food_security": 0.35,
+        },
+        {
+            "profit": -12000.0,
+            "water_savings": -400.0,
+            "soil_health": 88.0,
+            "low_risk": -25000.0,
+            "low_labour": -45000.0,
+            "food_security": 0.90,
+        },
+        {
+            "profit": -8000.0,
+            "water_savings": -450.0,
+            "soil_health": 85.0,
+            "low_risk": -20000.0,
+            "low_labour": -40000.0,
+            "food_security": 0.85,
+        },
+        {
+            "profit": -5000.0,
+            "water_savings": -500.0,
+            "soil_health": 82.0,
+            "low_risk": -18000.0,
+            "low_labour": -38000.0,
+            "food_security": 0.82,
+        },
+    ] + [
+        {
+            "profit": 10000.0 * i,
+            "water_savings": -1000.0 - 50.0 * i,
+            "soil_health": 50.0 + i,
+            "low_risk": 5000.0 * i,
+            "low_labour": -30000.0,
+            "food_security": 0.40 + 0.01 * i,
+        }
+        for i in range(8)
+    ]
+    labels = [
+        "Sugarcane → Wheat",
+        "Mung bean → Chickpea",
+        "Soybean → Barley",
+        "Groundnut → Lentil",
+    ] + [f"Fallback{i} → Wheat" for i in range(8)]
+    pairs = [tuple(lbl.lower().split(" → ")) for lbl in labels]
+
+    profit_heavy = Priorities(profit=5.0, water_savings=1.0, soil_health=1.0, low_risk=2.0, low_labour=1.0, food_security=1.0)
+    india_pick = selection.select_top(candidates, labels, profit_heavy, k=3, crop_pairs=pairs, allow_economic_ranking=True)
+    global_pick = selection.select_top(candidates, labels, profit_heavy, k=3, crop_pairs=pairs, allow_economic_ranking=False)
+    assert india_pick[0] == 0
+    assert global_pick == [1, 2, 3]
+
+    # 2. Integration check via POST /recommend for biophysical_global coordinates (Almaty, Kazakhstan):
+    # changing profit/low_risk/low_labour weights must NOT change rankings when allow_economic_ranking=False.
+    from terraloop_engine.data import meteomatics
+
+    monkeypatch.setenv("GEE_DISABLE", "1")
+    monkeypatch.setenv("TERRALOOP_DISABLE_LLM", "1")
+    monkeypatch.setattr(gee, "is_live", lambda: False)
+    monkeypatch.setattr(meteomatics, "is_configured", lambda: False)
+    monkeypatch.setattr(
+        nasa_power,
+        "fetch_daily",
+        lambda req: nasa_power.synthetic_daily_weather(req.lat, req.lon, (1995, 2024)),
+    )
+    monkeypatch.setattr(soilgrids, "fetch_topsoil", lambda lat, lon: (_ for _ in ()).throw(RuntimeError("offline")))
+
+    client = TestClient(app)
+    base_payload = {
+        "field": {"lat": 43.22, "lon": 76.85, "name": "Almaty, Kazakhstan"},
+        "constraints": {"irrigation": "limited"},
+        "language": "en",
+    }
+    r_high_profit = client.post(
+        "/recommend",
+        json={
+            **base_payload,
+            "priorities": {
+                "profit": 5.0,
+                "water_savings": 1.0,
+                "soil_health": 1.0,
+                "low_risk": 4.0,
+                "low_labour": 3.0,
+                "food_security": 1.0,
+            },
+        },
+    )
+    r_zero_econ = client.post(
+        "/recommend",
+        json={
+            **base_payload,
+            "priorities": {
+                "profit": 0.0,
+                "water_savings": 1.0,
+                "soil_health": 1.0,
+                "low_risk": 0.0,
+                "low_labour": 0.0,
+                "food_security": 1.0,
+            },
+        },
+    )
+    assert r_high_profit.status_code == 200 and r_zero_econ.status_code == 200
+    recs_a = r_high_profit.json()
+    recs_b = r_zero_econ.json()
+    assert [r["rotation"]["id"] for r in recs_a] == [r["rotation"]["id"] for r in recs_b]
+    assert recs_a[0]["validation_status"] == "biophysical_global"
+
+
+def test_crop_kb_40_crops_and_cultivar_adaptation():
+    """Verify crop KB exposes all 40 species cleanly and applies cultivar_profiles overrides without mutating India base."""
+    from terraloop_engine import crop_kb
+
+    crops = crop_kb.load_crops()
+    assert len(crops) == 40
+    expected_global = {
+        "alfalfa",
+        "brachiaria_cover",
+        "cassava",
+        "common_bean",
+        "crimson_clover_vetch",
+        "faba_bean",
+        "field_pea",
+        "lupin",
+        "oats",
+        "rapeseed_canola",
+        "rice_japonica_temperate",
+        "rice_upland",
+        "rye_winter",
+        "sugar_beet",
+        "sweet_potato",
+        "triticale",
+        "wheat_spring",
+        "wheat_winter",
+    }
+    assert expected_global <= set(crops.keys())
+
+    # Cultivar overrides adapt winter dormancy & yield targets regionally while preserving India defaults
+    base_barley = crops["barley"]
+    eu_barley = crop_kb.resolve_crop_spec(base_barley, "maritime_europe")
+    india_barley = crop_kb.resolve_crop_spec(base_barley, "india_default")
+    assert india_barley.typical_yield_t_ha == base_barley.typical_yield_t_ha
+    assert eu_barley.winter_dormancy is True
+    assert eu_barley.typical_yield_t_ha[1] > base_barley.typical_yield_t_ha[1]
+
+
+def test_global_overwinter_frost_filter_and_scheme_matching():
+    """Verify freeze-out overwinter filtering, alfalfa livestock gate, and localized 5-continent scheme matching."""
+    from terraloop_engine import crop_kb, scheme_kb
+    from terraloop_engine.optimize import rotations
+    from terraloop_schemas import FarmConstraints
+
+    crops = crop_kb.load_crops()
+    no_livestock = FarmConstraints(irrigation="none", has_livestock=False)
+
+    # Freezing continental winter slot (Iowa ~130 frost days): non-hardy lentil & sugar_beet must be excluded
+    us_winter = rotations.SeasonSlot(
+        name="winter_overwinter",
+        sowing_months=(9, 10),
+        max_duration_days=265,
+        thermal="cool",
+        optional=True,
+        slot_id="winter_overwinter",
+        default_sowing_doy=268,
+        overwintering=True,
+        frost_days=130.0,
+    )
+    us_eligible = set(rotations.crops_for_slot(us_winter, crops, no_livestock, region_id="us_corn_belt"))
+    assert {"wheat_winter", "rye_winter", "triticale", "rapeseed_canola", "crimson_clover_vetch"} <= us_eligible
+    assert "lentil" not in us_eligible
+    assert "sugar_beet" not in us_eligible
+    assert "alfalfa" not in us_eligible
+
+    # Maritime Europe overwinter slot allows winter barley (maritime_europe cultivar) & faba bean, excludes alfalfa without livestock
+    eu_crops = {cid: crop_kb.resolve_crop_spec(c, "maritime_europe") for cid, c in crops.items()}
+    eu_winter = rotations.SeasonSlot(
+        name="winter_cereal",
+        sowing_months=(9, 10, 11),
+        max_duration_days=285,
+        thermal="cool",
+        optional=True,
+        slot_id="winter_cereal",
+        default_sowing_doy=280,
+        overwintering=True,
+        frost_days=40.0,
+    )
+    eu_eligible = set(rotations.crops_for_slot(eu_winter, eu_crops, no_livestock, region_id="eu_maritime_west"))
+    assert {"wheat_winter", "barley", "rapeseed_canola", "faba_bean"} <= eu_eligible
+    assert "alfalfa" not in eu_eligible
+    assert "lentil" not in eu_eligible
+
+    # Localized schemes match all 5 calibrated regional hubs and stay empty on biophysical_global
+    assert scheme_kb.get_matching_schemes(
+        "Iowa", {"maize", "soybean"}, {"zero_till", "residue_retained"}, region_id="us_corn_belt", language="es", country_code="USA", validation_status="validated_regional"
+    )
+    assert scheme_kb.get_matching_schemes(
+        "France", {"wheat_winter", "faba_bean"}, {"no_till"}, region_id="eu_maritime_west", language="fr", country_code="FRA", validation_status="validated_regional"
+    )
+    assert scheme_kb.get_matching_schemes(
+        "Mato Grosso", {"soybean", "brachiaria_cover"}, {"no_till"}, region_id="brazil_cerrado", language="pt", country_code="BRA", validation_status="validated_regional"
+    )
+    assert scheme_kb.get_matching_schemes(
+        "Kenya", {"maize", "common_bean"}, {"conventional"}, region_id="east_africa_highlands", language="en", country_code="KEN", validation_status="validated_regional"
+    )
+    assert scheme_kb.get_matching_schemes(
+        "New South Wales", {"wheat_spring", "faba_bean"}, {"no_till"}, region_id="australia_wheat_belt", language="en", country_code="AUS", validation_status="validated_regional"
+    )
+    assert (
+        scheme_kb.get_matching_schemes(
+            "Kazakhstan", {"wheat_winter"}, {"no_till"}, region_id="aez_temperate_continental", language="en", country_code="KAZ", validation_status="biophysical_global"
+        )
+        == []
+    )
+
+
+def test_global_hubs_priority_sensitivity():
+    """Verify validated_regional hubs allow farmer economic & biophysical priorities to steer ranking monotonically."""
+    from terraloop_engine.optimize import selection
+    from terraloop_schemas import Priorities
+
+    # Tier-2 hub candidate pool: A=high profit/low SOC, B=balanced/high soil health, C=water/nutrition specialist
+    candidates = [
+        {"profit": 1600.0, "water_savings": -50.0, "soil_health": 48.0, "low_risk": 900.0, "low_labour": -220.0, "food_security": 0.65},
+        {"profit": 950.0, "water_savings": -10.0, "soil_health": 84.0, "low_risk": 750.0, "low_labour": -180.0, "food_security": 0.88},
+        {"profit": 720.0, "water_savings": -5.0, "soil_health": 78.0, "low_risk": 620.0, "low_labour": -160.0, "food_security": 0.92},
+        {"profit": 840.0, "water_savings": -12.0, "soil_health": 72.0, "low_risk": 680.0, "low_labour": -170.0, "food_security": 0.80},
+    ] + [
+        {"profit": 300.0 + 40.0 * i, "water_savings": -25.0, "soil_health": 55.0 + i, "low_risk": 200.0, "low_labour": -210.0, "food_security": 0.50}
+        for i in range(6)
+    ]
+    labels = [
+        "Maize → Triticale",
+        "Soybean → Winter Cereal Rye",
+        "Oats → Crimson Clover / Hairy Vetch",
+        "Soybean → Winter Wheat",
+    ] + [f"Fallback{i} → Winter Wheat" for i in range(6)]
+    pairs = [tuple(lbl.lower().split(" → ")) for lbl in labels]
+
+    p_profit = Priorities(profit=5.0, water_savings=0.5, soil_health=0.5, low_risk=3.0, low_labour=1.0, food_security=0.5)
+    p_soil = Priorities(profit=0.5, water_savings=2.0, soil_health=5.0, low_risk=0.5, low_labour=0.5, food_security=2.0)
+
+    usd_spreads = selection.build_min_spreads(1.0 / 83.5)
+    top_profit = selection.select_top(
+        candidates, labels, p_profit, k=3, crop_pairs=pairs, allow_economic_ranking=True, min_spreads=usd_spreads
+    )
+    top_soil = selection.select_top(
+        candidates, labels, p_soil, k=3, crop_pairs=pairs, allow_economic_ranking=True, min_spreads=usd_spreads
+    )
+    assert top_profit[0] == 0
+    assert top_soil[0] == 1
+
+
+def test_async_profile_endpoint_and_rate_limit_exemption(monkeypatch, tmp_path) -> None:
+    """Verify /profile/async, /profile/jobs/{job_id}, VERCEL sync mode, and job polling rate-limit exemption."""
+    import time
+
+    import terraloop_api.main as api_main
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(api_main, "_jobs_dir", lambda: tmp_path)
+    api_main._RECOMMEND_JOBS.clear()
+    api_main._RATE_LIMIT_BUCKET.clear()
+
+    orig_build = profiler.build_profile
+
+    def _fake_build_profile(field, use_live_network=True):
+        return orig_build(field, use_live_network=False)
+
+    monkeypatch.setattr(api_main.profiler, "build_profile", _fake_build_profile)
+    client = TestClient(api_main.app)
+
+    # 1. VERCEL=1 executes profile_async synchronously
+    monkeypatch.setenv("VERCEL", "1")
+    res_sync = client.post("/profile/async", json={"lat": 42.03, "lon": -93.63, "name": "Ames Test"})
+    assert res_sync.status_code == 200
+    body_sync = res_sync.json()
+    assert body_sync["status"] == "completed"
+    assert body_sync["result"]["field"]["name"] == "Ames Test"
+
+    # 2. Local daemon mode returns job_id and completes via /profile/jobs/{job_id} without hitting rate limit
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setenv("TERRALOOP_RATE_LIMIT_PER_MIN", "2")
+    api_main._RATE_LIMIT_BUCKET.clear()
+
+    res_async = client.post("/profile/async", json={"lat": 21.343, "lon": 76.0086, "name": "Jalgaon Test"})
+    assert res_async.status_code == 200
+    job_id = res_async.json()["job_id"]
+
+    final_job = None
+    for _ in range(40):
+        poll = client.get(f"/profile/jobs/{job_id}")
+        assert poll.status_code == 200
+        if poll.json()["status"] in ("completed", "failed"):
+            final_job = poll.json()
+            break
+        time.sleep(0.05)
+    assert final_job is not None and final_job["status"] == "completed"
+    assert final_job["result"]["field"]["name"] == "Jalgaon Test"
+
+    # Polling many times must never trigger 429 rate limit
+    for _ in range(5):
+        assert client.get(f"/profile/jobs/{job_id}").status_code == 200
+    api_main._RATE_LIMIT_BUCKET.clear()
+
+
+def test_profiler_overlaps_gee_init_with_http_fetches(monkeypatch) -> None:
+    """Verify cold gee.init() runs concurrently with NASA POWER and SoilGrids instead of blocking them."""
+    import time
+
+    from terraloop_engine.data import gee, meteomatics, nasa_power, soilgrids
+
+    monkeypatch.setattr(gee, "_initialised", False)
+
+    def _slow_gee_init() -> bool:
+        time.sleep(0.25)
+        return False
+
+    def _slow_power(req):
+        time.sleep(0.25)
+        return nasa_power.synthetic_daily_weather(req.lat, req.lon, (req.start.year, req.end.year))
+
+    def _slow_soil(lat, lon):
+        time.sleep(0.25)
+        return profiler.regional_soil_fallback(lat, lon), []
+
+    monkeypatch.setattr(gee, "init", _slow_gee_init)
+    monkeypatch.setattr(nasa_power, "fetch_daily", _slow_power)
+    monkeypatch.setattr(soilgrids, "fetch_topsoil", _slow_soil)
+    monkeypatch.setattr(meteomatics, "is_configured", lambda: False)
+    monkeypatch.setattr(gee, "slope_pct", lambda lat, lon: None)
+    monkeypatch.setattr(gee, "grace_trend", lambda lat, lon: (None, None))
+    monkeypatch.setattr(gee, "smap_rootzone", lambda lat, lon, s, e: None)
+
+    t0 = time.perf_counter()
+    prof = profiler.build_profile(FieldGeometry(lat=42.03, lon=-93.63, name="Overlap Test"), use_live_network=True)
+    elapsed = time.perf_counter() - t0
+    assert elapsed < 0.45, f"Expected parallel overlap (<0.45s), got {elapsed:.3f}s"
+    assert prof.field.name == "Overlap Test"
+
+
+def test_evaluate_candidates_emits_progress_callback() -> None:
+    """Verify evaluate_candidates invokes progress_cb monotonically through total."""
+    from terraloop_engine.climate import ensembles
+    from terraloop_engine.data import nasa_power
+    from terraloop_engine.optimize import evaluate, rotations
+    from terraloop_schemas import FarmConstraints
+
+    fg = FieldGeometry(lat=30.19, lon=75.78, name="Progress Test")
+    prof = profiler.build_profile(fg, use_live_network=False)
+    weather_df = nasa_power.synthetic_daily_weather(fg.lat, fg.lon, (2018, 2024))
+    _, members = ensembles.build_scenario_set(kind="historical", power_df=weather_df, rotation_years=1, lat=fg.lat, lon=fg.lon)
+    crops = crop_kb.load_crops()
+    cand = rotations.generate_rotations(
+        {k: crops[k] for k in ("rice_dsr", "wheat", "maize", "moong", "mustard")},
+        FarmConstraints(),
+        seasons=rotations.derive_seasons(prof),
+    )[:12]
+    ticks: list[tuple[int, int]] = []
+    evaluate.evaluate_candidates(cand, members, prof, FarmConstraints(), "historical", progress_cb=lambda d, t: ticks.append((d, t)))
+    assert ticks
+    assert ticks[-1] == (len(cand), len(cand))
+    assert all(ticks[i][0] <= ticks[i + 1][0] for i in range(len(ticks) - 1))
+
+
+def test_meteomatics_non_param_errors_fail_fast(monkeypatch) -> None:
+    """Source errors (400) and subscription date-limit errors (403) must fail fast without 1-by-1 retries."""
+    import httpx
+    from terraloop_engine.data import meteomatics
+
+    monkeypatch.setenv("METEOMATICS_USERNAME", "test_user")
+    monkeypatch.setenv("METEOMATICS_PASSWORD", "test_pass")
+    monkeypatch.setenv("METEOMATICS_BASE_URL", "https://mm-failfast.invalid")
+    monkeypatch.setattr(meteomatics, "BASE_URL", "https://mm-failfast.invalid")
+    calls: list[tuple[str, str]] = []
+
+    def _fake_fetch(valid_datetime: str, parameters: str, location: str, extra_query: str = "") -> dict:
+        calls.append((valid_datetime, extra_query))
+        req = httpx.Request("GET", "https://mm-failfast.invalid/")
+        if extra_query == "source=mri-esm2":
+            resp = httpx.Response(400, request=req, text="couldn't parse mri-esm2 as a source")
+            raise httpx.HTTPStatusError("400", request=req, response=resp)
+        yr = int(valid_datetime[:4])
+        if yr >= 2030:
+            resp = httpx.Response(
+                403,
+                request=req,
+                text="Request with valid date 2035-12-31T00:00:00Z requires data access later than 2028-11-15T00:00:00Z, which is not granted with this subscription",
+            )
+            raise httpx.HTTPStatusError("403", request=req, response=resp)
+        start_d = valid_datetime.split("--")[0].split("T")[0]
+        end_d = valid_datetime.split("--")[1].split("T")[0]
+        dates = [d.strftime("%Y-%m-%dT00:00:00Z") for d in pd.date_range(start_d, end_d, freq="D")]
+        val_base = 30.0 if yr == 2026 else 31.0
+        return {
+            "data": [
+                {"parameter": "t_max_2m_24h:C", "coordinates": [{"dates": [{"date": d, "value": val_base} for d in dates]}]},
+                {"parameter": "t_min_2m_24h:C", "coordinates": [{"dates": [{"date": d, "value": 16.0} for d in dates]}]},
+                {"parameter": "precip_24h:mm", "coordinates": [{"dates": [{"date": d, "value": 1.2} for d in dates]}]},
+            ]
+        }
+
+    monkeypatch.setattr(meteomatics, "_fetch_meteomatics_json", _fake_fetch)
+
+    try:
+        # 1. Invalid source fails after 1 call instead of 3 years * 7 calls; repeat call takes 0 requests
+        assert meteomatics.fetch_cmip6_daily(21.3, 76.0, "historical", "1995-01-01", "2014-12-31") is None
+        assert len(calls) == 1
+        assert meteomatics.fetch_cmip6_daily(21.3, 76.0, "historical", "1995-01-01", "2014-12-31") is None
+        assert len(calls) == 1
+
+        # 2. Future ssp245 learns 2028-11-13 limit on 2035, clamps to 2026+2027 (no 2045 call!), skips 2050s with 0 calls
+        calls.clear()
+        df_2030s = meteomatics.fetch_cmip6_daily(21.3, 76.0, "ssp245", "2026-01-01", "2045-12-31")
+        assert df_2030s is not None and not df_2030s.empty
+        yrs = [int(vd[:4]) for vd, _ in calls]
+        assert 2045 not in yrs
+        assert 2026 in yrs and 2027 in yrs
+        calls.clear()
+        assert meteomatics.fetch_cmip6_daily(21.3, 76.0, "ssp585", "2041-01-01", "2060-12-31") is None
+        assert len(calls) == 0
+    finally:
+        with meteomatics._CAPABILITY_LOCK:
+            meteomatics._UNSUPPORTED_SOURCES.discard(("mm-failfast.invalid", "test_user", "mri-esm2"))
+            meteomatics._MAX_GRANTED_DATE.pop(("mm-failfast.invalid", "test_user"), None)
+
+
+def test_build_scenario_set_cmip6_parallel_and_progress(monkeypatch) -> None:
+    """build_scenario_set(kind='cmip6') fetches GCMs in parallel and emits monotonic progress updates."""
+    from terraloop_engine.climate import ensembles
+    from terraloop_engine.data import gee, meteomatics, nasa_power
+
+    monkeypatch.setattr(gee, "init", lambda: False)
+    monkeypatch.setattr(meteomatics, "is_configured", lambda: False)
+    seen_models: list[tuple[str, str]] = []
+
+    def _fake_cmip6(lat: float, lon: float, model: str, scenario: str, start: str, end: str) -> pd.DataFrame:
+        seen_models.append((model, scenario))
+        idx = pd.date_range(start, end, freq="D")
+        base = 31.0 if "245" in scenario else 29.5
+        return pd.DataFrame({"tasmax": base, "tasmin": base - 10.0, "pr": 2.0}, index=idx)
+
+    monkeypatch.setattr(gee, "cmip6_daily", _fake_cmip6)
+    power_df = nasa_power.synthetic_daily_weather(30.19, 75.78, (1985, 2014))
+    ticks: list[tuple[str, float]] = []
+    sc, members = ensembles.build_scenario_set(
+        kind="cmip6",
+        power_df=power_df,
+        ssp="ssp245",
+        horizon="2030s",
+        lat=30.19,
+        lon=75.78,
+        progress_cb=lambda s, p: ticks.append((s, p)),
+    )
+    assert len(seen_models) == 2 * len(ensembles.CMIP6_MODELS)
+    expected_ids = [f"{m.lower().replace('-', '_')}_ssp245_2030s" for m in ensembles.CMIP6_MODELS]
+    assert sc.members == expected_ids
+    assert list(members.keys()) == expected_ids
+    assert len(ticks) >= 11
+    assert all(stage == "weather" for stage, _ in ticks)
+    assert [p for _, p in ticks] == sorted(p for _, p in ticks)
+    assert ticks[0][1] >= 0.26 and ticks[-1][1] <= 0.39
+
+
+
+
 
 
 

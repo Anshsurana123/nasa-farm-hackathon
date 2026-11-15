@@ -1,0 +1,31 @@
+id: crimson_clover_vetch
+name: Crimson Clover / Hairy Vetch (N cover)
+family: fabaceae
+group: cover
+season_type: [cool]
+gdd_to_maturity: 1100
+base_temp_c: 4
+optimal_temp_c: [10, 23]
+max_temp_c: 32
+min_temp_c: -14
+duration_days: [80, 195]
+water_requirement_mm: [200, 350]
+kc: [0.40, 1.05, 0.85]
+root_depth_m: 0.9
+drought_tolerance: 3
+heat_tolerance: 2
+waterlogging_tolerance: 2
+n_fixation_kg_ha: 95
+n_demand_kg_ha: 0
+residue_t_ha: 4.2
+residue_cn_ratio: 15
+typical_yield_t_ha: [0.0, 0.0]
+ph_range: [5.5, 7.8]
+winter_dormancy: true
+dormancy_temp_c: 2.0
+lethal_frost_c: -18.0
+aquacrop_name: null
+good_predecessors: [maize, wheat_winter, wheat_spring, barley, oats, rapeseed_canola]
+bad_predecessors: [crimson_clover_vetch, alfalfa, berseem]
+notes: "Temperate overwintering legume cover crop (or autumn catch-crop in EU) supplying 80-110 kg N/ha biologically fixed nitrogen to spring maize."
+sources: ["USDA-SARE Managing Cover Crops Profitably", "ARVALIS Intercultures"]

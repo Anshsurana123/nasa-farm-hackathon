@@ -9,6 +9,7 @@ import type {
   FieldProfile,
   Priorities,
   StrategyRecommendation,
+  SupportedLanguage,
 } from "@/types/api";
 import { useI18n } from "@/i18n";
 import { useField } from "@/context/FieldContext";
@@ -20,14 +21,16 @@ import {
   fmtAreaMoney,
   fmtAreaUnit,
   fmtMoney,
-  isSouthAsia,
+  fmtWaterDepth,
+  fmtYield,
   MONTHS,
   scaleByUnit,
   seasonName,
+  toApiUnitConvention,
   type UnitSystem,
 } from "@/lib/ui";
 import { getFallbackStrategies } from "@/lib/fallbackStrategies";
-import { api, recommendWithProgress, type ProgressStage } from "@/lib/api";
+import { api, isAbortError, recommendWithProgress, type ProgressStage } from "@/lib/api";
 import {
   Printer,
   Sliders,
@@ -70,6 +73,7 @@ export function RotationExplorer({
   loading: externalLoading,
 }: Props) {
   const { t, lang } = useI18n();
+  const activeLang = (lang as SupportedLanguage) || "en";
   const {
     crops,
     priorities,
@@ -82,6 +86,7 @@ export function RotationExplorer({
     soilHealthCard,
     baselineOverride,
     setBaselineOverride,
+    goldenFields,
   } = useField();
 
   const availableCropIds =
@@ -93,10 +98,13 @@ export function RotationExplorer({
           "rice_short",
           "basmati",
           "wheat",
+          "wheat_winter",
+          "wheat_spring",
           "maize",
           "moong",
           "chickpea",
           "mustard",
+          "rapeseed_canola",
           "cotton",
           "soybean",
           "groundnut",
@@ -105,10 +113,12 @@ export function RotationExplorer({
           "pigeon_pea",
           "lentil",
           "barley",
+          "oats",
           "potato",
           "common_bean",
           "sunflower",
           "berseem",
+          "alfalfa",
           "urad",
           "dhaincha",
         ];
@@ -124,13 +134,25 @@ export function RotationExplorer({
     message?: string;
   } | null>(null);
 
-  const isSA = isSouthAsia(field.lat, field.lon);
   const isSH = field.lat < 0;
-  const currencySymbol = profile?.currency_symbol ?? (isSA ? "₹" : "$");
+  const currencySymbol = profile?.currency_symbol ?? "$";
   const gwTrend = profile?.water?.groundwater_trend_cm_per_year ?? 0;
   const graceMult = gwTrend < -1.0 ? Math.min(1.5, 1.0 + 0.1 * (Math.abs(gwTrend) - 1.0)) : 1.0;
   const fieldKey = `${field.lat},${field.lon}`;
-  const GOLDEN_IDS = new Set(["sangrur", "ludhiana", "bathinda", "bundelkhand", "vidarbha", "thanjavur"]);
+  const GOLDEN_IDS = new Set([
+    "sangrur",
+    "ludhiana",
+    "bathinda",
+    "bundelkhand",
+    "vidarbha",
+    "thanjavur",
+    "us_corn_belt",
+    "eu_maritime_west",
+    "brazil_cerrado",
+    "east_africa_highlands",
+    "australia_wheat_belt",
+    ...goldenFields.map((g) => g.id),
+  ]);
 
   const [internalData, setInternalData] = useState<{ key: string; list: StrategyRecommendation[] }>({
     key: fieldKey,
@@ -195,7 +217,8 @@ export function RotationExplorer({
           field,
           priorities: pToUse,
           constraints: cToUse,
-          language: (lang as "en" | "pa" | "hi") || "en",
+          language: activeLang,
+          unit_convention: toApiUnitConvention(unitSystem),
           soil_health_card: soilHealthCard,
           profile: reusableProfile,
           baseline_override: baselineOverride,
@@ -217,7 +240,7 @@ export function RotationExplorer({
           field,
           currencySymbol,
           cToUse.rotation_years,
-          (lang as "en" | "pa" | "hi") || "en"
+          activeLang,
         );
         setInternalStrategies(fallback);
         onStrategiesLoaded?.(fallback);
@@ -238,11 +261,12 @@ export function RotationExplorer({
     setStressLoading(true);
     setStressError(null);
     try {
-      const recs = await api.recommend({
+      const recs = await recommendWithProgress({
         field,
         priorities,
         constraints,
-        language: (lang as "en" | "pa" | "hi") || "en",
+        language: activeLang,
+        unit_convention: toApiUnitConvention(unitSystem),
         soil_health_card: soilHealthCard,
         profile: reusableProfile,
         baseline_override: baselineOverride,
@@ -328,46 +352,54 @@ export function RotationExplorer({
     if (autoFetchInFlightRef.current === fieldKey) return;
     autoFetchInFlightRef.current = fieldKey;
     let isCancelled = false;
-    api
-      .recommend({
+    const controller = new AbortController();
+    recommendWithProgress(
+      {
         field,
         priorities,
         constraints,
-        language: (lang as "en" | "pa" | "hi") || "en",
+        language: activeLang,
+        unit_convention: toApiUnitConvention(unitSystem),
         soil_health_card: soilHealthCard,
+        profile: reusableProfile,
         baseline_override: baselineOverride,
         climate_scenario: climateScenario,
-      })
+      },
+      (status) => {
+        if (!isCancelled) setSimProgress(status);
+      },
+      controller.signal
+    )
       .then((recs) => {
-        if (!isCancelled && recs && recs.length > 0) {
+        if (!isCancelled && !controller.signal.aborted && recs && recs.length > 0) {
           setInternalData({ key: fieldKey, list: recs });
           onStrategiesLoaded?.(recs);
           setErrorBanner(null);
         }
       })
       .catch((err) => {
-        if (!isCancelled) {
-          console.warn("Backend /recommend failed", err);
-          const isGolden = field?.id && GOLDEN_IDS.has(field.id);
-          if (isGolden) {
-            const fallback = getFallbackStrategies(
-              field,
-              currencySymbol,
-              constraints.rotation_years,
-              (lang as "en" | "pa" | "hi") || "en"
-            );
-            setInternalData({ key: fieldKey, list: fallback });
-            onStrategiesLoaded?.(fallback);
-            setErrorBanner(t("error.recommendFailedDemo"));
-          } else {
-            setInternalData({ key: fieldKey, list: [] });
-            onStrategiesLoaded?.([]);
-            setErrorBanner(t("error.recommendFailedCustom"));
-          }
+        if (isCancelled || controller.signal.aborted || isAbortError(err)) return;
+        console.warn("Backend /recommend failed", err);
+        const isGolden = field?.id && GOLDEN_IDS.has(field.id);
+        if (isGolden) {
+          const fallback = getFallbackStrategies(
+            field,
+            currencySymbol,
+            constraints.rotation_years,
+            activeLang,
+          );
+          setInternalData({ key: fieldKey, list: fallback });
+          onStrategiesLoaded?.(fallback);
+          setErrorBanner(t("error.recommendFailedDemo"));
+        } else {
+          setInternalData({ key: fieldKey, list: [] });
+          onStrategiesLoaded?.([]);
+          setErrorBanner(t("error.recommendFailedCustom"));
         }
       });
     return () => {
       isCancelled = true;
+      controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fieldKey, Boolean(externalStrategies)]);
@@ -765,14 +797,14 @@ export function RotationExplorer({
                       max="500"
                       step="0.5"
                       value={
-                        unitSystem === "acre"
+                        unitSystem !== "hectare"
                           ? Number(((constraints.area_ha ?? 2.0) * 2.47105).toFixed(1))
                           : Number((constraints.area_ha ?? 2.0).toFixed(2))
                       }
                       onChange={(e) => {
                         const raw = parseFloat(e.target.value);
                         if (!Number.isFinite(raw) || raw <= 0) return;
-                        const ha = unitSystem === "acre" ? raw / 2.47105 : raw;
+                        const ha = unitSystem !== "hectare" ? raw / 2.47105 : raw;
                         setConstraints({
                           ...constraints,
                           area_ha: Math.max(0.1, Math.min(500, Number(ha.toFixed(2)))),
@@ -780,7 +812,7 @@ export function RotationExplorer({
                       }}
                       className="w-16 px-2 py-1 rounded-lg border border-line-strong bg-surface text-foreground text-[11px] font-mono outline-none tabular-nums"
                     />
-                    <span className="text-muted">{unitSystem === "acre" ? t("unit.acreShort") : t("unit.haShort")}</span>
+                    <span className="text-muted">{unitSystem !== "hectare" ? t("unit.acreShort") : t("unit.haShort")}</span>
                   </div>
                 </div>
 
@@ -894,7 +926,7 @@ export function RotationExplorer({
                     .filter((id) => !(constraints.must_grow ?? []).includes(id))
                     .map((id) => (
                       <option key={id} value={id}>
-                        {cropName(id)}
+                        {cropName(id, activeLang)}
                       </option>
                     ))}
                 </select>
@@ -911,7 +943,7 @@ export function RotationExplorer({
                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/35 hover:bg-rose-500/20 hover:text-rose-400 cursor-pointer"
                     title={t("constraints.removeTag")}
                   >
-                    <span>+{cropName(id)}</span>
+                    <span>+{cropName(id, activeLang)}</span>
                     <span aria-hidden="true">×</span>
                   </button>
                 ))}
@@ -938,7 +970,7 @@ export function RotationExplorer({
                     .filter((id) => !(constraints.exclude ?? []).includes(id))
                     .map((id) => (
                       <option key={id} value={id}>
-                        {cropName(id)}
+                        {cropName(id, activeLang)}
                       </option>
                     ))}
                 </select>
@@ -955,7 +987,7 @@ export function RotationExplorer({
                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-500 border border-rose-500/35 hover:bg-rose-500/25 cursor-pointer"
                     title={t("constraints.removeTag")}
                   >
-                    <span>−{cropName(id)}</span>
+                    <span>−{cropName(id, activeLang)}</span>
                     <span aria-hidden="true">×</span>
                   </button>
                 ))}
@@ -1048,22 +1080,45 @@ export function RotationExplorer({
               </div>
             )}
 
-            {/* Global Unvalidated Agro-Climatic Warning */}
-            {baseline?.validation_status === "unvalidated_global" && !loading && (
-              <div className="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-start justify-between gap-3 text-xs font-mono text-sky-700 dark:text-sky-300">
+            {/* Tiered Validation Status Banner */}
+            {(baseline?.validation_status === "unvalidated_global" ||
+              baseline?.validation_status === "biophysical_global") &&
+              !loading && (
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/35 flex items-start justify-between gap-3 text-xs font-mono text-amber-700 dark:text-amber-300">
+                  <div className="flex items-start gap-2.5">
+                    <Globe className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="font-bold block uppercase tracking-wider text-[11px] text-amber-700 dark:text-amber-300">
+                        {t("banner.biophysicalGlobalTitle")}
+                      </strong>
+                      <p className="mt-0.5 text-muted leading-relaxed">
+                        {baseline.validation_message || t("banner.biophysicalGlobalBody")}
+                      </p>
+                      <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+                        {t("rotations.biophysicalRankNotice")}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 text-[10px] font-bold uppercase shrink-0">
+                    {t("badge.biophysicalGlobal")}
+                  </span>
+                </div>
+              )}
+            {baseline?.validation_status === "validated_regional" && !loading && (
+              <div className="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/35 flex items-start justify-between gap-3 text-xs font-mono text-cyan-700 dark:text-cyan-300">
                 <div className="flex items-start gap-2.5">
-                  <Globe className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" />
+                  <Globe className="w-4 h-4 text-cyan-500 shrink-0 mt-0.5" />
                   <div>
-                    <strong className="font-bold block uppercase tracking-wider text-[11px] text-sky-600 dark:text-sky-400">
-                      {t("rotations.scopeNoticeTitle")}
+                    <strong className="font-bold block uppercase tracking-wider text-[11px] text-cyan-600 dark:text-cyan-300">
+                      {t("banner.validatedRegionalTitle")}
                     </strong>
                     <p className="mt-0.5 text-muted leading-relaxed">
-                      {baseline.validation_message || t("rotations.scopeNoticeBody")}
+                      {baseline.validation_message || t("banner.validatedRegionalBody")}
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 font-bold">
-                  {t("rotations.scopeNoticeBadge")}
+                <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/40 text-[10px] font-bold uppercase shrink-0">
+                  {t("badge.validatedRegional")}
                 </span>
               </div>
             )}
@@ -1216,7 +1271,7 @@ export function RotationExplorer({
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium border ${meta.tone}`}
                       >
                         <span>{meta.emoji}</span>
-                        <span className="capitalize">{cropName(step.crop_id)}</span>
+                        <span className="capitalize">{cropName(step.crop_id, activeLang)}</span>
                       </span>
                     );
                   })}
@@ -1231,55 +1286,55 @@ export function RotationExplorer({
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
                       <div>
                         <label className="text-[10px] text-muted block mb-1 uppercase">
-                          {t("baseline.selectKharif")}
+                          {profile?.calendar_slots?.[0]?.name || t("baseline.selectKharif")}
                         </label>
                         <select
                           value={customKharif}
                           onChange={(e) => setCustomKharif(e.target.value)}
                           className="w-full px-2.5 py-1.5 rounded-lg bg-surface border border-line text-foreground"
                         >
-                          <option value="rice_puddled">{cropName("rice_puddled")}</option>
-                          <option value="rice_dsr">{cropName("rice_dsr")}</option>
-                          <option value="cotton">{cropName("cotton")}</option>
-                          <option value="maize">{cropName("maize")}</option>
-                          <option value="pearl_millet">{cropName("pearl_millet")}</option>
-                          <option value="groundnut">{cropName("groundnut")}</option>
-                          <option value="soybean">{cropName("soybean")}</option>
-                          <option value="fallow">{cropName("fallow")}</option>
+                          {availableCropIds.map((cid) => (
+                            <option key={cid} value={cid}>
+                              {cropName(cid, activeLang)}
+                            </option>
+                          ))}
+                          <option value="fallow">{cropName("fallow", activeLang)}</option>
                         </select>
                       </div>
 
                       <div>
                         <label className="text-[10px] text-muted block mb-1 uppercase">
-                          {t("baseline.selectRabi")}
+                          {profile?.calendar_slots?.[1]?.name || t("baseline.selectRabi")}
                         </label>
                         <select
                           value={customRabi}
                           onChange={(e) => setCustomRabi(e.target.value)}
                           className="w-full px-2.5 py-1.5 rounded-lg bg-surface border border-line text-foreground"
                         >
-                          <option value="wheat">{cropName("wheat")}</option>
-                          <option value="chickpea">{cropName("chickpea")}</option>
-                          <option value="mustard">{cropName("mustard")}</option>
-                          <option value="potato">{cropName("potato")}</option>
-                          <option value="barley">{cropName("barley")}</option>
-                          <option value="fallow">{cropName("fallow")}</option>
+                          {availableCropIds.map((cid) => (
+                            <option key={cid} value={cid}>
+                              {cropName(cid, activeLang)}
+                            </option>
+                          ))}
+                          <option value="fallow">{cropName("fallow", activeLang)}</option>
                         </select>
                       </div>
 
                       <div>
                         <label className="text-[10px] text-muted block mb-1 uppercase">
-                          {t("baseline.selectZaid")}
+                          {profile?.calendar_slots?.[2]?.name || t("baseline.selectZaid")}
                         </label>
                         <select
                           value={customZaid}
                           onChange={(e) => setCustomZaid(e.target.value)}
                           className="w-full px-2.5 py-1.5 rounded-lg bg-surface border border-line text-foreground"
                         >
-                          <option value="fallow">{cropName("fallow")}</option>
-                          <option value="moong">{cropName("moong")}</option>
-                          <option value="sorghum">{cropName("sorghum")}</option>
-                          <option value="urad">{cropName("urad")}</option>
+                          <option value="fallow">{cropName("fallow", activeLang)}</option>
+                          {availableCropIds.map((cid) => (
+                            <option key={cid} value={cid}>
+                              {cropName(cid, activeLang)}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -1359,7 +1414,7 @@ export function RotationExplorer({
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40">
                         {t("rotations.wholeFarmNet", {
                           area:
-                            unitSystem === "acre"
+                            unitSystem !== "hectare"
                               ? `${((focusedStrategy.practical_metrics.area_ha ?? constraints.area_ha) * 2.47105).toFixed(1)} ${t("unit.acreShort")}`
                               : `${(focusedStrategy.practical_metrics.area_ha ?? constraints.area_ha).toFixed(1)} ${t("unit.haShort")}`,
                           amount: fmtMoney(focusedStrategy.practical_metrics.total_farm_profit_p50, currencySymbol),
@@ -1517,31 +1572,43 @@ export function RotationExplorer({
 
                     {focusedStrategy.rotation.steps.map((step, sIdx) => {
                       const meta = cropMeta(step.crop_id);
-                      const sLabel = seasonName(field.lat, field.lon, step.season_index);
-                      const isDelta = isSA && field.lat < 16.5;
-                      const spanCols = isSH
-                        ? step.season_index === 0
-                          ? { start: 12, len: 5, window: t("gantt.shMain") }
+                      const sLabel = seasonName(field.lat, field.lon, step.season_index, profile);
+                      const slot = profile?.calendar_slots?.[step.season_index];
+                      const isIndia = profile?.country_code === "IND" || (!profile?.country_code && field.lat > 6 && field.lon > 68 && field.lon < 98);
+                      const isDelta = isIndia && field.lat < 16.5;
+                      const slotStart = slot?.sowing_months?.[0];
+                      const slotEnd = slot?.typical_harvest_months?.[slot.typical_harvest_months.length - 1];
+                      const spanCols =
+                        slotStart && slotEnd
+                          ? {
+                              start: slotStart,
+                              end: slotEnd,
+                              overwinter: Boolean(slot?.overwintering || slotStart > slotEnd),
+                              window: `${MONTHS[slotStart - 1]}–${MONTHS[slotEnd - 1]}`,
+                            }
+                          : isSH
+                          ? step.season_index === 0
+                            ? { start: 12, end: 4, overwinter: true, window: t("gantt.shMain") }
+                            : step.season_index === 1
+                            ? { start: 5, end: 9, overwinter: false, window: t("gantt.shCool") }
+                            : { start: 10, end: 11, overwinter: false, window: t("gantt.shCatch") }
+                          : !isIndia
+                          ? step.season_index === 0
+                            ? { start: 5, end: 9, overwinter: false, window: t("gantt.nhMain") }
+                            : step.season_index === 1
+                            ? { start: 10, end: 2, overwinter: true, window: t("gantt.nhCool") }
+                            : { start: 3, end: 4, overwinter: false, window: t("gantt.nhCatch") }
+                          : isDelta
+                          ? step.season_index === 0
+                            ? { start: 6, end: 9, overwinter: false, window: t("gantt.deltaKharif") }
+                            : step.season_index === 1
+                            ? { start: 10, end: 1, overwinter: true, window: t("gantt.deltaRabi") }
+                            : { start: 2, end: 4, overwinter: false, window: t("gantt.deltaZaid") }
+                          : step.season_index === 0
+                          ? { start: 6, end: 10, overwinter: false, window: t("gantt.igpKharif") }
                           : step.season_index === 1
-                          ? { start: 5, len: 5, window: t("gantt.shCool") }
-                          : { start: 10, len: 2, window: t("gantt.shCatch") }
-                        : !isSA
-                        ? step.season_index === 0
-                          ? { start: 5, len: 5, window: t("gantt.nhMain") }
-                          : step.season_index === 1
-                          ? { start: 10, len: 5, window: t("gantt.nhCool") }
-                          : { start: 3, len: 2, window: t("gantt.nhCatch") }
-                        : isDelta
-                        ? step.season_index === 0
-                          ? { start: 6, len: 4, window: t("gantt.deltaKharif") }
-                          : step.season_index === 1
-                          ? { start: 10, len: 4, window: t("gantt.deltaRabi") }
-                          : { start: 2, len: 3, window: t("gantt.deltaZaid") }
-                        : step.season_index === 0
-                        ? { start: 6, len: 5, window: t("gantt.igpKharif") }
-                        : step.season_index === 1
-                        ? { start: 11, len: 5, window: t("gantt.igpRabi") }
-                        : { start: 4, len: 2, window: t("gantt.igpZaid") };
+                          ? { start: 11, end: 3, overwinter: true, window: t("gantt.igpRabi") }
+                          : { start: 4, end: 5, overwinter: false, window: t("gantt.igpZaid") };
 
                       return (
                         <div
@@ -1555,11 +1622,14 @@ export function RotationExplorer({
                                   {t("unit.yrShort")} {step.year_index + 1}
                                 </span>
                               )}
-                              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-foreground/10 text-foreground">
+                              <span
+                                className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-foreground/10 text-foreground"
+                                title={spanCols.overwinter ? t("gantt.overwinterLabel") : undefined}
+                              >
                                 {sLabel} ({spanCols.window})
                               </span>
                               <span className="font-display font-bold text-foreground capitalize">
-                                {cropName(step.crop_id)}
+                                {cropName(step.crop_id, activeLang)}
                               </span>
                             </div>
 
@@ -1579,29 +1649,10 @@ export function RotationExplorer({
                           <div className="grid grid-cols-12 gap-1 h-3">
                             {MONTHS.map((m, mIdx) => {
                               const mNum = mIdx + 1;
-                              const isActive = isSH
-                                ? step.season_index === 0
-                                  ? mNum >= 12 || mNum <= 4
-                                  : step.season_index === 1
-                                  ? mNum >= 5 && mNum <= 9
-                                  : mNum >= 10 && mNum <= 11
-                                : !isSA
-                                ? step.season_index === 0
-                                  ? mNum >= 5 && mNum <= 9
-                                  : step.season_index === 1
-                                  ? mNum >= 10 || mNum <= 2
-                                  : mNum >= 3 && mNum <= 4
-                                : isDelta
-                                ? step.season_index === 0
-                                  ? mNum >= 6 && mNum <= 9
-                                  : step.season_index === 1
-                                  ? mNum >= 10 || mNum <= 1
-                                  : mNum >= 2 && mNum <= 4
-                                : step.season_index === 0
-                                ? mNum >= 6 && mNum <= 10
-                                : step.season_index === 1
-                                ? mNum >= 11 || mNum <= 3
-                                : mNum >= 4 && mNum <= 5;
+                              const isActive =
+                                spanCols.start <= spanCols.end
+                                  ? mNum >= spanCols.start && mNum <= spanCols.end
+                                  : mNum >= spanCols.start || mNum <= spanCols.end;
                               return (
                                 <div
                                   key={m}
@@ -1663,7 +1714,9 @@ export function RotationExplorer({
                       </h4>
                     </div>
                     <span className="text-[10px] font-mono text-muted">
-                      {isSA ? t("rotations.ledgerSubtitleIndia") : t("rotations.ledgerSubtitleGlobal")}
+                      {profile?.country_code === "IND" || !profile?.country_code
+                        ? t("rotations.ledgerSubtitleIndia")
+                        : t("rotations.ledgerSubtitleGlobal")}
                     </span>
                   </div>
 
@@ -1730,16 +1783,16 @@ export function RotationExplorer({
                               <td className="py-3 px-3 font-mono font-bold text-foreground">
                                 {isFallow
                                   ? "—"
-                                  : unitSystem === "acre"
-                                  ? `${(op.yield_t_ha * 4.047).toFixed(1)} q/ac`
-                                  : `${op.yield_t_ha.toFixed(2)} t/ha`}
+                                  : fmtYield(op.yield_t_ha, unitSystem, currencySymbol, op.crop_id)}
                               </td>
                               <td className="py-3 px-3 font-mono">
                                 {isFallow ? (
                                   <span className="text-muted">{t("rotations.rainfedMulch")}</span>
                                 ) : (
                                   <div className="flex flex-col">
-                                    <span className="font-bold text-cyan-400">{op.irrigation_mm} mm</span>
+                                    <span className="font-bold text-cyan-400">
+                                      {fmtWaterDepth(op.irrigation_mm, unitSystem)}
+                                    </span>
                                     <span className="text-[10px] text-muted">
                                       ~{op.irrigations_count} {t("unit.irrigations")}
                                     </span>
@@ -1772,7 +1825,7 @@ export function RotationExplorer({
                                   <div className="flex flex-col">
                                     <span>
                                       {fmtAreaMoney(
-                                        op.input_cost_inr_ha,
+                                        op.input_cost_local_ha ?? op.input_cost_inr_ha,
                                         currencySymbol,
                                         unitSystem,
                                         false
@@ -1782,7 +1835,7 @@ export function RotationExplorer({
                                     <span className="text-[10px] text-muted">
                                       {t("rotations.labourLabel")}{" "}
                                       {fmtAreaMoney(
-                                        op.labor_cost_inr_ha,
+                                        op.labor_cost_local_ha ?? op.labor_cost_inr_ha,
                                         currencySymbol,
                                         unitSystem,
                                         false
@@ -1795,7 +1848,7 @@ export function RotationExplorer({
                                 {isFallow
                                   ? "—"
                                   : `${fmtAreaMoney(
-                                      op.net_profit_inr_ha,
+                                      op.net_profit_local_ha ?? op.net_profit_inr_ha,
                                       currencySymbol,
                                       unitSystem,
                                       false
@@ -1936,12 +1989,13 @@ export function RotationExplorer({
                   <span className="text-muted text-[11px]">{t("whatif.climateScenario")}</span>
                   <select
                     value={climateScenario}
+                    disabled={stressLoading}
                     onChange={(e) => {
                       const nextScen = e.target.value as ClimateScenarioId;
                       setClimateScenario(nextScen);
                       runStressSimulation(nextScen);
                     }}
-                    className="px-2.5 py-1.5 rounded-lg border border-amber-500/40 bg-surface text-foreground text-[11px] font-mono outline-none cursor-pointer"
+                    className="px-2.5 py-1.5 rounded-lg border border-amber-500/40 bg-surface text-foreground text-[11px] font-mono outline-none cursor-pointer disabled:opacity-50"
                   >
                     <option value="historical">{t("whatif.histBaseline")}</option>
                     <option value="ssp245_2030s">{t("whatif.ssp245Near")}</option>
@@ -2070,7 +2124,7 @@ export function RotationExplorer({
                 <tbody className="divide-y divide-line text-foreground/90 font-mono">
                   {strategies.map((strat) => {
                     const res = strat.results[0];
-                    const normP = res?.profit_p50 ?? (isSA ? 85000 : 950);
+                    const normP = res?.profit_p50 ?? 1000;
                     const normIrr = res?.irrigation_mm?.length
                       ? res.irrigation_mm.reduce((a, b) => a + b, 0) / res.irrigation_mm.length
                       : 0;
@@ -2097,10 +2151,8 @@ export function RotationExplorer({
                             matchedEngineStress.irrigation_mm.length
                         )
                       : Math.round(normIrr + extraIrr);
-                    const pumpUnitCost = isSA ? 8.5 : 0.45;
-                    const fertUnitCost = isSA ? 95 : 1.2;
-                    const fertLegumeUnitCost = isSA ? 25 : 0.35;
-                    const pumpPenalty = extraIrr * pumpUnitCost;
+                    const scaleRef = Math.max(Math.abs(normP), 500);
+                    const pumpPenalty = extraIrr * (scaleRef * 0.0001);
                     const revMult = (1 + priceShockPct / 100) * cmipTempPen;
                     const hasLegume = strat.rotation.steps.some((st) => {
                       const matched = crops.find((c) => c.id === st.crop_id);
@@ -2116,13 +2168,19 @@ export function RotationExplorer({
                         "berseem",
                         "soybean",
                         "groundnut",
+                        "field_pea",
+                        "faba_bean",
+                        "cowpea",
+                        "alfalfa",
+                        "red_clover",
+                        "lupin",
                       ].includes(st.crop_id);
                     });
                     const baseInputCost = strat.practical_metrics?.input_cost_inr_per_ha;
                     const fertPenalty =
                       baseInputCost && baseInputCost > 0
                         ? baseInputCost * (hasLegume ? 0.06 : 0.16) * (fertilizerShockPct / 100)
-                        : fertilizerShockPct * (hasLegume ? fertLegumeUnitCost : fertUnitCost);
+                        : fertilizerShockPct * scaleRef * (hasLegume ? 0.0003 : 0.0011);
 
                     const stressedP = matchedEngineStress
                       ? Math.round(matchedEngineStress.profit_p50)
@@ -2136,7 +2194,7 @@ export function RotationExplorer({
                       : Math.round(stressedP * cvarRatio - (droughtShockPct > 0 ? Math.abs(stressedP) * 0.08 * (droughtShockPct / 100) : 0));
                     const drop = Math.max(0, Math.round(normP - stressedP));
                     const isBase = strat.rank === 0;
-                    const dropThreshold = isSA ? 18000 : 250;
+                    const dropThreshold = Math.max(Math.abs(normP) * 0.22, 150);
 
                     return (
                       <tr
@@ -2406,8 +2464,8 @@ function StrategyCard({
   isBaseline,
   isSelected,
   onSelect,
-  currencySymbol = "₹",
-  unitSystem = "acre",
+  currencySymbol = "$",
+  unitSystem = "hectare",
   rotationYears = 1,
 }: {
   strategy: StrategyRecommendation;
@@ -2418,7 +2476,8 @@ function StrategyCard({
   unitSystem?: UnitSystem;
   rotationYears?: number;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const activeLang = (lang as SupportedLanguage) || "en";
   const currSym = strategy.currency_symbol || currencySymbol;
   const res = strategy.results[0];
   const irr = res?.irrigation_mm?.length
@@ -2484,6 +2543,14 @@ function StrategyCard({
                 {t("badge.punjabProxyEconomics")}
               </span>
             )}
+            {strategy.economics_basis === "faostat_proxy" && (
+              <span
+                className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/35"
+                title={t("badge.faostatProxyTooltip")}
+              >
+                {t("badge.faostatProxyEconomics")}
+              </span>
+            )}
             {isMultiYear && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border border-cyan-500/35">
                 {numYears}Y
@@ -2537,7 +2604,7 @@ function StrategyCard({
                             className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${meta.tone}`}
                           >
                             <span className="font-mono text-[8px] opacity-80">{meta.emoji}</span>
-                            <span className="capitalize">{cropName(step.crop_id)}</span>
+                            <span className="capitalize">{cropName(step.crop_id, activeLang)}</span>
                             {step.practices.includes("residue_retained") && (
                               <span className="text-[8px] font-mono uppercase px-1 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">
                                 {t("strategy.mulchTag")}
@@ -2560,7 +2627,7 @@ function StrategyCard({
                       className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border ${meta.tone}`}
                     >
                       <span className="font-mono text-[9px] font-bold opacity-80">{meta.emoji}</span>
-                      <span className="capitalize">{cropName(step.crop_id)}</span>
+                      <span className="capitalize">{cropName(step.crop_id, activeLang)}</span>
                       {step.practices.includes("residue_retained") && (
                         <span className="text-[9px] font-mono uppercase px-1 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">
                           {t("strategy.mulchTag")}
@@ -2613,7 +2680,7 @@ function StrategyCard({
             <div className="flex justify-between items-center text-[10px] text-emerald-600 dark:text-emerald-300">
               <span className="font-sans">
                 {t("strategy.wholeFarmLabel")} (
-                {unitSystem === "acre"
+                {unitSystem !== "hectare"
                   ? `${((pm.area_ha ?? 2.0) * 2.47105).toFixed(1)} ${t("unit.acreShort")}`
                   : `${(pm.area_ha ?? 2.0).toFixed(1)} ${t("unit.haShort")}`}
                 )

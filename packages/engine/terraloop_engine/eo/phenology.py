@@ -140,6 +140,99 @@ def detect_seasons(smoothed: pd.Series, prominence_threshold: float = 0.15) -> l
     return seasons
 
 
+def _cyclic_month_distance(m1: int, m2: int) -> int:
+    diff = abs(int(m1) - int(m2)) % 12
+    return min(diff, 12 - diff)
+
+
+def _classify_global_season(
+    season: dict[str, Any],
+    lat: float,
+    lon: float,
+    reg: region_registry.RegionConfig,
+) -> tuple[int, str, str]:
+    """Calendar-slot & WorldCereal priority-crop classification outside India."""
+    p_date: date = season["peak"]
+    s_date: date = season["start"]
+    e_date: date = season["end"]
+    p_month = p_date.month
+    p_val = float(season.get("peak_value", 0.6))
+    dur_days = max(30, (e_date - s_date).days)
+
+    slots = region_registry.get_calendar_slots(lat, lon)
+    best_idx = 0
+    best_slot: dict[str, Any] = slots[0] if slots else {"season_type": "warm", "optional": False}
+    best_dist = 999
+    for idx, sl in enumerate(slots):
+        h_months = sl.get("typical_harvest_months") or [p_month]
+        # Peak canopy NDVI generally precedes harvest by ~1 month
+        peak_targets = [((int(hm) - 2) % 12) + 1 for hm in h_months]
+        dist = min(_cyclic_month_distance(p_month, pt) for pt in peak_targets)
+        # Prefer primary agronomic slots unless duration clearly reflects a brief catch/cover crop
+        if sl.get("optional") and dur_days >= 85:
+            dist += 2
+        if dist < best_dist:
+            best_dist = dist
+            best_idx = int(sl.get("slot_index", idx))
+            best_slot = sl
+
+    prio = list(reg.priority_crops)
+    s_type = str(best_slot.get("season_type", "warm"))
+    overwinter = bool(best_slot.get("overwintering", False))
+    slot_id = str(best_slot.get("slot_id", ""))
+    catch_cover_slots = {
+        "zaid",
+        "summer_navarai",
+        "autumn_catch",
+        "offseason_cover",
+        "autumn_cover",
+        "spring_early",
+        "dry_relay_forage",
+    }
+
+    if best_idx == 2 or slot_id in catch_cover_slots or dur_days < 80:
+        for cid in ("rye_winter", "crimson_clover_vetch", "brachiaria_cover", "field_pea", "moong", "common_bean"):
+            if cid in prio:
+                return best_idx, cid.split("_")[0] if cid != "moong" else "moong", cid
+        return best_idx, "pulse_cover", "crimson_clover_vetch"
+
+    if (overwinter and s_type == "cool") or (s_type == "cool" and dur_days >= 165):
+        if p_val < 0.56 and ("rapeseed_canola" in prio or "mustard" in prio):
+            cid = "rapeseed_canola" if "rapeseed_canola" in prio else "mustard"
+            return best_idx, "rapeseed_canola", cid
+        for cid in ("wheat_winter", "triticale", "rye_winter", "barley", "wheat"):
+            if cid in prio:
+                return best_idx, "wheat_winter" if cid == "wheat_winter" else "wheat", cid
+        return best_idx, "wheat_winter", "wheat_winter"
+
+    if s_type == "cool":
+        if p_val < 0.50:
+            for cid in ("rapeseed_canola", "lupin", "field_pea", "faba_bean", "chickpea", "mustard"):
+                if cid in prio:
+                    return best_idx, "rapeseed_canola" if "rapeseed" in cid else "pulse_cover", cid
+        for cid in ("wheat_spring", "barley", "oats", "wheat"):
+            if cid in prio:
+                return best_idx, "wheat", cid
+        return best_idx, "wheat", "wheat_spring"
+
+    # Warm main season
+    if p_val >= 0.72 and ("rice_japonica_temperate" in prio or "rice_upland" in prio or "rice_puddled" in prio):
+        cid = next(c for c in ("rice_japonica_temperate", "rice_upland", "rice_puddled") if c in prio)
+        return best_idx, "rice", cid
+    if best_idx == 0 and prio and prio[0] == "soybean":
+        return best_idx, "soybean", "soybean"
+    if best_idx == 1 and "maize" in prio and prio and prio[0] == "soybean":
+        return best_idx, "maize", "maize"
+    if "soybean" in prio and (best_idx == 1 or p_val < 0.74 or "maize" not in prio):
+        return best_idx, "soybean", "soybean"
+    if "cotton" in prio and "maize" not in prio:
+        return best_idx, "cotton", "cotton"
+    for cid in ("maize", "sorghum", "sunflower", "soybean", "common_bean", "cassava"):
+        if cid in prio:
+            return best_idx, cid if cid in ("maize", "soybean") else "maize", cid
+    return best_idx, "maize", "maize"
+
+
 def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredSeason:
     """TASK-E02: Rule-based classification of Indian crop group and season index.
 
@@ -165,54 +258,58 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
     p_month = p_date.month
 
     reg = region_registry.detect_region_config(lat, lon)
-    is_sw_punjab = reg.region_id == "punjab_southwest"
-    is_vidarbha = reg.region_id == "vidarbha"
-    is_bundelkhand = reg.region_id == "bundelkhand"
-    is_cauvery_delta = reg.region_id == "cauvery"
+    if reg.validation_status == "validated_india":
+        is_sw_punjab = reg.region_id == "punjab_southwest"
+        is_vidarbha = reg.region_id == "vidarbha"
+        is_bundelkhand = reg.region_id == "bundelkhand"
+        is_cauvery_delta = reg.region_id == "cauvery"
 
-    if p_month in (7, 8, 9, 10, 11) or (p_month == 6 and (is_vidarbha or is_bundelkhand)):
-        season_index = 0
-        if is_cauvery_delta:
-            crop_group = "rice"
-            crop_id = "rice_puddled"
-        elif is_sw_punjab or is_vidarbha:
-            crop_group = "cotton"
-            crop_id = "cotton"
-        elif is_bundelkhand:
-            crop_group = "sorghum"
-            crop_id = "sorghum"
-        elif p_val >= 0.65:
-            crop_group = "rice"
-            crop_id = "rice_puddled"
+        if p_month in (7, 8, 9, 10, 11) or (p_month == 6 and (is_vidarbha or is_bundelkhand)):
+            season_index = 0
+            if is_cauvery_delta:
+                crop_group = "rice"
+                crop_id = "rice_puddled"
+            elif is_sw_punjab or is_vidarbha:
+                crop_group = "cotton"
+                crop_id = "cotton"
+            elif is_bundelkhand:
+                crop_group = "sorghum"
+                crop_id = "sorghum"
+            elif p_val >= 0.65:
+                crop_group = "rice"
+                crop_id = "rice_puddled"
+            else:
+                crop_group = "maize"
+                crop_id = "maize"
+        elif p_month in (12, 1, 2, 3, 4):
+            season_index = 1
+            if is_cauvery_delta:
+                crop_group = "rice"
+                crop_id = "rice_puddled"
+            elif is_vidarbha:
+                crop_group = "chickpea"
+                crop_id = "chickpea"
+            elif p_month == 1 and p_val < 0.60 and not is_bundelkhand and not is_sw_punjab:
+                crop_group = "mustard"
+                crop_id = "mustard"
+            else:
+                crop_group = "wheat"
+                crop_id = "wheat"
         else:
-            crop_group = "maize"
-            crop_id = "maize"
-    elif p_month in (12, 1, 2, 3, 4):
-        season_index = 1
-        if is_cauvery_delta:
-            crop_group = "rice"
-            crop_id = "rice_puddled"
-        elif is_vidarbha:
-            crop_group = "chickpea"
-            crop_id = "chickpea"
-        elif p_month == 1 and p_val < 0.60 and not is_bundelkhand and not is_sw_punjab:
-            crop_group = "mustard"
-            crop_id = "mustard"
-        else:
-            crop_group = "wheat"
-            crop_id = "wheat"
+            season_index = 2
+            if is_cauvery_delta:
+                crop_group = "urad"
+                crop_id = "urad"
+            else:
+                crop_group = "moong"
+                crop_id = "moong"
+        clf = clf_mod.build_calibrated_phenology_classifier()
     else:
-        season_index = 2
-        if is_cauvery_delta:
-            crop_group = "urad"
-            crop_id = "urad"
-        else:
-            crop_group = "moong"
-            crop_id = "moong"
+        season_index, crop_group, crop_id = _classify_global_season(season, lat, lon, reg)
+        clf = clf_mod.build_global_phenology_classifier()
 
     amplitude = float(season.get("amplitude", 0.35))
     dur_days = max(30, (e_date - s_date).days)
-    clf = clf_mod.build_calibrated_phenology_classifier()
     feat = np.array(
         [[p_date.timetuple().tm_yday, s_date.timetuple().tm_yday, dur_days, p_val, p_val * dur_days * 0.65]],
         dtype=float,
@@ -234,6 +331,42 @@ def classify_season(season: dict[str, Any], lat: float, lon: float) -> InferredS
     )
 
 
+def _merge_overwintering_peaks(seasons: list[dict[str, Any]], lat: float, lon: float) -> list[dict[str, Any]]:
+    """Collapse bimodal autumn tillering + spring heading peaks for overwintering cereal/rapeseed crops."""
+    slots = region_registry.get_calendar_slots(lat, lon)
+    overwinter_slots = [s for s in slots if s.get("overwintering")]
+    if not overwinter_slots or len(seasons) < 2:
+        return seasons
+    sow_months = {int(m) for s in overwinter_slots for m in s.get("sowing_months", [])}
+    merged: list[dict[str, Any]] = []
+    i = 0
+    while i < len(seasons):
+        cur = seasons[i]
+        if i + 1 < len(seasons):
+            nxt = seasons[i + 1]
+            gap_days = (nxt["peak"] - cur["peak"]).days
+            if (
+                90 <= gap_days <= 225
+                and cur["peak"].month in sow_months
+                and cur["peak_value"] < 0.56
+                and nxt["peak_value"] >= cur["peak_value"] + 0.14
+            ):
+                merged.append(
+                    {
+                        "start": cur["start"],
+                        "peak": nxt["peak"],
+                        "end": nxt["end"],
+                        "peak_value": nxt["peak_value"],
+                        "amplitude": max(cur["amplitude"], nxt["amplitude"]),
+                    }
+                )
+                i += 2
+                continue
+        merged.append(cur)
+        i += 1
+    return merged
+
+
 def infer_history(ndvi: pd.Series, lat: float, lon: float) -> list[InferredSeason]:
     """Full pipeline: irregular NDVI -> smoothed -> detected seasons -> classified crop history.
 
@@ -243,7 +376,7 @@ def infer_history(ndvi: pd.Series, lat: float, lon: float) -> list[InferredSeaso
     if ndvi.empty:
         return []
     smoothed = smooth(ndvi)
-    seasons = detect_seasons(smoothed)
+    seasons = _merge_overwintering_peaks(detect_seasons(smoothed), lat, lon)
     by_slot: dict[tuple[int, int], InferredSeason] = {}
     for s in seasons:
         inf = classify_season(s, lat, lon)

@@ -189,6 +189,152 @@ islands:
   gamma_dry: [0.18, 5.0]
   citation: "IMD Climatological Normals 1981-2010 (Station 43333 Port Blair)"
 
+# ---------------------------------------------------------------------------
+# Global Tier-A Hubs & Köppen-Geiger Biome Climatology References
+# ---------------------------------------------------------------------------
+us_corn_belt:
+  t_base: 9.8
+  amplitude: 15.2
+  peak_doy: 198
+  trange_c: 11.0
+  wet_start_month: 4
+  wet_end_month: 9
+  gamma_wet: [0.42, 9.2]
+  gamma_dry: [0.22, 4.5]
+  citation: "NOAA NCEI 1991-2020 Normals (Ames 8 WSW, Story County, IA; Koppen Dfa)"
+
+eu_maritime_west:
+  t_base: 11.4
+  amplitude: 8.6
+  peak_doy: 202
+  trange_c: 8.5
+  wet_start_month: 10
+  wet_end_month: 5
+  gamma_wet: [0.42, 5.2]
+  gamma_dry: [0.30, 5.4]
+  citation: "Meteo-France / ECA&D 1991-2020 Normals (Chartres–Beauce, Eure-et-Loir; Koppen Cfb)"
+
+brazil_cerrado:
+  t_base: 25.4
+  amplitude: 2.2
+  peak_doy: 270
+  trange_c: 10.8
+  wet_start_month: 10
+  wet_end_month: 4
+  gamma_wet: [0.68, 12.8]
+  gamma_dry: [0.06, 3.0]
+  citation: "INMET 1991-2020 Climatological Normals (Sorriso–Sinop, Mato Grosso; Koppen Aw)"
+
+east_africa_highlands:
+  t_base: 18.2
+  amplitude: 1.6
+  peak_doy: 65
+  trange_c: 12.2
+  wet_start_month: 3
+  wet_end_month: 8
+  gamma_wet: [0.48, 8.2]
+  gamma_dry: [0.18, 4.2]
+  citation: "Kenya Meteorological Department / CRU TS4.07 Normals (Nakuru 1850m; Koppen Cfb)"
+
+australia_wheat_belt:
+  t_base: 16.0
+  amplitude: 8.4
+  peak_doy: 22
+  trange_c: 12.4
+  wet_start_month: 5
+  wet_end_month: 10
+  gamma_wet: [0.34, 6.0]
+  gamma_dry: [0.18, 5.5]
+  citation: "Australian BoM 1991-2020 Normals (Wagga Wagga AMO, Riverina NSW; Koppen Cfa)"
+
+aez_temperate_continental:
+  t_base: 8.5
+  amplitude: 15.5
+  peak_doy: 198
+  trange_c: 10.5
+  wet_start_month: 5
+  wet_end_month: 9
+  gamma_wet: [0.40, 7.8]
+  gamma_dry: [0.24, 4.2]
+  citation: "CRU TS4.07 / Kottek et al. (2006) Koppen Dfa/Dfb Continental Zone Reference"
+
+aez_maritime_temperate:
+  t_base: 10.8
+  amplitude: 7.8
+  peak_doy: 202
+  trange_c: 7.8
+  wet_start_month: 9
+  wet_end_month: 4
+  gamma_wet: [0.48, 5.4]
+  gamma_dry: [0.34, 4.8]
+  citation: "CRU TS4.07 / Kottek et al. (2006) Koppen Cfb/Cfc Maritime Zone Reference"
+
+aez_mediterranean:
+  t_base: 17.0
+  amplitude: 8.2
+  peak_doy: 205
+  trange_c: 11.0
+  wet_start_month: 10
+  wet_end_month: 4
+  gamma_wet: [0.36, 7.2]
+  gamma_dry: [0.06, 2.5]
+  citation: "CRU TS4.07 / Kottek et al. (2006) Koppen Csa/Csb Mediterranean Zone Reference"
+
+aez_humid_subtropical:
+  t_base: 18.5
+  amplitude: 8.8
+  peak_doy: 198
+  trange_c: 9.8
+  wet_start_month: 4
+  wet_end_month: 9
+  gamma_wet: [0.54, 10.2]
+  gamma_dry: [0.24, 5.2]
+  citation: "CRU TS4.07 / Kottek et al. (2006) Koppen Cfa/Cwa Subtropical Zone Reference"
+
+aez_tropical_wet:
+  t_base: 26.2
+  amplitude: 1.5
+  peak_doy: 110
+  trange_c: 7.5
+  wet_start_month: 1
+  wet_end_month: 12
+  gamma_wet: [0.68, 10.5]
+  gamma_dry: [0.55, 8.5]
+  citation: "CRU TS4.07 / Kottek et al. (2006) Koppen Af/Am Humid Tropical Zone Reference"
+
+aez_tropical_savanna:
+  t_base: 25.5
+  amplitude: 2.8
+  peak_doy: 120
+  trange_c: 10.5
+  wet_start_month: 6
+  wet_end_month: 10
+  gamma_wet: [0.60, 11.5]
+  gamma_dry: [0.06, 2.5]
+  citation: "CRU TS4.07 / Kottek et al. (2006) Koppen Aw/As Tropical Savanna Reference"
+
+aez_arid_semiarid:
+  t_base: 21.0
+  amplitude: 10.5
+  peak_doy: 195
+  trange_c: 13.5
+  wet_start_month: 6
+  wet_end_month: 9
+  gamma_wet: [0.20, 6.0]
+  gamma_dry: [0.04, 2.0]
+  citation: "CRU TS4.07 / Kottek et al. (2006) Koppen BWh/BWk/BSh/BSk Arid–Semi-Arid Reference"
+
+aez_boreal_alpine:
+  t_base: 3.5
+  amplitude: 14.5
+  peak_doy: 198
+  trange_c: 9.8
+  wet_start_month: 6
+  wet_end_month: 9
+  gamma_wet: [0.42, 6.0]
+  gamma_dry: [0.22, 3.2]
+  citation: "CRU TS4.07 / Kottek et al. (2006) Koppen Dfc/Dfd/ET Boreal–Alpine Reference"
+
 default_weather:
   t_base: 25.0
   amplitude: 9.0

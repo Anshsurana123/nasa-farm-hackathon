@@ -1,0 +1,14 @@
+crop_id: rye_winter
+base_crop: Barley
+wp: 15.0
+hi0: 0.00
+ccx: 0.85
+cgc: 0.08
+cdc: 0.05
+z_max: 1.40
+t_base: 0.0
+t_upper: 28.0
+ky: 0.70
+p_up: [0.55, 0.70, 0.90]
+notes: "Overwintering cereal rye cover crop terminated in spring."
+sources: ["USDA-SARE Cover Crops", "FAO Irrigation and Drainage Paper 66"]

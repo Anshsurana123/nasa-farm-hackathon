@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { FieldProfile, TacticalAdvisory } from "@/types/api";
+import type { FieldProfile, SupportedLanguage, TacticalAdvisory } from "@/types/api";
 import { api } from "@/lib/api";
 import { useI18n } from "@/i18n";
 import { cropName } from "@/lib/ui";
@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 
 export function TelemetryBar({ profile }: { profile: FieldProfile }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { climate, soil, water, hazards, seasons_per_year, crop_history, tactical_advisory: propAdvisory } = profile;
   const [liveOverride, setLiveOverride] = useState<{
     key: string;
@@ -77,7 +77,7 @@ export function TelemetryBar({ profile }: { profile: FieldProfile }) {
     ? `${seasons_per_year} ${t("telemetry.seasonsPerYr")}`
     : t("telemetry.annualCropping");
   if (crop_history && crop_history.length >= 2) {
-    const crops = crop_history.slice(-2).map((s) => cropName(s.crop_id ?? s.crop_group ?? "Crop"));
+    const crops = crop_history.slice(-2).map((s) => cropName(s.crop_id ?? s.crop_group ?? "Crop", lang as SupportedLanguage));
     historyLabel = `${crops[0]} → ${crops[1]}`;
   }
 

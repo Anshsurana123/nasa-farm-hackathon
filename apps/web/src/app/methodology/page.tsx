@@ -102,6 +102,22 @@ export default function MethodologyPage() {
                   <td className="py-3">10.5067/HLS/HLSL30.002</td>
                 </tr>
                 <tr>
+                  <td className="py-3 pr-4 font-sans font-semibold text-foreground">{t("methodology.dsGibsName")}</td>
+                  <td className="py-3 pr-4 text-muted">{t("methodology.dsGibsProd")}</td>
+                  <td className="py-3 pr-4">{t("methodology.dsGibsRes")}</td>
+                  <td className="py-3 pr-4 font-sans">{t("methodology.dsGibsRole")}</td>
+                  <td className="py-3">
+                    <a
+                      href="https://nasa-gibs.github.io/gibs-api-docs/"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline decoration-dotted hover:text-foreground"
+                    >
+                      gibs.earthdata.nasa.gov
+                    </a>
+                  </td>
+                </tr>
+                <tr>
                   <td className="py-3 pr-4 font-sans font-semibold text-foreground">{t("methodology.dsSoilGridsName")}</td>
                   <td className="py-3 pr-4 text-muted">{t("methodology.dsSoilGridsProd")}</td>
                   <td className="py-3 pr-4">{t("methodology.dsSoilGridsRes")}</td>
@@ -215,6 +231,31 @@ export default function MethodologyPage() {
             <li>{t("methodology.lim3")}</li>
             <li>{t("methodology.lim4")}</li>
           </ul>
+        </section>
+
+        {/* 5. Global Agro-Ecological Routing & Soil Standards */}
+        <section className="glass rounded-2xl p-6 border border-line space-y-4">
+          <h2 className="font-mono text-xs font-bold uppercase tracking-wider text-emerald-500 flex items-center gap-2">
+            <span>{t("methodology.sec05")}</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-foreground/85 leading-relaxed">
+            <div className="p-4 rounded-xl bg-surface/60 border border-line space-y-1.5">
+              <h3 className="font-display font-bold text-sm text-foreground">{t("methodology.g01Title")}</h3>
+              <p>{t("methodology.g01Body")}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-surface/60 border border-line space-y-1.5">
+              <h3 className="font-display font-bold text-sm text-foreground">{t("methodology.g02Title")}</h3>
+              <p>{t("methodology.g02Body")}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-surface/60 border border-line space-y-1.5">
+              <h3 className="font-display font-bold text-sm text-foreground">{t("methodology.g03Title")}</h3>
+              <p>{t("methodology.g03Body")}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-surface/60 border border-line space-y-1.5">
+              <h3 className="font-display font-bold text-sm text-foreground">{t("methodology.g04Title")}</h3>
+              <p>{t("methodology.g04Body")}</p>
+            </div>
+          </div>
         </section>
       </div>
     </AppShell>

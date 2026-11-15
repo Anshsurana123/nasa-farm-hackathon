@@ -6,14 +6,20 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import en from "./en.json";
+import es from "./es.json";
+import fr from "./fr.json";
 import hi from "./hi.json";
 import pa from "./pa.json";
+import pt from "./pt.json";
 
 type Dict = Record<string, string>;
 export const DICTS: Record<string, { label: string; short: string; dict: Dict }> = {
   en: { label: "English", short: "EN", dict: en },
-  pa: { label: "ਪੰਜਾਬੀ", short: "ਪੰ", dict: pa },
+  es: { label: "Español", short: "ES", dict: es },
+  pt: { label: "Português", short: "PT", dict: pt },
+  fr: { label: "Français", short: "FR", dict: fr },
   hi: { label: "हिन्दी", short: "हि", dict: hi },
+  pa: { label: "ਪੰਜਾਬੀ", short: "ਪੰ", dict: pa },
 };
 
 type Vars = Record<string, string | number>;

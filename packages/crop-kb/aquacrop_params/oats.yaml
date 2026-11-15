@@ -1,0 +1,14 @@
+crop_id: oats
+base_crop: Barley
+wp: 15.0
+hi0: 0.42
+ccx: 0.85
+cgc: 0.09
+cdc: 0.07
+z_max: 1.00
+t_base: 4.0
+t_upper: 30.0
+ky: 1.00
+p_up: [0.55, 0.70, 0.85]
+notes: "Temperate small-grain C3 cereal adapted to humid/acid soils."
+sources: ["FAO Irrigation and Drainage Paper 66", "FAO-56 Table 12"]

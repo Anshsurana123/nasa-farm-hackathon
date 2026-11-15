@@ -1,0 +1,14 @@
+crop_id: faba_bean
+base_crop: Soybean
+wp: 16.5
+hi0: 0.38
+ccx: 0.85
+cgc: 0.08
+cdc: 0.06
+z_max: 1.00
+t_base: 2.0
+t_upper: 28.0
+ky: 1.05
+p_up: [0.45, 0.60, 0.80]
+notes: "High-biomass cool legume suited to loams and heavy clay soils."
+sources: ["FAO Irrigation and Drainage Paper 66", "ICARDA Faba Bean Physiology"]

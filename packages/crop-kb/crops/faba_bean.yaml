@@ -1,0 +1,38 @@
+id: faba_bean
+name: Faba Bean (fevrole)
+family: fabaceae
+group: legume
+season_type: [cool]
+gdd_to_maturity: 1550
+base_temp_c: 2
+optimal_temp_c: [10, 22]
+max_temp_c: 30
+min_temp_c: -8
+duration_days: [120, 185]
+water_requirement_mm: [320, 480]
+kc: [0.40, 1.15, 0.30]
+root_depth_m: 1.0
+drought_tolerance: 3
+heat_tolerance: 2
+waterlogging_tolerance: 3
+n_fixation_kg_ha: 95
+n_demand_kg_ha: 15
+residue_t_ha: 3.5
+residue_cn_ratio: 22
+typical_yield_t_ha: [2.6, 4.4]
+ph_range: [6.0, 8.5]
+lethal_frost_c: -10.0
+cultivar_profiles:
+  maritime_europe:
+    typical_yield_t_ha: [3.4, 4.8]
+    duration_days: [145, 200]
+    notes: "France spring/winter fevrole (Agreste/Terres Inovia)."
+  mediterranean_dryland:
+    typical_yield_t_ha: [1.8, 3.0]
+    duration_days: [140, 175]
+    notes: "Riverina NSW alkaline clay faba bean (GRDC/ABARES)."
+aquacrop_name: null
+good_predecessors: [wheat_winter, wheat_spring, barley, oats, maize]
+bad_predecessors: [faba_bean, field_pea, lentil, chickpea]
+notes: "High N-fixing cool-season legume tolerating heavier wet/clay soils better than chickpea or field pea."
+sources: ["FAO-56 Table 12 (faba bean)", "Terres Inovia Feverole", "GRDC Faba Bean Southern Region"]

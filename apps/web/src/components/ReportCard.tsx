@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { FieldProfile, StrategyRecommendation } from "@/types/api";
+import type { FieldProfile, SoilLabStandard, StrategyRecommendation } from "@/types/api";
 import { useI18n } from "@/i18n";
 import { useField } from "@/context/FieldContext";
 import { ProvenanceChip } from "./ProvenanceChip";
@@ -31,7 +31,8 @@ interface ReportCardProps {
 }
 
 export function ReportCard({ profile, strategies = [], show3DPedon = true }: ReportCardProps) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const activeLang = (lang as "en" | "hi" | "pa" | "es" | "pt" | "fr") || "en";
   const { soilHealthCard, setSoilHealthCard, baselineOverride, setBaselineOverride } = useField();
   const { field, climate, soil, water, hazards, agro_climatic_notes, crop_history, seasons_per_year } = profile;
 
@@ -41,29 +42,60 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
   const [showShcForm, setShowShcForm] = useState<boolean>(false);
   const defaultAvailN =
     soil.source === "farmer_test" && soil.nitrogen_g_kg != null ? soil.nitrogen_g_kg * 2240 : 210;
+  const defaultShcStandard: SoilLabStandard =
+    profile.country_code === "USA" || profile.country_code === "BRA"
+      ? "mehlich3"
+      : profile.country_code === "IND"
+      ? "india_shc"
+      : profile.country_code === "FRA" || profile.country_code === "KEN" || profile.country_code === "AUS"
+      ? "olsen"
+      : "iso_generic";
+  const [shcStandard, setShcStandard] = useState<SoilLabStandard>(
+    soilHealthCard?.lab_standard ?? defaultShcStandard
+  );
   const [shcPh, setShcPh] = useState<string>(String(soil.ph ?? 7.6));
   const [shcSocPct, setShcSocPct] = useState<string>(
     soil.soc_g_per_kg ? (soil.soc_g_per_kg / 10).toFixed(2) : "0.52"
   );
+  const [shcOmPct, setShcOmPct] = useState<string>(
+    soilHealthCard?.organic_matter_pct != null
+      ? soilHealthCard.organic_matter_pct.toFixed(2)
+      : soil.soc_g_per_kg
+      ? ((soil.soc_g_per_kg / 10) / 0.58).toFixed(2)
+      : "1.80"
+  );
   const [shcN, setShcN] = useState<string>(String(Math.round(soilHealthCard?.available_n_kg_ha ?? defaultAvailN)));
   const [shcP, setShcP] = useState<string>(String(Math.round(soil.available_p_kg_ha ?? 18)));
   const [shcK, setShcK] = useState<string>(String(Math.round(soil.available_k_kg_ha ?? 240)));
+  const [shcNppm, setShcNppm] = useState<string>(
+    String(Math.round((soilHealthCard?.nitrate_n_ppm ?? defaultAvailN / 4.5)))
+  );
+  const [shcPppm, setShcPppm] = useState<string>(
+    String(Math.round((soilHealthCard?.phosphorus_ppm ?? (soil.available_p_kg_ha ?? 18) / 2.24)))
+  );
+  const [shcKppm, setShcKppm] = useState<string>(
+    String(Math.round((soilHealthCard?.potassium_ppm ?? (soil.available_k_kg_ha ?? 240) / 2.24)))
+  );
 
   useEffect(() => {
     if (soilHealthCard) return;
+    setShcStandard(defaultShcStandard);
     setShcPh(String(soil.ph ?? 7.5));
-    setShcSocPct(soil.soc_g_per_kg ? (soil.soc_g_per_kg / 10).toFixed(2) : "0.52");
-    setShcN(
-      String(
-        Math.round(
-          soil.source === "farmer_test" && soil.nitrogen_g_kg != null ? soil.nitrogen_g_kg * 2240 : 210
-        )
-      )
-    );
-    setShcP(String(Math.round(soil.available_p_kg_ha ?? 18)));
-    setShcK(String(Math.round(soil.available_k_kg_ha ?? 240)));
+    const socPct = soil.soc_g_per_kg ? soil.soc_g_per_kg / 10 : 0.52;
+    setShcSocPct(socPct.toFixed(2));
+    setShcOmPct((socPct / 0.58).toFixed(2));
+    const nKg = soil.source === "farmer_test" && soil.nitrogen_g_kg != null ? soil.nitrogen_g_kg * 2240 : 210;
+    const pKg = soil.available_p_kg_ha ?? 18;
+    const kKg = soil.available_k_kg_ha ?? 240;
+    setShcN(String(Math.round(nKg)));
+    setShcP(String(Math.round(pKg)));
+    setShcK(String(Math.round(kKg)));
+    setShcNppm(String(Math.round(nKg / 4.5)));
+    setShcPppm(String(Math.round(pKg / 2.24)));
+    setShcKppm(String(Math.round(kKg / 2.24)));
   }, [
     soilHealthCard,
+    defaultShcStandard,
     soil.source,
     soil.ph,
     soil.soc_g_per_kg,
@@ -92,9 +124,24 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
       {/* Field Survey Header & Automated NASA Agro-Climatic Insights */}
       <div className="glass rounded-2xl border border-line overflow-hidden reticle-frame">
         <div className="instrument-header px-5 py-3 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-wider">
               {t("report.surveyBadge")}
+            </span>
+            <span
+              className={`px-2 py-0.5 rounded border font-bold uppercase tracking-wider text-[10px] ${
+                profile.validation_status === "validated_india"
+                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/35"
+                  : profile.validation_status === "validated_regional"
+                  ? "bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border-cyan-500/35"
+                  : "bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/35"
+              }`}
+            >
+              {profile.validation_status === "validated_india"
+                ? t("badge.validatedIndia")
+                : profile.validation_status === "validated_regional"
+                ? t("badge.validatedRegional")
+                : t("badge.biophysicalGlobal")}
             </span>
             <span className="text-muted">
               {fmtDMS(field.lat, true)} · {fmtDMS(field.lon, false)}
@@ -500,84 +547,168 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                 </div>
 
                 {showShcForm && (
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 text-[11px] font-mono">
-                    <label className="space-y-1">
-                      <span className="text-[10px] text-muted block">{t("report.shcPhLabel")}</span>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="4.0"
-                        max="10.0"
-                        value={shcPh}
-                        onChange={(e) => setShcPh(e.target.value)}
-                        className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
-                      />
-                    </label>
-                    <label className="space-y-1">
-                      <span className="text-[10px] text-muted block">{t("report.shcSocLabel")}</span>
-                      <input
-                        type="number"
-                        step="0.05"
-                        min="0.05"
-                        max="4.0"
-                        value={shcSocPct}
-                        onChange={(e) => setShcSocPct(e.target.value)}
-                        className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
-                      />
-                    </label>
-                    <label className="space-y-1">
-                      <span className="text-[10px] text-muted block">{t("report.shcNLabel")}</span>
-                      <input
-                        type="number"
-                        step="10"
-                        min="40"
-                        max="600"
-                        value={shcN}
-                        onChange={(e) => setShcN(e.target.value)}
-                        className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
-                      />
-                    </label>
-                    <label className="space-y-1">
-                      <span className="text-[10px] text-muted block">{t("report.shcPLabel")}</span>
-                      <input
-                        type="number"
-                        step="1"
-                        min="1"
-                        max="200"
-                        value={shcP}
-                        onChange={(e) => setShcP(e.target.value)}
-                        className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
-                      />
-                    </label>
-                    <label className="space-y-1">
-                      <span className="text-[10px] text-muted block">{t("report.shcKLabel")}</span>
-                      <input
-                        type="number"
-                        step="5"
-                        min="10"
-                        max="1000"
-                        value={shcK}
-                        onChange={(e) => setShcK(e.target.value)}
-                        className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
-                      />
-                    </label>
-                    <div className="col-span-2 sm:col-span-5 flex justify-end pt-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSoilHealthCard({
-                            ph: Number.isFinite(parseFloat(shcPh)) ? parseFloat(shcPh) : 7.5,
-                            soc_pct: Number.isFinite(parseFloat(shcSocPct)) ? parseFloat(shcSocPct) : 0.52,
-                            available_n_kg_ha: Number.isFinite(parseFloat(shcN)) ? parseFloat(shcN) : 210,
-                            available_p_kg_ha: Number.isFinite(parseFloat(shcP)) ? parseFloat(shcP) : 18,
-                            available_k_kg_ha: Number.isFinite(parseFloat(shcK)) ? parseFloat(shcK) : 240,
-                          });
-                          setShowShcForm(false);
-                        }}
-                        className="px-3 py-1 rounded-lg bg-emerald-500 text-slate-950 font-bold text-[11px] cursor-pointer hover:opacity-95"
+                  <div className="space-y-2.5 pt-1 text-[11px] font-mono">
+                    <label className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span className="text-[10px] text-muted uppercase tracking-wider">{t("shc.standardLabel")}</span>
+                      <select
+                        value={shcStandard}
+                        onChange={(e) => setShcStandard(e.target.value as SoilLabStandard)}
+                        className="px-2 py-1 rounded bg-background border border-line text-foreground text-[11px]"
                       >
-                        {t("report.applyShcBtn")}
-                      </button>
+                        <option value="india_shc">{t("shc.stdIndiaShc")}</option>
+                        <option value="mehlich3">{t("shc.stdMehlich3")}</option>
+                        <option value="olsen">{t("shc.stdOlsen")}</option>
+                        <option value="bray1">{t("shc.stdBray1")}</option>
+                        <option value="iso_generic">{t("shc.stdIsoGeneric")}</option>
+                      </select>
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                      <label className="space-y-1">
+                        <span className="text-[10px] text-muted block">{t("report.shcPhLabel")}</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="4.0"
+                          max="10.0"
+                          value={shcPh}
+                          onChange={(e) => setShcPh(e.target.value)}
+                          className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
+                        />
+                      </label>
+                      {shcStandard === "india_shc" ? (
+                        <>
+                          <label className="space-y-1">
+                            <span className="text-[10px] text-muted block">{t("report.shcSocLabel")}</span>
+                            <input
+                              type="number"
+                              step="0.05"
+                              min="0.05"
+                              max="12.0"
+                              value={shcSocPct}
+                              onChange={(e) => setShcSocPct(e.target.value)}
+                              className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-[10px] text-muted block">{t("report.shcNLabel")}</span>
+                            <input
+                              type="number"
+                              step="10"
+                              min="40"
+                              max="600"
+                              value={shcN}
+                              onChange={(e) => setShcN(e.target.value)}
+                              className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-[10px] text-muted block">{t("report.shcPLabel")}</span>
+                            <input
+                              type="number"
+                              step="1"
+                              min="1"
+                              max="200"
+                              value={shcP}
+                              onChange={(e) => setShcP(e.target.value)}
+                              className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-[10px] text-muted block">{t("report.shcKLabel")}</span>
+                            <input
+                              type="number"
+                              step="5"
+                              min="10"
+                              max="1000"
+                              value={shcK}
+                              onChange={(e) => setShcK(e.target.value)}
+                              className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
+                            />
+                          </label>
+                        </>
+                      ) : (
+                        <>
+                          <label className="space-y-1">
+                            <span className="text-[10px] text-muted block">{t("shc.omLabel")}</span>
+                            <input
+                              type="number"
+                              step="0.1"
+                              min="0.1"
+                              max="20.0"
+                              value={shcOmPct}
+                              onChange={(e) => setShcOmPct(e.target.value)}
+                              className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-[10px] text-muted block">{t("shc.nitrateNLabel")}</span>
+                            <input
+                              type="number"
+                              step="1"
+                              min="1"
+                              max="250"
+                              value={shcNppm}
+                              onChange={(e) => setShcNppm(e.target.value)}
+                              className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-[10px] text-muted block">{t("shc.pPpmLabel")}</span>
+                            <input
+                              type="number"
+                              step="1"
+                              min="1"
+                              max="250"
+                              value={shcPppm}
+                              onChange={(e) => setShcPppm(e.target.value)}
+                              className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-[10px] text-muted block">{t("shc.kPpmLabel")}</span>
+                            <input
+                              type="number"
+                              step="5"
+                              min="10"
+                              max="1000"
+                              value={shcKppm}
+                              onChange={(e) => setShcKppm(e.target.value)}
+                              className="w-full px-2 py-1 rounded bg-background border border-line text-foreground"
+                            />
+                          </label>
+                        </>
+                      )}
+                      <div className="col-span-2 sm:col-span-5 flex justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const parsedPh = Number.isFinite(parseFloat(shcPh)) ? parseFloat(shcPh) : 7.0;
+                            if (shcStandard === "india_shc") {
+                              setSoilHealthCard({
+                                lab_standard: "india_shc",
+                                ph: parsedPh,
+                                soc_pct: Number.isFinite(parseFloat(shcSocPct)) ? parseFloat(shcSocPct) : 0.52,
+                                available_n_kg_ha: Number.isFinite(parseFloat(shcN)) ? parseFloat(shcN) : 210,
+                                available_p_kg_ha: Number.isFinite(parseFloat(shcP)) ? parseFloat(shcP) : 18,
+                                available_k_kg_ha: Number.isFinite(parseFloat(shcK)) ? parseFloat(shcK) : 240,
+                              });
+                            } else {
+                              setSoilHealthCard({
+                                lab_standard: shcStandard,
+                                ph: parsedPh,
+                                organic_matter_pct: Number.isFinite(parseFloat(shcOmPct)) ? parseFloat(shcOmPct) : 1.8,
+                                nitrate_n_ppm: Number.isFinite(parseFloat(shcNppm)) ? parseFloat(shcNppm) : 22,
+                                phosphorus_ppm: Number.isFinite(parseFloat(shcPppm)) ? parseFloat(shcPppm) : 24,
+                                potassium_ppm: Number.isFinite(parseFloat(shcKppm)) ? parseFloat(shcKppm) : 165,
+                              });
+                            }
+                            setShowShcForm(false);
+                          }}
+                          className="px-3 py-1 rounded-lg bg-emerald-500 text-slate-950 font-bold text-[11px] cursor-pointer hover:opacity-95"
+                        >
+                          {t("report.applyShcBtn")}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -936,11 +1067,21 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
             <div className="flex items-center gap-1.5 flex-wrap">
               {[
                 { label: t("report.satelliteAuto"), value: null },
-                { label: `${cropName("rice_puddled")} → ${cropName("wheat")}`, value: ["rice_puddled", "wheat", "fallow"] },
-                { label: `${cropName("cotton")} → ${cropName("wheat")}`, value: ["cotton", "wheat", "fallow"] },
-                { label: `${cropName("cotton")} → ${cropName("chickpea")}`, value: ["cotton", "chickpea", "fallow"] },
-                { label: `${cropName("sorghum")} → ${cropName("wheat")}`, value: ["sorghum", "wheat", "fallow"] },
-                { label: `${cropName("rice_puddled")} → ${cropName("rice_puddled")}`, value: ["rice_puddled", "rice_puddled", "fallow"] },
+                ...(profile.country_code === "IND" || !profile.country_code
+                  ? [
+                      { label: `${cropName("rice_puddled", activeLang)} → ${cropName("wheat", activeLang)}`, value: ["rice_puddled", "wheat", "fallow"] },
+                      { label: `${cropName("cotton", activeLang)} → ${cropName("wheat", activeLang)}`, value: ["cotton", "wheat", "fallow"] },
+                      { label: `${cropName("cotton", activeLang)} → ${cropName("chickpea", activeLang)}`, value: ["cotton", "chickpea", "fallow"] },
+                      { label: `${cropName("sorghum", activeLang)} → ${cropName("wheat", activeLang)}`, value: ["sorghum", "wheat", "fallow"] },
+                      { label: `${cropName("rice_puddled", activeLang)} → ${cropName("rice_puddled", activeLang)}`, value: ["rice_puddled", "rice_puddled", "fallow"] },
+                    ]
+                  : [
+                      { label: `${cropName("maize", activeLang)} → ${cropName("soybean", activeLang)}`, value: ["maize", "soybean", "fallow"] },
+                      { label: `${cropName("wheat_winter", activeLang)} → ${cropName("rapeseed_canola", activeLang)}`, value: ["wheat_winter", "rapeseed_canola", "fallow"] },
+                      { label: `${cropName("soybean", activeLang)} → ${cropName("maize", activeLang)}`, value: ["soybean", "maize", "fallow"] },
+                      { label: `${cropName("maize", activeLang)} → ${cropName("common_bean", activeLang)}`, value: ["maize", "common_bean", "fallow"] },
+                      { label: `${cropName("wheat", activeLang)} → ${cropName("chickpea", activeLang)}`, value: ["wheat", "chickpea", "fallow"] },
+                    ]),
               ].map((opt) => {
                 const isActive =
                   (opt.value === null && baselineOverride === null) ||
@@ -969,7 +1110,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
           <div className="p-4 flex gap-3 overflow-x-auto">
             {crop_history.map((season, idx) => {
               const meta = cropMeta(season.crop_group);
-              const sName = seasonName(field.lat, field.lon, season.season_index);
+              const sName = seasonName(field.lat, field.lon, season.season_index, profile);
 
               return (
                 <div
@@ -991,7 +1132,7 @@ export function ReportCard({ profile, strategies = [], show3DPedon = true }: Rep
                       {meta.emoji}
                     </span>
                     <span className="text-xs font-bold capitalize text-foreground truncate">
-                      {season.crop_group ? cropName(season.crop_group) : "Crop"}
+                      {season.crop_group ? cropName(season.crop_group, activeLang) : "Crop"}
                     </span>
                   </div>
 

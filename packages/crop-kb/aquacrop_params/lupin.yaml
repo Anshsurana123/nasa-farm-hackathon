@@ -1,0 +1,14 @@
+crop_id: lupin
+base_crop: Soybean
+wp: 15.5
+hi0: 0.32
+ccx: 0.78
+cgc: 0.07
+cdc: 0.06
+z_max: 1.30
+t_base: 3.0
+t_upper: 30.0
+ky: 0.90
+p_up: [0.50, 0.65, 0.85]
+notes: "Deep-rooted acid-soil grain legume."
+sources: ["FAO Irrigation and Drainage Paper 66", "GRDC Lupin Physiology"]

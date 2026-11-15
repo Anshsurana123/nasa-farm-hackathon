@@ -1,0 +1,38 @@
+# Brazil Agricultural Climate-Smart & Risk Programs (MAPA / EMBRAPA)
+# Official Sources: Plano ABC+ & ZARC/PROAGRO Brazil
+
+schemes:
+  - id: "brazil_plano_abc_plus"
+    name: "Plano ABC+ Plantio Direto & Mulch Credit"
+    display_title: "Plano ABC+ Crédito Rural (Sistema Plantio Direto na Palha & Cobertura)"
+    display_title_hi: "ब्राज़ील Plano ABC+ नो-टिल मल्च कृषि ऋण सहायता"
+    display_title_pa: "ਬ੍ਰਾਜ਼ੀਲ Plano ABC+ ਨੋ-ਟਿੱਲ ਮਲਚ ਖੇਤੀ ਕਰਜ਼ਾ ਸਹਾਇਤਾ"
+    display_title_es: "Plano ABC+ Crédito Rural para Siembra Directa y Cobertura"
+    display_title_pt: "Plano ABC+ Crédito Rural (Sistema Plantio Direto na Palha e Cobertura)"
+    display_title_fr: "Plano ABC+ Crédit Rural Semis Direct sous Couvert Végétal"
+    country_code: "BRA"
+    eligible_zones: ["brazil_cerrado"]
+    eligible_practices: ["happy_seeder", "zero_till", "no_till", "residue_retained"]
+    eligible_crops: ["brachiaria_cover", "dhaincha", "common_bean", "sorghum"]
+    amount: null
+    unit: null
+    source_url: "https://www.gov.br/agricultura/pt-br/assuntos/sustentabilidade/plano-abc"
+    as_of_date: "2024-01-01"
+    description: "Subsidized agricultural credit under Brazil's Low-Carbon Agriculture Plan (ABC+) for Plantio Direto zero-till straw systems and Brachiaria cover."
+
+  - id: "brazil_zarc_proagro"
+    name: "ZARC Climate Zoning & PROAGRO Risk Insurance"
+    display_title: "ZARC / PROAGRO Segunda Safra Climate-Aligned Crop Insurance Rebate"
+    display_title_hi: "ZARC / PROAGRO जलवायु-अनुकूल दूसरी फसल बीमा सहायता"
+    display_title_pa: "ZARC / PROAGRO ਮੌਸਮ-ਅਨੁਕੂਲ ਦੂਜੀ ਫ਼ਸਲ ਬੀਮਾ ਸਹਾਇਤਾ"
+    display_title_es: "ZARC / PROAGRO Seguro Agrícola Zonificación Climática"
+    display_title_pt: "ZARC / PROAGRO Enquadramento Climático e Seguro Rural"
+    display_title_fr: "ZARC / PROAGRO Assurance Récolte Zonage Climatique"
+    country_code: "BRA"
+    eligible_zones: ["brazil_cerrado"]
+    eligible_crops: ["soybean", "maize", "cotton", "rice_upland", "sorghum", "common_bean"]
+    amount: null
+    unit: null
+    source_url: "https://www.gov.br/agricultura/pt-br/assuntos/riscos-seguro/programa-nacional-de-zoneamento-agricola-de-risco-climatico"
+    as_of_date: "2024-01-01"
+    description: "Eligibility for PROAGRO and Rural Insurance Subsidy (PSR) when planting dates follow Embrapa ZARC soil-water risk windows."

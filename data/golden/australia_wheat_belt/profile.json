@@ -1,0 +1,556 @@
+{
+  "field": {
+    "id": "australia_wheat_belt",
+    "lat": -35.12,
+    "lon": 147.37,
+    "polygon": null,
+    "name": "Wagga Wagga (Riverina), NSW, Australia"
+  },
+  "climate": {
+    "baseline_period": "1985-2004",
+    "recent_period": "2005-2024",
+    "mean_tmax_c": 22.41,
+    "mean_tmin_c": 9.61,
+    "annual_precip_mm": 571.7,
+    "recent_annual_precip_mm": 601.0,
+    "precip_change_pct": 5.1,
+    "tmax_change_c": 0.62,
+    "heat_days_per_year": 22.6,
+    "recent_heat_days_per_year": 24.1,
+    "frost_days_per_year": 7.1,
+    "longest_dry_spell_days_mean": 20.7,
+    "annual_et0_mm": 1359.8,
+    "gdd_base10_per_year": 2245.0,
+    "monthly_precip_mm": [
+      50.1,
+      54.5,
+      51.1,
+      35.9,
+      35.6,
+      54.9,
+      46.8,
+      47.2,
+      42.2,
+      50.3,
+      66.5,
+      51.4
+    ],
+    "monthly_tmax_c": [
+      32.8,
+      31.7,
+      28.2,
+      22.9,
+      17.7,
+      13.6,
+      12.5,
+      14.0,
+      17.7,
+      22.0,
+      26.4,
+      30.0
+    ],
+    "monthly_tmin_c": [
+      17.2,
+      16.8,
+      14.2,
+      10.0,
+      6.5,
+      4.1,
+      3.1,
+      3.4,
+      5.6,
+      8.2,
+      11.9,
+      14.6
+    ],
+    "wettest_months": [
+      11,
+      12,
+      1,
+      2
+    ],
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": "10.5067/POWER/0001",
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA GPM IMERG",
+        "product": "GPM_3IMERGDF (V07)",
+        "period": "2000-2024",
+        "resolution": "0.1 deg, daily",
+        "doi": "10.5067/GPM/IMERGDF/DAY/07",
+        "url": "https://gpm.nasa.gov/data/imerg",
+        "mode": "observed"
+      },
+      {
+        "source": "Meteomatics 90m Weather & Soil API",
+        "product": "EURO1k / MIX (NASA SRTM 90m Downscaled)",
+        "period": "2024-10-02 to 2024-12-31",
+        "resolution": "90 m, daily / hourly",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "observed"
+      }
+    ]
+  },
+  "water": {
+    "root_zone_moisture_percentile": [
+      84.3,
+      71.7,
+      67.0,
+      63.8,
+      45.6,
+      49.0,
+      38.2,
+      47.9,
+      62.4,
+      77.9,
+      91.9,
+      85.3
+    ],
+    "groundwater_trend_cm_per_year": 0.68,
+    "climatic_water_balance_mm": -773.5,
+    "irrigation_detected": true,
+    "soil_moisture_deficit_mm": 102.4,
+    "soil_moisture_index_layers": {
+      "-5cm": 0.26,
+      "-15cm": 0.21,
+      "-50cm": 0.54,
+      "-150cm": 0.48
+    },
+    "volumetric_soil_water_layers": {
+      "-5cm": 0.21,
+      "-15cm": 0.2,
+      "-50cm": 0.26,
+      "-150cm": 0.26
+    },
+    "seedbed_temp_5cm_c": 26.1,
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": "10.5067/POWER/0001",
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA GPM IMERG",
+        "product": "GPM_3IMERGDF (V07)",
+        "period": "2000-2024",
+        "resolution": "0.1 deg, daily",
+        "doi": "10.5067/GPM/IMERGDF/DAY/07",
+        "url": "https://gpm.nasa.gov/data/imerg",
+        "mode": "observed"
+      },
+      {
+        "source": "Meteomatics 90m Weather & Soil API",
+        "product": "EURO1k / MIX (NASA SRTM 90m Downscaled)",
+        "period": "2024-10-02 to 2024-12-31",
+        "resolution": "90 m, daily / hourly",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA GRACE / GRACE-FO",
+        "product": "Tellus Regional Terrestrial Water Storage (TWS) Mascon (JPL V04, 3° native)",
+        "period": "2002-2024",
+        "resolution": "0.5 deg grid (native ~3 deg mascon), monthly",
+        "doi": "10.5067/TEMSC-3MJ62",
+        "url": "https://grace.jpl.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA SMAP",
+        "product": "SPL4SMGP V008 (L4 Root-Zone Soil Moisture)",
+        "period": "2015-2024",
+        "resolution": "9 km, daily",
+        "doi": "10.5067/K2VT90DE20GV",
+        "url": "https://smap.jpl.nasa.gov/",
+        "mode": "observed"
+      }
+    ]
+  },
+  "soil": {
+    "texture_class": "sandy clay loam",
+    "sand_pct": 48.0,
+    "silt_pct": 22.0,
+    "clay_pct": 30.0,
+    "soc_g_per_kg": 10.5,
+    "ph": 6.0,
+    "bulk_density_g_cm3": 1.42,
+    "cec_cmol_kg": null,
+    "nitrogen_g_kg": 1.0,
+    "available_p_kg_ha": null,
+    "available_k_kg_ha": null,
+    "field_capacity_vol": 0.306,
+    "wilting_point_vol": 0.189,
+    "slope_pct": 2.38,
+    "source": "modelled",
+    "provenance": [
+      {
+        "source": "FAO-UNESCO / ISRIC SoilGrids",
+        "product": "CSIRO ANSIS / NSW DPIRD Red Kandosol–Chromosol Riverina Benchmark (Wagga Wagga, NSW)",
+        "period": null,
+        "resolution": "250 m Regional Benchmark",
+        "doi": "10.5194/soil-7-217-2021",
+        "url": "https://soilgrids.org/",
+        "mode": "regional_climatology"
+      },
+      {
+        "source": "NASA NASADEM",
+        "product": "NASADEM_HGT (30 m DEM)",
+        "period": null,
+        "resolution": "30 m",
+        "doi": "10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001",
+        "url": "https://earthdata.nasa.gov/",
+        "mode": "observed"
+      }
+    ]
+  },
+  "hazards": {
+    "drought_frequency": 0.21,
+    "extreme_rain_days_per_year": 0.23,
+    "heat_stress_probability": 0.85,
+    "frost_risk": 1.0,
+    "erosion_risk_class": "low",
+    "residue_burning_detected": true,
+    "terminal_heat_days_per_year": 0.1,
+    "late_blight_risk_idx": 894.0,
+    "canopy_wetness_idx": 0.0,
+    "hail_probability_pct": null,
+    "fire_weather_index": 20.3,
+    "meteorological_drought_idx": -2.0,
+    "max_30m_precip_rate_mmh": null,
+    "provenance": [
+      {
+        "source": "NASA POWER",
+        "product": "Daily Agroclimatology (MERRA-2 / GEOS / CERES / IMERG-corrected)",
+        "period": "1985-2024",
+        "resolution": "0.5 x 0.625 deg, daily",
+        "doi": "10.5067/POWER/0001",
+        "url": "https://power.larc.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "NASA FIRMS",
+        "product": "MODIS / VIIRS Active Fire Detections",
+        "period": "2019-2024",
+        "resolution": "375 m / 1 km",
+        "doi": "10.5067/FIRMS/MODIS",
+        "url": "https://firms.modaps.eosdis.nasa.gov/",
+        "mode": "observed"
+      },
+      {
+        "source": "Meteomatics 90m Weather & Soil API",
+        "product": "EURO1k / MIX (NASA SRTM 90m Downscaled)",
+        "period": "2026-11-14",
+        "resolution": "90 m, daily / hourly",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "observed"
+      }
+    ]
+  },
+  "seasons_per_year": 2,
+  "crop_history": [
+    {
+      "year": 2020,
+      "season_index": 0,
+      "start": "2020-10-03",
+      "peak": "2020-10-03",
+      "end": "2021-01-06",
+      "crop_group": "rapeseed_canola",
+      "crop_id": "rapeseed_canola",
+      "confidence": 0.66,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2020,
+      "season_index": 2,
+      "start": "2020-02-01",
+      "peak": "2020-05-26",
+      "end": "2020-05-26",
+      "crop_group": "field",
+      "crop_id": "field_pea",
+      "confidence": 0.66,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2021,
+      "season_index": 0,
+      "start": "2021-05-11",
+      "peak": "2021-10-03",
+      "end": "2021-12-07",
+      "crop_group": "rapeseed_canola",
+      "crop_id": "rapeseed_canola",
+      "confidence": 0.7,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2021,
+      "season_index": 1,
+      "start": "2021-01-31",
+      "peak": "2021-03-12",
+      "end": "2021-05-01",
+      "crop_group": "maize",
+      "crop_id": "maize",
+      "confidence": 0.66,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2022,
+      "season_index": 0,
+      "start": "2022-08-29",
+      "peak": "2022-12-27",
+      "end": "2022-12-27",
+      "crop_group": "rapeseed_canola",
+      "crop_id": "rapeseed_canola",
+      "confidence": 0.7,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2023,
+      "season_index": 0,
+      "start": "2023-08-09",
+      "peak": "2023-10-13",
+      "end": "2023-11-17",
+      "crop_group": "rapeseed_canola",
+      "crop_id": "rapeseed_canola",
+      "confidence": 0.67,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2023,
+      "season_index": 1,
+      "start": "2023-03-02",
+      "peak": "2023-03-02",
+      "end": "2023-06-15",
+      "crop_group": "maize",
+      "crop_id": "maize",
+      "confidence": 0.63,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2024,
+      "season_index": 0,
+      "start": "2024-07-29",
+      "peak": "2024-09-27",
+      "end": "2024-09-27",
+      "crop_group": "field",
+      "crop_id": "field_pea",
+      "confidence": 0.64,
+      "confirmed_by_farmer": false
+    },
+    {
+      "year": 2024,
+      "season_index": 1,
+      "start": "2023-11-17",
+      "peak": "2024-02-15",
+      "end": "2024-03-06",
+      "crop_group": "maize",
+      "crop_id": "maize",
+      "confidence": 0.63,
+      "confirmed_by_farmer": false
+    }
+  ],
+  "crop_history_provenance": [
+    {
+      "source": "NASA HLS",
+      "product": "HLSL30 / HLSS30 (Harmonized Landsat Sentinel-2)",
+      "period": "2019-2024",
+      "resolution": "30 m, 2-3 day",
+      "doi": "10.5067/HLS/HLSL30.002",
+      "url": "https://hls.gsfc.nasa.gov/",
+      "mode": "observed"
+    }
+  ],
+  "agro_climatic_notes": [
+    "Evaporative demand exceeds rainfall by 774 mm/yr: crops depend on irrigation; water-efficient rotations matter.",
+    "Rainy-season dry spells average 21 days: drought-tolerant options reduce risk.",
+    "Post-harvest residue burning detected near field via NASA FIRMS: in-situ mulching or alternative rotations recommended.",
+    "High Phytophthora late-blight index (894 > 150): monitor potato and solanaceous canopies.",
+    "Meteomatics SPI drought index is negative (-2.0): prioritize drought-tolerant pulses, oilseeds, or deficit irrigation."
+  ],
+  "currency": "AUD",
+  "currency_symbol": "A$",
+  "country": "Australia",
+  "country_code": "AUS",
+  "agro_zone": "Southern Winter-Rain Wheat–Canola–Pulse Belt (GRDC Southern/Western)",
+  "state": "New South Wales",
+  "aez_class": "Cfa",
+  "calendar_id": "southern_mediterranean",
+  "calendar_slots": [
+    {
+      "slot_index": 0,
+      "slot_id": "winter_break",
+      "name": "Autumn–Spring Winter Crop",
+      "season_type": "cool",
+      "sowing_months": [
+        4,
+        5,
+        6
+      ],
+      "default_sowing_doy": 135,
+      "max_duration_days": 205,
+      "typical_harvest_months": [
+        11,
+        12
+      ],
+      "overwintering": false,
+      "notes": null
+    },
+    {
+      "slot_index": 1,
+      "slot_id": "summer_opportunity",
+      "name": "Summer Opportunity Crop",
+      "season_type": "warm",
+      "sowing_months": [
+        11,
+        12,
+        1
+      ],
+      "default_sowing_doy": 325,
+      "max_duration_days": 145,
+      "typical_harvest_months": [
+        3,
+        4
+      ],
+      "overwintering": true,
+      "notes": null
+    },
+    {
+      "slot_index": 2,
+      "slot_id": "autumn_cover",
+      "name": "Pre-Break Pasture / Cover",
+      "season_type": "cool",
+      "sowing_months": [
+        2,
+        3
+      ],
+      "default_sowing_doy": 65,
+      "max_duration_days": 80,
+      "typical_harvest_months": [
+        5
+      ],
+      "overwintering": false,
+      "notes": null
+    }
+  ],
+  "unit_convention": "metric",
+  "served_from": "demo_snapshot",
+  "snapshot_date": "2026-11-14",
+  "is_fallback": false,
+  "data_mode": "hybrid_regional",
+  "validation_status": "validated_regional",
+  "validation_message": "Calibrated regional model for Australian Southern Grain Belt (Riverina / Wagga Wagga NSW) (enterprise budgets: australia_nsw; climate biome: Cfa).",
+  "tactical_advisory": {
+    "sowing_ready": false,
+    "sowing_status_code": "too_dry",
+    "irrigation_action": "hold_rain_ahead",
+    "urea_spray_safe": false,
+    "next_7d_precip_mm": 9.1,
+    "next_7d_et0_mm": 36.7,
+    "seedbed_temp_5cm_c": 25.9,
+    "soil_moisture_deficit_mm": 102.4,
+    "fire_weather_index": 10.0,
+    "forecast_days": [
+      {
+        "date": "2026-11-14",
+        "tmax_c": 26.3,
+        "tmin_c": 16.4,
+        "precip_mm": 0.7,
+        "prob_precip_pct": 69.2,
+        "et0_mm": 3.6,
+        "wind_speed_ms": 0.7,
+        "soil_temp_5cm_c": 25.9,
+        "soil_moisture_deficit_mm": 102.4
+      },
+      {
+        "date": "2026-11-15",
+        "tmax_c": 27.4,
+        "tmin_c": 10.3,
+        "precip_mm": 0.1,
+        "prob_precip_pct": 2.6,
+        "et0_mm": 5.5,
+        "wind_speed_ms": 1.3,
+        "soil_temp_5cm_c": 24.8,
+        "soil_moisture_deficit_mm": 103.3
+      },
+      {
+        "date": "2026-11-16",
+        "tmax_c": 23.3,
+        "tmin_c": 9.8,
+        "precip_mm": 0.8,
+        "prob_precip_pct": 34.0,
+        "et0_mm": 5.3,
+        "wind_speed_ms": 0.2,
+        "soil_temp_5cm_c": 24.4,
+        "soil_moisture_deficit_mm": 103.5
+      },
+      {
+        "date": "2026-11-17",
+        "tmax_c": 26.2,
+        "tmin_c": 10.4,
+        "precip_mm": 0.0,
+        "prob_precip_pct": 1.1,
+        "et0_mm": 5.4,
+        "wind_speed_ms": 0.3,
+        "soil_temp_5cm_c": 27.3,
+        "soil_moisture_deficit_mm": 103.8
+      },
+      {
+        "date": "2026-11-18",
+        "tmax_c": 30.5,
+        "tmin_c": 12.7,
+        "precip_mm": 0.0,
+        "prob_precip_pct": 1.2,
+        "et0_mm": 5.7,
+        "wind_speed_ms": 0.4,
+        "soil_temp_5cm_c": 29.8,
+        "soil_moisture_deficit_mm": 104.0
+      },
+      {
+        "date": "2026-11-19",
+        "tmax_c": 31.0,
+        "tmin_c": 16.9,
+        "precip_mm": 0.0,
+        "prob_precip_pct": 2.4,
+        "et0_mm": 6.5,
+        "wind_speed_ms": 1.0,
+        "soil_temp_5cm_c": 29.2,
+        "soil_moisture_deficit_mm": 104.2
+      },
+      {
+        "date": "2026-11-20",
+        "tmax_c": 33.3,
+        "tmin_c": 19.2,
+        "precip_mm": 7.5,
+        "prob_precip_pct": 95.0,
+        "et0_mm": 4.7,
+        "wind_speed_ms": 1.4,
+        "soil_temp_5cm_c": 27.0,
+        "soil_moisture_deficit_mm": 104.2
+      }
+    ],
+    "provenance": [
+      {
+        "source": "Meteomatics 90m Weather & Soil API",
+        "product": "EURO1k / MIX (NASA SRTM 90m Downscaled)",
+        "period": "2026-11-14 to 2026-11-20",
+        "resolution": "90 m, daily / hourly",
+        "doi": null,
+        "url": "https://www.meteomatics.com/en/api/getting-started/",
+        "mode": "observed"
+      }
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+crop_id: rapeseed_canola
+base_crop: Sunflower
+wp: 15.5
+hi0: 0.30
+ccx: 0.90
+cgc: 0.08
+cdc: 0.06
+z_max: 1.40
+t_base: 4.0
+t_upper: 30.0
+ky: 0.90
+p_up: [0.50, 0.65, 0.85]
+notes: "Cool-season Brassica oilseed; moderate yield sensitivity to water deficit."
+sources: ["FAO Irrigation and Drainage Paper 66", "FAO-33 Rapeseed Ky"]

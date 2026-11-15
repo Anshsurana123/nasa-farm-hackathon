@@ -1,0 +1,134 @@
+# Australia Southern / Western Grain Belt Enterprise Budgets (ABARES, GRDC & NSW DPIRD Farm Enterprise Budgets 2024)
+currency: AUD
+currency_symbol: "A$"
+usd_exchange_rate: 1.52
+ppp_spread_factor: 0.018
+cost_floor: 65.0
+labor_floor: 18.0
+state: New South Wales
+economics_basis: regional_verified
+
+practice_adjustments:
+  happy_seeder_zero_till:
+    cost_delta: -45.0
+    labor_delta: -15.0
+  direct_seeded:
+    cost_delta: -55.0
+    labor_delta: -20.0
+  broad_bed_furrow:
+    cost_delta: 0.0
+    labor_delta: -10.0
+  legume_credit:
+    cost_delta: -48.0
+    labor_delta: 0.0
+
+crops:
+  wheat_spring:
+    price_per_tonne: 315.0
+    price_usd_per_tonne: 207.2
+    cost_per_ha: 380.0
+    labor_cost_per_ha: 65.0
+    cost_usd_per_ha: 250.0
+    market_risk: 0.15
+    procurement_type: "apw_export_pool_or_spot"
+    sources: ["NSW DPIRD Winter Crop Variety & Gross Margin Budgets (Southern Dryland APW Wheat ~A$380/ha var cost, ~A$315/t)", "ABARES Agricultural Commodities"]
+
+  wheat_winter:
+    price_per_tonne: 315.0
+    price_usd_per_tonne: 207.2
+    cost_per_ha: 420.0
+    labor_cost_per_ha: 72.0
+    cost_usd_per_ha: 276.3
+    market_risk: 0.15
+    procurement_type: "apw_export_pool_or_spot"
+    sources: ["GRDC Dual-Purpose Long-Season Southern Wheat Economics"]
+
+  rapeseed_canola:
+    price_per_tonne: 610.0
+    price_usd_per_tonne: 401.3
+    cost_per_ha: 540.0
+    labor_cost_per_ha: 80.0
+    cost_usd_per_ha: 355.3
+    market_risk: 0.17
+    procurement_type: "non_gm_or_tt_crush_export"
+    sources: ["NSW DPIRD Canola Gross Margin Southern NSW (~A$540/ha var cost; ~A$610/t)", "GRDC Break-Crop Economics"]
+
+  barley:
+    price_per_tonne: 275.0
+    price_usd_per_tonne: 180.9
+    cost_per_ha: 345.0
+    labor_cost_per_ha: 62.0
+    cost_usd_per_ha: 227.0
+    market_risk: 0.14
+    procurement_type: "malting_or_feed_export"
+    sources: ["NSW DPIRD Barley Dryland Gross Margin (~A$345/ha var cost; ~A$275/t)"]
+
+  lupin:
+    price_per_tonne: 360.0
+    price_usd_per_tonne: 236.8
+    cost_per_ha: 265.0
+    labor_cost_per_ha: 52.0
+    cost_usd_per_ha: 174.3
+    market_risk: 0.15
+    procurement_type: "feed_export_or_aquafeed"
+    sources: ["DPIRD WA & NSW DPIRD Narrow-Leaf Lupin Gross Margin (~A$265/ha; ~A$360/t)"]
+
+  oats:
+    price_per_tonne: 285.0
+    price_usd_per_tonne: 187.5
+    cost_per_ha: 310.0
+    labor_cost_per_ha: 58.0
+    cost_usd_per_ha: 203.9
+    market_risk: 0.14
+    procurement_type: "milling_or_export_hay"
+    sources: ["ABARES / NSW DPIRD Oats Dryland Budget"]
+
+  field_pea:
+    price_per_tonne: 420.0
+    price_usd_per_tonne: 276.3
+    cost_per_ha: 295.0
+    labor_cost_per_ha: 55.0
+    cost_usd_per_ha: 194.1
+    market_risk: 0.16
+    procurement_type: "export_pulse_trader"
+    sources: ["GRDC Southern Pulse Economics / NSW DPIRD Field Pea Budget"]
+
+  chickpea:
+    price_per_tonne: 720.0
+    price_usd_per_tonne: 473.7
+    cost_per_ha: 390.0
+    labor_cost_per_ha: 68.0
+    cost_usd_per_ha: 256.6
+    market_risk: 0.21
+    procurement_type: "desi_export_pulse"
+    sources: ["NSW DPIRD Chickpea Southern/Central Budget (~A$720/t export cycle)"]
+
+  faba_bean:
+    price_per_tonne: 440.0
+    price_usd_per_tonne: 289.5
+    cost_per_ha: 335.0
+    labor_cost_per_ha: 60.0
+    cost_usd_per_ha: 220.4
+    market_risk: 0.17
+    procurement_type: "export_pulse_trader"
+    sources: ["GRDC Southern Faba Bean Enterprise Guide"]
+
+  alfalfa:
+    price_per_tonne: 260.0
+    price_usd_per_tonne: 171.1
+    cost_per_ha: 450.0
+    labor_cost_per_ha: 95.0
+    cost_usd_per_ha: 296.1
+    market_risk: 0.12
+    procurement_type: "pasture_phase_or_hay"
+    sources: ["NSW DPIRD Dryland Lucerne Phase Farming Budget"]
+
+  sorghum:
+    price_per_tonne: 325.0
+    price_usd_per_tonne: 213.8
+    cost_per_ha: 430.0
+    labor_cost_per_ha: 72.0
+    cost_usd_per_ha: 282.9
+    market_risk: 0.17
+    procurement_type: "summer_opportunity_feed_export"
+    sources: ["NSW DPIRD / DAF QLD Summer Grain Sorghum Dryland Budget"]

@@ -1,0 +1,145 @@
+# US Midwest Corn Belt Enterprise Budgets (USDA NASS / ERS & Iowa State University Ag Decision Maker File A1-20, 2024)
+# Operating + machinery + labour costs (excluding cash land rent, analogous to CACP A2+FL for cross-region comparability)
+currency: USD
+currency_symbol: "$"
+usd_exchange_rate: 1.0
+ppp_spread_factor: 0.015
+cost_floor: 70.0
+labor_floor: 20.0
+state: Iowa
+economics_basis: regional_verified
+
+practice_adjustments:
+  happy_seeder_zero_till:
+    cost_delta: -48.0
+    labor_delta: -14.0
+  direct_seeded:
+    cost_delta: -65.0
+    labor_delta: -28.0
+  broad_bed_furrow:
+    cost_delta: 0.0
+    labor_delta: -12.0
+  legume_credit:
+    cost_delta: -32.0
+    labor_delta: 0.0
+
+crops:
+  maize:
+    price_per_tonne: 172.0
+    price_usd_per_tonne: 172.0
+    cost_per_ha: 946.0
+    labor_cost_per_ha: 135.0
+    cost_usd_per_ha: 946.0
+    market_risk: 0.14
+    procurement_type: "commodity_spot_or_hedge"
+    sources: ["ISU Ag Decision Maker File A1-20 (2024) Corn following Corn/Soybean", "USDA NASS Iowa Grain Prices (2020-2024 avg)"]
+
+  soybean:
+    price_per_tonne: 397.0
+    price_usd_per_tonne: 397.0
+    cost_per_ha: 657.0
+    labor_cost_per_ha: 98.0
+    cost_usd_per_ha: 657.0
+    market_risk: 0.15
+    procurement_type: "commodity_spot_or_hedge"
+    sources: ["ISU Ag Decision Maker File A1-20 (2024) Herbicide-Tolerant Soybean", "USDA NASS Oilseeds Outlook"]
+
+  wheat_winter:
+    price_per_tonne: 210.0
+    price_usd_per_tonne: 210.0
+    cost_per_ha: 590.0
+    labor_cost_per_ha: 90.0
+    cost_usd_per_ha: 590.0
+    market_risk: 0.14
+    procurement_type: "commodity_spot_or_hedge"
+    sources: ["USDA ERS Wheat Costs and Returns (Heartland / Northern Plains 2024)", "USDA NASS Winter Wheat"]
+
+  wheat_spring:
+    price_per_tonne: 218.0
+    price_usd_per_tonne: 218.0
+    cost_per_ha: 575.0
+    labor_cost_per_ha: 86.0
+    cost_usd_per_ha: 575.0
+    market_risk: 0.15
+    procurement_type: "commodity_spot_or_hedge"
+    sources: ["USDA ERS Spring Wheat Costs and Returns (2024)"]
+
+  oats:
+    price_per_tonne: 234.0
+    price_usd_per_tonne: 234.0
+    cost_per_ha: 510.0
+    labor_cost_per_ha: 82.0
+    cost_usd_per_ha: 510.0
+    market_risk: 0.14
+    procurement_type: "commodity_spot"
+    sources: ["ISU Ag Decision Maker File A1-20 Oats Budget (2024)", "USDA ERS Oats Returns"]
+
+  barley:
+    price_per_tonne: 215.0
+    price_usd_per_tonne: 215.0
+    cost_per_ha: 525.0
+    labor_cost_per_ha: 84.0
+    cost_usd_per_ha: 525.0
+    market_risk: 0.15
+    procurement_type: "contract_or_feed"
+    sources: ["USDA ERS Barley Costs and Returns (2024)"]
+
+  triticale:
+    price_per_tonne: 185.0
+    price_usd_per_tonne: 185.0
+    cost_per_ha: 485.0
+    labor_cost_per_ha: 78.0
+    cost_usd_per_ha: 485.0
+    market_risk: 0.12
+    procurement_type: "feed_forage_market"
+    sources: ["ISU Extension Small Grains Enterprise Estimates (2024)"]
+
+  alfalfa:
+    price_per_tonne: 195.0
+    price_usd_per_tonne: 195.0
+    cost_per_ha: 1120.0
+    labor_cost_per_ha: 265.0
+    cost_usd_per_ha: 1120.0
+    market_risk: 0.12
+    procurement_type: "hay_forage_market"
+    sources: ["ISU Ag Decision Maker File A1-20 Alfalfa Hay Production (2024)", "USDA NASS Hay Prices"]
+
+  field_pea:
+    price_per_tonne: 265.0
+    price_usd_per_tonne: 265.0
+    cost_per_ha: 465.0
+    labor_cost_per_ha: 76.0
+    cost_usd_per_ha: 465.0
+    market_risk: 0.16
+    procurement_type: "processor_or_spot"
+    sources: ["USDA NASS Dry Edible Peas / NDSU Crop Budgets (2024)"]
+
+  sunflower:
+    price_per_tonne: 485.0
+    price_usd_per_tonne: 485.0
+    cost_per_ha: 610.0
+    labor_cost_per_ha: 92.0
+    cost_usd_per_ha: 610.0
+    market_risk: 0.16
+    procurement_type: "oilseed_crush_contract"
+    sources: ["USDA NASS Oil Sunflower Budgets / NDSU Extension (2024)"]
+
+  rye_winter:
+    price_per_tonne: 0.0
+    price_usd_per_tonne: 0.0
+    cost_per_ha: 120.0
+    labor_cost_per_ha: 28.0
+    cost_usd_per_ha: 120.0
+    market_risk: 0.04
+    procurement_type: "cover_crop_eqip_incentive"
+    sources: ["USDA NRCS EQIP / ISU Cereal Rye Cover Crop Seed & Drilling Budget (2024)"]
+
+  crimson_clover_vetch:
+    price_per_tonne: 0.0
+    price_usd_per_tonne: 0.0
+    cost_per_ha: 140.0
+    labor_cost_per_ha: 30.0
+    cost_usd_per_ha: 140.0
+    market_risk: 0.04
+    procurement_type: "cover_crop_eqip_incentive"
+    sources: ["USDA-SARE / NRCS Cover Crop Establishment Cost Averages (2024)"]

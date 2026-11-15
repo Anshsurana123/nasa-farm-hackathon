@@ -20,6 +20,12 @@ n_demand_kg_ha: 20
 residue_t_ha: 1.5
 residue_cn_ratio: 25
 typical_yield_t_ha: [1.0, 1.5]
+ph_range: [6.0, 8.5]
+cultivar_profiles:
+  mediterranean_dryland:
+    typical_yield_t_ha: [1.2, 1.9]
+    duration_days: [130, 155]
+    notes: "Southern Australia winter-sown red/green lentil (GRDC)."
 aquacrop_name: null
 good_predecessors: [maize, rice_dsr, rice_puddled, pearl_millet, sorghum]
 bad_predecessors: [lentil, chickpea]

@@ -13,6 +13,25 @@ interface FieldMapProps {
   onSelect: (field: { id?: string; lat: number; lon: number; name: string }) => void;
 }
 
+type GibsOverlayMode = "none" | "smap" | "ndvi" | "viirs";
+
+function syncMapLayers(map: MapLibreMap, mode: "satellite" | "osm", gibs: GibsOverlayMode) {
+  if (!map.isStyleLoaded()) return;
+  map.setLayoutProperty(
+    "satellite-tiles",
+    "visibility",
+    mode === "satellite" && gibs !== "viirs" ? "visible" : "none"
+  );
+  map.setLayoutProperty(
+    "osm-tiles",
+    "visibility",
+    mode === "osm" && gibs !== "viirs" ? "visible" : "none"
+  );
+  map.setLayoutProperty("gibs-viirs-tiles", "visibility", gibs === "viirs" ? "visible" : "none");
+  map.setLayoutProperty("gibs-smap-tiles", "visibility", gibs === "smap" ? "visible" : "none");
+  map.setLayoutProperty("gibs-ndvi-tiles", "visibility", gibs === "ndvi" ? "visible" : "none");
+}
+
 function buildParcelGeoJSON(lat: number, lon: number) {
   const dLat = 0.0042;
   const dLon = 0.0052;
@@ -67,6 +86,9 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
   const orbitRafRef = useRef<number | null>(null);
 
   const [mapMode, setMapMode] = useState<"satellite" | "osm">("satellite");
+  const [gibsOverlay, setGibsOverlay] = useState<GibsOverlayMode>("none");
+  const mapModeRef = useRef<"satellite" | "osm">(mapMode);
+  const gibsOverlayRef = useRef<GibsOverlayMode>(gibsOverlay);
   const [is3D, setIs3D] = useState<boolean>(true);
   const [isOrbiting, setIsOrbiting] = useState<boolean>(false);
   const [cameraHud, setCameraHud] = useState<{ pitch: number; bearing: number; zoom: number }>({
@@ -107,6 +129,33 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
                 tileSize: 256,
                 attribution: "© OpenStreetMap contributors",
               },
+              "gibs-viirs": {
+                type: "raster",
+                tiles: [
+                  "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg",
+                ],
+                tileSize: 256,
+                maxzoom: 9,
+                attribution: "NASA GIBS / EOSDIS (VIIRS SNPP)",
+              },
+              "gibs-smap": {
+                type: "raster",
+                tiles: [
+                  "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/SMAP_L4_Analyzed_Root_Zone_Soil_Moisture/default/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png",
+                ],
+                tileSize: 256,
+                maxzoom: 6,
+                attribution: "NASA GIBS / SMAP L4",
+              },
+              "gibs-ndvi": {
+                type: "raster",
+                tiles: [
+                  "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI_8Day/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png",
+                ],
+                tileSize: 256,
+                maxzoom: 9,
+                attribution: "NASA GIBS / MODIS Terra NDVI",
+              },
               "terrain-dem": {
                 type: "raster-dem",
                 tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
@@ -135,6 +184,30 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
                 minzoom: 0,
                 maxzoom: 19,
                 layout: { visibility: "none" },
+              },
+              {
+                id: "gibs-viirs-tiles",
+                type: "raster",
+                source: "gibs-viirs",
+                minzoom: 0,
+                layout: { visibility: "none" },
+                paint: { "raster-opacity": 0.94 },
+              },
+              {
+                id: "gibs-smap-tiles",
+                type: "raster",
+                source: "gibs-smap",
+                minzoom: 0,
+                layout: { visibility: "none" },
+                paint: { "raster-opacity": 0.62 },
+              },
+              {
+                id: "gibs-ndvi-tiles",
+                type: "raster",
+                source: "gibs-ndvi",
+                minzoom: 0,
+                layout: { visibility: "none" },
+                paint: { "raster-opacity": 0.62 },
               },
               {
                 id: "parcel-perimeter-line",
@@ -171,11 +244,18 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
 
         map.on("load", () => {
           if (!isMounted) return;
+          syncMapLayers(map, mapModeRef.current, gibsOverlayRef.current);
           try {
             map.setTerrain({ source: "terrain-dem", exaggeration: 1.6 });
           } catch {
             // Ignore if DEM tiles are unreachable offline
           }
+        });
+
+        map.on("error", (ev) => {
+          // Gracefully swallow offline raster/tile network errors so map interaction never stalls
+          const errEvt = ev as { sourceId?: string };
+          if (errEvt.sourceId) return;
         });
 
         map.on("move", () => {
@@ -315,23 +395,16 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
     return () => {
       isMounted = false;
     };
-  }, [goldenFields, onSelect]);
+  }, [goldenFields, onSelect, t]);
 
-  // Toggle map layers (Satellite vs Street Map)
+  // Toggle map layers (Satellite vs Street Map + optional NASA GIBS context overlay)
   useEffect(() => {
-    if (mapInstance.current && mapInstance.current.isStyleLoaded()) {
-      mapInstance.current.setLayoutProperty(
-        "satellite-tiles",
-        "visibility",
-        mapMode === "satellite" ? "visible" : "none"
-      );
-      mapInstance.current.setLayoutProperty(
-        "osm-tiles",
-        "visibility",
-        mapMode === "osm" ? "visible" : "none"
-      );
+    mapModeRef.current = mapMode;
+    gibsOverlayRef.current = gibsOverlay;
+    if (mapInstance.current) {
+      syncMapLayers(mapInstance.current, mapMode, gibsOverlay);
     }
-  }, [mapMode]);
+  }, [mapMode, gibsOverlay]);
 
   // Toggle 3D pitch vs 2D nadir
   useEffect(() => {
@@ -413,7 +486,7 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
       <div ref={mapContainer} className="w-full h-full bg-stone-950 cursor-crosshair" />
 
       {/* Top Left: Cartographic & 3D Swath Controls */}
-      <div className="absolute top-3 left-3 glass-strong p-1 rounded-xl border border-line shadow-md flex flex-wrap items-center gap-1 z-10 text-[11px] font-mono">
+      <div className="absolute top-3 left-3 max-w-[calc(100%-3.5rem)] glass-strong p-1 rounded-xl border border-line shadow-md flex flex-wrap items-center gap-1 z-10 text-[11px] font-mono">
         <button
           type="button"
           onClick={() => setMapMode("satellite")}
@@ -438,6 +511,31 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
           <Layers className="w-3.5 h-3.5" />
           <span>{t("map.topoStreet")}</span>
         </button>
+
+        <select
+          aria-label={t("map.gibsLabel")}
+          title={t("map.gibsTitle")}
+          value={gibsOverlay}
+          onChange={(e) => setGibsOverlay(e.target.value as GibsOverlayMode)}
+          className={`px-2 py-1.5 rounded-lg font-semibold transition-all cursor-pointer outline-none ${
+            gibsOverlay !== "none"
+              ? "bg-violet-500/20 text-violet-300 border border-violet-500/40"
+              : "bg-transparent text-muted hover:text-foreground hover:bg-foreground/5 border border-transparent"
+          }`}
+        >
+          <option value="none" className="bg-stone-900 text-stone-100">
+            {t("map.gibsOff")}
+          </option>
+          <option value="smap" className="bg-stone-900 text-stone-100">
+            {t("map.gibsSmap")}
+          </option>
+          <option value="ndvi" className="bg-stone-900 text-stone-100">
+            {t("map.gibsNdvi")}
+          </option>
+          <option value="viirs" className="bg-stone-900 text-stone-100">
+            {t("map.gibsViirs")}
+          </option>
+        </select>
 
         <span className="h-4 w-[1px] bg-line mx-0.5" />
 
@@ -488,6 +586,7 @@ export function FieldMap({ selectedField, goldenFields, onSelect }: FieldMapProp
       <div className="absolute top-28 right-3 glass-strong px-2.5 py-1.5 rounded-lg border border-line text-[10px] font-mono text-muted pointer-events-none hidden sm:flex flex-col items-end gap-0.5 z-10">
         <span>{t("map.cameraHud", { zoom: cameraHud.zoom, pitch: cameraHud.pitch, bearing: cameraHud.bearing })}</span>
         <span className="text-emerald-400">{t("map.terrainBadge")}</span>
+        {gibsOverlay !== "none" && <span className="text-violet-300">{t("map.gibsContextOnly")}</span>}
       </div>
 
       {/* Bottom Floating Telemetry Bar */}

@@ -1,0 +1,38 @@
+id: sugar_beet
+name: Sugar Beet
+family: amaranthaceae
+group: tuber
+season_type: [cool, warm]
+gdd_to_maturity: 2200
+base_temp_c: 5
+optimal_temp_c: [15, 25]
+max_temp_c: 34
+min_temp_c: 2
+duration_days: [150, 200]
+water_requirement_mm: [550, 750]
+kc: [0.35, 1.20, 0.70]
+root_depth_m: 1.2
+drought_tolerance: 3
+heat_tolerance: 2
+waterlogging_tolerance: 2
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 140
+residue_t_ha: 4.5
+residue_cn_ratio: 22
+typical_yield_t_ha: [65.0, 88.0]
+ph_range: [6.2, 8.2]
+lethal_frost_c: -3.0
+cultivar_profiles:
+  maritime_europe:
+    typical_yield_t_ha: [75.0, 92.0]
+    duration_days: [170, 210]
+    notes: "France Beauce/Picardie betterave sucriere (~82 t/ha fresh roots ~16-18% sugar; Agreste/ITB)."
+  temperate_high_input:
+    typical_yield_t_ha: [62.0, 78.0]
+    duration_days: [150, 180]
+    notes: "US Red River Valley/Plains sugar beet (USDA NASS)."
+aquacrop_name: SugarBeet
+good_predecessors: [wheat_winter, barley, oats, triticale]
+bad_predecessors: [sugar_beet, rapeseed_canola]
+notes: "Deep-rooting spring-sown industrial root crop requiring >=3 year break for beet cyst nematode suppression."
+sources: ["FAO-56 Table 12 (sugar beet Kc=0.35, 1.20, 0.70)", "Agreste Betterave Sucriere", "ITB France"]

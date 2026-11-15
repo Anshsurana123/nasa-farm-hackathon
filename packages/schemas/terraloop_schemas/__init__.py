@@ -6,9 +6,11 @@ modelling, optimisation, API, frontend). They are exported to JSON Schema
 """
 
 from .models import (
+    CalendarSlotSpec,
     ClimateSummary,
     CropFamily,
     CropSpec,
+    CultivarAdaptation,
     DataProvenance,
     FarmConstraints,
     FieldGeometry,
@@ -35,9 +37,11 @@ from .models import (
 )
 
 __all__ = [
+    "CalendarSlotSpec",
     "ClimateSummary",
     "CropFamily",
     "CropSpec",
+    "CultivarAdaptation",
     "DataProvenance",
     "FarmConstraints",
     "FieldGeometry",

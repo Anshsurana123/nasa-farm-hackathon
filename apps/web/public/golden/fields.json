@@ -58,5 +58,55 @@
     "story": "Frost-free tropical delta with SW + NE monsoon bimodal rain\u2014replacing water-heavy double puddled paddy with DSR + rice-fallow blackgram (urad) and greengram (moong) pulses.",
     "baseline_rotation": "rice_puddled -> rice_puddled -> urad",
     "verified_cropland": true
+  },
+  {
+    "id": "us_corn_belt",
+    "name": "Ames (Story County), Iowa, USA",
+    "lat": 42.03,
+    "lon": -93.62,
+    "region": "US Midwest Corn\u2013Soybean Belt (USDA Heartland)",
+    "story": "Deep Mollisol prairie soil with cold continental winters (Dfa)\u2014evaluating corn\u2013soybean\u2013winter cereal/cover rotations, zero-till residue retention, and USDA NRCS EQIP nitrogen efficiency.",
+    "baseline_rotation": "maize -> soybean",
+    "verified_cropland": true
+  },
+  {
+    "id": "eu_maritime_west",
+    "name": "Chartres (Beauce / Eure-et-Loir), France",
+    "lat": 48.44,
+    "lon": 1.49,
+    "region": "Western European Maritime Arable Belt (Beauce)",
+    "story": "Deep fertile silt loam over Beauce limestone (Cfb)\u2014diversifying winter wheat\u2013colza sequences with protein legumes (field pea, faba bean) under EU CAP Eco-Schemes.",
+    "baseline_rotation": "wheat_winter -> rapeseed_canola",
+    "verified_cropland": true
+  },
+  {
+    "id": "brazil_cerrado",
+    "name": "Sorriso, Mato Grosso, Brazil",
+    "lat": -12.55,
+    "lon": -55.72,
+    "region": "Brazilian Cerrado (Soy\u2013Safrinha Corn Belt)",
+    "story": "Southern-hemisphere tropical savanna double-cropping hub (Aw) under no-till straw mulching (Sistema Plantio Direto) with Plano ABC+ biological N and Brachiaria cover relay.",
+    "baseline_rotation": "soybean -> maize",
+    "verified_cropland": true
+  },
+  {
+    "id": "east_africa_highlands",
+    "name": "Nakuru (Rift Valley), Kenya",
+    "lat": -0.3,
+    "lon": 36.07,
+    "region": "East African Highland Bimodal Belt (Rift Valley)",
+    "story": "Equatorial cool-tropical volcanic highland (Cfb, ~1,850 m) with Long & Short Rains\u2014balancing staple maize\u2013common bean nutrition, high-value Irish potato, and zero-till slope conservation under KCSAP.",
+    "baseline_rotation": "maize -> common_bean",
+    "verified_cropland": true
+  },
+  {
+    "id": "australia_wheat_belt",
+    "name": "Wagga Wagga (Riverina), NSW, Australia",
+    "lat": -35.12,
+    "lon": 147.37,
+    "region": "Australian Southern Grain Belt (Riverina NSW)",
+    "story": "Southern-hemisphere winter-dominant dryland belt (Cfa/Cfb)\u2014optimizing autumn-sown spring wheat, canola, and nitrogen-fixing lupin/chickpea break crops under GRDC conservation farming.",
+    "baseline_rotation": "wheat_spring",
+    "verified_cropland": true
   }
 ]

@@ -79,6 +79,7 @@ def rothc_lite(
     years: int = 10,
     dpm_rpm_ratio: float = 1.44,
     lat: float | None = None,
+    c_eq_t_ha_yr: float = 2.35,
 ) -> dict[str, list[float] | float]:
     """Simulate annual SOC stock (t C/ha, 0-30 cm) over N years using steady-state calibrated RothC-lite."""
     if soil is not None:
@@ -147,8 +148,8 @@ def rothc_lite(
         xi_months.append(a_t * b_m * c_cov)
     xi_bar = max(0.5, float(np.mean(xi_months)))
 
-    # Reference equilibrium input C_eq (~2.35 t C/ha/yr: conventional partial residue removal)
-    c_eq = 2.35
+    # Reference equilibrium input C_eq (regional steady state; default 2.35 t C/ha/yr for IGP)
+    c_eq = float(c_eq_t_ha_yr)
     dpm = min(0.08 * active_soc, (f_dpm_in * c_eq) / (10.0 * xi_bar))
     rpm = min(0.28 * active_soc, (f_rpm_in * c_eq) / (0.30 * xi_bar))
     bio = min(0.06 * active_soc, (f_bio * c_eq) / (0.66 * xi_bar))
@@ -230,6 +231,23 @@ _GRAIN_N_PCT: dict[str, float] = {
     "potato": 0.0035,
     "berseem": 0.004,
     "dhaincha": 0.0,
+    "wheat_winter": 0.019,
+    "wheat_spring": 0.021,
+    "oats": 0.019,
+    "triticale": 0.020,
+    "rice_japonica_temperate": 0.0125,
+    "rice_upland": 0.0125,
+    "rapeseed_canola": 0.032,
+    "sugar_beet": 0.0018,
+    "field_pea": 0.038,
+    "faba_bean": 0.041,
+    "lupin": 0.052,
+    "cassava": 0.0025,
+    "sweet_potato": 0.0028,
+    "rye_winter": 0.0,
+    "crimson_clover_vetch": 0.0,
+    "brachiaria_cover": 0.0,
+    "alfalfa": 0.014,
 }
 
 
@@ -256,7 +274,8 @@ def n_balance(
         if preceding_crop is not None:
             # 50% of fixed N is credited when legume haulm/residue is incorporated/retained, 35% if grain harvested & haulm removed
             ret_factor = 0.50 if residue_retained else 0.35
-            legume_credit = float(np.clip(preceding_crop.n_fixation_kg_ha * ret_factor, 15.0, 45.0))
+            max_credit = 90.0 if preceding_crop.n_fixation_kg_ha >= 140.0 else 45.0
+            legume_credit = float(np.clip(preceding_crop.n_fixation_kg_ha * ret_factor, 15.0, max_credit))
         else:
             legume_credit = 25.0
     else:
@@ -301,6 +320,7 @@ def soil_health_breakdown(
     erosion_t_ha_yr: float = 5.0,
     has_livestock: bool = False,
     soil: SoilSummary | None = None,
+    soc_ref_g_kg: float = 6.0,
 ) -> dict[str, float]:
     """Calculate component sub-scores and modifiers for the composite Soil Health Score (0-100).
 
@@ -421,7 +441,9 @@ def soil_health_breakdown(
     soil_cond_mod = 0.0
     if soil is not None:
         if soil.soc_g_per_kg is not None:
-            soc_diff = (soil.soc_g_per_kg - 6.0) / 4.0
+            ref = max(2.0, float(soc_ref_g_kg))
+            scale = 4.0 if abs(ref - 6.0) < 1e-6 else max(3.0, 0.5 * ref)
+            soc_diff = (soil.soc_g_per_kg - ref) / scale
             soil_cond_mod += float(np.clip(soc_diff * 3.0, -3.0, 3.0))
         if soil.ph is not None:
             if soil.ph < 6.0:
@@ -458,6 +480,7 @@ def soil_health_score(
     erosion_t_ha_yr: float = 5.0,
     has_livestock: bool = False,
     soil: SoilSummary | None = None,
+    soc_ref_g_kg: float = 6.0,
 ) -> float:
     """Calculate composite Soil Health Score (0-100) based on 5 USDA-NRCS principles + SOC & RUSLE."""
     return soil_health_breakdown(
@@ -467,4 +490,5 @@ def soil_health_score(
         erosion_t_ha_yr=erosion_t_ha_yr,
         has_livestock=has_livestock,
         soil=soil,
+        soc_ref_g_kg=soc_ref_g_kg,
     )["total_score"]

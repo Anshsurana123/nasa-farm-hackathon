@@ -1,5 +1,130 @@
 [
   {
+    "id": "alfalfa",
+    "name": "Alfalfa / Lucerne (perennial hay)",
+    "family": "fabaceae",
+    "group": "fodder",
+    "season_type": [
+      "warm",
+      "cool"
+    ],
+    "gdd_to_maturity": 1800.0,
+    "base_temp_c": 5.0,
+    "optimal_temp_c": [
+      15.0,
+      28.0
+    ],
+    "max_temp_c": 36.0,
+    "min_temp_c": -18.0,
+    "duration_days": [
+      140,
+      210
+    ],
+    "water_requirement_mm": [
+      650.0,
+      950.0
+    ],
+    "kc": [
+      0.4,
+      1.2,
+      1.15
+    ],
+    "root_depth_m": 1.8,
+    "drought_tolerance": 4,
+    "heat_tolerance": 3,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 180.0,
+    "n_demand_kg_ha": 0.0,
+    "residue_t_ha": 4.0,
+    "residue_cn_ratio": 16.0,
+    "typical_yield_t_ha": [
+      10.0,
+      16.0
+    ],
+    "ph_range": [
+      6.2,
+      8.2
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": true,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": -20.0,
+    "is_perennial": true,
+    "perennial_cuts_per_yr": 4,
+    "cultivar_profiles": {
+      "temperate_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          10.5,
+          14.5
+        ],
+        "duration_days": [
+          145,
+          175
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "US Midwest dormant hay alfalfa (3-4 cuts/yr DM equivalent; USDA NASS Iowa)."
+      },
+      "maritime_europe": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          11.0,
+          15.0
+        ],
+        "duration_days": [
+          160,
+          200
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "France Champagne/Beauce dehydrated lucerne (luzerne)."
+      },
+      "mediterranean_dryland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          8.0,
+          13.0
+        ],
+        "duration_days": [
+          160,
+          210
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": false,
+        "notes": "NSW Riverina irrigated/dryland pasture phase lucerne (NSW DPIRD)."
+      }
+    },
+    "aquacrop_name": "Alfalfa",
+    "good_predecessors": [
+      "oats",
+      "barley",
+      "wheat_spring",
+      "wheat_winter",
+      "maize"
+    ],
+    "bad_predecessors": [
+      "alfalfa",
+      "berseem"
+    ],
+    "notes": "Deep-rooted perennial legume (dry-matter hay yield across 3-4 cuts/yr) building deep SOC, subsoil structure, and supplying 150-200 kg N/ha credit for subsequent corn/wheat.",
+    "sources": [
+      "FAO-56 Table 12 (alfalfa hay Kc=0.40, 1.20, 1.15)",
+      "USDA NASS Alfalfa Hay",
+      "NSW DPIRD Lucerne"
+    ]
+  },
+  {
     "id": "barley",
     "name": "Barley",
     "family": "poaceae",
@@ -40,6 +165,76 @@
       3.5,
       4.5
     ],
+    "ph_range": [
+      5.8,
+      8.5
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "maritime_europe": {
+        "gdd_to_maturity": 1750.0,
+        "typical_yield_t_ha": [
+          6.4,
+          7.8
+        ],
+        "duration_days": [
+          150,
+          225
+        ],
+        "water_requirement_mm": [
+          350.0,
+          480.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": true,
+        "notes": "Beauce France winter/spring malting barley (Agreste/ARVALIS mean ~7.1 t/ha)."
+      },
+      "mediterranean_dryland": {
+        "gdd_to_maturity": 1550.0,
+        "typical_yield_t_ha": [
+          2.6,
+          3.8
+        ],
+        "duration_days": [
+          135,
+          165
+        ],
+        "water_requirement_mm": [
+          260.0,
+          380.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Southern Australia winter-sown feed/malting barley (ABARES/GRDC Riverina ~3.2 t/ha)."
+      },
+      "temperate_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          3.8,
+          5.2
+        ],
+        "duration_days": [
+          95,
+          115
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "US Upper Midwest spring malting barley (USDA NASS)."
+      }
+    },
     "aquacrop_name": "Barley",
     "good_predecessors": [
       "moong",
@@ -101,6 +296,18 @@
       3.5,
       5.0
     ],
+    "ph_range": [
+      5.2,
+      8.6
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
     "aquacrop_name": "PaddyRice",
     "good_predecessors": [
       "dhaincha",
@@ -154,6 +361,18 @@
       60.0,
       90.0
     ],
+    "ph_range": [
+      5.2,
+      8.6
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
     "aquacrop_name": null,
     "good_predecessors": [
       "maize",
@@ -170,6 +389,181 @@
       "PAU Package of Practices Rabi (fodder)",
       "FAO-56 Table 12 (clover)",
       "NDDB National Fodder Handbook"
+    ]
+  },
+  {
+    "id": "brachiaria_cover",
+    "name": "Brachiaria / Urochloa (tropical cover)",
+    "family": "poaceae",
+    "group": "cover",
+    "season_type": [
+      "warm",
+      "cool"
+    ],
+    "gdd_to_maturity": 1400.0,
+    "base_temp_c": 12.0,
+    "optimal_temp_c": [
+      22.0,
+      33.0
+    ],
+    "max_temp_c": 39.0,
+    "min_temp_c": 10.0,
+    "duration_days": [
+      80,
+      150
+    ],
+    "water_requirement_mm": [
+      300.0,
+      500.0
+    ],
+    "kc": [
+      0.4,
+      1.0,
+      0.85
+    ],
+    "root_depth_m": 1.6,
+    "drought_tolerance": 5,
+    "heat_tolerance": 5,
+    "waterlogging_tolerance": 3,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 0.0,
+    "residue_t_ha": 7.5,
+    "residue_cn_ratio": 48.0,
+    "typical_yield_t_ha": [
+      0.0,
+      0.0
+    ],
+    "ph_range": [
+      4.5,
+      7.8
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": 2.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "maize",
+      "soybean",
+      "rice_upland",
+      "cotton",
+      "sorghum"
+    ],
+    "bad_predecessors": [],
+    "notes": "Deep-rooting tropical Sistema Santa Fe / plantio direto mulch grass generating 7-10 t/ha straw biomass over dry season in Brazil Cerrado (EMBRAPA).",
+    "sources": [
+      "EMBRAPA Sistema Plantio Direto / Santa Fe",
+      "Plano ABC+ Mulch Cover Benchmarks"
+    ]
+  },
+  {
+    "id": "cassava",
+    "name": "Cassava (mandioca)",
+    "family": "euphorbiaceae",
+    "group": "tuber",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 3200.0,
+    "base_temp_c": 13.0,
+    "optimal_temp_c": [
+      24.0,
+      32.0
+    ],
+    "max_temp_c": 38.0,
+    "min_temp_c": 12.0,
+    "duration_days": [
+      240,
+      300
+    ],
+    "water_requirement_mm": [
+      650.0,
+      1100.0
+    ],
+    "kc": [
+      0.3,
+      0.95,
+      0.55
+    ],
+    "root_depth_m": 1.4,
+    "drought_tolerance": 5,
+    "heat_tolerance": 5,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 80.0,
+    "residue_t_ha": 4.5,
+    "residue_cn_ratio": 50.0,
+    "typical_yield_t_ha": [
+      15.0,
+      26.0
+    ],
+    "ph_range": [
+      4.5,
+      7.5
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": 1.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "tropical_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          18.0,
+          28.0
+        ],
+        "duration_days": [
+          240,
+          300
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Brazil Cerrado industrial/table mandioca (IBGE/EMBRAPA)."
+      },
+      "tropical_highland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          11.0,
+          18.0
+        ],
+        "duration_days": [
+          250,
+          300
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "East Africa mosaic-tolerant cassava (IITA/KALRO)."
+      }
+    },
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "common_bean",
+      "soybean",
+      "groundnut",
+      "maize"
+    ],
+    "bad_predecessors": [
+      "cassava",
+      "sweet_potato"
+    ],
+    "notes": "Ultra-drought-tolerant tropical carbohydrate staple yielding on acidic, low-fertility soils.",
+    "sources": [
+      "FAO-56 Table 12 (cassava)",
+      "IITA Cassava Reference",
+      "EMBRAPA Mandioca"
     ]
   },
   {
@@ -213,6 +607,36 @@
       1.0,
       1.8
     ],
+    "ph_range": [
+      6.0,
+      8.5
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "mediterranean_dryland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          1.4,
+          2.2
+        ],
+        "duration_days": [
+          125,
+          150
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Southern Australia Desi/Kabuli winter-sown chickpea (GRDC/ABARES)."
+      }
+    },
     "aquacrop_name": null,
     "good_predecessors": [
       "maize",
@@ -271,6 +695,53 @@
       0.8,
       1.8
     ],
+    "ph_range": [
+      5.5,
+      7.5
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "tropical_highland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          0.8,
+          1.3
+        ],
+        "duration_days": [
+          80,
+          100
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Kenya Nakuru Rosecoco/Nyota bimodal bush bean (KNBS/KALRO ~1.0 t/ha)."
+      },
+      "tropical_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          1.8,
+          2.8
+        ],
+        "duration_days": [
+          80,
+          95
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Brazil Cerrado feijao-carioca 3a safra/irrigated (CONAB)."
+      }
+    },
     "aquacrop_name": null,
     "good_predecessors": [
       "maize",
@@ -332,6 +803,56 @@
       1.5,
       2.5
     ],
+    "ph_range": [
+      5.5,
+      8.5
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "tropical_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          3.8,
+          4.6
+        ],
+        "duration_days": [
+          160,
+          185
+        ],
+        "water_requirement_mm": [
+          700.0,
+          1100.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Mato Grosso Cerrado high-input cotton (seed-cotton ~4.2 t/ha, ~1.75 t/ha lint; IMEA/CONAB)."
+      },
+      "temperate_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          2.4,
+          3.4
+        ],
+        "duration_days": [
+          145,
+          175
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "US Southern upland cotton (seed-cotton equivalent)."
+      }
+    },
     "aquacrop_name": "Cotton",
     "good_predecessors": [
       "wheat",
@@ -344,6 +865,79 @@
     "sources": [
       "FAO-56 Table 12",
       "PAU Package of Practices Kharif"
+    ]
+  },
+  {
+    "id": "crimson_clover_vetch",
+    "name": "Crimson Clover / Hairy Vetch (N cover)",
+    "family": "fabaceae",
+    "group": "cover",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 1100.0,
+    "base_temp_c": 4.0,
+    "optimal_temp_c": [
+      10.0,
+      23.0
+    ],
+    "max_temp_c": 32.0,
+    "min_temp_c": -14.0,
+    "duration_days": [
+      80,
+      195
+    ],
+    "water_requirement_mm": [
+      200.0,
+      350.0
+    ],
+    "kc": [
+      0.4,
+      1.05,
+      0.85
+    ],
+    "root_depth_m": 0.9,
+    "drought_tolerance": 3,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 2,
+    "n_fixation_kg_ha": 95.0,
+    "n_demand_kg_ha": 0.0,
+    "residue_t_ha": 4.2,
+    "residue_cn_ratio": 15.0,
+    "typical_yield_t_ha": [
+      0.0,
+      0.0
+    ],
+    "ph_range": [
+      5.5,
+      7.8
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": true,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": -18.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "maize",
+      "wheat_winter",
+      "wheat_spring",
+      "barley",
+      "oats",
+      "rapeseed_canola"
+    ],
+    "bad_predecessors": [
+      "crimson_clover_vetch",
+      "alfalfa",
+      "berseem"
+    ],
+    "notes": "Temperate overwintering legume cover crop (or autumn catch-crop in EU) supplying 80-110 kg N/ha biologically fixed nitrogen to spring maize.",
+    "sources": [
+      "USDA-SARE Managing Cover Crops Profitably",
+      "ARVALIS Intercultures"
     ]
   },
   {
@@ -387,6 +981,18 @@
       0.0,
       0.0
     ],
+    "ph_range": [
+      5.2,
+      8.6
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
     "aquacrop_name": null,
     "good_predecessors": [
       "wheat",
@@ -399,6 +1005,259 @@
       "PAU Package of Practices Kharif (green manuring)",
       "ICAR Handbook of Agriculture",
       "FAO Soils Bulletin 65 (green manuring)"
+    ]
+  },
+  {
+    "id": "faba_bean",
+    "name": "Faba Bean (fevrole)",
+    "family": "fabaceae",
+    "group": "legume",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 1550.0,
+    "base_temp_c": 2.0,
+    "optimal_temp_c": [
+      10.0,
+      22.0
+    ],
+    "max_temp_c": 30.0,
+    "min_temp_c": -8.0,
+    "duration_days": [
+      120,
+      185
+    ],
+    "water_requirement_mm": [
+      320.0,
+      480.0
+    ],
+    "kc": [
+      0.4,
+      1.15,
+      0.3
+    ],
+    "root_depth_m": 1.0,
+    "drought_tolerance": 3,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 3,
+    "n_fixation_kg_ha": 95.0,
+    "n_demand_kg_ha": 15.0,
+    "residue_t_ha": 3.5,
+    "residue_cn_ratio": 22.0,
+    "typical_yield_t_ha": [
+      2.6,
+      4.4
+    ],
+    "ph_range": [
+      6.0,
+      8.5
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": -10.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "maritime_europe": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          3.4,
+          4.8
+        ],
+        "duration_days": [
+          145,
+          200
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "France spring/winter fevrole (Agreste/Terres Inovia)."
+      },
+      "mediterranean_dryland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          1.8,
+          3.0
+        ],
+        "duration_days": [
+          140,
+          175
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Riverina NSW alkaline clay faba bean (GRDC/ABARES)."
+      }
+    },
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "wheat_winter",
+      "wheat_spring",
+      "barley",
+      "oats",
+      "maize"
+    ],
+    "bad_predecessors": [
+      "faba_bean",
+      "field_pea",
+      "lentil",
+      "chickpea"
+    ],
+    "notes": "High N-fixing cool-season legume tolerating heavier wet/clay soils better than chickpea or field pea.",
+    "sources": [
+      "FAO-56 Table 12 (faba bean)",
+      "Terres Inovia Feverole",
+      "GRDC Faba Bean Southern Region"
+    ]
+  },
+  {
+    "id": "field_pea",
+    "name": "Field Pea (dry pea)",
+    "family": "fabaceae",
+    "group": "legume",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 1200.0,
+    "base_temp_c": 4.0,
+    "optimal_temp_c": [
+      12.0,
+      22.0
+    ],
+    "max_temp_c": 30.0,
+    "min_temp_c": -6.0,
+    "duration_days": [
+      90,
+      140
+    ],
+    "water_requirement_mm": [
+      280.0,
+      420.0
+    ],
+    "kc": [
+      0.4,
+      1.15,
+      0.3
+    ],
+    "root_depth_m": 0.9,
+    "drought_tolerance": 3,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 75.0,
+    "n_demand_kg_ha": 20.0,
+    "residue_t_ha": 2.5,
+    "residue_cn_ratio": 20.0,
+    "typical_yield_t_ha": [
+      2.2,
+      3.6
+    ],
+    "ph_range": [
+      5.8,
+      8.2
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": -8.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "maritime_europe": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          3.0,
+          4.2
+        ],
+        "duration_days": [
+          110,
+          145
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "France spring/winter proteaginous field pea (pois proteagineux; Agreste/Terres Inovia ~3.5 t/ha)."
+      },
+      "mediterranean_dryland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          1.5,
+          2.4
+        ],
+        "duration_days": [
+          130,
+          155
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Southern Australia winter-sown dun/kaspa field pea (GRDC/ABARES)."
+      },
+      "temperate_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          2.2,
+          3.2
+        ],
+        "duration_days": [
+          90,
+          110
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "North America dry yellow pea."
+      },
+      "tropical_highland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          1.2,
+          2.0
+        ],
+        "duration_days": [
+          95,
+          120
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "East Africa cool-highland garden/field pea (KALRO)."
+      }
+    },
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "wheat_winter",
+      "wheat_spring",
+      "barley",
+      "maize",
+      "oats"
+    ],
+    "bad_predecessors": [
+      "field_pea",
+      "faba_bean",
+      "lentil",
+      "chickpea",
+      "lupin"
+    ],
+    "notes": "Cool-season N-fixing pulse break crop improving first-wheat yields via Rhizobium credit and disease break.",
+    "sources": [
+      "FAO-56 Table 12 (peas Kc=0.40, 1.15, 0.30)",
+      "Terres Inovia Pois",
+      "GRDC Field Pea"
     ]
   },
   {
@@ -442,6 +1301,18 @@
       1.5,
       2.2
     ],
+    "ph_range": [
+      5.2,
+      8.6
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
     "aquacrop_name": "Soybean",
     "good_predecessors": [
       "wheat",
@@ -501,6 +1372,36 @@
       1.0,
       1.5
     ],
+    "ph_range": [
+      6.0,
+      8.5
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "mediterranean_dryland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          1.2,
+          1.9
+        ],
+        "duration_days": [
+          130,
+          155
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Southern Australia winter-sown red/green lentil (GRDC)."
+      }
+    },
     "aquacrop_name": null,
     "good_predecessors": [
       "maize",
@@ -518,6 +1419,131 @@
       "FAO-56 Table 12 (lentil)",
       "PAU Package of Practices Rabi",
       "ICARDA Lentil Production Guidelines"
+    ]
+  },
+  {
+    "id": "lupin",
+    "name": "Lupin (narrow-leafed / white)",
+    "family": "fabaceae",
+    "group": "legume",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 1600.0,
+    "base_temp_c": 3.0,
+    "optimal_temp_c": [
+      12.0,
+      22.0
+    ],
+    "max_temp_c": 31.0,
+    "min_temp_c": -4.0,
+    "duration_days": [
+      130,
+      175
+    ],
+    "water_requirement_mm": [
+      280.0,
+      420.0
+    ],
+    "kc": [
+      0.4,
+      1.15,
+      0.3
+    ],
+    "root_depth_m": 1.3,
+    "drought_tolerance": 4,
+    "heat_tolerance": 3,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 90.0,
+    "n_demand_kg_ha": 15.0,
+    "residue_t_ha": 3.0,
+    "residue_cn_ratio": 22.0,
+    "typical_yield_t_ha": [
+      1.3,
+      2.2
+    ],
+    "ph_range": [
+      4.5,
+      6.8
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": -6.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "mediterranean_dryland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          1.3,
+          2.1
+        ],
+        "duration_days": [
+          140,
+          175
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Southern Australia narrow-leafed lupin on acidic sandy loams (ABARES/GRDC Riverina ~1.6 t/ha)."
+      },
+      "tropical_highland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          1.4,
+          2.3
+        ],
+        "duration_days": [
+          130,
+          160
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "East Africa high-altitude white/Andean lupin."
+      },
+      "maritime_europe": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          2.2,
+          3.2
+        ],
+        "duration_days": [
+          135,
+          165
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "France spring white lupin (Terres Inovia)."
+      }
+    },
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "wheat_spring",
+      "wheat_winter",
+      "barley",
+      "oats",
+      "rye_winter"
+    ],
+    "bad_predecessors": [
+      "lupin",
+      "field_pea",
+      "faba_bean"
+    ],
+    "notes": "Deep-taproot acid-soil pulse fixing ~90 kg N/ha and unlocking soil P via proteoid cluster roots.",
+    "sources": [
+      "FAO-56 Table 12 (pulses)",
+      "GRDC Lupin GrowNotes Southern Region",
+      "ABARES"
     ]
   },
   {
@@ -561,6 +1587,113 @@
       3.8,
       5.8
     ],
+    "ph_range": [
+      5.5,
+      7.8
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "temperate_high_input": {
+        "gdd_to_maturity": 1450.0,
+        "typical_yield_t_ha": [
+          11.0,
+          13.5
+        ],
+        "duration_days": [
+          120,
+          145
+        ],
+        "water_requirement_mm": [
+          500.0,
+          680.0
+        ],
+        "kc": null,
+        "min_temp_c": 8.0,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "US Midwest 105-115 CRM dent hybrid (USDA NASS Story County IA 5-yr mean ~12.35 t/ha)."
+      },
+      "maritime_europe": {
+        "gdd_to_maturity": 1400.0,
+        "typical_yield_t_ha": [
+          8.0,
+          10.5
+        ],
+        "duration_days": [
+          130,
+          155
+        ],
+        "water_requirement_mm": [
+          450.0,
+          620.0
+        ],
+        "kc": null,
+        "min_temp_c": 8.0,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "France Beauce FAO 300-450 grain maize (Agreste/ARVALIS mean ~9.5 t/ha)."
+      },
+      "tropical_high_input": {
+        "gdd_to_maturity": 1550.0,
+        "typical_yield_t_ha": [
+          5.5,
+          8.2
+        ],
+        "duration_days": [
+          115,
+          135
+        ],
+        "water_requirement_mm": [
+          450.0,
+          620.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Brazil Cerrado safrinha second-crop hybrid after soybean (CONAB/IMEA Mato Grosso ~6.5 t/ha)."
+      },
+      "tropical_highland": {
+        "gdd_to_maturity": 1450.0,
+        "typical_yield_t_ha": [
+          2.2,
+          3.6
+        ],
+        "duration_days": [
+          130,
+          165
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": 8.0,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "East Africa highland hybrid H614/H6213 (KNBS/KALRO Nakuru County ~2.6-3.0 t/ha)."
+      },
+      "mediterranean_dryland": {
+        "gdd_to_maturity": 1500.0,
+        "typical_yield_t_ha": [
+          8.0,
+          11.0
+        ],
+        "duration_days": [
+          115,
+          135
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Irrigated Riverina summer grain maize (NSW DPIRD)."
+      }
+    },
     "aquacrop_name": "Maize",
     "good_predecessors": [
       "soybean",
@@ -618,6 +1751,18 @@
       0.8,
       1.2
     ],
+    "ph_range": [
+      5.2,
+      8.6
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
     "aquacrop_name": null,
     "good_predecessors": [
       "wheat"
@@ -670,6 +1815,18 @@
       1.5,
       2.0
     ],
+    "ph_range": [
+      5.5,
+      8.2
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
     "aquacrop_name": null,
     "good_predecessors": [
       "maize",
@@ -690,6 +1847,130 @@
     "sources": [
       "FAO-56 Table 12 (rapeseed/canola)",
       "PAU Package of Practices Rabi"
+    ]
+  },
+  {
+    "id": "oats",
+    "name": "Oats",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "cool",
+      "warm"
+    ],
+    "gdd_to_maturity": 1350.0,
+    "base_temp_c": 4.0,
+    "optimal_temp_c": [
+      12.0,
+      22.0
+    ],
+    "max_temp_c": 33.0,
+    "min_temp_c": -5.0,
+    "duration_days": [
+      100,
+      145
+    ],
+    "water_requirement_mm": [
+      300.0,
+      450.0
+    ],
+    "kc": [
+      0.3,
+      1.15,
+      0.25
+    ],
+    "root_depth_m": 1.0,
+    "drought_tolerance": 3,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 3,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 80.0,
+    "residue_t_ha": 4.5,
+    "residue_cn_ratio": 75.0,
+    "typical_yield_t_ha": [
+      2.6,
+      4.2
+    ],
+    "ph_range": [
+      5.0,
+      8.0
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": -6.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "temperate_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          3.0,
+          4.2
+        ],
+        "duration_days": [
+          95,
+          115
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "US Midwest spring oats nurse/grain crop (USDA NASS Iowa ~85 bu/ac = 3.05 t/ha)."
+      },
+      "maritime_europe": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          4.2,
+          5.6
+        ],
+        "duration_days": [
+          120,
+          145
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "NW Europe spring/winter oats."
+      },
+      "mediterranean_dryland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          2.2,
+          3.4
+        ],
+        "duration_days": [
+          130,
+          160
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Southern Australia milling/hay oats (NSW DPIRD)."
+      }
+    },
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "soybean",
+      "field_pea",
+      "faba_bean",
+      "maize",
+      "rapeseed_canola"
+    ],
+    "bad_predecessors": [
+      "oats"
+    ],
+    "notes": "Tolerates lower pH (down to 5.0) than wheat/barley and serves as an oat-clover nurse crop.",
+    "sources": [
+      "FAO-56 Table 12 (oats Kc=0.30, 1.15, 0.25)",
+      "USDA NASS Oats",
+      "ISU Ag Decision Maker A1-20"
     ]
   },
   {
@@ -733,6 +2014,18 @@
       1.5,
       2.5
     ],
+    "ph_range": [
+      5.2,
+      8.6
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
     "aquacrop_name": null,
     "good_predecessors": [
       "chickpea",
@@ -793,6 +2086,18 @@
       0.8,
       1.5
     ],
+    "ph_range": [
+      5.2,
+      8.6
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
     "aquacrop_name": null,
     "good_predecessors": [
       "wheat",
@@ -851,6 +2156,76 @@
       20.0,
       30.0
     ],
+    "ph_range": [
+      4.8,
+      7.0
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "maritime_europe": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          40.0,
+          52.0
+        ],
+        "duration_days": [
+          110,
+          140
+        ],
+        "water_requirement_mm": [
+          450.0,
+          620.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "NW Europe maincrop ware/starch potato (Agreste France ~45 t/ha)."
+      },
+      "temperate_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          38.0,
+          50.0
+        ],
+        "duration_days": [
+          105,
+          130
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "North America irrigated processing potato (USDA NASS)."
+      },
+      "tropical_highland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          11.0,
+          16.0
+        ],
+        "duration_days": [
+          95,
+          115
+        ],
+        "water_requirement_mm": [
+          380.0,
+          520.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Kenya Shangi / Dutch Robijn highland rainfed potato (KNBS/KALRO Nakuru ~13.5 t/ha)."
+      }
+    },
     "aquacrop_name": "Potato",
     "good_predecessors": [
       "maize",
@@ -865,6 +2240,137 @@
     "sources": [
       "FAO-56 Table 12",
       "PAU Package of Practices Vegetables"
+    ]
+  },
+  {
+    "id": "rapeseed_canola",
+    "name": "Rapeseed / Canola",
+    "family": "brassicaceae",
+    "group": "oilseed",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 1850.0,
+    "base_temp_c": 4.0,
+    "optimal_temp_c": [
+      10.0,
+      22.0
+    ],
+    "max_temp_c": 31.0,
+    "min_temp_c": -12.0,
+    "duration_days": [
+      155,
+      290
+    ],
+    "water_requirement_mm": [
+      320.0,
+      480.0
+    ],
+    "kc": [
+      0.35,
+      1.1,
+      0.35
+    ],
+    "root_depth_m": 1.4,
+    "drought_tolerance": 3,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 2,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 135.0,
+    "residue_t_ha": 4.2,
+    "residue_cn_ratio": 55.0,
+    "typical_yield_t_ha": [
+      2.2,
+      3.8
+    ],
+    "ph_range": [
+      5.6,
+      8.0
+    ],
+    "vernalization_required": true,
+    "vernalization_chill_days": 30,
+    "winter_dormancy": true,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": -14.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "maritime_europe": {
+        "gdd_to_maturity": 1950.0,
+        "typical_yield_t_ha": [
+          3.1,
+          3.9
+        ],
+        "duration_days": [
+          265,
+          295
+        ],
+        "water_requirement_mm": [
+          380.0,
+          500.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Beauce France winter colza (Agreste/Terres Inovia ~3.5 t/ha)."
+      },
+      "mediterranean_dryland": {
+        "gdd_to_maturity": 1700.0,
+        "typical_yield_t_ha": [
+          1.8,
+          2.5
+        ],
+        "duration_days": [
+          145,
+          175
+        ],
+        "water_requirement_mm": [
+          280.0,
+          420.0
+        ],
+        "kc": null,
+        "min_temp_c": -3.0,
+        "vernalization_required": false,
+        "winter_dormancy": false,
+        "notes": "Riverina NSW spring-habit Clearfield/TT canola (ABARES/GRDC ~2.1 t/ha)."
+      },
+      "temperate_high_input": {
+        "gdd_to_maturity": 1450.0,
+        "typical_yield_t_ha": [
+          2.1,
+          2.8
+        ],
+        "duration_days": [
+          105,
+          125
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": false,
+        "winter_dormancy": false,
+        "notes": "North America spring canola."
+      }
+    },
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "wheat_winter",
+      "wheat_spring",
+      "barley",
+      "wheat",
+      "oats"
+    ],
+    "bad_predecessors": [
+      "rapeseed_canola",
+      "mustard",
+      "sunflower"
+    ],
+    "notes": "High-value Brassica break crop interrupting cereal take-all and eyespot disease cycles.",
+    "sources": [
+      "FAO-56 Table 12 (rapeseed/canola)",
+      "Agreste / Terres Inovia Colza",
+      "GRDC Canola GrowNotes"
     ]
   },
   {
@@ -908,6 +2414,18 @@
       5.5,
       7.0
     ],
+    "ph_range": [
+      5.2,
+      8.6
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
     "aquacrop_name": "PaddyRice",
     "good_predecessors": [
       "dhaincha",
@@ -918,6 +2436,114 @@
     "sources": [
       "PAU Package of Practices Kharif",
       "FAO-56 Table 12"
+    ]
+  },
+  {
+    "id": "rice_japonica_temperate",
+    "name": "Rice (temperate japonica, flooded/AWD)",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1950.0,
+    "base_temp_c": 10.0,
+    "optimal_temp_c": [
+      20.0,
+      30.0
+    ],
+    "max_temp_c": 36.0,
+    "min_temp_c": 10.0,
+    "duration_days": [
+      125,
+      155
+    ],
+    "water_requirement_mm": [
+      700.0,
+      1100.0
+    ],
+    "kc": [
+      1.05,
+      1.2,
+      0.85
+    ],
+    "root_depth_m": 0.6,
+    "drought_tolerance": 1,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 5,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 140.0,
+    "residue_t_ha": 5.5,
+    "residue_cn_ratio": 65.0,
+    "typical_yield_t_ha": [
+      6.0,
+      9.5
+    ],
+    "ph_range": [
+      5.0,
+      7.8
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": 0.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "mediterranean_dryland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          8.5,
+          11.0
+        ],
+        "duration_days": [
+          135,
+          160
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Murrumbidgee/Riverina irrigated japonica medium-grain rice (NSW DPIRD)."
+      },
+      "maritime_europe": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          6.0,
+          8.2
+        ],
+        "duration_days": [
+          130,
+          150
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Camargue/Po Valley Mediterranean japonica paddy rice."
+      }
+    },
+    "aquacrop_name": "PaddyRice",
+    "good_predecessors": [
+      "wheat_winter",
+      "barley",
+      "crimson_clover_vetch",
+      "alfalfa",
+      "faba_bean"
+    ],
+    "bad_predecessors": [
+      "rice_japonica_temperate",
+      "rice_puddled",
+      "rice_dsr"
+    ],
+    "notes": "Temperate-photoperiod japonica paddy rice for warm temperate deltas and Murray-Murrumbidgee irrigation.",
+    "sources": [
+      "FAO-56 Table 12 (rice)",
+      "NSW DPIRD Rice Growing Guide",
+      "Ente Nazionale Risi"
     ]
   },
   {
@@ -961,6 +2587,18 @@
       6.0,
       7.5
     ],
+    "ph_range": [
+      5.2,
+      8.6
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
     "aquacrop_name": "PaddyRice",
     "good_predecessors": [
       "dhaincha",
@@ -1015,6 +2653,18 @@
       5.5,
       6.8
     ],
+    "ph_range": [
+      5.2,
+      8.6
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
     "aquacrop_name": "PaddyRice",
     "good_predecessors": [
       "dhaincha",
@@ -1027,6 +2677,181 @@
       "PAU Package of Practices Kharif (PR-126)",
       "FAO-56 Table 12",
       "Punjab Preservation of Subsoil Water Act 2009"
+    ]
+  },
+  {
+    "id": "rice_upland",
+    "name": "Upland Rice (aerobic tropical)",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1700.0,
+    "base_temp_c": 10.0,
+    "optimal_temp_c": [
+      22.0,
+      32.0
+    ],
+    "max_temp_c": 38.0,
+    "min_temp_c": 12.0,
+    "duration_days": [
+      95,
+      130
+    ],
+    "water_requirement_mm": [
+      450.0,
+      680.0
+    ],
+    "kc": [
+      0.35,
+      1.15,
+      0.65
+    ],
+    "root_depth_m": 0.75,
+    "drought_tolerance": 3,
+    "heat_tolerance": 3,
+    "waterlogging_tolerance": 3,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 90.0,
+    "residue_t_ha": 4.0,
+    "residue_cn_ratio": 65.0,
+    "typical_yield_t_ha": [
+      2.4,
+      3.8
+    ],
+    "ph_range": [
+      4.8,
+      7.2
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": 2.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "tropical_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          2.8,
+          4.0
+        ],
+        "duration_days": [
+          100,
+          125
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Brazil Cerrado terras altas BRS Esmeralda/Sertaneja upland rice (CONAB/EMBRAPA)."
+      },
+      "tropical_highland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          2.0,
+          3.2
+        ],
+        "duration_days": [
+          105,
+          130
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "East Africa NERICA upland aerobic rice (AfricaRice/KALRO)."
+      }
+    },
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "soybean",
+      "common_bean",
+      "brachiaria_cover",
+      "dhaincha"
+    ],
+    "bad_predecessors": [
+      "rice_upland",
+      "rice_puddled",
+      "rice_dsr"
+    ],
+    "notes": "Non-flooded aerobic rice adapted to acidic tropical Oxisols and Cerrado/NERICA rainfed systems.",
+    "sources": [
+      "FAO-56 upland rice Kc=(0.30-0.40, 1.15, 0.65)",
+      "EMBRAPA Arroz de Terras Altas",
+      "AfricaRice NERICA"
+    ]
+  },
+  {
+    "id": "rye_winter",
+    "name": "Winter Cereal Rye (cover / grain)",
+    "family": "poaceae",
+    "group": "cover",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 1400.0,
+    "base_temp_c": 0.0,
+    "optimal_temp_c": [
+      8.0,
+      20.0
+    ],
+    "max_temp_c": 32.0,
+    "min_temp_c": -26.0,
+    "duration_days": [
+      150,
+      215
+    ],
+    "water_requirement_mm": [
+      200.0,
+      340.0
+    ],
+    "kc": [
+      0.4,
+      1.05,
+      0.35
+    ],
+    "root_depth_m": 1.4,
+    "drought_tolerance": 5,
+    "heat_tolerance": 3,
+    "waterlogging_tolerance": 3,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 0.0,
+    "residue_t_ha": 5.0,
+    "residue_cn_ratio": 45.0,
+    "typical_yield_t_ha": [
+      0.0,
+      0.0
+    ],
+    "ph_range": [
+      4.8,
+      8.2
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": true,
+    "dormancy_temp_c": 0.0,
+    "lethal_frost_c": -30.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "maize",
+      "soybean",
+      "wheat_winter",
+      "sugar_beet",
+      "cotton"
+    ],
+    "bad_predecessors": [],
+    "notes": "Extreme winter-hardy cereal cover crop scavenging 30-55 kg residual NO3-N/ha over winter and suppressing erosion/weeds before spring soybean or maize (USDA-SARE / Midwest Cover Crops Council).",
+    "sources": [
+      "USDA-SARE Managing Cover Crops Profitably",
+      "FAO-56 Table 12 (winter cereals)"
     ]
   },
   {
@@ -1070,6 +2895,70 @@
       1.0,
       2.0
     ],
+    "ph_range": [
+      5.5,
+      8.5
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "tropical_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          3.2,
+          4.5
+        ],
+        "duration_days": [
+          105,
+          125
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Brazil Cerrado safrinha grain sorghum (CONAB MT)."
+      },
+      "mediterranean_dryland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          2.8,
+          4.4
+        ],
+        "duration_days": [
+          110,
+          130
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "NSW summer grain sorghum (NSW DPIRD)."
+      },
+      "tropical_highland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          1.5,
+          2.6
+        ],
+        "duration_days": [
+          110,
+          135
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "East Africa mid-altitude sorghum (KALRO)."
+      }
+    },
     "aquacrop_name": "Sorghum",
     "good_predecessors": [
       "pigeon_pea",
@@ -1130,6 +3019,76 @@
       1.4,
       2.3
     ],
+    "ph_range": [
+      5.8,
+      7.5
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "temperate_high_input": {
+        "gdd_to_maturity": 1350.0,
+        "typical_yield_t_ha": [
+          3.6,
+          4.4
+        ],
+        "duration_days": [
+          115,
+          135
+        ],
+        "water_requirement_mm": [
+          450.0,
+          620.0
+        ],
+        "kc": null,
+        "min_temp_c": 8.0,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "US Midwest Maturity Group II-III soybean (USDA NASS Story County IA ~4.0 t/ha)."
+      },
+      "tropical_high_input": {
+        "gdd_to_maturity": 1400.0,
+        "typical_yield_t_ha": [
+          3.3,
+          4.0
+        ],
+        "duration_days": [
+          105,
+          125
+        ],
+        "water_requirement_mm": [
+          450.0,
+          650.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Brazil Cerrado MG 6-8 safra soybean (IBGE/CONAB Sorriso MT 5-yr mean ~3.60 t/ha)."
+      },
+      "maritime_europe": {
+        "gdd_to_maturity": 1250.0,
+        "typical_yield_t_ha": [
+          2.4,
+          3.4
+        ],
+        "duration_days": [
+          120,
+          140
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": 8.0,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "France MG 00-0 early soybean (Terres Inovia)."
+      }
+    },
     "aquacrop_name": "Soybean",
     "good_predecessors": [
       "maize",
@@ -1144,6 +3103,113 @@
       "FAO-56 Table 12 (soybean)",
       "ICAR-IISR Indore Soybean Production Technology",
       "DES Ministry of Agriculture District Yield Statistics"
+    ]
+  },
+  {
+    "id": "sugar_beet",
+    "name": "Sugar Beet",
+    "family": "amaranthaceae",
+    "group": "tuber",
+    "season_type": [
+      "cool",
+      "warm"
+    ],
+    "gdd_to_maturity": 2200.0,
+    "base_temp_c": 5.0,
+    "optimal_temp_c": [
+      15.0,
+      25.0
+    ],
+    "max_temp_c": 34.0,
+    "min_temp_c": 2.0,
+    "duration_days": [
+      150,
+      200
+    ],
+    "water_requirement_mm": [
+      550.0,
+      750.0
+    ],
+    "kc": [
+      0.35,
+      1.2,
+      0.7
+    ],
+    "root_depth_m": 1.2,
+    "drought_tolerance": 3,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 2,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 140.0,
+    "residue_t_ha": 4.5,
+    "residue_cn_ratio": 22.0,
+    "typical_yield_t_ha": [
+      65.0,
+      88.0
+    ],
+    "ph_range": [
+      6.2,
+      8.2
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": -3.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "maritime_europe": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          75.0,
+          92.0
+        ],
+        "duration_days": [
+          170,
+          210
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "France Beauce/Picardie betterave sucriere (~82 t/ha fresh roots ~16-18% sugar; Agreste/ITB)."
+      },
+      "temperate_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          62.0,
+          78.0
+        ],
+        "duration_days": [
+          150,
+          180
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "US Red River Valley/Plains sugar beet (USDA NASS)."
+      }
+    },
+    "aquacrop_name": "SugarBeet",
+    "good_predecessors": [
+      "wheat_winter",
+      "barley",
+      "oats",
+      "triticale"
+    ],
+    "bad_predecessors": [
+      "sugar_beet",
+      "rapeseed_canola"
+    ],
+    "notes": "Deep-rooting spring-sown industrial root crop requiring >=3 year break for beet cyst nematode suppression.",
+    "sources": [
+      "FAO-56 Table 12 (sugar beet Kc=0.35, 1.20, 0.70)",
+      "Agreste Betterave Sucriere",
+      "ITB France"
     ]
   },
   {
@@ -1188,6 +3254,70 @@
       1.8,
       2.5
     ],
+    "ph_range": [
+      5.8,
+      8.2
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "temperate_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          1.8,
+          2.5
+        ],
+        "duration_days": [
+          105,
+          125
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "US Great Plains oilseed sunflower (USDA NASS)."
+      },
+      "maritime_europe": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          2.2,
+          2.9
+        ],
+        "duration_days": [
+          115,
+          135
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "France oilseed sunflower (Terres Inovia / Agreste)."
+      },
+      "tropical_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          1.5,
+          2.2
+        ],
+        "duration_days": [
+          95,
+          115
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Mato Grosso safrinha oilseed sunflower (CONAB)."
+      }
+    },
     "aquacrop_name": "Sunflower",
     "good_predecessors": [
       "potato",
@@ -1201,12 +3331,229 @@
       "mustard",
       "soybean"
     ],
-    "notes": "High-value spring oilseed (40-42% edible oil) cultivated widely across Punjab (hybrids PSH 1962, PSH 2080) sown late January-February after potato, sugarcane, or toria. Its vigorous taproot penetrates 1.5-2.0 m, actively scavenging subsoil moisture and residual nitrate leached from previous heavy-feeder crops. Requires 4-6 irrigations (350-500 mm); critical stages are buttoning and flowering. Sown before peak summer heat and harvested by mid-May, creating a lucrative bridge crop ahead of kharif maize or DSR. Requires pollinator visits (honeybees) for seed set; avoid rotating consecutively with mustard or sunflower due to Sclerotinia sclerotiorum stalk and head rot.",
+    "notes": "High-value spring oilseed (40-42% edible oil) cultivated widely across Punjab (hybrids PSH 1962, PSH 2080) sown late January-February after potato, rice, or toria. Its vigorous taproot penetrates 1.5-2.0 m, actively scavenging subsoil moisture and residual nitrate leached from previous heavy-feeder crops. Requires 4-6 irrigations (350-500 mm); critical stages are buttoning and flowering. Sown before peak summer heat and harvested by mid-May, creating a lucrative bridge crop ahead of kharif maize or DSR. Requires pollinator visits (honeybees) for seed set; avoid rotating consecutively with mustard or sunflower due to Sclerotinia sclerotiorum stalk and head rot.",
     "sources": [
       "FAO-56 Table 12 (sunflower)",
       "PAU Package of Practices for Crops of Punjab (Rabi / Spring)",
       "ICAR-IIOR Sunflower Production Technology",
       "FAO Crop Water Management: Sunflower"
+    ]
+  },
+  {
+    "id": "sweet_potato",
+    "name": "Sweet Potato",
+    "family": "convolvulaceae",
+    "group": "tuber",
+    "season_type": [
+      "warm"
+    ],
+    "gdd_to_maturity": 1850.0,
+    "base_temp_c": 12.0,
+    "optimal_temp_c": [
+      22.0,
+      30.0
+    ],
+    "max_temp_c": 36.0,
+    "min_temp_c": 10.0,
+    "duration_days": [
+      120,
+      150
+    ],
+    "water_requirement_mm": [
+      450.0,
+      680.0
+    ],
+    "kc": [
+      0.4,
+      1.15,
+      0.65
+    ],
+    "root_depth_m": 0.9,
+    "drought_tolerance": 4,
+    "heat_tolerance": 4,
+    "waterlogging_tolerance": 1,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 70.0,
+    "residue_t_ha": 3.0,
+    "residue_cn_ratio": 28.0,
+    "typical_yield_t_ha": [
+      12.0,
+      22.0
+    ],
+    "ph_range": [
+      4.8,
+      7.2
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": 0.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "tropical_highland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          10.0,
+          17.0
+        ],
+        "duration_days": [
+          120,
+          150
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "East Africa orange-fleshed vitamin-A biofortified sweet potato (CIP/KALRO)."
+      },
+      "tropical_high_input": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          16.0,
+          24.0
+        ],
+        "duration_days": [
+          115,
+          145
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Brazil tropical commercial sweet potato (EMBRAPA)."
+      }
+    },
+    "aquacrop_name": null,
+    "good_predecessors": [
+      "maize",
+      "common_bean",
+      "sorghum",
+      "soybean"
+    ],
+    "bad_predecessors": [
+      "sweet_potato",
+      "cassava",
+      "potato"
+    ],
+    "notes": "Fast-canopy tropical root crop offering rapid ground cover against intense monsoon erosion.",
+    "sources": [
+      "FAO-56 Table 12 (sweet potato)",
+      "CIP Sweetpotato Agronomy",
+      "USDA FoodData Central"
+    ]
+  },
+  {
+    "id": "triticale",
+    "name": "Triticale",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 1900.0,
+    "base_temp_c": 0.0,
+    "optimal_temp_c": [
+      10.0,
+      22.0
+    ],
+    "max_temp_c": 33.0,
+    "min_temp_c": -15.0,
+    "duration_days": [
+      165,
+      250
+    ],
+    "water_requirement_mm": [
+      360.0,
+      520.0
+    ],
+    "kc": [
+      0.4,
+      1.15,
+      0.3
+    ],
+    "root_depth_m": 1.4,
+    "drought_tolerance": 4,
+    "heat_tolerance": 3,
+    "waterlogging_tolerance": 2,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 120.0,
+    "residue_t_ha": 5.5,
+    "residue_cn_ratio": 78.0,
+    "typical_yield_t_ha": [
+      4.5,
+      6.8
+    ],
+    "ph_range": [
+      5.2,
+      8.2
+    ],
+    "vernalization_required": true,
+    "vernalization_chill_days": 30,
+    "winter_dormancy": true,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": -18.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "maritime_europe": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          5.8,
+          7.2
+        ],
+        "duration_days": [
+          230,
+          265
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "France winter triticale for feed/forage on lighter soils (Agreste)."
+      },
+      "mediterranean_dryland": {
+        "gdd_to_maturity": null,
+        "typical_yield_t_ha": [
+          2.8,
+          4.0
+        ],
+        "duration_days": [
+          145,
+          175
+        ],
+        "water_requirement_mm": null,
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": false,
+        "winter_dormancy": false,
+        "notes": "Australia dual-purpose spring triticale on acidic sandy loams."
+      }
+    },
+    "aquacrop_name": "Wheat",
+    "good_predecessors": [
+      "rapeseed_canola",
+      "field_pea",
+      "faba_bean",
+      "soybean",
+      "lupin"
+    ],
+    "bad_predecessors": [
+      "wheat_winter",
+      "wheat_spring",
+      "wheat",
+      "triticale",
+      "barley"
+    ],
+    "notes": "Wheat-rye hybrid combining rye's acid-soil/drought tolerance with higher grain yield.",
+    "sources": [
+      "FAO-56 Table 12 (winter cereals)",
+      "Agreste Cereals France",
+      "GRDC Triticale"
     ]
   },
   {
@@ -1250,6 +3597,18 @@
       0.9,
       1.4
     ],
+    "ph_range": [
+      5.2,
+      8.6
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {},
     "aquacrop_name": "Soybean",
     "good_predecessors": [
       "wheat",
@@ -1310,6 +3669,59 @@
       4.5,
       5.5
     ],
+    "ph_range": [
+      5.8,
+      8.2
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": null,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "mediterranean_dryland": {
+        "gdd_to_maturity": 1850.0,
+        "typical_yield_t_ha": [
+          2.5,
+          3.6
+        ],
+        "duration_days": [
+          145,
+          175
+        ],
+        "water_requirement_mm": [
+          280.0,
+          420.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Southern Australia winter-sown spring wheat (ABARES/GRDC Riverina NSW ~3.0 t/ha)."
+      },
+      "tropical_highland": {
+        "gdd_to_maturity": 1750.0,
+        "typical_yield_t_ha": [
+          2.4,
+          3.5
+        ],
+        "duration_days": [
+          120,
+          145
+        ],
+        "water_requirement_mm": [
+          350.0,
+          480.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Kenya Rift Valley highland spring wheat (KNBS/KALRO Nakuru)."
+      }
+    },
     "aquacrop_name": "Wheat",
     "good_predecessors": [
       "moong",
@@ -1330,6 +3742,284 @@
     "sources": [
       "FAO-56 Table 12",
       "PAU Package of Practices Rabi"
+    ]
+  },
+  {
+    "id": "wheat_spring",
+    "name": "Spring Wheat",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "cool",
+      "warm"
+    ],
+    "gdd_to_maturity": 1650.0,
+    "base_temp_c": 2.0,
+    "optimal_temp_c": [
+      12.0,
+      23.0
+    ],
+    "max_temp_c": 34.0,
+    "min_temp_c": -4.0,
+    "duration_days": [
+      105,
+      165
+    ],
+    "water_requirement_mm": [
+      300.0,
+      460.0
+    ],
+    "kc": [
+      0.3,
+      1.15,
+      0.3
+    ],
+    "root_depth_m": 1.2,
+    "drought_tolerance": 3,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 2,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 115.0,
+    "residue_t_ha": 4.0,
+    "residue_cn_ratio": 80.0,
+    "typical_yield_t_ha": [
+      2.8,
+      4.4
+    ],
+    "ph_range": [
+      5.8,
+      8.2
+    ],
+    "vernalization_required": false,
+    "vernalization_chill_days": 0,
+    "winter_dormancy": false,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": -6.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "mediterranean_dryland": {
+        "gdd_to_maturity": 1750.0,
+        "typical_yield_t_ha": [
+          2.5,
+          3.6
+        ],
+        "duration_days": [
+          145,
+          175
+        ],
+        "water_requirement_mm": [
+          260.0,
+          400.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Riverina NSW autumn-sown spring-habit bread wheat (ABARES/GRDC mean ~3.0 t/ha)."
+      },
+      "temperate_high_input": {
+        "gdd_to_maturity": 1550.0,
+        "typical_yield_t_ha": [
+          3.4,
+          4.6
+        ],
+        "duration_days": [
+          100,
+          120
+        ],
+        "water_requirement_mm": [
+          350.0,
+          480.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "US Northern Plains/Midwest spring wheat (USDA NASS)."
+      },
+      "tropical_highland": {
+        "gdd_to_maturity": 1700.0,
+        "typical_yield_t_ha": [
+          2.4,
+          3.5
+        ],
+        "duration_days": [
+          120,
+          145
+        ],
+        "water_requirement_mm": [
+          350.0,
+          480.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Kenya Nakuru Rift Valley highland wheat (KNBS/KALRO ~2.8 t/ha)."
+      }
+    },
+    "aquacrop_name": "Wheat",
+    "good_predecessors": [
+      "rapeseed_canola",
+      "lupin",
+      "field_pea",
+      "faba_bean",
+      "chickpea",
+      "lentil",
+      "soybean",
+      "potato"
+    ],
+    "bad_predecessors": [
+      "wheat_spring",
+      "wheat_winter",
+      "wheat",
+      "barley",
+      "oats",
+      "triticale"
+    ],
+    "notes": "Non-vernalizing spring-habit bread wheat sown in spring in high-latitude continental zones or autumn in mild Mediterranean/highland systems.",
+    "sources": [
+      "FAO-56 Table 12 (spring wheat)",
+      "ABARES / GRDC Riverina Benchmarks",
+      "KNBS Economic Survey"
+    ]
+  },
+  {
+    "id": "wheat_winter",
+    "name": "Winter Wheat",
+    "family": "poaceae",
+    "group": "cereal",
+    "season_type": [
+      "cool"
+    ],
+    "gdd_to_maturity": 2100.0,
+    "base_temp_c": 0.0,
+    "optimal_temp_c": [
+      10.0,
+      22.0
+    ],
+    "max_temp_c": 32.0,
+    "min_temp_c": -18.0,
+    "duration_days": [
+      235,
+      280
+    ],
+    "water_requirement_mm": [
+      450.0,
+      650.0
+    ],
+    "kc": [
+      0.4,
+      1.15,
+      0.3
+    ],
+    "root_depth_m": 1.5,
+    "drought_tolerance": 3,
+    "heat_tolerance": 2,
+    "waterlogging_tolerance": 2,
+    "n_fixation_kg_ha": 0.0,
+    "n_demand_kg_ha": 165.0,
+    "residue_t_ha": 5.5,
+    "residue_cn_ratio": 80.0,
+    "typical_yield_t_ha": [
+      6.0,
+      8.2
+    ],
+    "ph_range": [
+      5.8,
+      8.0
+    ],
+    "vernalization_required": true,
+    "vernalization_chill_days": 40,
+    "winter_dormancy": true,
+    "dormancy_temp_c": 2.0,
+    "lethal_frost_c": -20.0,
+    "is_perennial": false,
+    "perennial_cuts_per_yr": 1,
+    "cultivar_profiles": {
+      "maritime_europe": {
+        "gdd_to_maturity": 2150.0,
+        "typical_yield_t_ha": [
+          6.8,
+          8.2
+        ],
+        "duration_days": [
+          240,
+          275
+        ],
+        "water_requirement_mm": [
+          450.0,
+          620.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "France Beauce winter soft wheat (ble tendre d'hiver; Agreste/ARVALIS 5-yr mean ~7.3 t/ha)."
+      },
+      "temperate_high_input": {
+        "gdd_to_maturity": 1950.0,
+        "typical_yield_t_ha": [
+          4.5,
+          6.2
+        ],
+        "duration_days": [
+          250,
+          280
+        ],
+        "water_requirement_mm": [
+          420.0,
+          580.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "US Midwest/Plains hard/soft winter wheat (USDA NASS)."
+      },
+      "mediterranean_dryland": {
+        "gdd_to_maturity": 1900.0,
+        "typical_yield_t_ha": [
+          3.2,
+          4.8
+        ],
+        "duration_days": [
+          175,
+          215
+        ],
+        "water_requirement_mm": [
+          320.0,
+          460.0
+        ],
+        "kc": null,
+        "min_temp_c": null,
+        "vernalization_required": null,
+        "winter_dormancy": null,
+        "notes": "Early-sown Australian winter wheat (GRDC/NSW DPIRD)."
+      }
+    },
+    "aquacrop_name": "Wheat",
+    "good_predecessors": [
+      "rapeseed_canola",
+      "field_pea",
+      "faba_bean",
+      "soybean",
+      "potato",
+      "sugar_beet"
+    ],
+    "bad_predecessors": [
+      "wheat_winter",
+      "wheat_spring",
+      "wheat",
+      "barley",
+      "triticale"
+    ],
+    "notes": "Autumn-sown vernalizing wheat entering winter dormancy below 2 C and tolerating frost down to -20 C when hardened.",
+    "sources": [
+      "FAO-56 Table 12 (winter wheat Kc=0.40-0.70, 1.15, 0.25-0.40)",
+      "Agreste / ARVALIS Beauce Reference",
+      "USDA NASS Winter Wheat"
     ]
   }
 ]

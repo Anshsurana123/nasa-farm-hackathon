@@ -3,6 +3,8 @@ import type {
   FieldGeometry,
   FieldProfile,
   GoldenField,
+  ProfileJobStatus,
+  ProfileProgressStage,
   RecommendJobStatus,
   RecommendRequest,
   StrategyRecommendation,
@@ -10,6 +12,41 @@ import type {
   SuitabilityRequest,
   TacticalAdvisory,
 } from "@/types/api";
+
+export function isAbortError(err: unknown): boolean {
+  return (
+    (err instanceof DOMException && err.name === "AbortError") ||
+    (err instanceof Error && err.name === "AbortError")
+  );
+}
+
+class ApiHttpError extends Error {
+  status: number | null;
+  constructor(message: string, status: number | null) {
+    super(message);
+    this.status = status;
+  }
+}
+
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (!signal) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+  if (signal.aborted) {
+    return Promise.reject(new DOMException("Aborted", "AbortError"));
+  }
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
 import { adaptStrategiesForHorizon } from "@/lib/fallbackStrategies";
 import { attachFallbackMeteomatics, generateFallbackProfile } from "@/lib/fallbackProfile";
 
@@ -50,6 +87,9 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 25000): 
       backendError = String(errData.detail);
     }
   } catch (err) {
+    if (init?.signal?.aborted) {
+      throw err instanceof Error ? err : new DOMException("Aborted", "AbortError");
+    }
     if (err instanceof DOMException && err.name === "AbortError") {
       backendError = `Request timed out after ${Math.round(timeoutMs / 1000)}s`;
     }
@@ -60,15 +100,17 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 25000): 
 
   // Never mask validation (400/422), auth (401/403), not-found (404 on explicit lookup), or rate-limit (429) errors
   if (httpStatus !== null && httpStatus < 500 && !(httpStatus === 404 && path.startsWith("/geocode"))) {
-    throw new Error(backendError ?? `API request failed (${httpStatus})`);
+    throw new ApiHttpError(backendError ?? `API request failed (${httpStatus})`, httpStatus);
   }
+
+  const isGatewayOrOffline = httpStatus === null || httpStatus >= 502 || (httpStatus === 500 && !backendError);
 
   // Fallback to static public/golden data ONLY when backend is unreachable or 5xx on static demo endpoints
   if (path === "/golden") {
     const localRes = await fetch("/golden/fields.json");
     if (localRes.ok) return localRes.json() as Promise<T>;
   }
-  if (path === "/crops") {
+  if (path === "/crops" || path.startsWith("/crops?")) {
     const localRes = await fetch("/golden/crops.json");
     if (localRes.ok) return localRes.json() as Promise<T>;
   }
@@ -88,9 +130,9 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 25000): 
     if (localRes.ok) return localRes.json() as Promise<T>;
   }
 
-  // If live /recommend fails because backend API is unreachable (network/502/503/504),
+  // If live /recommend fails because backend API is unreachable (network/proxy timeout/502/503/504),
   // serve precomputed golden snapshot ONLY when field.id matches a golden demo AND no custom params/shocks were requested.
-  if (path === "/recommend" && (httpStatus === null || httpStatus >= 502) && init?.body) {
+  if (path === "/recommend" && isGatewayOrOffline && init?.body) {
     try {
       const reqBody = JSON.parse(init.body as string) as RecommendRequest;
       const fieldId = reqBody.field?.id;
@@ -126,7 +168,7 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 25000): 
 
   // If live /profile is unreachable offline, serve golden profile if field.id matches,
   // or generate location-calibrated regional fallback profile for custom parcels
-  if (path === "/profile" && (httpStatus === null || httpStatus >= 502) && init?.body) {
+  if (path === "/profile" && isGatewayOrOffline && init?.body) {
     try {
       const field = JSON.parse(init.body as string) as FieldGeometry;
       const fieldId = field?.id;
@@ -213,7 +255,7 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 25000): 
     throw new Error(`Location or address "${raw}" could not be found`);
   }
 
-  if (path.startsWith("/tactical-advisory") && (httpStatus === null || httpStatus >= 502)) {
+  if (path.startsWith("/tactical-advisory") && isGatewayOrOffline) {
     try {
       const qs = path.split("?")[1] ?? "";
       const qParams = new URLSearchParams(qs);
@@ -230,7 +272,7 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 25000): 
     }
   }
 
-  if (path === "/suitability" && (httpStatus === null || httpStatus >= 502) && init?.body) {
+  if (path === "/suitability" && isGatewayOrOffline && init?.body) {
     try {
       const sReq = JSON.parse(init.body as string) as SuitabilityRequest;
       const cropsRes = await fetch("/golden/crops.json");
@@ -263,8 +305,14 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 25000): 
               sReq.language === "pa"
                 ? `ਆਫ਼ਲਾਈਨ ਖੇਤਰੀ ਅਨੁਕੂਲਤਾ ਅੰਦਾਜ਼ਾ (${fitPct}% ਢੁਕਵਾਂ)`
                 : sReq.language === "hi"
-                ? `ऑफ़लाइन क्षेत्रीय उपयुक्तता अनुमान (${fitPct}% उपयुक्त)`
-                : `Offline regional suitability estimate (${fitPct}% fit)`;
+                  ? `ऑफ़लाइन क्षेत्रीय उपयुक्तता अनुमान (${fitPct}% उपयुक्त)`
+                  : sReq.language === "es"
+                    ? `Estimación regional de aptitud (${fitPct}% compatible)`
+                    : sReq.language === "pt"
+                      ? `Estimativa regional de aptidão (${fitPct}% compatível)`
+                      : sReq.language === "fr"
+                        ? `Estimation régionale d'aptitude (${fitPct}% adapté)`
+                        : `Offline regional suitability estimate (${fitPct}% fit)`;
             return {
               crop_id: c.id,
               name: c.name,
@@ -283,29 +331,116 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = 25000): 
     }
   }
 
-  throw new Error(backendError ?? `Failed to load ${path}`);
+  throw new ApiHttpError(backendError ?? `Failed to load ${path}`, httpStatus);
 }
 
 export const api = {
   goldenFields: () => request<GoldenField[]>("/golden"),
-  goldenProfile: (id: string) => request<FieldProfile>(`/golden/${id}/profile`),
+  goldenProfile: (id: string, signal?: AbortSignal) =>
+    request<FieldProfile>(`/golden/${id}/profile`, { signal }),
   goldenRecommendations: (id: string) =>
     request<StrategyRecommendation[]>(`/golden/${id}/recommendations`),
-  crops: () => request<CropSpec[]>("/crops"),
-  profile: (field: FieldGeometry) =>
-    request<FieldProfile>("/profile", { method: "POST", body: JSON.stringify(field) }, 45000),
+  crops: (lat?: number, lon?: number) =>
+    request<CropSpec[]>(lat !== undefined && lon !== undefined ? `/crops?lat=${lat}&lon=${lon}` : "/crops"),
+  profile: (field: FieldGeometry, signal?: AbortSignal) =>
+    request<FieldProfile>("/profile", { method: "POST", body: JSON.stringify(field), signal }, 60000),
+  profileAsync: (field: FieldGeometry, signal?: AbortSignal) =>
+    request<ProfileJobStatus>("/profile/async", { method: "POST", body: JSON.stringify(field), signal }, 50000),
+  getProfileJob: (jobId: string, signal?: AbortSignal) =>
+    request<ProfileJobStatus>(`/profile/jobs/${jobId}`, { signal }, 15000),
   suitability: (req: SuitabilityRequest) =>
     request<SuitabilityItem[]>("/suitability", { method: "POST", body: JSON.stringify(req) }, 35000),
-  recommend: (req: RecommendRequest) =>
-    request<StrategyRecommendation[]>("/recommend", { method: "POST", body: JSON.stringify(req) }, 50000),
-  recommendAsync: (req: RecommendRequest) =>
-    request<RecommendJobStatus>("/recommend/async", { method: "POST", body: JSON.stringify(req) }, 50000),
-  getRecommendJob: (jobId: string) =>
-    request<RecommendJobStatus>(`/recommend/jobs/${jobId}`, undefined, 10000),
+  recommend: (req: RecommendRequest, signal?: AbortSignal) =>
+    request<StrategyRecommendation[]>("/recommend", { method: "POST", body: JSON.stringify(req), signal }, 60000),
+  recommendAsync: (req: RecommendRequest, signal?: AbortSignal) =>
+    request<RecommendJobStatus>("/recommend/async", { method: "POST", body: JSON.stringify(req), signal }, 50000),
+  getRecommendJob: (jobId: string, signal?: AbortSignal) =>
+    request<RecommendJobStatus>(`/recommend/jobs/${jobId}`, { signal }, 15000),
   tacticalAdvisory: (lat: number, lon: number) =>
     request<TacticalAdvisory>(`/tactical-advisory?lat=${lat}&lon=${lon}`),
   geocode: (q: string) => request<import("@/types/api").GeocodeResult>(`/geocode?q=${encodeURIComponent(q)}`),
 };
+
+export type ProfileProgressCallback = (status: {
+  stage: ProfileProgressStage;
+  progressPct: number;
+}) => void;
+
+export async function profileWithProgress(
+  field: FieldGeometry,
+  onProgress?: ProfileProgressCallback,
+  signal?: AbortSignal
+): Promise<FieldProfile> {
+  let explicitFailure = false;
+  let asyncUnavailable = false;
+  try {
+    const job = await api.profileAsync(field, signal);
+    onProgress?.({
+      stage: (job.step || "region") as ProfileProgressStage,
+      progressPct: Math.round((job.progress ?? 0.1) * 100),
+    });
+
+    if (job.status === "completed" && job.result) {
+      onProgress?.({ stage: "done", progressPct: 100 });
+      return job.result;
+    }
+    if (job.status === "failed") {
+      explicitFailure = true;
+      throw new Error(job.error || "Profile build failed");
+    }
+
+    const maxWaitMs = 90000;
+    const startTime = Date.now();
+    while (Date.now() - startTime < maxWaitMs) {
+      await abortableSleep(450, signal);
+      let poll: ProfileJobStatus;
+      try {
+        poll = await api.getProfileJob(job.job_id, signal);
+      } catch (pollErr) {
+        if (isAbortError(pollErr) || signal?.aborted) {
+          throw pollErr;
+        }
+        if (pollErr instanceof ApiHttpError && pollErr.status === 404) {
+          asyncUnavailable = true;
+          throw pollErr;
+        }
+        throw pollErr;
+      }
+
+      onProgress?.({
+        stage: (poll.step || "satellite") as ProfileProgressStage,
+        progressPct: Math.round((poll.progress ?? 0.45) * 100),
+      });
+
+      if (poll.status === "completed" && poll.result) {
+        onProgress?.({ stage: "done", progressPct: 100 });
+        return poll.result;
+      }
+      if (poll.status === "failed") {
+        explicitFailure = true;
+        throw new Error(poll.error || "Profile build failed");
+      }
+    }
+    throw new Error("Profile build timed out");
+  } catch (err) {
+    if (isAbortError(err) || signal?.aborted || explicitFailure) {
+      throw err;
+    }
+    const status = err instanceof ApiHttpError ? err.status : null;
+    if (
+      asyncUnavailable ||
+      status === null ||
+      status === 404 ||
+      status === 405 ||
+      status >= 500
+    ) {
+      const res = await api.profile(field, signal);
+      onProgress?.({ stage: "done", progressPct: 100 });
+      return res;
+    }
+    throw err;
+  }
+}
 
 export type ProgressStage =
   | "profile"
@@ -326,11 +461,26 @@ export type ProgressCallback = (status: {
 
 export async function recommendWithProgress(
   req: RecommendRequest,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  signal?: AbortSignal
 ): Promise<StrategyRecommendation[]> {
   let simFailedExplicitly = false;
+  let asyncFallbackEligible = false;
   try {
-    const job = await api.recommendAsync(req);
+    let job: RecommendJobStatus;
+    try {
+      job = await api.recommendAsync(req, signal);
+    } catch (initErr) {
+      if (isAbortError(initErr) || signal?.aborted) {
+        throw initErr;
+      }
+      const status = initErr instanceof ApiHttpError ? initErr.status : null;
+      if (status === null || status === 404 || status === 405 || status >= 500) {
+        asyncFallbackEligible = true;
+      }
+      throw initErr;
+    }
+
     const jobId = job.job_id;
     try {
       if (typeof window !== "undefined" && window.sessionStorage) {
@@ -365,15 +515,26 @@ export async function recommendWithProgress(
       throw new Error(job.error || "Simulation job failed");
     }
 
-    const maxWaitMs = 45000;
-    const stallTimeoutMs = 20000;
+    const maxWaitMs = 150000;
+    const stallTimeoutMs = 60000;
     const startTime = Date.now();
     let lastProgressKey = `${job.stage || job.step || ""}:${job.progress_pct ?? job.progress ?? 0}`;
     let lastProgressAt = Date.now();
 
     while (Date.now() - startTime < maxWaitMs) {
-      await new Promise((r) => setTimeout(r, 400));
-      const poll = await api.getRecommendJob(jobId);
+      await abortableSleep(400, signal);
+      let poll: RecommendJobStatus;
+      try {
+        poll = await api.getRecommendJob(jobId, signal);
+      } catch (pollErr) {
+        if (isAbortError(pollErr) || signal?.aborted) {
+          throw pollErr;
+        }
+        if (pollErr instanceof ApiHttpError && pollErr.status === 404) {
+          asyncFallbackEligible = true;
+        }
+        throw pollErr;
+      }
 
       const stage = (poll.stage || poll.step || "simulating") as ProgressStage;
       const pct = Math.round(poll.progress_pct ?? (poll.progress ? poll.progress * 100 : 50));
@@ -403,9 +564,11 @@ export async function recommendWithProgress(
         throw new Error(poll.error || "Simulation job failed");
       }
       if (Date.now() - lastProgressAt > stallTimeoutMs) {
+        simFailedExplicitly = true;
         throw new Error("Simulation stalled");
       }
     }
+    simFailedExplicitly = true;
     throw new Error("Simulation timed out");
   } catch (err) {
     try {
@@ -413,17 +576,11 @@ export async function recommendWithProgress(
         sessionStorage.removeItem("terraloop_active_job_id");
       }
     } catch {}
-    // Re-throw real simulation errors instead of duplicating heavy compute; fall back to sync /recommend only
-    // when async endpoint or in-flight lambda job handle is unavailable (e.g. cold serverless hop / 404).
-    if (simFailedExplicitly) {
-      throw err;
-    }
-    const msg = err instanceof Error ? err.message : "";
-    if (/exceeded|rate limit|422|validation/i.test(msg)) {
+    if (isAbortError(err) || signal?.aborted || simFailedExplicitly || !asyncFallbackEligible) {
       throw err;
     }
     onProgress?.({ stage: "simulating", progressPct: 50 });
-    const res = await api.recommend(req);
+    const res = await api.recommend(req, signal);
     onProgress?.({ stage: "done", progressPct: 100 });
     return res;
   }

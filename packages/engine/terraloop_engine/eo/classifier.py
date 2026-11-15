@@ -122,3 +122,45 @@ def build_calibrated_phenology_classifier() -> PhenologyCropClassifier:
     clf = PhenologyCropClassifier()
     clf.fit(X_all, y_list)
     return clf
+
+
+@functools.lru_cache(maxsize=1)
+def build_global_phenology_classifier() -> PhenologyCropClassifier:
+    """Expanded multi-biome phenology classifier covering temperate winter/spring & tropical systems."""
+    rng = np.random.default_rng(108)
+    n = 60
+
+    X_list = []
+    y_list = []
+
+    # 1. Warm flooded / aerobic rice (NH monsoon/summer)
+    X_list.append(rng.normal([255, 180, 115, 0.78, 62.0], [10, 8, 10, 0.04, 6.0], (n, 5)))
+    y_list.extend(["rice"] * n)
+
+    # 2. Spring / subtropical wheat
+    X_list.append(rng.normal([60, 335, 135, 0.80, 68.0], [12, 10, 12, 0.05, 7.0], (n, 5)))
+    y_list.extend(["wheat"] * n)
+
+    # 3. Overwintering winter wheat (long ~225d cycle, May-Jun peak DOY ~150 NH)
+    X_list.append(rng.normal([150, 285, 220, 0.82, 95.0], [12, 10, 15, 0.04, 8.0], (n, 5)))
+    y_list.extend(["wheat_winter"] * n)
+
+    # 4. Temperate/tropical grain maize
+    X_list.append(rng.normal([215, 145, 115, 0.78, 56.0], [15, 12, 12, 0.05, 7.0], (n, 5)))
+    y_list.extend(["maize"] * n)
+
+    # 5. Soybean (temperate summer / Brazil safra)
+    X_list.append(rng.normal([225, 160, 105, 0.72, 48.0], [15, 12, 10, 0.05, 6.0], (n, 5)))
+    y_list.extend(["soybean"] * n)
+
+    # 6. Rapeseed / Canola (cool spring flower peak ~May / Sept SH)
+    X_list.append(rng.normal([125, 265, 210, 0.68, 72.0], [12, 12, 15, 0.06, 8.0], (n, 5)))
+    y_list.extend(["rapeseed_canola"] * n)
+
+    # 7. Short summer/catch pulse or cover crop
+    X_list.append(rng.normal([140, 100, 68, 0.56, 28.0], [10, 8, 8, 0.06, 5.0], (n, 5)))
+    y_list.extend(["pulse_cover"] * n)
+
+    clf = PhenologyCropClassifier()
+    clf.fit(np.vstack(X_list), y_list)
+    return clf

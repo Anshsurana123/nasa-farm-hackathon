@@ -20,6 +20,25 @@ n_demand_kg_ha: 80
 residue_t_ha: 4.0
 residue_cn_ratio: 80
 typical_yield_t_ha: [3.5, 4.5]
+ph_range: [5.8, 8.5]
+cultivar_profiles:
+  maritime_europe:
+    gdd_to_maturity: 1750
+    typical_yield_t_ha: [6.4, 7.8]
+    duration_days: [150, 225]
+    water_requirement_mm: [350, 480]
+    winter_dormancy: true
+    notes: "Beauce France winter/spring malting barley (Agreste/ARVALIS mean ~7.1 t/ha)."
+  mediterranean_dryland:
+    gdd_to_maturity: 1550
+    typical_yield_t_ha: [2.6, 3.8]
+    duration_days: [135, 165]
+    water_requirement_mm: [260, 380]
+    notes: "Southern Australia winter-sown feed/malting barley (ABARES/GRDC Riverina ~3.2 t/ha)."
+  temperate_high_input:
+    typical_yield_t_ha: [3.8, 5.2]
+    duration_days: [95, 115]
+    notes: "US Upper Midwest spring malting barley (USDA NASS)."
 aquacrop_name: Barley
 good_predecessors: [moong, soybean, mustard, chickpea, cotton, pearl_millet]
 bad_predecessors: [wheat, barley]

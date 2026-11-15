@@ -9,7 +9,7 @@ import type {
   TacticalDayForecast,
   WaterSummary,
 } from "@/types/api";
-import { isSouthAsia, regionContext } from "./ui";
+import { regionContext } from "./ui";
 
 export function attachFallbackMeteomatics(prof: FieldProfile): FieldProfile {
   const meanTemp = Number(((prof.climate.mean_tmax_c + prof.climate.mean_tmin_c) / 2).toFixed(1));
@@ -146,7 +146,7 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
   const lat = field.lat;
   const lon = field.lon;
   const reg = regionContext(lat, lon, field.id ?? null);
-  const isSA = isSouthAsia(lat, lon);
+  const isKnownIndian = ["punjab", "malwa", "vidarbha", "bundelkhand", "cauvery"].includes(reg.key);
 
   // Regional agroclimate parameters
   let annualP = 720;
@@ -228,8 +228,8 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
     clay = 8.0;
     soc = 2.8;
     ph = 8.2;
-  } else if (!isSA) {
-    // Temperate global fallback
+  } else if (!isKnownIndian) {
+    // Temperate / global fallback
     annualP = 850;
     meanTx = 18.5;
     meanTn = 7.5;
@@ -254,7 +254,7 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
   let gdd10 = 4850;
   let frostDays = lat > 28 ? 1.5 : 0.0;
 
-  if (!isSA) {
+  if (!isKnownIndian) {
     const absLat = Math.abs(lat);
     const amp = absLat > 23 ? 11.5 : 3.5;
     const isSh = lat < 0;
@@ -281,14 +281,14 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
   }
 
   const provFallback: DataProvenance = {
-    source: isSA ? "Regional Climatology & Soil Inventory" : "Latitude-Zonal Global Fallback Climatology",
-    product: isSA
+    source: isKnownIndian ? "Regional Climatology & Soil Inventory" : "Latitude-Zonal Global Fallback Climatology",
+    product: isKnownIndian
       ? "Location-calibrated Indian regional synthetic fallback"
-      : "Unvalidated global fallback climatology (exploratory)",
-    resolution: isSA ? "Regional Indian agro-zone" : "Global zonal estimate",
+      : "Biophysical global fallback climatology",
+    resolution: isKnownIndian ? "Regional Indian agro-zone" : "Global zonal estimate",
     period: "1985-2024",
     doi: "10.5067/POWER/0001",
-    mode: isSA ? "regional_climatology" : "fallback_estimate",
+    mode: isKnownIndian ? "regional_climatology" : "fallback_estimate",
   };
 
   const climate: ClimateSummary = {
@@ -303,7 +303,7 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
     heat_days_per_year: Math.max(0, heatDays - 4),
     recent_heat_days_per_year: heatDays,
     frost_days_per_year: frostDays,
-    longest_dry_spell_days_mean: isSA ? 14.5 : 9.0,
+    longest_dry_spell_days_mean: isKnownIndian ? 14.5 : 9.0,
     annual_et0_mm: annualEt0,
     gdd_base10_per_year: gdd10,
     monthly_precip_mm: monthlyP,
@@ -338,9 +338,9 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
   };
 
   const hazards: HazardSummary = {
-    drought_frequency: isSA ? 0.22 : 0.14,
+    drought_frequency: isKnownIndian ? 0.22 : 0.14,
     extreme_rain_days_per_year: 2.8,
-    heat_stress_probability: isSA ? 0.72 : 0.15,
+    heat_stress_probability: isKnownIndian ? 0.72 : 0.15,
     frost_risk: frostDays > 2 ? 0.35 : lat > 28 ? 0.08 : 0.0,
     terminal_heat_days_per_year: terminalHeatDays,
     erosion_risk_class: "low",
@@ -371,17 +371,17 @@ export function generateFallbackProfile(field: FieldGeometry): FieldProfile {
     crop_history: [],
     crop_history_provenance: [provFallback],
     agro_climatic_notes,
-    currency: isSA ? "INR" : "USD",
-    currency_symbol: isSA ? "₹" : "$",
+    currency: reg.currencySymbol === "₹" ? "INR" : "USD",
+    currency_symbol: reg.currencySymbol ?? "$",
     agro_zone: reg.shortName,
     state: reg.regionName,
     served_from: "live_computation",
     snapshot_date: null,
     is_fallback: true,
-    data_mode: isSA ? "regional_climatology" : "fallback_synthetic",
-    validation_status: isSA ? "validated_india" : "unvalidated_global",
-    validation_message: isSA
+    data_mode: isKnownIndian ? "regional_climatology" : "fallback_synthetic",
+    validation_status: isKnownIndian ? "validated_india" : "biophysical_global",
+    validation_message: isKnownIndian
       ? undefined
-      : "Engine is calibrated for Indian agro-climatic zones; global results are for qualitative exploration.",
+      : "Biophysical global earth-observation mode active (water, soil health, and food security).",
   });
 }

@@ -1,0 +1,38 @@
+# Kenya National Climate-Smart Agriculture & Input Support Programs
+# Official Sources: Ministry of Agriculture & Livestock Development (MoALD), KALRO, NCPB
+
+schemes:
+  - id: "kenya_kcsap_csa"
+    name: "KCSAP Climate-Smart Intercrop & Residue Adoption"
+    display_title: "Kenya Climate-Smart Agriculture Project (KCSAP) Legume–Mulch Adoption Grant"
+    display_title_hi: "केन्या जलवायु-अनुकूल कृषि परियोजना (KCSAP) दलहन एवं मल्च सहायता"
+    display_title_pa: "ਕੀਨੀਆ ਜਲਵਾਯੂ-ਅਨੁਕੂਲ ਖੇਤੀ ਪ੍ਰੋਜੈਕਟ (KCSAP) ਦਾਲਾਂ ਅਤੇ ਮਲਚ ਸਹਾਇਤਾ"
+    display_title_es: "Proyecto KCSAP Kenia Agricultura Climáticamente Inteligente y Cobertura"
+    display_title_pt: "Projeto KCSAP Quénia Agricultura Climaticamente Inteligente e Cobertura"
+    display_title_fr: "Projet KCSAP Kenya Agriculture Intelligente face au Climat"
+    country_code: "KEN"
+    eligible_zones: ["east_africa_highlands"]
+    eligible_crops: ["common_bean", "field_pea", "lupin", "crimson_clover_vetch", "sweet_potato", "sorghum"]
+    eligible_practices: ["residue_retained", "zero_till", "no_till"]
+    amount: null
+    unit: null
+    source_url: "https://kilimo.go.ke/"
+    as_of_date: "2024-01-01"
+    description: "County-level KCSAP / NAVCDP incentives for drought-tolerant pulses, conservation tillage, and hillside erosion control in Kenyan highlands."
+
+  - id: "kenya_ncpb_subsidy"
+    name: "Kenya National e-Voucher & NCPB Grain Stabilization"
+    display_title: "Kenya e-Voucher Input Subsidy & NCPB Strategic Grain Reserve Linkages"
+    display_title_hi: "केन्या ई-वाउचर बीज/खाद सब्सिडी एवं NCPB खरीद सहायता"
+    display_title_pa: "ਕੀਨੀਆ ਈ-ਵਾਊਚਰ ਬੀਜ/ਖਾਦ ਸਬਸਿਡੀ ਅਤੇ NCPB ਖਰੀਦ ਸਹਾਇਤਾ"
+    display_title_es: "Kenia Subsidio e-Voucher de Insumos y Reserva NCPB"
+    display_title_pt: "Quénia Subsídio e-Voucher de Insumos e Reserva NCPB"
+    display_title_fr: "Kenya Subvention e-Voucher Intrants et Réserve NCPB"
+    country_code: "KEN"
+    eligible_zones: ["east_africa_highlands"]
+    eligible_crops: ["maize", "common_bean", "wheat_spring", "potato"]
+    amount: null
+    unit: null
+    source_url: "https://www.ncpb.co.ke/"
+    as_of_date: "2024-01-01"
+    description: "MoALD Kenya farmer e-voucher input support and National Cereals & Produce Board (NCPB) grain/bean offtake."

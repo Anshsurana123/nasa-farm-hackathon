@@ -18,6 +18,7 @@ import urllib.parse
 import uuid
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -39,11 +40,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 from terraloop_engine import cache, crop_kb, profiler, region_registry, suitability
 from terraloop_engine.climate import ensembles
-from terraloop_engine.data import meteomatics, nasa_power
+from terraloop_engine.data import gee, meteomatics, nasa_power
 from terraloop_engine.explain import why_cards
 from terraloop_engine.models import economics, nutrition
 from terraloop_engine.optimize import evaluate, rotations, selection
 from terraloop_schemas import (
+    CalendarSlotSpec,
     CropSpec,
     DataProvenance,
     FieldGeometry,
@@ -61,7 +63,25 @@ log = logging.getLogger("terraloop.api")
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GOLDEN_DIR = REPO_ROOT / "data" / "golden"
 
-app = FastAPI(title="TerraLoop Global & India Agro-Advisory API", version="0.2.0")
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    """Warm read-only crop/region caches and Earth Engine in the background on server startup."""
+    if not os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("VERCEL"):
+        def _warmup() -> None:
+            try:
+                crop_kb.load_crops()
+                crop_kb.load_all_aquacrop_overrides()
+                region_registry.detect_region_config(30.19, 75.78)
+                if os.environ.get("GEE_DISABLE") != "1":
+                    gee.init()
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Background startup warmup skipped: %s", exc)
+
+        threading.Thread(target=_warmup, daemon=True, name="terraloop-warmup").start()
+    yield
+
+
+app = FastAPI(title="TerraLoop Global & India Agro-Advisory API", version="0.2.0", lifespan=_lifespan)
 
 # Public path prefix. On Vercel the top-level rewrite `/api/(.*)` forwards to this service with the
 # prefix intact; locally (uvicorn on :8000) requests arrive without it. Both must resolve to the same routes.
@@ -114,7 +134,7 @@ async def rate_limit_middleware(request: Request, call_next):
         path = path[len(API_PATH_PREFIX) :]
     if not path.startswith(("/recommend", "/profile", "/tactical-advisory", "/suitability", "/geocode")):
         return await call_next(request)
-    if path.startswith("/recommend/jobs"):
+    if path.startswith(("/recommend/jobs", "/profile/jobs")):
         return await call_next(request)
 
     limit_per_min = int(os.environ.get("TERRALOOP_RATE_LIMIT_PER_MIN", "60"))
@@ -179,8 +199,18 @@ def tactical_advisory(lat: float, lon: float) -> TacticalAdvisory:
 
 
 @app.get("/crops", response_model=list[CropSpec])
-def list_crops() -> list[CropSpec]:
-    return list(crop_kb.load_crops().values())
+def list_crops(
+    lat: float | None = None,
+    lon: float | None = None,
+    cultivar_zone: str | None = None,
+) -> list[CropSpec]:
+    crops = crop_kb.load_crops()
+    tz = cultivar_zone
+    if tz is None and lat is not None and lon is not None:
+        tz = region_registry.detect_region_config(lat, lon).cultivar_zone
+    if tz:
+        return [crop_kb.resolve_crop_spec(spec, tz) for spec in crops.values()]
+    return list(crops.values())
 
 
 # ---------------------------------------------------------------------------
@@ -284,10 +314,41 @@ def _attach_tactical_advisory(prof: FieldProfile) -> FieldProfile:
     )
     _apply_snap_to_profile(prof, snap_meta, only_if_none=True, append_prov=(live_snap is None))
     prof.tactical_advisory = reg_adv
+    reg_cfg = region_registry.detect_region_config(prof.field.lat, prof.field.lon)
     prof.agro_climatic_notes = profiler.build_notes(
-        prof.climate, prof.soil, prof.water, prof.hazards, lat=prof.field.lat
+        prof.climate,
+        prof.soil,
+        prof.water,
+        prof.hazards,
+        lat=prof.field.lat,
+        soc_ref_g_kg=reg_cfg.soc_ref_g_kg,
+        hemisphere=reg_cfg.hemisphere,
     )
     return prof
+
+
+def _apply_region_metadata(
+    prof: FieldProfile,
+    reg_cfg: region_registry.RegionConfig,
+    *,
+    unit_override: str | None = None,
+) -> None:
+    """Attach canonical region identity, AEZ, calendar slots, currency, and validation tier onto FieldProfile."""
+    prof.country = reg_cfg.country
+    prof.country_code = reg_cfg.country_code
+    prof.agro_zone = reg_cfg.agro_zone
+    prof.aez_class = reg_cfg.aez_class
+    prof.calendar_id = reg_cfg.calendar_id
+    if not prof.calendar_slots:
+        prof.calendar_slots = [
+            CalendarSlotSpec(**s)
+            for s in region_registry.get_calendar_slots(prof.field.lat, prof.field.lon)
+        ]
+    prof.unit_convention = unit_override or reg_cfg.unit_convention  # type: ignore[assignment]
+    prof.currency = reg_cfg.currency
+    prof.currency_symbol = reg_cfg.currency_symbol
+    prof.validation_status = reg_cfg.validation_status
+    prof.validation_message = reg_cfg.validation_message
 
 
 @app.get("/golden/{field_id}/profile", response_model=FieldProfile)
@@ -295,12 +356,10 @@ def golden_profile(field_id: str) -> FieldProfile:
     path = GOLDEN_DIR / field_id / "profile.json"
     if path.exists():
         prof = FieldProfile.model_validate_json(path.read_text(encoding="utf-8"))
-        prof.currency = "INR"
-        prof.currency_symbol = "₹"
+        reg_cfg = region_registry.detect_region_config(prof.field.lat, prof.field.lon)
+        _apply_region_metadata(prof, reg_cfg)
         prof.served_from = "demo_snapshot"
         prof.snapshot_date = prof.snapshot_date or datetime.now(UTC).date().isoformat()
-        if not prof.agro_zone:
-            prof.agro_zone = economics.detect_agro_zone(prof.field.lat, prof.field.lon)
         return _attach_tactical_advisory(prof)
     match = next((f for f in _golden_index() if f["id"] == field_id), None)
     if not match:
@@ -520,7 +579,9 @@ def geocode_location(q: str) -> GeocodeResult:
         lat, lon, extracted_name = res
         if lat is not None and lon is not None:
             rev_name = _reverse_geocode_nominatim(lat, lon)
-            final_name = extracted_name or rev_name or f"Field ({lat:.4f}°N, {lon:.4f}°E)"
+            ns = "N" if lat >= 0 else "S"
+            ew = "E" if lon >= 0 else "W"
+            final_name = extracted_name or rev_name or f"Field ({abs(lat):.4f}°{ns}, {abs(lon):.4f}°{ew})"
             return GeocodeResult(lat=round(lat, 4), lon=round(lon, 4), name=final_name)
         elif extracted_name:
             text = extracted_name
@@ -540,14 +601,20 @@ def geocode_location(q: str) -> GeocodeResult:
     raise HTTPException(status_code=404, detail=f"Location or village '{q}' not found")
 
 
-@app.post("/profile", response_model=FieldProfile)
-def build_profile(field: FieldGeometry) -> FieldProfile:
+def _build_profile_impl(
+    field: FieldGeometry,
+    progress_cb: Callable[[str, float], None] | None = None,
+) -> FieldProfile:
+    if progress_cb:
+        progress_cb("region", 0.2)
     reg_cfg = region_registry.detect_region_config(field.lat, field.lon)
     matched_id = _match_golden_field(field)
     if matched_id:
         prof = golden_profile(matched_id)
         prof.served_from = "demo_snapshot"
     else:
+        if progress_cb:
+            progress_cb("satellite", 0.45)
         try:
             prof = profiler.build_profile(field)
             prof.served_from = "live_computation"
@@ -563,12 +630,15 @@ def build_profile(field: FieldGeometry) -> FieldProfile:
             except Exception:  # noqa: BLE001
                 raise HTTPException(502, f"Upstream data error: {exc}") from exc
 
-    prof.agro_zone = reg_cfg.agro_zone
-    prof.currency = reg_cfg.currency
-    prof.currency_symbol = reg_cfg.currency_symbol
-    prof.validation_status = reg_cfg.validation_status
-    prof.validation_message = reg_cfg.validation_message
+    if progress_cb:
+        progress_cb("advisory", 0.85)
+    _apply_region_metadata(prof, reg_cfg)
     return _attach_tactical_advisory(prof)
+
+
+@app.post("/profile", response_model=FieldProfile)
+def build_profile(field: FieldGeometry) -> FieldProfile:
+    return _build_profile_impl(field)
 
 
 @app.post("/suitability", response_model=list[SuitabilityItem])
@@ -578,19 +648,26 @@ def crop_suitability(req: SuitabilityRequest) -> list[SuitabilityItem]:
     else:
         matched_id = _match_golden_field(req.field)
         prof = golden_profile(matched_id) if matched_id else profiler.build_profile(req.field)
+    reg_cfg = region_registry.detect_region_config(prof.field.lat, prof.field.lon)
+    _apply_region_metadata(prof, reg_cfg)
     if req.soil_health_card is not None:
-        prof = profiler.apply_soil_health_card_override(prof, req.soil_health_card)
+        prof = profiler.apply_soil_health_card_override(prof, req.soil_health_card, language=req.language)
 
-    if req.language in ("hi", "pa") or prof.served_from != "live_computation":
+    if req.language in ("hi", "pa", "es", "pt", "fr") or prof.served_from != "live_computation":
         prof.agro_climatic_notes = profiler.build_notes(
             prof.climate,
             prof.soil,
             prof.water,
             prof.hazards,
             lat=prof.field.lat,
+            soc_ref_g_kg=reg_cfg.soc_ref_g_kg,
+            hemisphere=reg_cfg.hemisphere,
             language=req.language,
         )
-    crops = crop_kb.load_crops()
+    crops = {
+        cid: crop_kb.resolve_crop_spec(spec, reg_cfg.cultivar_zone)
+        for cid, spec in crop_kb.load_crops().items()
+    }
     return [
         SuitabilityItem(name=crops[r.crop_id].name, **r.__dict__)
         for r in suitability.rank_crops(prof, crops, req.constraints, language=req.language)
@@ -658,8 +735,10 @@ def build_objective_dict(
                 msp_count += 1
         elif p_type == "nafed_pss":
             p_base = 0.85
-        else:
+        elif p_type in ("mandi_linked", "open_market"):
             p_base = 0.75
+        else:
+            p_base = 0.90
         proc_factors.append(p_base * (1.0 - 0.50 * m_risk))
     proc_assurance = float(np.mean(proc_factors)) if proc_factors else 0.85
     if msp_count >= 2:
@@ -753,22 +832,20 @@ def _recommend_impl(
             prof.is_fallback = True
             prof.data_mode = "regional_climatology" if reg_cfg.country == "India" else "fallback_synthetic"
 
-    prof.agro_zone = reg_cfg.agro_zone
-    prof.currency = reg_cfg.currency
-    prof.currency_symbol = reg_cfg.currency_symbol
-    prof.validation_status = reg_cfg.validation_status
-    prof.validation_message = reg_cfg.validation_message
+    _apply_region_metadata(prof, reg_cfg, unit_override=getattr(req, "unit_convention", None))
 
     if req.soil_health_card is not None:
-        prof = profiler.apply_soil_health_card_override(prof, req.soil_health_card)
+        prof = profiler.apply_soil_health_card_override(prof, req.soil_health_card, language=req.language)
 
-    if req.language in ("hi", "pa") or prof.served_from != "live_computation":
+    if req.language in ("hi", "pa", "es", "pt", "fr") or prof.served_from != "live_computation":
         prof.agro_climatic_notes = profiler.build_notes(
             prof.climate,
             prof.soil,
             prof.water,
             prof.hazards,
             lat=prof.field.lat,
+            soc_ref_g_kg=reg_cfg.soc_ref_g_kg,
+            hemisphere=reg_cfg.hemisphere,
             language=req.language,
         )
 
@@ -839,6 +916,7 @@ def _recommend_impl(
             rotation_years=rot_years,
             lat=prof.field.lat,
             lon=prof.field.lon,
+            progress_cb=progress_cb,
         )
 
     if req.drought_shock_pct > 0.0:
@@ -859,40 +937,40 @@ def _recommend_impl(
         progress_cb("generating", 0.40)
 
     # 3. Generate candidate rotations pre-screened by suitability
+    crops = {cid: crop_kb.resolve_crop_spec(spec, reg_cfg.cultivar_zone) for cid, spec in crops.items()}
     ranked_crops = suitability.rank_crops(prof, crops, req.constraints)
     rank_scores = {r.crop_id: r.score for r in ranked_crops}
     top_ids = {r.crop_id for r in ranked_crops[:10] if r.score >= 0.22}
     is_punjab_belt = reg_cfg.region_id in ("punjab_central", "punjab_southwest", "haryana")
     is_semi_arid_limited = req.constraints.irrigation == "limited" and prof.climate.annual_precip_mm < 520.0
-    for key_cid in (
-        "wheat",
-        "rice_short",
-        "rice_dsr",
-        "moong",
-        "urad",
-        "chickpea",
-        "mustard",
-        "groundnut",
-        "maize",
-        "soybean",
-        "pigeon_pea",
-        "sorghum",
-        "pearl_millet",
-    ):
+    for key_cid in reg_cfg.priority_crops:
         if is_punjab_belt and key_cid in ("soybean", "sorghum", "pigeon_pea"):
             continue
         if is_semi_arid_limited and key_cid in ("rice_puddled", "rice_short", "rice_dsr", "basmati"):
             continue
-        if rank_scores.get(key_cid, 0.0) >= 0.25:
+        if rank_scores.get(key_cid, 0.0) >= 0.22:
             top_ids.add(key_cid)
+    if reg_cfg.calendar_id in ("india_igp", "india_delta"):
+        # Keep non-Indian specialty temperate/tropical species out unless explicitly priority_crops/must_grow
+        allowed_india = set(reg_cfg.priority_crops) | {
+            "sorghum", "pigeon_pea", "groundnut", "pearl_millet",
+            "barley", "potato", "lentil", "berseem", "dhaincha", "common_bean",
+        }
+        top_ids &= allowed_india
+    elif reg_cfg.validation_status == "validated_regional" and reg_cfg.priority_crops:
+        # Calibrated Tier-A global hubs constrain candidates to agency-validated priority crops
+        top_ids &= set(reg_cfg.priority_crops)
+    else:
+        allowed_regional = set(reg_cfg.priority_crops) | {r.crop_id for r in ranked_crops[:8] if r.score >= 0.28}
+        top_ids &= allowed_regional
     if is_semi_arid_limited:
-        top_ids -= {"rice_puddled", "rice_short", "rice_dsr", "basmati"}
+        top_ids -= {"rice_puddled", "rice_short", "rice_dsr", "basmati", "rice_japonica_temperate"}
     if req.constraints.irrigation == "none":
         # Strictly rainfed dryland cannot support water-intensive lowland paddy;
         # rainfed wheat is preserved per Central India benchmarks (ICAR / DES).
-        top_ids -= {"rice_puddled", "rice_short", "rice_dsr", "basmati"}
+        top_ids -= {"rice_puddled", "rice_short", "rice_dsr", "basmati", "rice_japonica_temperate"}
     top_ids |= set(req.constraints.must_grow)
-    filtered_crops = {cid: crops[cid] for cid in top_ids if cid in crops}
+    filtered_crops = {cid: crops[cid] for cid in sorted(top_ids) if cid in crops}
 
     seasons = rotations.derive_seasons(prof)
     candidate_rotations = rotations.generate_rotations(
@@ -900,6 +978,7 @@ def _recommend_impl(
         req.constraints,
         seasons=seasons,
         region_id=reg_cfg.region_id,
+        cultivar_zone=reg_cfg.cultivar_zone,
     )
 
     if len(candidate_rotations) > 85:
@@ -923,6 +1002,10 @@ def _recommend_impl(
         progress_cb("simulating", 0.58)
 
     # 5. Evaluate all candidates across weather ensemble (with optional price & fertilizer shocks)
+    def _on_eval_progress(done_cnt: int, total_cnt: int) -> None:
+        if progress_cb is not None and total_cnt > 0:
+            progress_cb("simulating", 0.58 + 0.20 * (done_cnt / total_cnt))
+
     sim_results = evaluate.evaluate_candidates(
         rotations=all_rotations,
         members=members,
@@ -931,6 +1014,7 @@ def _recommend_impl(
         scenario_set_id=scenario_set.id,
         price_shock_pct=req.price_shock_pct,
         fertilizer_shock_pct=req.fertilizer_shock_pct,
+        progress_cb=_on_eval_progress if progress_cb is not None else None,
     )
 
     if progress_cb:
@@ -993,7 +1077,8 @@ def _recommend_impl(
 
     baseline_obj = cand_obj_dicts[0]
 
-    alt_candidates = selection.annotate_pareto_metrics(cand_obj_dicts[1:])
+    pareto_keys = None if reg_cfg.allow_economic_ranking else list(selection.BIOPHYSICAL_OBJECTIVES)
+    alt_candidates = selection.annotate_pareto_metrics(cand_obj_dicts[1:], keys=pareto_keys)
     alt_labels = labels[1:]
     alt_rotations = all_rotations[1:]
     alt_results = sim_results[1:]
@@ -1003,12 +1088,15 @@ def _recommend_impl(
         for r in alt_rotations
     ]
 
+    min_spreads = selection.build_min_spreads(float(econ_data.get("ppp_spread_factor", 1.0)))
     chosen_indices = selection.select_top(
         alt_candidates,
         alt_labels,
         req.priorities,
         k=3,
         crop_pairs=alt_crop_pairs,
+        allow_economic_ranking=reg_cfg.allow_economic_ranking,
+        min_spreads=min_spreads,
     )
 
     if progress_cb:
@@ -1030,13 +1118,18 @@ def _recommend_impl(
         baseline_result=baseline_result,
         baseline_pm=baseline_pm,
     )
+    econ_prov = why_cards.economics_provenance(
+        econ_region,
+        country_code=reg_cfg.country_code,
+        is_proxy=(econ_basis == "punjab_proxy"),
+    )
     base_prov_raw: list[DataProvenance] = (
         list(prof.climate.provenance)
         + list(prof.water.provenance)
         + list(prof.soil.provenance)
         + list(prof.hazards.provenance)
         + list(scenario_set.provenance)
-        + [why_cards._FAO56_PROV, why_cards._ROTHC_PROV, why_cards._CACP_PROV]
+        + [why_cards._FAO56_PROV, why_cards._ROTHC_PROV, econ_prov]
     )
     seen_base_src: set[str] = set()
     base_provs: list[DataProvenance] = []
@@ -1060,6 +1153,8 @@ def _recommend_impl(
         currency=reg_cfg.currency,
         currency_symbol=reg_cfg.currency_symbol,
         practical_metrics=baseline_pm,
+        country=reg_cfg.country,
+        region_id=reg_cfg.region_id,
         is_fallback=rec_is_fallback,
         data_mode=rec_data_mode,
         validation_status=reg_cfg.validation_status,
@@ -1087,9 +1182,10 @@ def _recommend_impl(
         is_rainfed = 1.0 if base_irr == 0.0 else 0.0
         irr_diff_pct = round((cand_irr - base_irr) / base_irr * 100.0, 1) if base_irr > 0 else 0.0
         base_p50 = baseline_result.profit_p50
+        p50_min_denom = 100.0 if reg_cfg.currency == "INR" else 2.0
         profit_diff_pct = (
             round((chosen_res.profit_p50 - base_p50) / abs(base_p50) * 100.0, 1)
-            if abs(base_p50) > 100.0
+            if abs(base_p50) > p50_min_denom
             else 0.0
         )
         profit_change_abs = round(chosen_res.profit_p50 - base_p50, 0)
@@ -1120,6 +1216,8 @@ def _recommend_impl(
             currency=reg_cfg.currency,
             currency_symbol=reg_cfg.currency_symbol,
             practical_metrics=chosen_pm,
+            country=reg_cfg.country,
+            region_id=reg_cfg.region_id,
             is_fallback=rec_is_fallback,
             data_mode=rec_data_mode,
             validation_status=reg_cfg.validation_status,
@@ -1321,6 +1419,100 @@ def recommend_async(req: RecommendRequest) -> dict:
 @app.get("/recommend/jobs/{job_id}")
 def get_recommend_job(job_id: str) -> dict:
     """Poll status and retrieve results of an asynchronous recommendation job (TASK-H02)."""
+    job = _load_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+    return job
+
+
+def _async_profile_worker(job_id: str, field: FieldGeometry) -> None:
+    existing = _load_job(job_id) or {"job_id": job_id, "created_at": time.time()}
+
+    def _on_progress(step: str, progress: float) -> None:
+        _save_job(
+            job_id,
+            {
+                **existing,
+                "job_id": job_id,
+                "status": "running",
+                "step": step,
+                "progress": round(progress, 2),
+                "result": None,
+                "error": None,
+            },
+        )
+
+    try:
+        prof = _build_profile_impl(field, progress_cb=_on_progress)
+        _save_job(
+            job_id,
+            {
+                **existing,
+                "job_id": job_id,
+                "status": "completed",
+                "step": "done",
+                "progress": 1.0,
+                "result": prof.model_dump(mode="json"),
+                "error": None,
+            },
+        )
+    except Exception as exc:
+        log.exception("Async profile worker error for job %s", job_id)
+        _save_job(
+            job_id,
+            {
+                **existing,
+                "job_id": job_id,
+                "status": "failed",
+                "step": "failed",
+                "progress": 1.0,
+                "result": None,
+                "error": str(exc),
+            },
+        )
+
+
+@app.post("/profile/async")
+def profile_async(field: FieldGeometry) -> dict:
+    """Submit an asynchronous NASA EO / SoilGrids / Meteomatics field profile build job."""
+    now = time.time()
+    with _JOBS_LOCK:
+        active_jobs = sum(
+            1
+            for j in _RECOMMEND_JOBS.values()
+            if j.get("status") == "running" and now - float(j.get("created_at", 0.0)) < 120.0
+        )
+        if active_jobs >= 8:
+            raise HTTPException(status_code=429, detail="Too many concurrent optimization jobs running")
+
+    job_id = str(uuid.uuid4())
+    init_state = {
+        "job_id": job_id,
+        "status": "running",
+        "progress": 0.1,
+        "step": "region",
+        "result": None,
+        "error": None,
+        "created_at": now,
+    }
+    _save_job(job_id, init_state)
+    if os.environ.get("VERCEL"):
+        # Vercel Serverless freezes background daemon threads on HTTP return; execute synchronously.
+        _async_profile_worker(job_id, field)
+        return _load_job(job_id) or init_state
+    thread = threading.Thread(target=_async_profile_worker, args=(job_id, field), daemon=True)
+    thread.start()
+    return {
+        "job_id": job_id,
+        "status": "running",
+        "progress": 0.1,
+        "step": "region",
+    }
+
+
+@app.get("/profile/jobs/{job_id}")
+def get_profile_job(job_id: str) -> dict:
+    """Poll status and retrieve results of an asynchronous field profile job."""
     job = _load_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")

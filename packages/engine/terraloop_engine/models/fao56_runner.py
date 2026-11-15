@@ -32,12 +32,93 @@ Key physical mechanisms modelled:
 
 from __future__ import annotations
 
+import datetime
+import functools
+from collections.abc import Sequence
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
-from terraloop_schemas import CropSpec, FarmConstraints, Rotation, SoilSummary
+from terraloop_schemas import CalendarSlotSpec, CropSpec, FarmConstraints, Rotation, SoilSummary
 
 from terraloop_engine import crop_kb
 from terraloop_engine.models import agroclimate
+
+_ORDINAL_EPOCH_OFFSET = 719163  # datetime.date(1970, 1, 1).toordinal()
+
+# Empirical Ky from FAO-33 Table 24
+_KY_LOOKUP: dict[str, float] = {
+    "wheat": 1.05,
+    "wheat_winter": 1.05,
+    "wheat_spring": 1.05,
+    "barley": 1.00,
+    "oats": 1.00,
+    "triticale": 1.00,
+    "maize": 1.25,
+    "chickpea": 0.85,
+    "mustard": 0.90,
+    "rapeseed_canola": 0.90,
+    "soybean": 0.85,
+    "sorghum": 0.90,
+    "cotton": 0.85,
+    "potato": 1.10,
+    "sugar_beet": 1.05,
+    "sunflower": 0.95,
+    "groundnut": 0.70,
+    "moong": 0.85,
+    "urad": 0.85,
+    "field_pea": 1.05,
+    "faba_bean": 1.05,
+    "lupin": 0.90,
+    "alfalfa": 0.95,
+    "rice_upland": 1.15,
+    "cassava": 0.85,
+    "sweet_potato": 0.95,
+}
+
+
+@dataclass(slots=True)
+class _WeatherArrays:
+    """Contiguous NumPy arrays & epoch-day index for fast zero-DataFrame seasonal slicing."""
+
+    days_epoch: np.ndarray
+    min_year: int
+    doy: np.ndarray
+    precip: np.ndarray
+    et0: np.ndarray
+    tmax: np.ndarray
+    tmin: np.ndarray
+    solar: np.ndarray | None
+    ref_rad_cache: dict[bytes, float]
+
+
+def build_weather_arrays(w_df: pd.DataFrame) -> _WeatherArrays | None:
+    """Extract monotonic midnight-daily NumPy arrays from a simulation weather DataFrame."""
+    if len(w_df) == 0 or not isinstance(w_df.index, pd.DatetimeIndex) or not w_df.index.is_monotonic_increasing:
+        return None
+    if not all(col in w_df.columns for col in ("Precipitation", "ReferenceET", "MaxTemp", "MinTemp")):
+        return None
+    dt_vals = w_df.index.to_numpy()
+    dt_days = dt_vals.astype("datetime64[D]")
+    if not np.array_equal(dt_vals, dt_days.astype(dt_vals.dtype)):
+        return None
+    days_epoch = dt_days.astype(np.int64)
+    solar_col = (
+        "SolarRadiation"
+        if "SolarRadiation" in w_df.columns
+        else ("ALLSKY_SFC_SW_DWN" if "ALLSKY_SFC_SW_DWN" in w_df.columns else None)
+    )
+    return _WeatherArrays(
+        days_epoch=days_epoch,
+        min_year=int(w_df.index.year.min()),
+        doy=w_df.index.dayofyear.to_numpy(dtype=np.int16),
+        precip=np.asarray(w_df["Precipitation"], dtype=float),
+        et0=np.asarray(w_df["ReferenceET"], dtype=float),
+        tmax=np.asarray(w_df["MaxTemp"], dtype=float),
+        tmin=np.asarray(w_df["MinTemp"], dtype=float),
+        solar=np.asarray(w_df[solar_col], dtype=float) if solar_col is not None else None,
+        ref_rad_cache={},
+    )
 
 # Standard sowing DOY defaults for Indian agro-climatic rotation slots
 # season_index 0: Kharif (Jun-Oct), 1: Rabi (Nov-Apr), 2: Zaid / Summer (Apr-Jun)
@@ -113,10 +194,10 @@ def to_daily_simulation_weather(power_df: pd.DataFrame, lat: float) -> pd.DataFr
 to_aquacrop_weather = to_daily_simulation_weather
 
 
-def _stage_kc_series(kc_tuple: tuple[float, float, float], n_days: int) -> np.ndarray:
-    """Construct daily FAO-56 crop coefficient Kc curve across 4 growth stages."""
+@functools.lru_cache(maxsize=256)
+def _cached_stage_kc(kc_tuple: tuple[float, float, float], n_days: int) -> np.ndarray:
     if n_days <= 0:
-        return np.array([0.5])
+        return np.array([0.5], dtype=float)
     kc_ini, kc_mid, kc_end = kc_tuple
     n_ini = max(1, round(0.20 * n_days))
     n_dev = max(1, round(0.25 * n_days))
@@ -128,7 +209,72 @@ def _stage_kc_series(kc_tuple: tuple[float, float, float], n_days: int) -> np.nd
     s_mid = np.full(n_mid, kc_mid, dtype=float)
     s_late = np.linspace(kc_mid, kc_end, n_late, dtype=float)
     arr = np.concatenate([s_ini, s_dev, s_mid, s_late])
-    return arr[:n_days] if len(arr) >= n_days else np.pad(arr, (0, n_days - len(arr)), mode="edge")
+    out = arr[:n_days] if len(arr) >= n_days else np.pad(arr, (0, n_days - len(arr)), mode="edge")
+    out.setflags(write=False)
+    return out
+
+
+def _stage_kc_series(kc_tuple: tuple[float, float, float], n_days: int) -> np.ndarray:
+    """Construct daily FAO-56 crop coefficient Kc curve across 4 growth stages."""
+    return _cached_stage_kc(kc_tuple, n_days).copy()
+
+
+def _extract_season_arrays(
+    w_arr: _WeatherArrays,
+    sow_date: datetime.date,
+    dur_days: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray | None, np.ndarray]:
+    """Slice daily NumPy weather arrays for [sow_date, sow_date + dur_days - 1] with cross-year stitch."""
+    sow_epoch = sow_date.toordinal() - _ORDINAL_EPOCH_OFFSET
+    harv_epoch = sow_epoch + dur_days - 1
+    days_epoch = w_arr.days_epoch
+    i0 = int(np.searchsorted(days_epoch, sow_epoch, side="left"))
+    i1 = int(np.searchsorted(days_epoch, harv_epoch, side="right"))
+
+    def _view(s: int, e: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray | None, np.ndarray]:
+        return (
+            w_arr.precip[s:e],
+            w_arr.et0[s:e],
+            w_arr.tmax[s:e],
+            w_arr.tmin[s:e],
+            w_arr.solar[s:e] if w_arr.solar is not None else None,
+            w_arr.doy[s:e],
+        )
+
+    end_sub = min(i1, i0 + dur_days)
+    if i1 - i0 >= dur_days - 5:
+        return _view(i0, end_sub)
+
+    n_sub = max(0, end_sub - i0)
+    missing = dur_days - n_sub
+    if n_sub > 0 and missing > 0:
+        last_dt = datetime.date.fromordinal(int(days_epoch[end_sub - 1]) + _ORDINAL_EPOCH_OFFSET)
+        next_dt = last_dt + datetime.timedelta(days=1)
+        first_yr = w_arr.min_year
+        is_leap = first_yr % 4 == 0 and (first_yr % 100 != 0 or first_yr % 400 == 0)
+        tgt_day = 28 if (next_dt.month == 2 and next_dt.day == 29 and not is_leap) else next_dt.day
+        tail_epoch = datetime.date(first_yr, next_dt.month, tgt_day).toordinal() - _ORDINAL_EPOCH_OFFSET
+        t0 = int(np.searchsorted(days_epoch, tail_epoch, side="left"))
+        t1 = min(len(days_epoch), t0 + missing)
+        if t1 > t0:
+            take_t = min(t1 - t0, max(0, dur_days - n_sub))
+            t1 = t0 + take_t
+            return (
+                np.concatenate((w_arr.precip[i0:end_sub], w_arr.precip[t0:t1])),
+                np.concatenate((w_arr.et0[i0:end_sub], w_arr.et0[t0:t1])),
+                np.concatenate((w_arr.tmax[i0:end_sub], w_arr.tmax[t0:t1])),
+                np.concatenate((w_arr.tmin[i0:end_sub], w_arr.tmin[t0:t1])),
+                np.concatenate((w_arr.solar[i0:end_sub], w_arr.solar[t0:t1])) if w_arr.solar is not None else None,
+                np.concatenate((w_arr.doy[i0:end_sub], w_arr.doy[t0:t1])),
+            )
+
+    first_yr = w_arr.min_year
+    alt_epoch = datetime.date(first_yr, sow_date.month, min(28, sow_date.day)).toordinal() - _ORDINAL_EPOCH_OFFSET
+    a0 = int(np.searchsorted(days_epoch, alt_epoch, side="left"))
+    a1 = min(len(days_epoch), a0 + dur_days)
+    if a1 - a0 >= 30:
+        return _view(a0, a1)
+    return _view(0, min(len(days_epoch), dur_days))
 
 
 def _extract_season_weather(
@@ -143,9 +289,17 @@ def _extract_season_weather(
     weather is always evaluated without truncation.
     """
     harvest_date = sowing_date + pd.Timedelta(days=dur_days - 1)
-    sub = weather.loc[(weather.index >= sowing_date) & (weather.index <= harvest_date)]
-    if len(sub) >= dur_days - 5:
-        return sub.iloc[:dur_days]
+    is_mono_dt = isinstance(weather.index, pd.DatetimeIndex) and weather.index.is_monotonic_increasing
+    if is_mono_dt:
+        i0 = int(weather.index.searchsorted(sowing_date, side="left"))
+        i1 = int(weather.index.searchsorted(harvest_date, side="right"))
+        sub = weather.iloc[i0 : min(i1, i0 + dur_days)]
+        if i1 - i0 >= dur_days - 5:
+            return sub
+    else:
+        sub = weather.loc[(weather.index >= sowing_date) & (weather.index <= harvest_date)]
+        if len(sub) >= dur_days - 5:
+            return sub.iloc[:dur_days]
 
     # Cross-year stitch for Rabi crops on the final year of the weather record
     missing = dur_days - len(sub)
@@ -159,14 +313,22 @@ def _extract_season_weather(
             else next_dt.day
         )
         tail_start = pd.Timestamp(year=first_yr, month=next_dt.month, day=tgt_day)
-        tail = weather.loc[weather.index >= tail_start].iloc[:missing]
+        if is_mono_dt:
+            t0 = int(weather.index.searchsorted(tail_start, side="left"))
+            tail = weather.iloc[t0 : t0 + missing]
+        else:
+            tail = weather.loc[weather.index >= tail_start].iloc[:missing]
         if len(tail) > 0:
             return pd.concat([sub, tail]).iloc[:dur_days]
 
     # Final fallback: slice by day-of-year matching from first available year
     first_yr = int(weather.index.year.min())
     alt_start = pd.Timestamp(year=first_yr, month=sowing_date.month, day=min(28, sowing_date.day))
-    alt_sub = weather.loc[weather.index >= alt_start].iloc[:dur_days]
+    if is_mono_dt:
+        a0 = int(weather.index.searchsorted(alt_start, side="left"))
+        alt_sub = weather.iloc[a0 : a0 + dur_days]
+    else:
+        alt_sub = weather.loc[weather.index >= alt_start].iloc[:dur_days]
     if len(alt_sub) >= 30:
         return alt_sub
     return weather.iloc[:dur_days]
@@ -204,11 +366,11 @@ def _compute_thermal_and_waterlog_factors(
     repro_tmax = eff_tmax[repro_start:]
 
     if "cool" in crop.season_type and "warm" not in crop.season_type:
-        # Cool-season Rabi crops (wheat, mustard, chickpea, barley, lentil, potato)
-        # Sensitive to March terminal heat (>32.0 C during grain filling; Asseng et al. 2011; Lobell et al. 2012)
-        # Chickpea/lentil pod-set is sensitive above 30.0 C (Gaur et al. 2015)
-        crit_temp = 32.0 if crop.id == "wheat" else (
-            30.0 if crop.id in ("chickpea", "lentil") else min(crop.max_temp_c - 2.0, 32.0)
+        # Cool-season crops (wheat, mustard, chickpea, barley, lentil, potato, field pea, faba bean, rapeseed)
+        # Sensitive to reproductive heat (>32.0 C during wheat grain filling; Asseng et al. 2011; Lobell et al. 2012)
+        # Cool pulses (chickpea, lentil, pea, faba, lupin) are pod-set sensitive above 30.0 C (Gaur et al. 2015)
+        crit_temp = 32.0 if crop.id in ("wheat", "wheat_winter", "wheat_spring") else (
+            30.0 if crop.id in ("chickpea", "lentil", "field_pea", "faba_bean", "lupin") else min(crop.max_temp_c - 2.0, 32.0)
         )
         heat_hdd = float(np.sum(np.maximum(0.0, repro_tmax - crit_temp)))
         # Sensitivity inversely proportional to heat_tolerance (1..5)
@@ -238,17 +400,36 @@ def _compute_thermal_and_waterlog_factors(
     extreme_hdd = float(np.sum(np.maximum(0.0, eff_tmax[:repro_start] - crop.max_temp_c)))
     f_extreme_heat = max(0.55, 1.0 - 0.0010 * extreme_hdd)
 
-    # 3. Frost stress for frost-sensitive crops
-    if crop.min_temp_c > 2.0:
+    # 3. Frost stress / winterkill vs vernalization chill-days
+    if crop.winter_dormancy:
+        lethal_t = float(crop.lethal_frost_c) if crop.lethal_frost_c is not None else -18.0
+        kill_days = int(np.sum(tmin_arr < lethal_t))
+        f_frost = max(0.25, 1.0 - 0.12 * kill_days)
+    elif crop.min_temp_c > 2.0:
         frost_days = int(np.sum(tmin_arr < 2.0))
         f_frost = max(0.30, 1.0 - 0.08 * frost_days)
     else:
         f_frost = 1.0
 
+    if crop.vernalization_required and crop.vernalization_chill_days > 0:
+        chill_days = float(
+            np.sum((raw_tmean >= -2.0) & (raw_tmean <= 8.0))
+            + 0.5 * np.sum((raw_tmean > 8.0) & (tmin_arr <= 4.0))
+        )
+        vern_ratio = min(1.0, chill_days / float(crop.vernalization_chill_days))
+        f_vern = max(0.25, 0.30 + 0.70 * vern_ratio)
+    else:
+        f_vern = 1.0
+
     # 4. GDD accumulation factor
     t_base = float(t_base_override) if t_base_override is not None else crop.base_temp_c
     gdd_tmean = np.minimum(raw_tmean, float(t_upper_override)) if t_upper_override is not None else raw_tmean
-    gdd = float(np.sum(np.maximum(0.0, gdd_tmean - t_base)))
+    if crop.winter_dormancy:
+        dorm_t = float(crop.dormancy_temp_c)
+        active_mask = raw_tmean > dorm_t
+        gdd = float(np.sum(np.where(active_mask, np.maximum(0.0, gdd_tmean - t_base), 0.0)))
+    else:
+        gdd = float(np.sum(np.maximum(0.0, gdd_tmean - t_base)))
     req_gdd = crop.gdd_to_maturity
     if gdd < 0.70 * req_gdd:
         f_gdd = max(0.50, gdd / (0.70 * req_gdd))
@@ -268,7 +449,7 @@ def _compute_thermal_and_waterlog_factors(
     else:
         f_waterlog = 1.0
 
-    return float(np.clip(f_heat * f_extreme_heat * f_frost * f_gdd * f_waterlog, 0.25, 1.0))
+    return float(np.clip(f_heat * f_extreme_heat * f_frost * f_vern * f_gdd * f_waterlog, 0.25, 1.0))
 
 
 def _simulate_step(
@@ -284,17 +465,47 @@ def _simulate_step(
     sowing_doy: int | None = None,
     lat: float = 30.0,
     prev_crop_id: str | None = None,
+    cultivar_zone: str | None = None,
+    calendar_slots: Sequence[CalendarSlotSpec] | None = None,
+    _weather_arrays: _WeatherArrays | None = None,
+    _crops_pre_resolved: bool = False,
 ) -> tuple[dict, float]:
     """Execute daily FAO-56 / FAO-33 water-balance simulation for one crop season."""
+    norm_slots = (
+        [s if isinstance(s, CalendarSlotSpec) else CalendarSlotSpec(**s) for s in calendar_slots]
+        if calendar_slots
+        else None
+    )
+    if norm_slots and 0 <= season_index < len(norm_slots):
+        slot_spec = norm_slots[season_index]
+        slot0_doy = norm_slots[0].default_sowing_doy
+        year_offset = 1 if slot_spec.default_sowing_doy < slot0_doy else 0
+        is_india_cal = slot_spec.slot_id in (
+            "kharif", "rabi", "zaid", "kharif_kuruvai", "rabi_samba", "summer_navarai"
+        )
+    else:
+        slot_spec = None
+        year_offset = 1 if (season_index == 2 or (lat < 0 and season_index >= 1)) else 0
+        is_india_cal = lat >= 0
+
     if crop_id == "fallow" or crop_id not in crops:
-        fallow_yr = year + (1 if season_index == 2 else 0)
-        s_md, h_md = {
-            0: ("06-15", "10-15"),
-            1: ("11-01", "03-15"),
-            2: ("04-15", "06-15"),
-        }.get(season_index, ("04-15", "06-15"))
-        h_yr = fallow_yr + (1 if season_index == 1 else 0)
-        # Monsoon Kharif fallow recharges topsoil moisture; dry Rabi/Zaid fallow carries over depletion
+        fallow_yr = year + year_offset
+        if slot_spec is not None and not is_india_cal:
+            s_dt = datetime.date(fallow_yr, 1, 1) + datetime.timedelta(days=max(0, slot_spec.default_sowing_doy - 1))
+            f_dur = min(90, max(45, slot_spec.max_duration_days // 2))
+            h_dt = s_dt + datetime.timedelta(days=f_dur)
+            s_str = s_dt.isoformat()
+            h_str = h_dt.isoformat()
+        else:
+            s_md, h_md = {
+                0: ("06-15", "10-15"),
+                1: ("11-01", "03-15"),
+                2: ("04-15", "06-15"),
+            }.get(season_index, ("04-15", "06-15"))
+            h_yr = fallow_yr + (1 if season_index == 1 else 0)
+            s_str = f"{fallow_yr}-{s_md}"
+            h_str = f"{h_yr}-{h_md}"
+        # Wet-season fallow recharges topsoil moisture; dry off-season fallow carries over depletion
         carry_dep = 10.0 if season_index == 0 else float(initial_depletion_mm)
         return {
             "crop_id": crop_id,
@@ -308,46 +519,53 @@ def _simulate_step(
             "water_stress_coefficient": 1.0,
             "thermal_factor": 1.0,
             "duration_days": 60,
-            "sowing_date": f"{fallow_yr}-{s_md}",
-            "harvest_date": f"{h_yr}-{h_md}",
+            "sowing_date": s_str,
+            "harvest_date": h_str,
         }, carry_dep
 
-    crop = crops[crop_id]
+    raw_crop = crops[crop_id]
+    crop = raw_crop if _crops_pre_resolved else crop_kb.resolve_crop_spec(raw_crop, cultivar_zone)
     slot_info = _SLOT_DEFAULTS.get(season_index, _SLOT_DEFAULTS[0])
     s_month, s_day = slot_info["sowing_month"], slot_info["sowing_day"]
 
-    if crop_id == "rice_short" and season_index == 0:
-        s_month, s_day = 6, 22
-    elif crop_id == "rice_puddled" and season_index == 0:
-        s_month, s_day = 6, 20
-    elif crop_id in ("rice_short", "rice_puddled") and season_index == 1:
-        s_month, s_day = 10, 15
-    elif crop_id == "wheat":
-        s_month, s_day = 11, 5
-    elif crop_id in ("moong", "urad") and season_index == 2:
-        s_month, s_day = 4, 10
+    if is_india_cal:
+        if crop_id == "rice_short" and season_index == 0:
+            s_month, s_day = 6, 22
+        elif crop_id == "rice_puddled" and season_index == 0:
+            s_month, s_day = 6, 20
+        elif crop_id in ("rice_short", "rice_puddled") and season_index == 1:
+            s_month, s_day = 10, 15
+        elif crop_id == "wheat":
+            s_month, s_day = 11, 5
+        elif crop_id in ("moong", "urad") and season_index == 2:
+            s_month, s_day = 4, 10
 
-    eff_year = year + (1 if (season_index == 2 or (lat < 0 and season_index >= 1)) else 0)
+    eff_year = year + year_offset
     if sowing_doy is not None:
         eff_doy = max(1, min(365, int(sowing_doy)))
-        sowing_date = pd.Timestamp(year=eff_year, month=1, day=1) + pd.Timedelta(days=eff_doy - 1)
+        sowing_date = datetime.date(eff_year, 1, 1) + datetime.timedelta(days=eff_doy - 1)
+    elif slot_spec is not None and not is_india_cal:
+        eff_doy = max(1, min(365, int(slot_spec.default_sowing_doy)))
+        sowing_date = datetime.date(eff_year, 1, 1) + datetime.timedelta(days=eff_doy - 1)
     else:
-        sowing_date = pd.Timestamp(year=eff_year, month=s_month, day=s_day)
-        if lat < 0:
-            sh_doy = ((sowing_date.dayofyear + 182 - 1) % 365) + 1
-            sowing_date = pd.Timestamp(year=eff_year, month=1, day=1) + pd.Timedelta(days=sh_doy - 1)
+        sowing_date = datetime.date(eff_year, s_month, s_day)
+        if calendar_slots is None and lat < 0:
+            sh_doy = ((sowing_date.timetuple().tm_yday + 182 - 1) % 365) + 1
+            sowing_date = datetime.date(eff_year, 1, 1) + datetime.timedelta(days=sh_doy - 1)
 
     has_fast_turnaround = any(p in ("happy_seeder", "zero_till", "no_till") for p in practices)
+    sow_doy_num = sowing_date.timetuple().tm_yday
     if (
         crop_id == "wheat"
         and season_index == 1
-        and lat >= 0
+        and is_india_cal
         and prev_crop_id == "rice_puddled"
         and not has_fast_turnaround
-        and sowing_date.dayofyear <= 319
+        and sow_doy_num <= 319
     ):
         # Conventional tillage clearance after long-duration Pusa-44 delays wheat sowing past Nov 15
-        sowing_date = pd.Timestamp(year=eff_year, month=11, day=22)
+        sowing_date = datetime.date(eff_year, 11, 22)
+        sow_doy_num = sowing_date.timetuple().tm_yday
 
     dur_days = round(0.5 * (crop.duration_days[0] + crop.duration_days[1]))
     if crop_id == "rice_puddled":
@@ -357,14 +575,27 @@ def _simulate_step(
     elif crop_id in ("moong", "urad") and season_index == 2:
         dur_days = 60   # PAU 60-day Summer Sathi Moong catch crop (Apr 10 - Jun 9)
 
-    sub_w = _extract_season_weather(weather, sowing_date, dur_days)
-    harvest_date = sowing_date + pd.Timedelta(days=dur_days)
-    n_days = len(sub_w)
-
-    precip_arr = np.asarray(sub_w["Precipitation"], dtype=float)
-    et0_arr = np.asarray(sub_w["ReferenceET"], dtype=float)
-    tmax_arr = np.asarray(sub_w["MaxTemp"], dtype=float)
-    tmin_arr = np.asarray(sub_w["MinTemp"], dtype=float)
+    harvest_date = sowing_date + datetime.timedelta(days=dur_days)
+    if _weather_arrays is not None:
+        precip_arr, et0_arr, tmax_arr, tmin_arr, solar_sub, doy_sub = _extract_season_arrays(
+            _weather_arrays, sowing_date, dur_days
+        )
+        n_days = len(precip_arr)
+    else:
+        sow_ts = pd.Timestamp(sowing_date)
+        sub_w = _extract_season_weather(weather, sow_ts, dur_days)
+        n_days = len(sub_w)
+        precip_arr = np.asarray(sub_w["Precipitation"], dtype=float)
+        et0_arr = np.asarray(sub_w["ReferenceET"], dtype=float)
+        tmax_arr = np.asarray(sub_w["MaxTemp"], dtype=float)
+        tmin_arr = np.asarray(sub_w["MinTemp"], dtype=float)
+        solar_col = (
+            "SolarRadiation"
+            if "SolarRadiation" in sub_w.columns
+            else ("ALLSKY_SFC_SW_DWN" if "ALLSKY_SFC_SW_DWN" in sub_w.columns else None)
+        )
+        solar_sub = np.asarray(sub_w[solar_col], dtype=float) if solar_col else None
+        doy_sub = sub_w.index.dayofyear.to_numpy(dtype=np.int16) if isinstance(sub_w.index, pd.DatetimeIndex) else None
 
     aq_ovr = crop_kb.load_aquacrop_override(crop_id)
     sand_pct = float(soil.sand_pct or 45.0)
@@ -391,7 +622,7 @@ def _simulate_step(
     has_mulch = any(p in ("residue_retained", "happy_seeder", "no_till", "zero_till") for p in practices)
     mulch_evap_saving = 0.90 if has_mulch else 1.0  # Mulch cuts stage-1 soil evaporation by ~10% of ETc
 
-    kc_daily = _stage_kc_series(crop.kc, n_days) * mulch_evap_saving
+    kc_daily = _cached_stage_kc(crop.kc, n_days) * mulch_evap_saving
     etc_daily = et0_arr * kc_daily
     etc_mm = float(np.sum(etc_daily))
 
@@ -412,22 +643,49 @@ def _simulate_step(
     y_pot_base = float(y_min + q_pot * (y_max - y_min))
 
     # 1. Solar Radiation responsiveness during grain filling (Monteith 1977; Fischer 1985)
-    solar_col = "SolarRadiation" if "SolarRadiation" in sub_w.columns else ("ALLSKY_SFC_SW_DWN" if "ALLSKY_SFC_SW_DWN" in sub_w.columns else None)
-    if solar_col and len(sub_w) > 0:
+    if solar_sub is not None and n_days > 0:
         fill_start = int(0.50 * n_days)
-        mean_rad = float(np.mean(sub_w[solar_col].iloc[fill_start:]))
-        # Benchmark radiation in North/Central India during grain fill is ~18.5 MJ/m2/day
-        f_radiation = float(np.clip(0.90 + 0.10 * (mean_rad / 18.5), 0.88, 1.10))
+        mean_rad = float(np.mean(solar_sub[fill_start:]))
+        if is_india_cal:
+            # Benchmark radiation in North/Central India during grain fill is ~18.5 MJ/m2/day
+            ref_rad = 18.5
+        elif _weather_arrays is not None and doy_sub is not None and _weather_arrays.solar is not None:
+            fill_doys_sub = doy_sub[fill_start:]
+            cache_k = fill_doys_sub.tobytes()
+            cached_ref = _weather_arrays.ref_rad_cache.get(cache_k)
+            if cached_ref is None:
+                fill_doys = np.unique(fill_doys_sub)
+                same_vals = _weather_arrays.solar[np.isin(_weather_arrays.doy, fill_doys)]
+                same_vals = same_vals[~np.isnan(same_vals)]
+                cached_ref = (
+                    float(np.clip(float(np.mean(same_vals)), 8.0, 26.0))
+                    if len(same_vals) >= 15
+                    else -1.0
+                )
+                _weather_arrays.ref_rad_cache[cache_k] = cached_ref
+            ref_rad = cached_ref if cached_ref >= 0.0 else max(10.0, mean_rad)
+        elif (
+            doy_sub is not None
+            and isinstance(weather.index, pd.DatetimeIndex)
+            and any(c in weather.columns for c in ("SolarRadiation", "ALLSKY_SFC_SW_DWN"))
+        ):
+            s_col_w = "SolarRadiation" if "SolarRadiation" in weather.columns else "ALLSKY_SFC_SW_DWN"
+            fill_doys = list({int(d) for d in doy_sub[fill_start:]})
+            w_doys = weather.index.dayofyear.to_numpy()
+            same_vals = np.asarray(weather[s_col_w], dtype=float)[np.isin(w_doys, fill_doys)]
+            same_vals = same_vals[~np.isnan(same_vals)]
+            ref_rad = float(np.clip(float(np.mean(same_vals)), 8.0, 26.0)) if len(same_vals) >= 15 else max(10.0, mean_rad)
+        else:
+            ref_rad = max(10.0, mean_rad)
+        f_radiation = float(np.clip(0.90 + 0.10 * (mean_rad / ref_rad), 0.88, 1.10))
     else:
         f_radiation = 1.0
 
     # 2. Sowing date / late sowing penalty for Rabi wheat (PAU Package of Practices: ~0.7% / day delay after Nov 15)
     sowing_penalty = 1.0
-    if crop_id == "wheat" and season_index == 1 and lat >= 0:
-        sow_doy = sowing_date.dayofyear
-        if sow_doy > 319 and sow_doy < 366:
-            late_days = sow_doy - 319
-            sowing_penalty = float(max(0.78, 1.0 - 0.007 * late_days))
+    if crop_id == "wheat" and season_index == 1 and is_india_cal and 319 < sow_doy_num < 366:
+        late_days = sow_doy_num - 319
+        sowing_penalty = float(max(0.78, 1.0 - 0.007 * late_days))
 
     # 3. Soil texture, organic carbon & pH responsiveness (Saxton-Rawls / PAU soil fertility guide / WS-G2)
     sand_fertility_penalty = float(np.clip(1.0 - 0.18 * max(0.0, (sand_pct - 50.0) / 40.0), 0.84, 1.0))
@@ -446,11 +704,12 @@ def _simulate_step(
     y_pot = float(y_pot_base * f_radiation * sowing_penalty * f_soil_fertility)
 
     # -----------------------------------------------------------------------
-    # Case 1: Lowland Paddy Rice (Puddled Transplanted vs Direct-Seeded DSR)
+    # Case 1: Lowland Paddy Rice (Puddled Transplanted vs Direct-Seeded DSR / AWD)
     # Parameterised to match PAU trials (Ladha et al. 2009; Sudhir-Yadav et al. 2011)
+    # Aerobic upland rice (`rice_upland`) intentionally uses Case 2 below.
     # -----------------------------------------------------------------------
-    if crop_id in ("rice_puddled", "rice_short", "basmati", "rice_dsr"):
-        is_dsr = crop_id == "rice_dsr" or "direct_seeded" in practices
+    if crop_id in ("rice_puddled", "rice_short", "basmati", "rice_dsr", "rice_japonica_temperate"):
+        is_dsr = crop_id == "rice_dsr" or "direct_seeded" in practices or "irrigated_awd" in practices
 
         # Adjust pre-sowing soak demand upward when Meteomatics reports dry root-zone deficit (>35 mm)
         extra_dry_mm = max(0.0, float(initial_depletion_mm) - 35.0)
@@ -564,76 +823,56 @@ def _simulate_step(
             # Retained residue preserves pre-sowing soil moisture
             dr = max(0.0, dr - 18.0)
 
-        daily_eta = np.zeros(n_days, dtype=float)
-        daily_irr = np.zeros(n_days, dtype=float)
-        daily_ks = np.zeros(n_days, dtype=float)
+        peff_cap = 85.0 if has_bbf else 75.0
+        peff_daily = np.minimum(precip_arr, peff_cap)
+        raw_daily = np.clip(p_frac + 0.04 * (5.0 - etc_daily), 0.10, 0.80) * taw_mm
+        can_irr = irr_mode != "none"
+        irr_limited = irr_mode == "limited"
 
-        for d in range(n_days):
-            etc_d = float(etc_daily[d])
-            p_d = float(precip_arr[d])
+        irr_sum = 0.0
+        eta_sum = 0.0
+        ks_sum = 0.0
 
-            # Effective rainfall (FAO-56: surface runoff above 75 mm/day; BBF furrows hold up to 85 mm/day)
-            peff_d = min(p_d, 85.0 if has_bbf else 75.0)
-
-            # Daily adjusted depletion fraction p and RAW (FAO-56 Eq. 89)
-            p_adj = float(np.clip(p_frac + 0.04 * (5.0 - etc_d), 0.10, 0.80))
-            raw_d = p_adj * taw_mm
-
+        for etc_d, peff_d, raw_d in zip(etc_daily.tolist(), peff_daily.tolist(), raw_daily.tolist()):
             # Daily water stress coefficient Ks (FAO-56 Eq. 84)
-            ks = agroclimate.fao56_depletion_ks(dr, raw_d, taw_mm)
-            daily_ks[d] = ks
+            if dr <= raw_d:
+                ks = 1.0
+            elif dr >= taw_mm:
+                ks = 0.0
+            else:
+                denom = max(1e-6, taw_mm - raw_d)
+                ks = max(0.0, (taw_mm - dr) / denom)
+            ks_sum += ks
 
             eta_d = ks * etc_d
-            daily_eta[d] = eta_d
+            eta_sum += eta_d
 
             # Irrigation decision: trigger when depletion exceeds 75% of adjusted RAW
-            trigger_dr = raw_d * 0.75
-            app_depth = min(raw_d, 65.0)
             irr_d = 0.0
-            if irr_mode != "none" and dr >= trigger_dr:
-                if irr_mode == "limited":
-                    irr_d = min(app_depth * 0.70, irr_cap - np.sum(daily_irr))
-                else:
-                    irr_d = min(app_depth, irr_cap - np.sum(daily_irr))
-                irr_d = max(0.0, irr_d)
-
-            daily_irr[d] = irr_d
+            if can_irr and dr >= raw_d * 0.75:
+                app_depth = min(65.0, raw_d)
+                rem_cap = irr_cap - irr_sum
+                cand = app_depth * 0.70 if irr_limited else app_depth
+                irr_d = max(0.0, min(rem_cap, cand))
+                irr_sum += irr_d
 
             # Daily root-zone water balance update (FAO-56 Eq. 85)
-            # dr[d] = dr[d-1] - (P - RO) - I + ETa + DP
             dr_next = dr - peff_d - irr_d + eta_d
-
-            # Deep percolation DP occurs when soil moisture exceeds field capacity (Dr < 0)
             if dr_next < 0.0:
-                dr_next = 0.0
+                dr = 0.0
             elif dr_next > taw_mm:
-                dr_next = taw_mm
+                dr = taw_mm
+            else:
+                dr = dr_next
 
-            dr = dr_next
-
-        irrigation_mm = float(np.sum(daily_irr))
-        eta_mm = float(np.sum(daily_eta))
-        mean_ks = float(np.mean(daily_ks)) if n_days > 0 else 1.0
+        irrigation_mm = irr_sum
+        eta_mm = eta_sum
+        mean_ks = ks_sum / n_days if n_days > 0 else 1.0
 
         # FAO-33 yield response to water deficit: (1 - Ya/Ym) = Ky * (1 - ETa/ETc)
-        ky = float(crop.waterlogging_tolerance if crop.waterlogging_tolerance > 0.5 else 1.0)
-        # Empirical Ky from FAO-33 Table 24
-        ky_lookup = {
-            "wheat": 1.05,
-            "maize": 1.25,
-            "chickpea": 0.85,
-            "mustard": 0.90,
-            "soybean": 0.85,
-            "sorghum": 0.90,
-            "cotton": 0.85,
-            "potato": 1.10,
-            "moong": 0.85,
-            "urad": 0.85,
-        }
-        if crop_id in ky_lookup:
-            ky = ky_lookup[crop_id]
+        if crop_id in _KY_LOOKUP:
+            ky = _KY_LOOKUP[crop_id]
         else:
-            aq_ovr = crop_kb.load_aquacrop_override(crop_id)
             ky = float(aq_ovr["ky"]) if aq_ovr and "ky" in aq_ovr else 1.0
         rel_et = eta_mm / max(1.0, etc_mm)
         water_yield_ratio = max(0.18, 1.0 - ky * (1.0 - rel_et))
@@ -668,10 +907,32 @@ def _simulate_step(
         "water_stress_coefficient": round(float(water_stress_coeff), 3),
         "thermal_factor": round(float(f_therm), 3),
         "duration_days": n_days,
-        "sowing_date": sowing_date.strftime("%Y-%m-%d"),
-        "harvest_date": harvest_date.strftime("%Y-%m-%d"),
+        "sowing_date": sowing_date.isoformat(),
+        "harvest_date": harvest_date.isoformat(),
     }
     return step_result, final_dep
+
+
+def compute_weather_sig(
+    w_df: pd.DataFrame,
+    lat: float,
+    cultivar_zone: str | None = None,
+    first_slot_id: str = "",
+) -> tuple:
+    """Compute cache signature tuple for a converted daily simulation weather DataFrame."""
+    if len(w_df) == 0:
+        return ()
+    return (
+        len(w_df),
+        str(w_df.index[0]),
+        str(w_df.index[-1]),
+        round(float(w_df["Precipitation"].sum()), 2) if "Precipitation" in w_df.columns else 0.0,
+        round(float(w_df["MaxTemp"].mean()), 4) if "MaxTemp" in w_df.columns else 0.0,
+        round(float(w_df["ReferenceET"].mean()), 4) if "ReferenceET" in w_df.columns else 0.0,
+        round(float(lat), 3),
+        cultivar_zone or "",
+        first_slot_id,
+    )
 
 
 def simulate_rotation(
@@ -684,35 +945,50 @@ def simulate_rotation(
     lat: float = 30.0,
     step_cache: dict | None = None,
     initial_depletion_mm: float | None = None,
+    cultivar_zone: str | None = None,
+    calendar_slots: Sequence[CalendarSlotSpec] | None = None,
+    weather_sig: tuple | None = None,
+    copy_weather: bool = True,
+    weather_arrays: _WeatherArrays | None = None,
+    crops_pre_resolved: bool = False,
 ) -> list[dict]:
     """Simulate multi-year rotation sequence under daily FAO-56 soil-water balance."""
     crops = crops or crop_kb.load_crops()
     results: list[dict] = []
 
-    if "ReferenceET" not in weather.columns:
-        w_df = to_daily_simulation_weather(weather, lat=lat)
+    if weather_arrays is not None:
+        w_df = weather
+        w_arr = weather_arrays
     else:
-        w_df = weather.copy()
-        if not isinstance(w_df.index, pd.DatetimeIndex):
+        if "ReferenceET" not in weather.columns:
+            w_df = to_daily_simulation_weather(weather, lat=lat)
+        elif not isinstance(weather.index, pd.DatetimeIndex):
+            w_df = weather.copy()
             if "Date" in w_df.columns:
                 w_df.index = pd.to_datetime(w_df["Date"])
             elif "date" in w_df.columns:
                 w_df.index = pd.to_datetime(w_df["date"])
+        else:
+            w_df = weather.copy() if copy_weather else weather
+        w_arr = build_weather_arrays(w_df)
 
     if initial_depletion_mm is not None:
         current_depletion_mm = float(np.clip(initial_depletion_mm, 0.0, 120.0))
     else:
         current_depletion_mm = 0.0
+    norm_slots = (
+        [s if isinstance(s, CalendarSlotSpec) else CalendarSlotSpec(**s) for s in calendar_slots]
+        if calendar_slots
+        else None
+    )
     if step_cache is not None and len(w_df) > 0:
-        weather_sig = (
-            len(w_df),
-            str(w_df.index[0]),
-            str(w_df.index[-1]),
-            round(float(w_df["Precipitation"].sum()), 2) if "Precipitation" in w_df.columns else 0.0,
-            round(float(w_df["MaxTemp"].mean()), 4) if "MaxTemp" in w_df.columns else 0.0,
-            round(float(w_df["ReferenceET"].mean()), 4) if "ReferenceET" in w_df.columns else 0.0,
-            round(float(lat), 3),
-        )
+        if weather_sig is None:
+            weather_sig = compute_weather_sig(
+                w_df,
+                lat=lat,
+                cultivar_zone=cultivar_zone,
+                first_slot_id=norm_slots[0].slot_id if norm_slots else "",
+            )
     else:
         weather_sig = ()
 
@@ -756,6 +1032,10 @@ def simulate_rotation(
             sowing_doy=step.sowing_doy,
             lat=lat,
             prev_crop_id=prev_cid,
+            cultivar_zone=cultivar_zone,
+            calendar_slots=norm_slots,
+            _weather_arrays=w_arr,
+            _crops_pre_resolved=crops_pre_resolved,
         )
         if step_cache is not None and cache_key is not None:
             step_cache[cache_key] = (dict(res), next_dep)

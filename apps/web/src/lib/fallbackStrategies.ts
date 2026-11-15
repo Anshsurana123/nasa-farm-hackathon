@@ -2,7 +2,7 @@
 // and static /golden/<id>/recommendations.json fetch fail.
 // Numbers match precomputed TerraLoop engine outputs for Sangrur (Punjab), with is_fallback=true.
 
-import type { FieldGeometry, StrategyRecommendation } from "@/types/api";
+import type { FieldGeometry, StrategyRecommendation, SupportedLanguage } from "@/types/api";
 
 export function adaptStrategiesForHorizon(
   strategies: StrategyRecommendation[],
@@ -191,7 +191,7 @@ function materializeRegionalPresets(
   presets: RegionalStratPreset[],
   stateName: string,
   economicsBasis: "local_verified" | "punjab_proxy",
-  lang: "en" | "pa" | "hi"
+  lang: SupportedLanguage
 ): StrategyRecommendation[] {
   return presets.map((p) => {
     const label = lang === "pa" ? p.labelPa ?? p.label : lang === "hi" ? p.labelHi ?? p.label : p.label;
@@ -1044,7 +1044,7 @@ export function getFallbackStrategies(
   _field?: FieldGeometry,
   _currencySymbol: string = "₹",
   rotationYears: number = 1,
-  lang: "en" | "pa" | "hi" = "en"
+  lang: SupportedLanguage = "en"
 ): StrategyRecommendation[] {
   void _currencySymbol;
   if (!_field) {

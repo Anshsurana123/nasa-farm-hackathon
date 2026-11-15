@@ -280,5 +280,96 @@ def test_fao56_initial_depletion_mm():
     assert res_dry[0]["water_stress_coefficient"] <= res_wet[0]["water_stress_coefficient"]
 
 
+def test_fao56_vernalization_and_dormancy_frost_kill():
+    from terraloop_engine import crop_kb
+    from terraloop_engine.models import fao56_runner
+    from terraloop_schemas import FarmConstraints, Rotation, RotationStep, SoilSummary
+
+    crops = crop_kb.load_crops()
+    soil_s = SoilSummary(texture_class="silty clay loam", sand_pct=15.0, silt_pct=55.0, clay_pct=30.0, soc_g_per_kg=18.0)
+    rot = Rotation(id="ww_test", steps=[RotationStep(year_index=0, season_index=1, crop_id="wheat_winter", sowing_doy=280)])
+
+    # Cool vernalizing winter (~4 C mean, ~12 C late spring) vs unchilled warm winter (~18 C) vs -25 C lethal frost
+    idx = pd.date_range("2015-01-01", "2017-12-31", freq="D")
+    doy = idx.dayofyear.to_numpy()
+    winter_cool = 9.0 - 9.0 * np.cos(2 * np.pi * (doy - 20) / 365.0)  # Jan ~0 C, Jul ~18 C
+    warm_nochill = 19.0 - 4.0 * np.cos(2 * np.pi * (doy - 20) / 365.0)  # Jan ~15 C, never chills
+    severe_kill = np.where((doy >= 10) & (doy <= 30), -25.0, winter_cool)
+
+    def _make_df(tmean: np.ndarray, tmin_shift: float = -4.0) -> pd.DataFrame:
+        return pd.DataFrame(
+            {"T2M_MAX": tmean + 4.0, "T2M_MIN": tmean + tmin_shift, "PRECTOTCORR": np.full(len(idx), 2.5)},
+            index=idx,
+        )
+
+    res_chill = fao56_runner.simulate_rotation(
+        rot, _make_df(winter_cool), soil_s, FarmConstraints(irrigation="none"), crops=crops, start_year=2015, cultivar_zone="maritime_europe"
+    )
+    res_unchilled = fao56_runner.simulate_rotation(
+        rot, _make_df(warm_nochill), soil_s, FarmConstraints(irrigation="none"), crops=crops, start_year=2015, cultivar_zone="maritime_europe"
+    )
+    res_kill = fao56_runner.simulate_rotation(
+        rot, _make_df(severe_kill, tmin_shift=-4.0), soil_s, FarmConstraints(irrigation="none"), crops=crops, start_year=2015, cultivar_zone="maritime_europe"
+    )
+    assert res_chill[0]["yield_t_ha"] > res_unchilled[0]["yield_t_ha"]
+    assert res_chill[0]["yield_t_ha"] > res_kill[0]["yield_t_ha"]
+
+
+def test_soil_health_card_multi_standard_conversions():
+    from terraloop_engine import profiler
+    from terraloop_schemas import (
+        ClimateSummary,
+        FieldGeometry,
+        FieldProfile,
+        HazardSummary,
+        SoilHealthCardInput,
+        SoilSummary,
+        WaterSummary,
+    )
+
+    base_soil = SoilSummary(texture_class="loam", sand_pct=40.0, silt_pct=40.0, clay_pct=20.0, ph=6.5, soc_g_per_kg=10.0)
+    base_prof = FieldProfile(
+        field=FieldGeometry(lat=42.03, lon=-93.62, name="Test"),
+        climate=ClimateSummary(
+            baseline_period="1985-2004",
+            recent_period="2005-2024",
+            mean_tmax_c=16.0,
+            mean_tmin_c=4.0,
+            annual_precip_mm=850.0,
+            recent_annual_precip_mm=880.0,
+            precip_change_pct=3.5,
+            tmax_change_c=0.8,
+            heat_days_per_year=4.0,
+            recent_heat_days_per_year=5.0,
+            frost_days_per_year=120.0,
+            longest_dry_spell_days_mean=18.0,
+            annual_et0_mm=950.0,
+            gdd_base10_per_year=1800.0,
+            monthly_precip_mm=[30.0, 32.0, 55.0, 85.0, 115.0, 125.0, 115.0, 105.0, 80.0, 55.0, 33.0, 20.0],
+            monthly_tmax_c=[-2.0, 1.0, 8.0, 16.0, 22.0, 27.0, 29.0, 28.0, 23.0, 16.0, 7.0, 0.0],
+            monthly_tmin_c=[-12.0, -9.0, -3.0, 4.0, 10.0, 15.0, 18.0, 16.0, 11.0, 4.0, -3.0, -9.0],
+        ),
+        water=WaterSummary(climatic_water_balance_mm=-100.0),
+        soil=base_soil,
+        hazards=HazardSummary(),
+    )
+
+    m3 = profiler.apply_soil_health_card_override(
+        base_prof,
+        SoilHealthCardInput(lab_standard="mehlich3", ph=6.4, organic_matter_pct=3.448, phosphorus_ppm=20.0, potassium_ppm=150.0, nitrate_n_ppm=25.0),
+    )
+    olsen = profiler.apply_soil_health_card_override(
+        base_prof,
+        SoilHealthCardInput(lab_standard="olsen", ph=6.4, organic_matter_pct=3.448, phosphorus_ppm=20.0, potassium_ppm=150.0),
+    )
+    assert m3.soil.soc_g_per_kg == pytest.approx(20.0, abs=0.2)
+    assert m3.soil.available_p_kg_ha == pytest.approx(20.0 * 2.24 * 0.65, abs=0.2)
+    assert olsen.soil.available_p_kg_ha == pytest.approx(20.0 * 2.24, abs=0.2)
+    assert m3.soil.available_p_kg_ha < olsen.soil.available_p_kg_ha
+    assert m3.soil.available_k_kg_ha == pytest.approx(150.0 * 2.24, abs=0.2)
+    assert any("Local Accredited Soil Testing Lab" in (p.source or "") for p in m3.soil.provenance)
+
+
+
 
 

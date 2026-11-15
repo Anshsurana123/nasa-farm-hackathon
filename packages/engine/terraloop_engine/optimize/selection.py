@@ -19,17 +19,32 @@ from collections.abc import Sequence
 from terraloop_schemas import Priorities
 
 OBJECTIVES = ("profit", "water_savings", "soil_health", "low_risk", "low_labour", "food_security")
+ECONOMIC_OBJECTIVES = ("profit", "low_risk", "low_labour")
+BIOPHYSICAL_OBJECTIVES = ("water_savings", "soil_health", "food_security")
 
 # Minimum physical spread thresholds to prevent numerical noise from dominating min-max scaling
 # when candidate metrics are closely clustered across an objective.
 MIN_SPREADS: dict[str, float] = {
-    "profit": 5000.0,         # ₹5,000 / ha
+    "profit": 5000.0,         # ₹5,000 / ha baseline INR equivalent
     "water_savings": 25.0,    # 25 mm irrigation
     "soil_health": 5.0,       # 5.0 points on 0-100 index
     "low_risk": 5000.0,       # ₹5,000 / ha CVaR
     "low_labour": 2000.0,     # ₹2,000 / ha labour cost
     "food_security": 0.10,    # 0.10 on 0-1 nutrition index
 }
+
+
+def build_min_spreads(spread_factor: float = 1.0) -> dict[str, float]:
+    """Scale currency-denominated MIN_SPREADS thresholds for local currencies (USD, EUR, BRL, KES, AUD)."""
+    factor = max(1e-4, float(spread_factor))
+    return {
+        "profit": MIN_SPREADS["profit"] * factor,
+        "water_savings": MIN_SPREADS["water_savings"],
+        "soil_health": MIN_SPREADS["soil_health"],
+        "low_risk": MIN_SPREADS["low_risk"] * factor,
+        "low_labour": MIN_SPREADS["low_labour"] * factor,
+        "food_security": MIN_SPREADS["food_security"],
+    }
 
 
 def pareto_front(
@@ -54,9 +69,14 @@ def pareto_front(
     return front
 
 
-def weighted_scores(candidates: list[dict[str, float]], priorities: Priorities) -> list[float]:
+def weighted_scores(
+    candidates: list[dict[str, float]],
+    priorities: Priorities,
+    min_spreads: dict[str, float] | None = None,
+) -> list[float]:
     if not candidates:
         return []
+    spreads = min_spreads or MIN_SPREADS
     weights = priorities.model_dump()
     keys = [k for k in OBJECTIVES if weights.get(k, 0) > 0 and all(k in c for c in candidates)]
     total_w = sum(weights[k] for k in keys) or 1.0
@@ -64,7 +84,7 @@ def weighted_scores(candidates: list[dict[str, float]], priorities: Priorities) 
     for k in keys:
         vals = [c[k] for c in candidates]
         lo, hi = min(vals), max(vals)
-        min_sp = MIN_SPREADS.get(k, 1.0)
+        min_sp = spreads.get(k, 1.0)
         span = max(hi - lo, min_sp)
         for i, v in enumerate(vals):
             scores[i] += (weights[k] / total_w) * (v - lo) / span
@@ -82,12 +102,36 @@ def _extract_primary_pair(label: str) -> tuple[str, str]:
     return (label.lower(), "")
 
 
+def effective_priorities(
+    priorities: Priorities,
+    allow_economic_ranking: bool = True,
+) -> Priorities:
+    """Zero economic weights and fall back to biophysical objectives when unvalidated.
+
+    Outside calibrated economic regions (``allow_economic_ranking=False``), Punjab-proxy
+    objectives (``profit``, ``low_risk``, ``low_labour``) are disabled so ranking is
+    steered strictly by ``water_savings``, ``soil_health``, and ``food_security``.
+    """
+    if allow_economic_ranking:
+        return priorities
+    raw = priorities.model_dump()
+    for obj in ECONOMIC_OBJECTIVES:
+        raw[obj] = 0.0
+    bio_sum = sum(float(raw.get(obj, 0.0) or 0.0) for obj in BIOPHYSICAL_OBJECTIVES)
+    if bio_sum <= 0.0:
+        for obj in BIOPHYSICAL_OBJECTIVES:
+            raw[obj] = 1.0
+    return Priorities(**raw)
+
+
 def select_top(
     candidates: list[dict[str, float]],
     labels: list[str],
     priorities: Priorities,
     k: int = 3,
     crop_pairs: Sequence[tuple[str, ...]] | None = None,
+    allow_economic_ranking: bool = True,
+    min_spreads: dict[str, float] | None = None,
 ) -> list[int]:
     """Return indices of the top-k Pareto-optimal, structurally distinct candidates.
 
@@ -98,51 +142,60 @@ def select_top(
     """
     if not candidates:
         return []
-    weights = priorities.model_dump()
-    active_keys = [k for k in OBJECTIVES if weights.get(k, 0.0) > 0 and all(k in c for c in candidates)]
+    eff_priorities = effective_priorities(priorities, allow_economic_ranking=allow_economic_ranking)
+    weights = eff_priorities.model_dump()
+    allowed_objs = OBJECTIVES if allow_economic_ranking else BIOPHYSICAL_OBJECTIVES
+    active_keys = [obj for obj in allowed_objs if weights.get(obj, 0.0) > 0 and all(obj in c for c in candidates)]
     if not active_keys:
-        active_keys = [k for k in OBJECTIVES if all(k in c for c in candidates)]
+        active_keys = [obj for obj in allowed_objs if all(obj in c for c in candidates)]
     front = set(pareto_front(candidates, keys=active_keys))
-    scores = weighted_scores(candidates, priorities)
+    scores = weighted_scores(candidates, eff_priorities, min_spreads=min_spreads)
     nsga2_pool = set(nsga2_select(candidates, k=min(len(candidates), max(k * 3, 6)), keys=active_keys))
 
     # Priority-driven viability filter:
-    # Solvency requirement (P50 >= 0) is maintained, while relative floors on profit and soil health
-    # scale strictly with the farmer's normalized priority weights, preventing water-saving or
-    # climate-resilient rotations from being blocked when the farmer does not prioritize profit.
-    total_w = sum(weights.get(obj, 0.0) for obj in OBJECTIVES) or 1.0
-    norm_profit = weights.get("profit", 0.0) / total_w
+    # When economic ranking is allowed, solvency (P50 >= 0) and profit floors track priorities;
+    # when disallowed (unvalidated global proxy economics), only biophysical soil viability applies.
+    total_w = sum(weights.get(obj, 0.0) for obj in allowed_objs) or 1.0
+    norm_profit = (weights.get("profit", 0.0) / total_w) if allow_economic_ranking else 0.0
     norm_soil = weights.get("soil_health", 0.0) / total_w
 
     if len(candidates) >= 10:
-        profits = [c.get("profit", 0.0) for c in candidates]
         soils = [c.get("soil_health", 0.0) for c in candidates]
-        max_profit = max(profits) if profits else 0.0
         med_soil = sorted(soils)[len(soils) // 2] if soils else 0.0
-        has_positive_profit = max_profit > 0.0
-
-        if norm_profit > 0.10 and has_positive_profit:
-            p_floor = min(0.75, 0.35 + 0.40 * norm_profit) * max_profit
-        elif has_positive_profit:
-            p_floor = 0.0  # Basic solvency floor (no financial loss)
-        else:
-            p_floor = -float("inf")
 
         if norm_soil > 0.10:
             s_floor = med_soil * min(1.0, 0.50 + 0.50 * norm_soil)
         else:
             s_floor = 0.0
 
-        viable = {
-            i
-            for i, c in enumerate(candidates)
-            if c.get("profit", 0.0) >= p_floor and c.get("soil_health", 0.0) >= s_floor
-        }
-        if len(viable) < k:
+        if allow_economic_ranking:
+            profits = [c.get("profit", 0.0) for c in candidates]
+            max_profit = max(profits) if profits else 0.0
+            has_positive_profit = max_profit > 0.0
+
+            if norm_profit > 0.10 and has_positive_profit:
+                p_floor = min(0.75, 0.35 + 0.40 * norm_profit) * max_profit
+            elif has_positive_profit:
+                p_floor = 0.0  # Basic solvency floor (no financial loss)
+            else:
+                p_floor = -float("inf")
+
             viable = {
                 i
                 for i, c in enumerate(candidates)
-                if c.get("profit", 0.0) >= (0.0 if has_positive_profit else -float("inf"))
+                if c.get("profit", 0.0) >= p_floor and c.get("soil_health", 0.0) >= s_floor
+            }
+            if len(viable) < k:
+                viable = {
+                    i
+                    for i, c in enumerate(candidates)
+                    if c.get("profit", 0.0) >= (0.0 if has_positive_profit else -float("inf"))
+                }
+        else:
+            viable = {
+                i
+                for i, c in enumerate(candidates)
+                if c.get("soil_health", 0.0) >= s_floor
             }
         if len(viable) < k:
             viable = set(range(len(candidates)))
@@ -320,14 +373,18 @@ def nsga2_select(
     return selected
 
 
-def annotate_pareto_metrics(candidates: list[dict[str, float]]) -> list[dict[str, float]]:
+def annotate_pareto_metrics(
+    candidates: list[dict[str, float]],
+    keys: Sequence[str] | None = None,
+) -> list[dict[str, float]]:
     """Compute NSGA-II non-dominated front rank (1 = Pareto front) and crowding distance per candidate."""
     if not candidates:
         return []
-    fronts = fast_non_dominated_sort(candidates)
+    eval_keys = list(keys) if keys is not None else None
+    fronts = fast_non_dominated_sort(candidates, keys=eval_keys)
     out = [dict(c) for c in candidates]
     for rank_idx, front in enumerate(fronts, start=1):
-        cd_map = crowding_distance(candidates, front)
+        cd_map = crowding_distance(candidates, front, keys=eval_keys)
         for c_idx in front:
             out[c_idx]["pareto_front"] = float(rank_idx)
             raw_cd = cd_map.get(c_idx, 0.0)

@@ -172,6 +172,149 @@ islands:
   nitrogen: 0.72
   source_citation: "ICAR-CIARI Port Blair Island Sandy Clay Loam Benchmark"
 
+# ---------------------------------------------------------------------------
+# Global Tier-A Regional Hubs & Köppen-Geiger Biome Benchmarks
+# ---------------------------------------------------------------------------
+us_corn_belt:
+  sand: 22.0
+  silt: 49.0
+  clay: 29.0
+  soc: 24.0
+  phh2o: 6.4
+  bdod: 132.0
+  nitrogen: 2.1
+  source_citation: "USDA-NRCS SSURGO Clarion-Nicollet-Webster Mollisol Benchmark (Story County, IA)"
+
+eu_maritime_west:
+  sand: 16.0
+  silt: 60.0
+  clay: 24.0
+  soc: 16.5
+  phh2o: 7.2
+  bdod: 136.0
+  nitrogen: 1.6
+  source_citation: "INRAE RMQS / AFES Beauce Luvisol Silt Loam Benchmark (Eure-et-Loir, France)"
+
+brazil_cerrado:
+  sand: 44.0
+  silt: 12.0
+  clay: 44.0
+  soc: 15.0
+  phh2o: 5.7
+  bdod: 124.0
+  nitrogen: 1.4
+  source_citation: "Embrapa Solos SISB3 Red Ferralsol / Latossolo Vermelho Distrofico (Sorriso, MT)"
+
+east_africa_highlands:
+  sand: 34.0
+  silt: 28.0
+  clay: 38.0
+  soc: 19.5
+  phh2o: 6.1
+  bdod: 126.0
+  nitrogen: 1.8
+  source_citation: "KALRO / AfSIS Humic Nitisol–Andosol Highland Cropland Benchmark (Nakuru, Kenya)"
+
+australia_wheat_belt:
+  sand: 48.0
+  silt: 22.0
+  clay: 30.0
+  soc: 10.5
+  phh2o: 6.0
+  bdod: 142.0
+  nitrogen: 1.0
+  source_citation: "CSIRO ANSIS / NSW DPIRD Red Kandosol–Chromosol Riverina Benchmark (Wagga Wagga, NSW)"
+
+aez_temperate_continental:
+  sand: 28.0
+  silt: 46.0
+  clay: 26.0
+  soc: 21.0
+  phh2o: 6.6
+  bdod: 134.0
+  nitrogen: 1.9
+  source_citation: "ISRIC SoilGrids / FAO HWSD Continental Mollisol–Chernozem AEZ Reference"
+
+aez_maritime_temperate:
+  sand: 24.0
+  silt: 52.0
+  clay: 24.0
+  soc: 17.5
+  phh2o: 6.7
+  bdod: 135.0
+  nitrogen: 1.7
+  source_citation: "ISRIC SoilGrids / ESDAC Maritime Temperate Luvisol–Cambisol AEZ Reference"
+
+aez_mediterranean:
+  sand: 40.0
+  silt: 32.0
+  clay: 28.0
+  soc: 10.0
+  phh2o: 7.4
+  bdod: 142.0
+  nitrogen: 1.0
+  source_citation: "ISRIC SoilGrids / FAO Mediterranean Calcaric Cambisol–Chromosol AEZ Reference"
+
+aez_humid_subtropical:
+  sand: 38.0
+  silt: 34.0
+  clay: 28.0
+  soc: 13.5
+  phh2o: 6.1
+  bdod: 137.0
+  nitrogen: 1.3
+  source_citation: "ISRIC SoilGrids / USDA-FAO Humid Subtropical Ultisol–Alfisols AEZ Reference"
+
+aez_tropical_wet:
+  sand: 42.0
+  silt: 18.0
+  clay: 40.0
+  soc: 17.0
+  phh2o: 5.4
+  bdod: 126.0
+  nitrogen: 1.6
+  source_citation: "ISRIC SoilGrids / FAO Humid Tropical Ferralsol–Acrisol AEZ Reference"
+
+aez_tropical_savanna:
+  sand: 48.0
+  silt: 20.0
+  clay: 32.0
+  soc: 11.5
+  phh2o: 5.9
+  bdod: 136.0
+  nitrogen: 1.1
+  source_citation: "ISRIC SoilGrids / FAO Tropical Savanna Lixisol–Ferralsol AEZ Reference"
+
+aez_arid_semiarid:
+  sand: 58.0
+  silt: 24.0
+  clay: 18.0
+  soc: 5.5
+  phh2o: 7.9
+  bdod: 150.0
+  nitrogen: 0.55
+  source_citation: "ISRIC SoilGrids / FAO Arid–Semi-Arid Calcisol–Arenosol AEZ Reference"
+
+aez_boreal_alpine:
+  sand: 48.0
+  silt: 34.0
+  clay: 18.0
+  soc: 25.0
+  phh2o: 5.8
+  bdod: 122.0
+  nitrogen: 2.0
+  source_citation: "ISRIC SoilGrids / FAO Boreal Podzol–Cryosol AEZ Reference"
+
+default_global_soil:
+  sand: 40.0
+  silt: 36.0
+  clay: 24.0
+  soc: 12.0
+  phh2o: 6.6
+  bdod: 140.0
+  nitrogen: 1.1
+  source_citation: "ISRIC SoilGrids / FAO-UNESCO Global Arable Loam Reference"
+
 default_soil:
   sand: 44.0
   silt: 36.0

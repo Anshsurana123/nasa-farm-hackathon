@@ -1,0 +1,52 @@
+id: wheat_winter
+name: Winter Wheat
+family: poaceae
+group: cereal
+season_type: [cool]
+gdd_to_maturity: 2100
+base_temp_c: 0
+optimal_temp_c: [10, 22]
+max_temp_c: 32
+min_temp_c: -18
+duration_days: [235, 280]
+water_requirement_mm: [450, 650]
+kc: [0.40, 1.15, 0.30]
+root_depth_m: 1.5
+drought_tolerance: 3
+heat_tolerance: 2
+waterlogging_tolerance: 2
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 165
+residue_t_ha: 5.5
+residue_cn_ratio: 80
+typical_yield_t_ha: [6.0, 8.2]
+ph_range: [5.8, 8.0]
+vernalization_required: true
+vernalization_chill_days: 40
+winter_dormancy: true
+dormancy_temp_c: 2.0
+lethal_frost_c: -20.0
+cultivar_profiles:
+  maritime_europe:
+    gdd_to_maturity: 2150
+    typical_yield_t_ha: [6.8, 8.2]
+    duration_days: [240, 275]
+    water_requirement_mm: [450, 620]
+    notes: "France Beauce winter soft wheat (ble tendre d'hiver; Agreste/ARVALIS 5-yr mean ~7.3 t/ha)."
+  temperate_high_input:
+    gdd_to_maturity: 1950
+    typical_yield_t_ha: [4.5, 6.2]
+    duration_days: [250, 280]
+    water_requirement_mm: [420, 580]
+    notes: "US Midwest/Plains hard/soft winter wheat (USDA NASS)."
+  mediterranean_dryland:
+    gdd_to_maturity: 1900
+    typical_yield_t_ha: [3.2, 4.8]
+    duration_days: [175, 215]
+    water_requirement_mm: [320, 460]
+    notes: "Early-sown Australian winter wheat (GRDC/NSW DPIRD)."
+aquacrop_name: Wheat
+good_predecessors: [rapeseed_canola, field_pea, faba_bean, soybean, potato, sugar_beet]
+bad_predecessors: [wheat_winter, wheat_spring, wheat, barley, triticale]
+notes: "Autumn-sown vernalizing wheat entering winter dormancy below 2 C and tolerating frost down to -20 C when hardened."
+sources: ["FAO-56 Table 12 (winter wheat Kc=0.40-0.70, 1.15, 0.25-0.40)", "Agreste / ARVALIS Beauce Reference", "USDA NASS Winter Wheat"]

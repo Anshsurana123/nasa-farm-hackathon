@@ -10,12 +10,22 @@ export interface DataProvenance {
   mode?: "observed" | "regional_climatology" | "fallback_estimate" | "unknown";
 }
 
+export type SoilLabStandard = "india_shc" | "mehlich3" | "olsen" | "bray1" | "iso_generic";
+export type UnitConvention = "metric" | "acre" | "imperial";
+export type SupportedLanguage = "en" | "pa" | "hi" | "es" | "pt" | "fr";
+export type ValidationStatus = "validated_india" | "validated_regional" | "biophysical_global" | "unvalidated_global";
+
 export interface SoilHealthCardInput {
+  lab_standard?: SoilLabStandard;
   ph?: number | null;
   soc_pct?: number | null;
+  organic_matter_pct?: number | null;
   available_n_kg_ha?: number | null;
   available_p_kg_ha?: number | null;
   available_k_kg_ha?: number | null;
+  nitrate_n_ppm?: number | null;
+  phosphorus_ppm?: number | null;
+  potassium_ppm?: number | null;
 }
 
 export interface FieldGeometry {
@@ -134,6 +144,31 @@ export interface InferredSeason {
   confirmed_by_farmer?: boolean;
 }
 
+export interface CalendarSlotSpec {
+  slot_index: number;
+  slot_id: string;
+  name: string;
+  season_type: "warm" | "cool";
+  sowing_months: number[];
+  default_sowing_doy: number;
+  max_duration_days: number;
+  typical_harvest_months: number[];
+  overwintering: boolean;
+  notes?: string | null;
+}
+
+export interface CultivarAdaptation {
+  gdd_to_maturity?: number | null;
+  typical_yield_t_ha?: [number, number] | null;
+  duration_days?: [number, number] | null;
+  water_requirement_mm?: [number, number] | null;
+  kc?: [number, number, number] | null;
+  min_temp_c?: number | null;
+  vernalization_required?: boolean | null;
+  winter_dormancy?: boolean | null;
+  notes?: string | null;
+}
+
 export interface FieldProfile {
   field: FieldGeometry;
   climate: ClimateSummary;
@@ -146,13 +181,19 @@ export interface FieldProfile {
   agro_climatic_notes: string[];
   currency?: string;
   currency_symbol?: string;
+  country?: string | null;
+  country_code?: string | null;
   agro_zone?: string | null;
   state?: string | null;
+  aez_class?: string | null;
+  calendar_id?: string | null;
+  calendar_slots?: CalendarSlotSpec[];
+  unit_convention?: UnitConvention;
   served_from?: "live_computation" | "demo_snapshot";
   snapshot_date?: string | null;
   is_fallback?: boolean;
   data_mode?: "observed" | "hybrid_regional" | "fallback_synthetic" | "regional_climatology";
-  validation_status?: "validated_india" | "unvalidated_global";
+  validation_status?: ValidationStatus;
   validation_message?: string | null;
   tactical_advisory?: TacticalAdvisory | null;
 }
@@ -191,6 +232,15 @@ export interface CropSpec {
   residue_t_ha: number;
   residue_cn_ratio?: number | null;
   typical_yield_t_ha: [number, number];
+  ph_range?: [number, number];
+  vernalization_required?: boolean;
+  vernalization_chill_days?: number;
+  winter_dormancy?: boolean;
+  dormancy_temp_c?: number;
+  lethal_frost_c?: number | null;
+  is_perennial?: boolean;
+  perennial_cuts_per_yr?: number;
+  cultivar_profiles?: Record<string, CultivarAdaptation>;
   aquacrop_name?: string | null;
   good_predecessors: string[];
   bad_predecessors: string[];
@@ -268,6 +318,11 @@ export interface SeasonalOperationStep {
   yield_t_ha: number;
   irrigation_mm: number;
   irrigations_count: number;
+  currency?: string;
+  currency_symbol?: string;
+  input_cost_local_ha?: number;
+  labor_cost_local_ha?: number;
+  net_profit_local_ha?: number;
   input_cost_inr_ha: number;
   labor_cost_inr_ha: number;
   net_profit_inr_ha: number;
@@ -278,11 +333,17 @@ export interface SeasonalOperationStep {
 
 export interface PracticalFarmerMetrics {
   turnaround_days_kharif_rabi: number;
+  turnaround_days?: number | null;
   urea_bags_saved_per_ha: number;
+  fertilizer_n_saved_kg_ha?: number;
   irrigations_saved_per_yr: number;
   pumping_hours_saved_per_ha: number;
+  water_saved_m3_per_ha?: number;
   msp_assurance_level: string;
+  market_assurance_level?: string | null;
   eligible_schemes: string[];
+  currency?: string;
+  currency_symbol?: string;
   labor_cost_inr_per_ha: number;
   input_cost_inr_per_ha: number;
   area_ha?: number;
@@ -305,13 +366,15 @@ export interface StrategyRecommendation {
   currency_symbol?: string;
   practical_metrics?: PracticalFarmerMetrics | null;
   narrative_summary?: string | null;
+  country?: string | null;
+  region_id?: string | null;
   state?: string | null;
   served_from?: "live_computation" | "demo_snapshot";
   snapshot_date?: string | null;
-  economics_basis?: "local_verified" | "punjab_proxy";
+  economics_basis?: "local_verified" | "regional_verified" | "faostat_proxy" | "punjab_proxy" | "uncalibrated_proxy";
   is_fallback?: boolean;
   data_mode?: "observed" | "hybrid_regional" | "fallback_synthetic" | "regional_climatology";
-  validation_status?: "validated_india" | "unvalidated_global";
+  validation_status?: ValidationStatus;
   validation_message?: string | null;
 }
 
@@ -326,7 +389,8 @@ export interface RecommendRequest {
   field: FieldGeometry;
   priorities?: Priorities;
   constraints?: FarmConstraints;
-  language?: "en" | "pa" | "hi";
+  language?: SupportedLanguage;
+  unit_convention?: UnitConvention | null;
   soil_health_card?: SoilHealthCardInput | null;
   profile?: FieldProfile | null;
   baseline_override?: string[] | null;
@@ -341,7 +405,7 @@ export interface SuitabilityRequest {
   constraints?: FarmConstraints;
   profile?: FieldProfile | null;
   soil_health_card?: SoilHealthCardInput | null;
-  language?: "en" | "pa" | "hi";
+  language?: SupportedLanguage;
 }
 
 export interface SuitabilityItem {
@@ -369,5 +433,16 @@ export interface RecommendJobStatus {
   progress?: number;
   message?: string | null;
   result?: StrategyRecommendation[] | null;
+  error?: string | null;
+}
+
+export type ProfileProgressStage = "region" | "satellite" | "advisory" | "done" | "failed";
+
+export interface ProfileJobStatus {
+  job_id: string;
+  status: "running" | "completed" | "failed";
+  step?: string;
+  progress?: number;
+  result?: FieldProfile | null;
   error?: string | null;
 }

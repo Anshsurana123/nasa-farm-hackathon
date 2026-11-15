@@ -1,0 +1,134 @@
+# Kenya / East African Highlands Crop Enterprise Budgets (KNBS Economic Survey, KALRO & NCPB 2024)
+currency: KES
+currency_symbol: "KSh"
+usd_exchange_rate: 129.0
+ppp_spread_factor: 1.55
+cost_floor: 6000.0
+labor_floor: 2000.0
+state: Nakuru
+economics_basis: regional_verified
+
+practice_adjustments:
+  happy_seeder_zero_till:
+    cost_delta: -6500.0
+    labor_delta: -2800.0
+  direct_seeded:
+    cost_delta: -8000.0
+    labor_delta: -3500.0
+  broad_bed_furrow:
+    cost_delta: 0.0
+    labor_delta: -1800.0
+  legume_credit:
+    cost_delta: -3600.0
+    labor_delta: 0.0
+
+crops:
+  maize:
+    price_per_tonne: 44400.0
+    price_usd_per_tonne: 344.2
+    cost_per_ha: 68000.0
+    labor_cost_per_ha: 24500.0
+    cost_usd_per_ha: 527.1
+    market_risk: 0.14
+    procurement_type: "ncpb_or_wholesale"
+    sources: ["KNBS Kenya Economic Survey / NCPB Gazette (~KSh 4,000/90kg bag; KALRO Nakuru maize cost ~KSh 68,000/ha)"]
+
+  common_bean:
+    price_per_tonne: 127800.0
+    price_usd_per_tonne: 990.7
+    cost_per_ha: 52000.0
+    labor_cost_per_ha: 21000.0
+    cost_usd_per_ha: 403.1
+    market_risk: 0.16
+    procurement_type: "local_market_or_ncpb"
+    sources: ["KAMIS Kenya / KALRO Rift Valley Common Bean Gross Margin (2024)"]
+
+  potato:
+    price_per_tonne: 28000.0
+    price_usd_per_tonne: 217.1
+    cost_per_ha: 185000.0
+    labor_cost_per_ha: 62000.0
+    cost_usd_per_ha: 1434.1
+    market_risk: 0.24
+    procurement_type: "fresh_wholesale_or_crisp"
+    sources: ["NPCK (National Potato Council of Kenya) / KALRO Tigoni Gross Margins (2024)"]
+
+  wheat_spring:
+    price_per_tonne: 53300.0
+    price_usd_per_tonne: 413.2
+    cost_per_ha: 72000.0
+    labor_cost_per_ha: 16500.0
+    cost_usd_per_ha: 558.1
+    market_risk: 0.13
+    procurement_type: "cereal_miller_contract"
+    sources: ["MoALD Kenya / Cereal Growers Association Nakuru-Narok Wheat Budget (2024)"]
+
+  sorghum:
+    price_per_tonne: 48000.0
+    price_usd_per_tonne: 372.1
+    cost_per_ha: 39000.0
+    labor_cost_per_ha: 16000.0
+    cost_usd_per_ha: 302.3
+    market_risk: 0.14
+    procurement_type: "malting_or_food_market"
+    sources: ["KALRO Arid/Semi-Arid Dryland Cereals Budgets (2024)"]
+
+  sweet_potato:
+    price_per_tonne: 32000.0
+    price_usd_per_tonne: 248.1
+    cost_per_ha: 95000.0
+    labor_cost_per_ha: 42000.0
+    cost_usd_per_ha: 736.4
+    market_risk: 0.18
+    procurement_type: "fresh_food_market"
+    sources: ["CIP Kenya / KALRO Orange-Fleshed Sweetpotato Budgets (2024)"]
+
+  field_pea:
+    price_per_tonne: 98000.0
+    price_usd_per_tonne: 759.7
+    cost_per_ha: 48000.0
+    labor_cost_per_ha: 19500.0
+    cost_usd_per_ha: 372.1
+    market_risk: 0.15
+    procurement_type: "highland_pulse_market"
+    sources: ["KALRO Cool Highland Legume Enterprise Survey (2024)"]
+
+  lupin:
+    price_per_tonne: 85000.0
+    price_usd_per_tonne: 658.9
+    cost_per_ha: 43000.0
+    labor_cost_per_ha: 17000.0
+    cost_usd_per_ha: 333.3
+    market_risk: 0.15
+    procurement_type: "protein_feed_niche"
+    sources: ["KALRO Nakuru Highland Pulse Adaptation Trials"]
+
+  rice_upland:
+    price_per_tonne: 68000.0
+    price_usd_per_tonne: 527.1
+    cost_per_ha: 78000.0
+    labor_cost_per_ha: 34000.0
+    cost_usd_per_ha: 604.7
+    market_risk: 0.15
+    procurement_type: "nrb_or_local_mill"
+    sources: ["Kenya National Rice Development Strategy (NRDS-2) NERICA Budget"]
+
+  cassava:
+    price_per_tonne: 20000.0
+    price_usd_per_tonne: 155.0
+    cost_per_ha: 74000.0
+    labor_cost_per_ha: 35000.0
+    cost_usd_per_ha: 573.6
+    market_risk: 0.14
+    procurement_type: "food_or_flour_market"
+    sources: ["KALRO Root Crops Enterprise Gross Margin (2024)"]
+
+  crimson_clover_vetch:
+    price_per_tonne: 0.0
+    price_usd_per_tonne: 0.0
+    cost_per_ha: 14000.0
+    labor_cost_per_ha: 5500.0
+    cost_usd_per_ha: 108.5
+    market_risk: 0.04
+    procurement_type: "kcsap_cover_forage"
+    sources: ["KCSAP Highland Conservation Agriculture Cover Legume Cost"]

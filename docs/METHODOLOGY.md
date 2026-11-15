@@ -102,7 +102,16 @@ Composite 0–100 index mapping rotation outputs directly onto the **5 USDA-NRCS
 ## Known limitations (state these openly on the project page)
 - NASA POWER is ~50 km resolution; field-level microclimate is not captured.
 - SMAP (9 km) and GRACE (~300 km native) give regional context and macro-scale urgency/moisture signals, not parcel-scale measurements.
-- SoilGrids is modelled; farmer soil tests (Soil Health Card) override it when provided.
-- Calibrated and validated for Indian agro-climatic zones; coordinates outside India are explicitly flagged as `unvalidated_global` with proxy benchmark economics.
-- Crop parameters are calibrated against PAU/ICRISAT benchmarks and literature defaults.
+- SoilGrids is modelled; farmer soil tests (Soil Health Card / regional lab) override it when provided.
+- **3-Tier Global Validation Honesty (`region_registry.py`):**
+  1. **`validated_india`:** 17 Indian ICAR agro-climatic zones + 6 DES/ICRISAT benchmark districts with state CACP 2024–25 budgets and 16 central/state schemes (`allow_economic_ranking=True`).
+  2. **`validated_regional`:** 5 Tier-A global breadbasket hubs (`us_corn_belt` Ames IA in USD, `eu_maritime_west` Beauce FR in EUR, `brazil_cerrado` Sorriso MT in BRL, `east_africa_highlands` Nakuru KE in KES, `australia_wheat_belt` Riverina NSW in AUD) calibrated against USDA NASS, Agreste, CONAB/IBGE, KNBS/KALRO, and ABARES ground truth (`allow_economic_ranking=True`).
+  3. **`biophysical_global` (`unvalidated_global` alias):** Everywhere else globally uses a 0.5° Köppen-Geiger AEZ grid (`global_aez_zones`) and Natural Earth Admin-0/1 boundaries with biophysical ranking only (`allow_economic_ranking=False`, zeroing economic objectives so unvalidated FAOSTAT/proxy prices never steer cropping choices).
+- Crop parameters are calibrated against PAU/ICRISAT and international breadbasket benchmarks (40 crops with optional `cultivar_profiles` overrides for `temperate_high_input`, `maritime_europe`, `tropical_high_input`, `tropical_highland`, `mediterranean_dryland`) plus literature defaults.
+
+## Global Agro-Ecological Extension (implemented: `region_registry.py`, `models/fao56_runner.py`, `profiler.py`, `rotations.py`)
+- **Vernalization & Winter Dormancy Freeze-Kill (`fao56_runner.py`, `rotations.py`):** Autumn-sown winter cereals and cover crops (`wheat_winter`, `rye_winter`, `triticale`, `rapeseed_canola`, `maritime_europe` `barley`, `crimson_clover_vetch`) accumulate chill vernalization days (both Northern and Southern Hemisphere winter-shifted calendars) and enter cold dormancy below `dormancy_temp_c`, while non-hardy summer/spring species (`lentil`, `sugar_beet`) are excluded from hard-freeze `winter_overwinter` slots via `lethal_frost_c` and `frost_days_per_year`.
+- **Multi-Standard Soil Lab Normalization (`profiler.py::apply_soil_health_card_override`):** Normalizes Soil Health Card (`india_shc`), US/Global Mehlich-3 (`mehlich3`), ISO/Olsen (`olsen`), Bray-1 (`bray1`), and generic lab units (`ppm` vs `kg/ha`, Organic Matter % vs Organic Carbon %) into standard internal units (`pH`, `SOC g/kg`, `N/P/K kg/ha`).
+- **Biome-Calibrated RothC $C_{eq}$ & Soil Grids:** Equilibrium steady-state carbon inputs (`c_eq_t_ha_yr` in `zones.yaml`) and SoilGrids regional fallbacks (`soils.yaml`) adapt per biome across semi-arid Australian drylands, sub-humid East African highlands, Cerrado Ferralsols, Beauce loess, and Mollisol Corn Belt soils.
+
 

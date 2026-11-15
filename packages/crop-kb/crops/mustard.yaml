@@ -20,6 +20,7 @@ n_demand_kg_ha: 100
 residue_t_ha: 3
 residue_cn_ratio: 50
 typical_yield_t_ha: [1.5, 2.0]
+ph_range: [5.5, 8.2]
 aquacrop_name: null
 good_predecessors: [maize, rice_short, rice_dsr, rice_puddled, pearl_millet, sorghum, urad, moong, groundnut, cotton]
 bad_predecessors: [mustard]

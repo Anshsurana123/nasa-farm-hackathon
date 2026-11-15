@@ -75,16 +75,38 @@ def test_gee_service_account_credentials_resolution(monkeypatch, tmp_path):
 
 
 def test_golden_profiles_include_meteomatics_fields():
-    """All 6 golden profiles in data/ and apps/web/public/ include Meteomatics hydrology, hazards & provenance."""
+    """All 11 golden profiles in data/ and apps/web/public/ include Meteomatics hydrology, hazards & provenance."""
     import json
 
+    from terraloop_schemas import FieldProfile
+
     root = Path(__file__).resolve().parents[1]
-    golden_ids = ("sangrur", "ludhiana", "bathinda", "vidarbha", "bundelkhand", "thanjavur")
+    golden_ids = (
+        "sangrur",
+        "ludhiana",
+        "bathinda",
+        "vidarbha",
+        "bundelkhand",
+        "thanjavur",
+        "us_corn_belt",
+        "eu_maritime_west",
+        "brazil_cerrado",
+        "east_africa_highlands",
+        "australia_wheat_belt",
+    )
     bases = (root / "data" / "golden", root / "apps" / "web" / "public" / "golden")
+
+    data_idx = json.loads((bases[0] / "fields.json").read_text(encoding="utf-8"))
+    web_idx = json.loads((bases[1] / "fields.json").read_text(encoding="utf-8"))
+    assert data_idx == web_idx and len(data_idx) == len(golden_ids)
 
     for base in bases:
         for fid in golden_ids:
-            prof = json.loads((base / fid / "profile.json").read_text(encoding="utf-8"))
+            raw_text = (base / fid / "profile.json").read_text(encoding="utf-8")
+            prof = json.loads(raw_text)
+            prof_model = FieldProfile.model_validate_json(raw_text)
+            assert prof_model.state, f"{base / fid}: missing state"
+            assert prof_model.country, f"{base / fid}: missing country"
             adv = prof.get("tactical_advisory")
             assert adv is not None, f"{base / fid}: missing tactical_advisory"
             assert len(adv.get("forecast_days", [])) == 7, f"{base / fid}: expected 7 tactical forecast days"
@@ -99,5 +121,6 @@ def test_golden_profiles_include_meteomatics_fields():
             hazards = prof["hazards"]
             assert hazards.get("late_blight_risk_idx") is not None
             assert hazards.get("fire_weather_index") is not None
-            assert hazards.get("max_30m_precip_rate_mmh") is not None
+            if fid in ("sangrur", "ludhiana", "bathinda", "vidarbha", "bundelkhand", "thanjavur"):
+                assert hazards.get("max_30m_precip_rate_mmh") is not None
             assert any("Meteomatics" in p.get("source", "") for p in hazards.get("provenance", []))

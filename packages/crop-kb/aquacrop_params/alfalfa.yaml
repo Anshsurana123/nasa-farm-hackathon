@@ -1,0 +1,14 @@
+crop_id: alfalfa
+base_crop: Alfalfa
+wp: 16.0
+hi0: 0.90
+ccx: 0.92
+cgc: 0.10
+cdc: 0.05
+z_max: 1.80
+t_base: 5.0
+t_upper: 32.0
+ky: 0.95
+p_up: [0.50, 0.65, 0.85]
+notes: "Perennial deep-rooted forage legume."
+sources: ["FAO Irrigation and Drainage Paper 66", "USDA NASS Alfalfa"]

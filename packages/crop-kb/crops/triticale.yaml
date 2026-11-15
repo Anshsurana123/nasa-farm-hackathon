@@ -1,0 +1,44 @@
+id: triticale
+name: Triticale
+family: poaceae
+group: cereal
+season_type: [cool]
+gdd_to_maturity: 1900
+base_temp_c: 0
+optimal_temp_c: [10, 22]
+max_temp_c: 33
+min_temp_c: -15
+duration_days: [165, 250]
+water_requirement_mm: [360, 520]
+kc: [0.40, 1.15, 0.30]
+root_depth_m: 1.4
+drought_tolerance: 4
+heat_tolerance: 3
+waterlogging_tolerance: 2
+n_fixation_kg_ha: 0
+n_demand_kg_ha: 120
+residue_t_ha: 5.5
+residue_cn_ratio: 78
+typical_yield_t_ha: [4.5, 6.8]
+ph_range: [5.2, 8.2]
+vernalization_required: true
+vernalization_chill_days: 30
+winter_dormancy: true
+dormancy_temp_c: 2.0
+lethal_frost_c: -18.0
+cultivar_profiles:
+  maritime_europe:
+    typical_yield_t_ha: [5.8, 7.2]
+    duration_days: [230, 265]
+    notes: "France winter triticale for feed/forage on lighter soils (Agreste)."
+  mediterranean_dryland:
+    vernalization_required: false
+    winter_dormancy: false
+    typical_yield_t_ha: [2.8, 4.0]
+    duration_days: [145, 175]
+    notes: "Australia dual-purpose spring triticale on acidic sandy loams."
+aquacrop_name: Wheat
+good_predecessors: [rapeseed_canola, field_pea, faba_bean, soybean, lupin]
+bad_predecessors: [wheat_winter, wheat_spring, wheat, triticale, barley]
+notes: "Wheat-rye hybrid combining rye's acid-soil/drought tolerance with higher grain yield."
+sources: ["FAO-56 Table 12 (winter cereals)", "Agreste Cereals France", "GRDC Triticale"]

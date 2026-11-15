@@ -30,26 +30,43 @@ CROP_NUTRITIVE_VALUE: dict[str, tuple[float, float]] = {
     "sorghum": (3490.0, 104.0),        # Jowar: 349 kcal/100g, 10.4% protein
     "pearl_millet": (3610.0, 116.0),   # Bajra: 361 kcal/100g, 11.6% protein
     "barley": (3360.0, 115.0),         # Barley grain: 336 kcal/100g, 11.5% protein
+    "wheat_winter": (3400.0, 126.0),   # USDA FDC HRW/soft winter wheat: 340 kcal/100g, 12.6% protein
+    "wheat_spring": (3460.0, 132.0),   # USDA FDC HRSW spring wheat: 346 kcal/100g, 13.2% protein
+    "oats": (2800.0, 121.6),           # USDA FDC oats (72% groat recovery * 389 kcal/100g, 16.9% protein)
+    "triticale": (3360.0, 131.0),      # USDA FDC whole triticale grain: 336 kcal/100g, 13.1% protein
+    "rice_japonica_temperate": (2310.0, 45.6),  # Rough paddy (67% milling recovery)
+    "rice_upland": (2240.0, 44.2),     # Aerobic upland rough paddy (65% milling recovery)
 
-    # Pulses & grain legumes (ICMR-NIN 2020 Table 2: Pulses and Legumes)
+    # Pulses & grain legumes (ICMR-NIN 2020 Table 2 & USDA FoodData Central)
     "chickpea": (3600.0, 171.0),       # Bengal gram / Chana: 360 kcal/100g, 17.1% protein
     "moong": (3480.0, 240.0),          # Green gram: 348 kcal/100g, 24.0% protein
     "urad": (3470.0, 240.0),           # Black gram: 347 kcal/100g, 24.0% protein
     "pigeon_pea": (3430.0, 223.0),     # Red gram / Arhar / Tur: 343 kcal/100g, 22.3% protein
     "lentil": (3430.0, 251.0),         # Masoor: 343 kcal/100g, 25.1% protein
     "soybean": (4320.0, 432.0),        # Soybean: 432 kcal/100g, 43.2% protein
-    "common_bean": (3400.0, 210.0),    # Rajma: 340 kcal/100g, 21.0% protein
+    "common_bean": (3400.0, 210.0),    # Rajma / dry kidney bean: 340 kcal/100g, 21.0% protein
+    "field_pea": (3520.0, 238.0),      # USDA FDC dry field pea: 352 kcal/100g, 23.8% protein
+    "faba_bean": (3410.0, 261.0),      # USDA FDC mature dry broadbean: 341 kcal/100g, 26.1% protein
+    "lupin": (3710.0, 362.0),          # USDA FDC mature dry lupin seed: 371 kcal/100g, 36.2% protein
 
-    # Oilseeds & roots/tubers (ICMR-NIN 2020 Tables 3 & 4)
+    # Oilseeds & roots/tubers (ICMR-NIN 2020 Tables 3 & 4 & USDA FoodData Central)
     "groundnut": (3970.0, 177.0),      # In-shell pod: ~70% kernel * (567 kcal/100g, 25.3% protein)
     "mustard": (5410.0, 200.0),        # Mustard seed: 541 kcal/100g, 20.0% protein
+    "rapeseed_canola": (5200.0, 200.0),# Whole canola/rapeseed: ~42% oil + meal protein (FAO/USDA)
     "sunflower": (5840.0, 198.0),      # Sunflower seed: 584 kcal/100g, 19.8% protein
     "potato": (770.0, 20.0),           # Fresh tuber (78% moisture): 77 kcal/100g, 2.0% protein
+    "sugar_beet": (430.0, 16.1),       # USDA FDC #11080 raw sugar beet root: 43 kcal/100g, 1.61% protein
+    "cassava": (1600.0, 13.6),         # USDA FDC raw cassava root: 160 kcal/100g, 1.36% protein
+    "sweet_potato": (860.0, 15.7),     # USDA FDC raw sweet potato root: 86 kcal/100g, 1.57% protein
 
-    # Non-food / fodder / green-manure crops (0 direct human food calories/protein)
+    # Non-food / fodder / green-manure / cover crops (0 direct human food calories/protein)
     "cotton": (0.0, 0.0),              # Non-food fibre crop
     "dhaincha": (0.0, 0.0),            # Green manure crop (soil incorporation)
     "berseem": (0.0, 0.0),             # Livestock fodder (secondary animal product not direct food)
+    "alfalfa": (0.0, 0.0),             # Perennial forage hay (secondary livestock feed)
+    "rye_winter": (0.0, 0.0),          # Overwintering cereal cover crop (in-situ soil cover)
+    "crimson_clover_vetch": (0.0, 0.0),# Winter legume cover crop (N fixation)
+    "brachiaria_cover": (0.0, 0.0),    # Tropical mulch cover grass (plantio direto)
     "fallow": (0.0, 0.0),              # Unplanted fallow
 }
 

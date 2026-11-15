@@ -1,0 +1,46 @@
+id: field_pea
+name: Field Pea (dry pea)
+family: fabaceae
+group: legume
+season_type: [cool]
+gdd_to_maturity: 1200
+base_temp_c: 4
+optimal_temp_c: [12, 22]
+max_temp_c: 30
+min_temp_c: -6
+duration_days: [90, 140]
+water_requirement_mm: [280, 420]
+kc: [0.40, 1.15, 0.30]
+root_depth_m: 0.9
+drought_tolerance: 3
+heat_tolerance: 2
+waterlogging_tolerance: 1
+n_fixation_kg_ha: 75
+n_demand_kg_ha: 20
+residue_t_ha: 2.5
+residue_cn_ratio: 20
+typical_yield_t_ha: [2.2, 3.6]
+ph_range: [5.8, 8.2]
+lethal_frost_c: -8.0
+cultivar_profiles:
+  maritime_europe:
+    typical_yield_t_ha: [3.0, 4.2]
+    duration_days: [110, 145]
+    notes: "France spring/winter proteaginous field pea (pois proteagineux; Agreste/Terres Inovia ~3.5 t/ha)."
+  mediterranean_dryland:
+    typical_yield_t_ha: [1.5, 2.4]
+    duration_days: [130, 155]
+    notes: "Southern Australia winter-sown dun/kaspa field pea (GRDC/ABARES)."
+  temperate_high_input:
+    typical_yield_t_ha: [2.2, 3.2]
+    duration_days: [90, 110]
+    notes: "North America dry yellow pea."
+  tropical_highland:
+    typical_yield_t_ha: [1.2, 2.0]
+    duration_days: [95, 120]
+    notes: "East Africa cool-highland garden/field pea (KALRO)."
+aquacrop_name: null
+good_predecessors: [wheat_winter, wheat_spring, barley, maize, oats]
+bad_predecessors: [field_pea, faba_bean, lentil, chickpea, lupin]
+notes: "Cool-season N-fixing pulse break crop improving first-wheat yields via Rhizobium credit and disease break."
+sources: ["FAO-56 Table 12 (peas Kc=0.40, 1.15, 0.30)", "Terres Inovia Pois", "GRDC Field Pea"]

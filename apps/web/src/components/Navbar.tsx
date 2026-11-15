@@ -283,7 +283,7 @@ export function Navbar() {
             )}
           </button>
 
-          {/* Area Unit Switcher: Per Acre (Killa) vs Per Hectare */}
+          {/* Area Unit Switcher: Per Acre / Per Hectare / US Imperial */}
           <div
             className="flex items-center rounded-lg border border-line p-0.5 bg-surface text-xs font-mono shrink-0"
             title={t("nav.unitSwitchTitle")}
@@ -310,27 +310,37 @@ export function Navbar() {
             >
               /{t("unit.haShort")}
             </button>
+            <button
+              type="button"
+              onClick={() => setUnitSystem("imperial")}
+              title={t("unit.imperialLabel")}
+              className={`px-2 py-1 rounded-md font-bold transition-colors cursor-pointer text-[11px] ${
+                unitSystem === "imperial"
+                  ? "bg-amber-500 text-slate-950"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              {t("unit.imperialShort")}
+            </button>
           </div>
 
-          {/* Language Switcher */}
+          {/* Language Switcher (6 Locales) */}
           <div className="flex items-center rounded-lg border border-line p-0.5 bg-surface text-xs shrink-0">
             <span className="px-1.5 text-muted hidden xl:inline-flex">
               <Globe className="w-3.5 h-3.5" />
             </span>
-            {Object.entries(DICTS).map(([code, meta]) => (
-              <button
-                key={code}
-                type="button"
-                onClick={() => setLang(code)}
-                className={`px-2 py-1 rounded-md font-medium transition-colors cursor-pointer text-[11px] ${
-                  lang === code
-                    ? "bg-emerald-500 text-slate-950 font-bold"
-                    : "text-muted hover:text-foreground"
-                }`}
-              >
-                {meta.short}
-              </button>
-            ))}
+            <select
+              aria-label="Language"
+              value={lang}
+              onChange={(e) => setLang(e.target.value)}
+              className="bg-transparent text-foreground px-1.5 py-1 rounded-md font-semibold outline-none cursor-pointer text-[11px]"
+            >
+              {Object.entries(DICTS).map(([code, meta]) => (
+                <option key={code} value={code} className="bg-surface text-foreground">
+                  {meta.short} · {meta.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>

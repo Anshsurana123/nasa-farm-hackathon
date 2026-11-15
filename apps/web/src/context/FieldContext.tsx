@@ -17,12 +17,45 @@ import type {
   Priorities,
   SoilHealthCardInput,
   StrategyRecommendation,
+  SupportedLanguage,
 } from "@/types/api";
-import { api } from "@/lib/api";
+import { api, isAbortError, profileWithProgress, recommendWithProgress } from "@/lib/api";
 import { getFallbackStrategies } from "@/lib/fallbackStrategies";
 import { generateFallbackProfile } from "@/lib/fallbackProfile";
-import { regionContext, type UnitSystem } from "@/lib/ui";
+import { regionContext, toApiUnitConvention, type UnitSystem } from "@/lib/ui";
 import { useI18n } from "@/i18n";
+
+function mergeSoilHealthCard(data: FieldProfile, shc: SoilHealthCardInput | null): FieldProfile {
+  if (!shc) return data;
+  const nextSoil = { ...data.soil };
+  if (shc.ph !== undefined && shc.ph !== null) {
+    nextSoil.ph = shc.ph;
+  }
+  if (shc.soc_pct !== undefined && shc.soc_pct !== null) {
+    nextSoil.soc_g_per_kg = Number((shc.soc_pct * 10).toFixed(2));
+  } else if (shc.organic_matter_pct !== undefined && shc.organic_matter_pct !== null) {
+    nextSoil.soc_g_per_kg = Number((shc.organic_matter_pct * 5.8).toFixed(2));
+  }
+  if (shc.available_n_kg_ha !== undefined && shc.available_n_kg_ha !== null) {
+    nextSoil.nitrogen_g_kg = Number((shc.available_n_kg_ha / 2240).toFixed(2));
+  } else if (shc.nitrate_n_ppm !== undefined && shc.nitrate_n_ppm !== null) {
+    nextSoil.nitrogen_g_kg = Number(((shc.nitrate_n_ppm * 2.24) / 2240).toFixed(3));
+  }
+  if (shc.available_p_kg_ha !== undefined && shc.available_p_kg_ha !== null) {
+    nextSoil.available_p_kg_ha = shc.available_p_kg_ha;
+  } else if (shc.phosphorus_ppm !== undefined && shc.phosphorus_ppm !== null) {
+    const pScale = shc.lab_standard === "mehlich3" ? 0.45 : shc.lab_standard === "bray1" ? 0.65 : 1.0;
+    nextSoil.available_p_kg_ha = Math.round(shc.phosphorus_ppm * pScale * 2.24);
+  }
+  if (shc.available_k_kg_ha !== undefined && shc.available_k_kg_ha !== null) {
+    nextSoil.available_k_kg_ha = shc.available_k_kg_ha;
+  } else if (shc.potassium_ppm !== undefined && shc.potassium_ppm !== null) {
+    const kScale = shc.lab_standard === "mehlich3" ? 0.85 : 1.0;
+    nextSoil.available_k_kg_ha = Math.round(shc.potassium_ppm * kScale * 2.24);
+  }
+  nextSoil.source = "farmer_test";
+  return { ...data, soil: nextSoil };
+}
 
 interface SelectedParcel {
   lat: number;
@@ -141,7 +174,7 @@ export function FieldProvider({ children }: { children: ReactNode }) {
         setSelectedRankState(Number(savedRank));
       }
       const savedUnit = localStorage.getItem("tl_unit_system");
-      if (savedUnit === "acre" || savedUnit === "hectare") {
+      if (savedUnit === "acre" || savedUnit === "hectare" || savedUnit === "imperial") {
         setUnitSystemState(savedUnit);
       }
     } catch {
@@ -149,7 +182,8 @@ export function FieldProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const requestKey = `${selectedGoldenId ?? ""}:${selectedField.lat}:${selectedField.lon}:${lang}:${JSON.stringify(soilHealthCard)}:${JSON.stringify(baselineOverride)}`;
+  const [retryNonce, setRetryNonce] = useState<number>(0);
+  const requestKey = `${selectedGoldenId ?? ""}:${selectedField.lat}:${selectedField.lon}:${lang}:${JSON.stringify(soilHealthCard)}:${JSON.stringify(baselineOverride)}:${retryNonce}`;
   const [settledProfileKey, setSettledProfileKey] = useState<string>("");
   const [settledRecsKey, setSettledRecsKey] = useState<string>("");
   const [manualOptimizing, setManualOptimizing] = useState<boolean>(false);
@@ -182,63 +216,36 @@ export function FieldProvider({ children }: { children: ReactNode }) {
       .catch((err) => console.warn("Could not load golden fields list:", err));
 
     api
-      .crops()
+      .crops(selectedField.lat, selectedField.lon)
       .then((list) => setCrops(list))
       .catch((err) => console.warn("Could not load crops catalog:", err));
-  }, []);
+  }, [selectedField.lat, selectedField.lon]);
 
   // Fetch profile + recommendations whenever selectedField, lang, soilHealthCard, or baselineOverride changes
   useEffect(() => {
     let isCancelled = false;
+    const controller = new AbortController();
 
     const fetchPromise = selectedGoldenId
-      ? api.goldenProfile(selectedGoldenId)
-      : api.profile({ lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name });
+      ? api.goldenProfile(selectedGoldenId, controller.signal)
+      : profileWithProgress(
+          { lat: selectedField.lat, lon: selectedField.lon, name: selectedField.name },
+          undefined,
+          controller.signal
+        );
 
     void (async () => {
       let resolvedProfile: FieldProfile | null = null;
       try {
         const data = await fetchPromise;
-        if (isCancelled) return;
+        if (isCancelled || controller.signal.aborted) return;
         rawProfileRef.current = data;
         resolvedProfile = data;
-        if (soilHealthCard) {
-          const nextSoil = { ...data.soil };
-          if (soilHealthCard.ph !== undefined && soilHealthCard.ph !== null) {
-            nextSoil.ph = soilHealthCard.ph;
-          }
-          if (soilHealthCard.soc_pct !== undefined && soilHealthCard.soc_pct !== null) {
-            nextSoil.soc_g_per_kg = Number((soilHealthCard.soc_pct * 10).toFixed(2));
-          }
-          if (
-            soilHealthCard.available_n_kg_ha !== undefined &&
-            soilHealthCard.available_n_kg_ha !== null
-          ) {
-            nextSoil.nitrogen_g_kg = Number(
-              (soilHealthCard.available_n_kg_ha / 2240).toFixed(2)
-            );
-          }
-          if (
-            soilHealthCard.available_p_kg_ha !== undefined &&
-            soilHealthCard.available_p_kg_ha !== null
-          ) {
-            nextSoil.available_p_kg_ha = soilHealthCard.available_p_kg_ha;
-          }
-          if (
-            soilHealthCard.available_k_kg_ha !== undefined &&
-            soilHealthCard.available_k_kg_ha !== null
-          ) {
-            nextSoil.available_k_kg_ha = soilHealthCard.available_k_kg_ha;
-          }
-          nextSoil.source = "farmer_test";
-          setProfile({ ...data, soil: nextSoil });
-        } else {
-          setProfile(data);
-        }
+        setProfile(mergeSoilHealthCard(data, soilHealthCard));
         setErrorState({ key: requestKey, msg: null });
         setSettledProfileKey(requestKey);
       } catch (err) {
-        if (isCancelled) return;
+        if (isCancelled || controller.signal.aborted || isAbortError(err)) return;
         rawProfileRef.current = null;
         const fallback = generateFallbackProfile({
           id: selectedGoldenId ?? undefined,
@@ -247,6 +254,18 @@ export function FieldProvider({ children }: { children: ReactNode }) {
           name: selectedField.name,
         });
         setProfile(fallback);
+        const fallbackList = getFallbackStrategies(
+          {
+            id: selectedGoldenId ?? undefined,
+            lat: selectedField.lat,
+            lon: selectedField.lon,
+            name: selectedField.name,
+          },
+          fallback.currency_symbol ?? regionContext(selectedField.lat, selectedField.lon, selectedGoldenId, fallback).currencySymbol ?? "$",
+          constraints.rotation_years,
+          (lang as SupportedLanguage) || "en"
+        );
+        setStrategies(fallbackList.length > 0 ? fallbackList : []);
         setErrorState({
           key: requestKey,
           msg:
@@ -255,61 +274,68 @@ export function FieldProvider({ children }: { children: ReactNode }) {
               : t("error.profileLoadFailed"),
         });
         setSettledProfileKey(requestKey);
+        setSettledRecsKey(requestKey);
+        return;
       }
 
-      if (isCancelled) return;
+      if (isCancelled || controller.signal.aborted) return;
 
       try {
-        const recs = await api.recommend({
-          field: {
-            id: selectedGoldenId ?? undefined,
-            lat: selectedField.lat,
-            lon: selectedField.lon,
-            name: selectedField.name,
-          },
-          priorities,
-          constraints,
-          language: (lang as "en" | "pa" | "hi") || "en",
-          soil_health_card: soilHealthCard,
-          profile: resolvedProfile ?? undefined,
-          baseline_override: baselineOverride,
-        });
-        if (!isCancelled && recs && recs.length > 0) {
-          setStrategies(recs);
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          const fallbackList = getFallbackStrategies(
-            {
+        const recs = await recommendWithProgress(
+          {
+            field: {
               id: selectedGoldenId ?? undefined,
               lat: selectedField.lat,
               lon: selectedField.lon,
               name: selectedField.name,
             },
-            regionContext(selectedField.lat, selectedField.lon, selectedGoldenId).currencySymbol ?? "$",
-            constraints.rotation_years,
-            (lang as "en" | "pa" | "hi") || "en"
-          );
-          if (fallbackList.length > 0) {
-            setStrategies(fallbackList);
-          } else {
-            setStrategies([]);
-          }
-          setErrorState({
-            key: requestKey,
-            msg:
-              err instanceof Error
-                ? `${t("error.optimizationFailed")} (${err.message})`
-                : t("error.optimizationFailed"),
-          });
+            priorities,
+            constraints,
+            language: (lang as SupportedLanguage) || "en",
+            unit_convention: toApiUnitConvention(unitSystem),
+            soil_health_card: soilHealthCard,
+            profile: resolvedProfile ?? undefined,
+            baseline_override: baselineOverride,
+          },
+          undefined,
+          controller.signal
+        );
+        if (!isCancelled && !controller.signal.aborted && recs && recs.length > 0) {
+          setStrategies(recs);
         }
+      } catch (err) {
+        if (isCancelled || controller.signal.aborted || isAbortError(err)) return;
+        const fallbackList = getFallbackStrategies(
+          {
+            id: selectedGoldenId ?? undefined,
+            lat: selectedField.lat,
+            lon: selectedField.lon,
+            name: selectedField.name,
+          },
+          resolvedProfile?.currency_symbol ?? regionContext(selectedField.lat, selectedField.lon, selectedGoldenId, resolvedProfile).currencySymbol ?? "$",
+          constraints.rotation_years,
+          (lang as SupportedLanguage) || "en"
+        );
+        if (fallbackList.length > 0) {
+          setStrategies(fallbackList);
+        } else {
+          setStrategies([]);
+        }
+        setErrorState({
+          key: requestKey,
+          msg:
+            err instanceof Error
+              ? `${t("error.optimizationFailed")} (${err.message})`
+              : t("error.optimizationFailed"),
+        });
       } finally {
-        if (!isCancelled) setSettledRecsKey(requestKey);
+        if (!isCancelled && !controller.signal.aborted) setSettledRecsKey(requestKey);
       }
     })();
 
     return () => {
       isCancelled = true;
+      controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestKey]);
@@ -317,7 +343,13 @@ export function FieldProvider({ children }: { children: ReactNode }) {
   const selectGolden = useCallback((field: GoldenField) => {
     const next = { lat: field.lat, lon: field.lon, name: field.name };
     const defaultIrr: "none" | "limited" | "full" =
-      field.id === "vidarbha" || field.id === "bundelkhand"
+      field.id === "vidarbha" ||
+      field.id === "bundelkhand" ||
+      field.id === "us_corn_belt" ||
+      field.id === "eu_maritime_west" ||
+      field.id === "brazil_cerrado" ||
+      field.id === "east_africa_highlands" ||
+      field.id === "australia_wheat_belt"
         ? "none"
         : field.id === "bathinda"
         ? "limited"
@@ -409,6 +441,17 @@ export function FieldProvider({ children }: { children: ReactNode }) {
       const cToUse = overrideC ?? constraints;
       const shcToUse = overrideShc !== undefined ? overrideShc : soilHealthCard;
       const baseToUse = overrideBase !== undefined ? overrideBase : baselineOverride;
+      if (
+        overrideP === undefined &&
+        overrideC === undefined &&
+        overrideShc === undefined &&
+        overrideBase === undefined &&
+        !selectedGoldenId &&
+        (!rawProfileRef.current || rawProfileRef.current.is_fallback)
+      ) {
+        setRetryNonce((n) => n + 1);
+        return;
+      }
       setManualOptimizing(true);
       setErrorState({ key: requestKey, msg: null });
       try {
@@ -420,7 +463,7 @@ export function FieldProvider({ children }: { children: ReactNode }) {
           Math.abs(rawCached.field.lon - selectedField.lon) < 1e-4
             ? rawCached
             : undefined;
-        const recs = await api.recommend({
+        const recs = await recommendWithProgress({
           field: {
             id: selectedGoldenId ?? undefined,
             lat: selectedField.lat,
@@ -429,7 +472,8 @@ export function FieldProvider({ children }: { children: ReactNode }) {
           },
           priorities: pToUse,
           constraints: cToUse,
-          language: (lang as "en" | "pa" | "hi") || "en",
+          language: (lang as SupportedLanguage) || "en",
+          unit_convention: toApiUnitConvention(unitSystem),
           soil_health_card: shcToUse,
           profile: matchingProfile,
           baseline_override: baseToUse,
@@ -445,9 +489,9 @@ export function FieldProvider({ children }: { children: ReactNode }) {
             lon: selectedField.lon,
             name: selectedField.name,
           },
-          profile?.currency_symbol ?? regionContext(selectedField.lat, selectedField.lon, selectedGoldenId).currencySymbol ?? "$",
+          profile?.currency_symbol ?? regionContext(selectedField.lat, selectedField.lon, selectedGoldenId, profile).currencySymbol ?? "$",
           cToUse.rotation_years,
-          (lang as "en" | "pa" | "hi") || "en"
+          (lang as SupportedLanguage) || "en"
         );
         if (fallbackList.length > 0) {
           setStrategies(fallbackList);
@@ -463,7 +507,7 @@ export function FieldProvider({ children }: { children: ReactNode }) {
         setManualOptimizing(false);
       }
     },
-    [selectedField, selectedGoldenId, profile?.currency_symbol, requestKey, priorities, constraints, lang, soilHealthCard, baselineOverride, t]
+    [selectedField, selectedGoldenId, profile, requestKey, priorities, constraints, lang, unitSystem, soilHealthCard, baselineOverride, t]
   );
 
   return (

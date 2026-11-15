@@ -1,4 +1,4 @@
-"""Precompute FieldProfiles, 30-year Weather Ensembles, and Recommendations for all 6 Indian golden benchmark fields. (TASK-D10)
+"""Precompute FieldProfiles, 30-year Weather Ensembles, and Recommendations for all 11 global & Indian golden benchmark fields. (TASK-D10)
 
 Usage (repo root):  uv run python scripts/precompute_golden.py [field_id ...]
 Writes data/golden/<id>/{profile.json, weather.json, recommendations.json}, which the API serves offline.
@@ -46,7 +46,7 @@ def main(ids: list[str]) -> None:
     crops_list = [json.loads(c.model_dump_json()) for c in crop_kb.load_crops().values()]
     (WEB_GOLDEN / "crops.json").write_text(json.dumps(crops_list, indent=2), encoding="utf-8")
 
-    # Remove stale non-Indian directories from web public/golden
+    # Remove stale directories from web public/golden that are no longer in fields.json
     valid_ids = {f["id"] for f in fields}
     for sub in WEB_GOLDEN.iterdir():
         if sub.is_dir() and sub.name not in valid_ids:
@@ -130,7 +130,20 @@ def main(ids: list[str]) -> None:
                 _save_weather_json(w_df, weather_path)
 
         # 3. Compute default recommendations (using the newly saved profile & weather)
-        irrigation_mode = "none" if fid in ("vidarbha", "bundelkhand") else ("limited" if fid == "bathinda" else "full")
+        irrigation_mode = (
+            "none"
+            if fid
+            in (
+                "vidarbha",
+                "bundelkhand",
+                "us_corn_belt",
+                "eu_maritime_west",
+                "brazil_cerrado",
+                "east_africa_highlands",
+                "australia_wheat_belt",
+            )
+            else ("limited" if fid == "bathinda" else "full")
+        )
         recs = recommend(
             RecommendRequest(
                 field=FieldGeometry(id=fid, lat=lat, lon=lon, name=name),
@@ -151,6 +164,7 @@ def main(ids: list[str]) -> None:
         (web_field_dir / "recommendations.json").write_text(recs_json_str, encoding="utf-8")
 
         c, s = prof.climate, prof.soil
+        curr_code = prof.currency or "INR"
         base_rec = recs[0]
         base_irr = sum(base_rec.results[0].irrigation_mm) / len(base_rec.results[0].irrigation_mm)
         print(
@@ -160,7 +174,7 @@ def main(ids: list[str]) -> None:
             flush=True,
         )
         print(
-            f"   Baseline: {base_rec.rotation.label} (irr={base_irr:.0f} mm, P50=INR {base_rec.results[0].profit_p50:,.0f}/ha, "
+            f"   Baseline: {base_rec.rotation.label} (irr={base_irr:.0f} mm, P50={curr_code} {base_rec.results[0].profit_p50:,.0f}/ha, "
             f"SOC_10yr={base_rec.results[0].soc_delta_t_ha_10yr:+.2f} t/ha)",
             flush=True,
         )
@@ -168,7 +182,7 @@ def main(ids: list[str]) -> None:
             rk_irr = sum(rk.results[0].irrigation_mm) / len(rk.results[0].irrigation_mm)
             print(
                 f"   Rank #{rk.rank} : {rk.rotation.label} (irr={rk_irr:.0f} mm [{rk.vs_baseline.get('irrigation_change_pct', 0):+.1f}%], "
-                f"P50=INR {rk.results[0].profit_p50:,.0f}/ha, SOC_10yr={rk.results[0].soc_delta_t_ha_10yr:+.2f} t/ha)",
+                f"P50={curr_code} {rk.results[0].profit_p50:,.0f}/ha, SOC_10yr={rk.results[0].soc_delta_t_ha_10yr:+.2f} t/ha)",
                 flush=True,
             )
 
