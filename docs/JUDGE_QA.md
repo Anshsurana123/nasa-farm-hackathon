@@ -9,8 +9,8 @@
 ### Question 1: "Why do some fields use precomputed data, and how do you ensure custom farm coordinates aren't silently served someone else's numbers?"
 
 **Direct Answer:**  
-Precomputed data is **strictly reserved for our six explicitly designated golden demonstration fields** (`sangrur`, `ludhiana`, `bathinda`, `vidarbha`, `bundelkhand`, `thanjavur`).  
-Every custom parcel drawn or clicked by a farmer receives an **uncached, live biophysical simulation** tailored to their exact coordinates, polygon boundary, SoilGrids profile, local weather history, farmer priorities, and baseline management.
+Precomputed data is **strictly reserved for our 11 explicitly designated golden demonstration fields across 6 continents** (`sangrur`, `ludhiana`, `bathinda`, `vidarbha`, `bundelkhand`, `thanjavur` in India, plus `us_corn_belt`, `eu_maritime_west`, `brazil_cerrado`, `east_africa_highlands`, `australia_wheat_belt`).  
+Every custom parcel drawn or clicked by a farmer anywhere on Earth receives an **uncached, live biophysical simulation** tailored to their exact coordinates, polygon boundary, SoilGrids profile, local weather history, Köppen-Geiger AEZ / state zone, farmer priorities, and baseline management.
 
 **Technical Evidence in the Repo:**
 1. **Strict Exact-ID Policy:** In `apps/api/terraloop_api/main.py` (`_match_golden_field`), golden assets are matched **only** if the incoming request carries an exact matching ID (`req.field.id in [f["id"] for f in _golden_index()]`). We explicitly eliminated all spatial radius tolerances (the former 0.15° / ~16 km shortcut) and name-substring matches. A custom farm even 100 meters away from a golden field is dispatched to live profiling and simulation.
@@ -34,6 +34,7 @@ In adherence to **Rule 1 (NASA Data First, and It Must Matter)**, we strictly di
 | **NASA FIRMS VIIRS/MODIS** | `FIRMS` active hotspots | 375-meter active hotspots | **YES (Baseline)** | October–November active thermal fire anomalies detect whether the farmer's current baseline involves crop residue burning, enforcing a -5 pt penalty on the Soil Health Index and reducing RothC organic carbon retention by 90%. |
 | **Harmonized Landsat Sentinel (HLS)** | `NASA/HLS/HLSL30/v002` | 30-meter, 2–3 day revisit | **YES (Baseline)** | 3-year Savitzky–Golay smoothed NDVI time series infers historical crop seasonality (Kharif, Rabi, Zaid) and sowing/harvest turnaround windows to establish the farmer's baseline rotation. |
 | **NASA SMAP L4** | `NASA/SMAP/SPL4SMGP/008` | 9 km, 3-hourly root-zone | **YES (Suitability) + CONTEXT** | 12 monthly root-zone soil moisture percentiles adjust post-monsoon residual soil moisture (`+15%` when `smap_mean > 60%`) and drought-tolerance bonuses/penalties (`< 35%`) in `suitability.py` plus live dry-spell estimation, while FAO-56 simulates daily field root-zone depletion directly (diagnostic rings keep a `"Context Only"` indicator). |
+| **NASA GIBS WMTS** | `VIIRS_SNPP_CorrectedReflectance_TrueColor`, `SMAP_L4_Analyzed_Root_Zone_Soil_Moisture`, `MODIS_Terra_NDVI_8Day` | 250 m – 9 km (`EPSG:3857`) | **NO (Visual Context Only)** | Interactive satellite map overlays in `FieldMap.tsx`, explicitly labeled **`Context Only`** in the layer selector so visual tiles are never mistaken for parcel-level calculations. |
 
 ---
 
@@ -57,23 +58,25 @@ We do not hide discrepancies behind synthetic smoothing:
    - Yavatmal Rainfed Chickpea: **0.77 t/ha** vs. Observed **1.15 t/ha** (**-33.5% error**).
 4. **Honest Agronomic Explanation:**  
    Our biophysical engine simulates **water- and radiation-limited potential yield ($Y_w$)**. In rainfed peninsular belts, real-world yields are severely depressed by chronic biotic stresses not simulated in satellite agroclimate models: pink bollworm (*Pectinophora gossypiella*) infestation in Vidarbha cotton, pod borer (*Helicoverpa armigera*) in chickpea, and red rot in sorghum. Rather than artificially distorting biophysical equations, TerraLoop displays yields and profits as **ranges**, accompanied by a prominent warning banner explaining the yield gap on rainfed peninsular sites.
+5. **Global Multi-Continent Held-Out Validation (`docs/BENCHMARKS.md` Section 8):**  
+   Evaluated across **14 held-out rainfed crop-hub pairs on 5 continents** (`global_ground_truth.csv`) against USDA NASS/ISU, Agreste, CONAB/IBGE, KALRO/KNBS, and ABARES/GRDC statistics, frozen parameters achieve a **13.0% MAPE** (e.g., Ames Soybean `-0.3%`, Ames Corn `-7.9%`, Chartres Barley `+3.0%`, Brazil Safrinha Corn `-6.2%`, Nakuru Maize `+1.3%`, Nakuru Potato `+3.4%`).
 
 ---
 
-### Question 4: "What does 'profit' actually mean in your recommendations, and which costs are excluded?"
+### Question 4: "What does 'profit' actually mean in your recommendations, and how do you handle economics outside India?"
 
 **Direct Answer:**  
-TerraLoop reports **Net Farm Operating Income (Gross Revenue minus CACP A2+FL Operating Costs)**.  
-It explicitly represents cash operating profit plus imputed family labour compensation, **not** net economic profit after land rent:
+Within validated zones, TerraLoop reports **Net Farm Operating Income (Gross Revenue minus Regional Paid-Out + Family-Labour Operating Costs)** — e.g., CACP $A2+FL$ in India or agency enterprise operating budgets in global hubs (`usa_iowa.yaml`, `france.yaml`, `brazil_mt.yaml`, `kenya.yaml`, `australia_nsw.yaml`). It explicitly excludes imputed land rent ($C2 - (A2+FL)$):
 
 1. **Included in Costs ($A2 + FL$):**  
-   - All purchased inputs: certified hybrid/high-yielding seed, fertilizers (Urea, DAP, MOP), crop protection chemicals, irrigation electricity/diesel pumping costs, canal water cess, machinery hire charges (custom hiring center rates for tractors, Happy Seeders, combine harvesters).  
-   - Imputed value of unpaid family labour ($FL$) as evaluated by the Commission for Agricultural Costs and Prices (CACP).
-2. **Excluded from Costs (Difference between $A2+FL$ and $C2$):**  
-   - Imputed rent on owned land, rent paid for leased land, and interest on fixed capital assets.  
-   - Farmers who lease land must deduct their regional cash land rent (e.g. ₹45,000–₹65,000/ha/year in Punjab) to calculate take-home household surplus.
-3. **Regional Economics Basis:**  
-   State-specific economic schedules are loaded from `packages/crop-kb/economics/<state>.yaml`. For states where official CACP cost-of-cultivation tables are currently unverified, the system transparently utilizes Punjab figures as a benchmark, stamps the recommendation with `economics_basis="punjab_proxy"`, and informs the farmer: *"Cost estimate based on Punjab proxy data — treat as indicative"*.
+   - All purchased inputs: certified hybrid/high-yielding seed, fertilizers (Urea, DAP, MOP), crop protection chemicals, irrigation electricity/diesel pumping costs, canal water cess, and machinery hire charges (tractors, Happy Seeders, combine harvesters).  
+   - Imputed value of unpaid family labour ($FL$) as evaluated by CACP or regional extension budgets.
+2. **Excluded from Costs:**  
+   - Imputed rent on owned land, rent paid for leased land, and interest on fixed capital assets. Farmers leasing land must deduct local cash land rent to obtain household surplus.
+3. **3-Tier Regional Economics & Global Honesty Gate (`region_registry.py`, `selection.py`):**  
+   - **`validated_india`:** Uses state CACP 2024–25 budgets (`punjab`, `haryana`, `uttar_pradesh`, `maharashtra`, `tamil_nadu`); unverified Indian states transparently stamp `economics_basis="punjab_proxy"` with a UI disclosure.  
+   - **`validated_regional`:** Uses local-currency enterprise budgets (`$`, `€`, `R$`, `KSh`, `A$`) and matched agricultural schemes for the 5 calibrated global breadbaskets.  
+   - **`biophysical_global` (alias `unvalidated_global`):** Everywhere else on Earth, `selection.select_top(..., allow_economic_ranking=False)` zeros out proxy economic weights (`profit`, `low_risk`, `low_labour`) so crop rotations are ranked strictly on **water savings, soil health, and food security** without uncalibrated price distortion.
 
 ---
 
@@ -105,12 +108,12 @@ The system operates under a strict **Zero Fabrication / Graceful Degradation** p
 We verify priority sensitivity mathematically using our automated multi-objective verification suite in `tests/test_engine.py::test_priority_monotonicity_sweep_200_vectors_four_fields` (and `test_selection_priority_directional_monotonicity`):
 1. **Non-Dominated Pareto Sorting (NSGA-II):** Candidate rotations are evaluated across six simultaneous objectives: *Profit ($P_{50}$)*, *Water Savings ($\Delta\text{Irr}$)*, *Soil Health Score*, *Downside Risk ($CVaR_{10}$)*, *Low Labour Cost*, and *Food Security Caloric Density*.
 2. **Monotonicity Verification:** We execute a 200-vector Monte Carlo priority sweep across benchmark fields. When a farmer increases the weight of *Water Savings* ($w_{\text{water}} \rightarrow 1.0$) while reducing *Profit* ($w_{\text{profit}} \rightarrow 0.0$), the mean irrigation requirement of the top-3 selected rotations drops monotonically (transitioning toward maize, millets, oilseeds, or summer pulses).
-3. **Regional Differentiation (`docs/BENCHMARKS.md` Section 6):**
-   - In Sangrur/Ludhiana (aquifer depletion zone), balanced priorities select **DSR Rice → Sunflower → Mung bean/Blackgram** (-18% to -19% water), **Maize → Sunflower → Mung bean** (-60% water), or **Mung bean → Wheat → Blackgram** (-50% water).
-   - In Bathinda (semi-arid belt), top recommendations shift to **Mung bean → Wheat → Blackgram** (-37% water) and **Pearl millet → Sunflower → Blackgram** (-65% water).
-   - In Vidarbha (rainfed Vertisol), the optimizer prioritizes drought resilience, selecting **Maize → Chickpea → Fallow**, **Groundnut → Chickpea → Fallow**, or **Pigeon pea → Chickpea → Fallow**.
-   - In Bundelkhand (drought-prone soils), the system selects **Pigeon pea → Barley → Fallow**, **Groundnut → Chickpea → Fallow**, or **Maize → Chickpea → Fallow**.
-   - In Thanjavur (Cauvery Delta), balanced recommendations shift from double-puddled paddy toward **Groundnut → DSR Rice → Blackgram** (-56.2% water).
+3. **Regional & Global Differentiation (`docs/BENCHMARKS.md` Sections 6 & 8b):**
+   - In **Sangrur/Ludhiana** (aquifer depletion zone), balanced priorities select **DSR Rice → Sunflower → Mung bean/Blackgram** (-17.6% to -18.8% water), **Maize → Sunflower → Mung bean** (-60% water), or **Mung bean → Wheat → Blackgram** (-50% water).
+   - In **Bathinda** (semi-arid belt), top recommendations shift to **Mung bean → Wheat → Blackgram** (-36.9% water) and **Pearl millet → Sunflower → Blackgram** (-65.3% water).
+   - In **Vidarbha** & **Bundelkhand** (rainfed semi-arid zones), the optimizer prioritizes drought resilience (**Maize → Chickpea**, **Pigeon pea → Barley**).
+   - In **Thanjavur** (Cauvery Delta), balanced recommendations shift from double-puddled paddy toward **Groundnut → DSR Rice → Blackgram** (-56.2% water).
+   - Across **Global Breadbaskets**, recommendations adapt to local climates & budgets: **Ames, Iowa** (`Soybean → Triticale`), **Chartres, France** (`Faba Bean → Sugar Beet`), **Sorriso, Brazil** (`Upland Rice → Common bean → Brachiaria`), **Nakuru, Kenya** (`Common bean → Fallow → Field Pea`), and **Wagga Wagga, Australia** (`Faba Bean → Fallow`).
 
 ---
 

@@ -2,6 +2,7 @@
 name = "terraloop-api"
 version = "0.1.0"
 description = "TerraLoop FastAPI service"
+license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = [
     "terraloop-engine",

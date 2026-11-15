@@ -2,8 +2,10 @@
 
 **Project Name:** TerraLoop ⟳  
 **Challenge:** Crop Rotations Planned with NASA Earth Observations  
-**Geographic Focus:** India (15 ICAR Agro-Climatic Zones — Hero Story: Sangrur & Ludhiana, Punjab)  
-**Live Demo:** Precomputed offline-ready for 6 Indian Benchmark Fields (`sangrur`, `ludhiana`, `bathinda`, `vidarbha`, `bundelkhand`, `thanjavur`)
+**Team Members:** **Ansh Surana** (Team Leader, 11 AS LVL) · **Naksh Joge** (11 AS LVL)  
+**Geographic Scope:** Global (3-Tier Validation: 17 Indian ICAR Zones + 5 Calibrated Global Breadbasket Hubs + Köppen-Geiger Biophysical Global Mode)  
+**Live Demo:** Precomputed offline-ready for **11 Benchmark Fields across 6 Continents** (`sangrur`, `ludhiana`, `bathinda`, `vidarbha`, `bundelkhand`, `thanjavur`, `us_corn_belt`, `eu_maritime_west`, `brazil_cerrado`, `east_africa_highlands`, `australia_wheat_belt`)  
+**Presentation Deck:** [`docs/TerraLoop_NASA_Space_Apps_2026_Deck.pptx`](TerraLoop_NASA_Space_Apps_2026_Deck.pptx) (exported PDF: [`docs/TerraLoop_NASA_Space_Apps_2026_Deck.pdf`](TerraLoop_NASA_Space_Apps_2026_Deck.pdf))
 
 ---
 
@@ -13,81 +15,78 @@
 
 | Timestamp | Visual Shot | Audio Narration | On-Screen Graphic & Evidence |
 |---|---|---|---|
-| **00:00 – 00:06** | **Hook:** NASA GRACE Regional TWS anomaly map zoomed over NW India showing crimson aquifer drawdown, overlaid with NASA FIRMS Oct–Nov stubble fire hotspots across Punjab. | *"From space, NASA satellites observe Northwest India's regional water storage dropping 3.8 centimeters every year, while post-harvest fields burn in a tight 11-day sowing window."* | **Signal:** NASA GRACE (-3.85 cm/yr Regional TWS) + NASA FIRMS (Stubble fires). Text: *Punjab's Aquifers & Air Are Under Siege.* |
-| **00:06 – 00:12** | **Diagnosis:** User selects Sangrur hero field on TerraLoop map (or enters their Govt Soil Health Card lab values). Field Report Card detects intensive Rice–Wheat monoculture. | *"Select any Indian field—or enter your Government Soil Health Card. TerraLoop decodes satellite phenology, soil water holding capacity, and terminal heat stress."* | **Signal:** NASA HLS 30 m NDVI + NASA POWER + ISRIC / Govt SHC override. |
-| **00:12 – 00:20** | **Decision Engine:** Farmer toggles `/Acre (Killa)` mode and sets priorities in Punjabi, Hindi, or English. The FAO-56 root-zone water balance & RothC engine simulates multi-season rotations. | *"Switch to Per-Acre (Killa) units in Punjabi or Hindi. TerraLoop simulates rotations through an FAO-56 daily root-zone soil water balance and RothC carbon model."* | **Action:** Priority Sliders in Punjabi (ਪਾਣੀ ਦੀ ਬੱਚਤ, ਮਿੱਟੀ ਸਿਹਤ, ਘੱਟ ਮਜ਼ਦੂਰੀ) → FAO-56 Root-Zone & RothC simulation. |
-| **00:20 – 00:26** | **Actionable Strategy:** Side-by-side strategy cards compare Puddled Rice–Wheat vs Strategy 1 (DSR Rice ➔ Sunflower ➔ Summer Moong), Strategy 2 (Maize ➔ Sunflower ➔ Summer Moong), and Strategy 3 (Mung bean ➔ Wheat ➔ Blackgram). | *"Recommended rotations cut irrigation by 18% to 60%, expand the Kharif-to-Rabi turnaround window from 11 to 26–34 days to eliminate burning, save 3.5 to 4.1 bags of Urea per hectare, and unlock Diversification & Conservation Tillage subsidies."* | **Results:** 💧 -18% to -60% Irrigation · ⏱️ 26–34 Day Turnaround (Zero Burn) · 🧪 3.5–4.1 Urea Bags Saved · 🏛️ Govt Scheme Matched. |
-| **00:26 – 00:30** | **Pan-India Outro:** Montage pans across all 6 Indian agro-climatic zones (Punjab, Vidarbha Cotton-Tur, Bundelkhand Pulses, Cauvery Delta Rice-Urad). | *"TerraLoop: Turning NASA Earth observations into profitable, burn-free, water-saving crop rotations for Indian farmers."* | **Logo:** TerraLoop ⟳ · Powered by 8 NASA Earth Data Collections · Space Apps 2026. |
+| **00:00 – 00:06** | **Hook:** NASA GRACE Regional TWS anomaly map zoomed over NW India showing crimson aquifer drawdown (`-4.15 cm/yr`), overlaid with NASA FIRMS Oct–Nov stubble fire hotspots across Punjab. | *"From space, NASA satellites see aquifers dropping four centimeters a year while farmers face shrinking planting windows, extreme heat, and declining soils."* | **Signal:** NASA GRACE (`-4.15 cm/yr` Sangrur mascon) + NASA FIRMS (Stubble fires). |
+| **00:06 – 00:12** | **Diagnosis:** User selects any pin worldwide (e.g., Sangrur hero field or Ames, Iowa) or enters a Government Soil Health Card. Report Card decodes satellite phenology, soil hydraulics, and heat risk. | *"Select any farm worldwide—or enter local soil lab results. TerraLoop fuses ten NASA Earth data streams, WorldCereal phenology, and SoilGrids into an instant field diagnosis."* | **Signal:** NASA POWER + GPM IMERG + SMAP L4 + HLS 30 m + WorldCereal + ISRIC / SHC override. |
+| **00:12 – 00:20** | **Decision Engine:** Farmer adjusts 6 priorities (water, soil, profit, drought risk, labour, nutrition) or toggles `/Acre (Killa)` in Punjabi, Hindi, or English; FAO-56 + RothC + NSGA-II run live. | *"Farmers set their own priorities and run multi-year FAO-56 water balance, RothC carbon turnover, and CMIP6 climate stress ensembles in real time."* | **Action:** Priority Sliders + FAO-56 Root-Zone & RothC 10-yr Carbon simulation. |
+| **00:20 – 00:26** | **Actionable Strategy:** Side-by-side cards compare Baseline (`Puddled Rice → Wheat`) vs Rank #1 (`DSR Rice → Sunflower → Mung bean`), #2 (`Maize → Sunflower → Mung bean`), and #3 (`Mung bean → Wheat → Blackgram`). | *"In Sangrur, top rotations cut irrigation 18% to 60%, expand sowing windows to 26–34 days to prevent burning, build +3 tonnes of soil carbon, and save up to 4.1 bags of Urea."* | **Results:** `-17.6% to -60.1%` Water · `26–34 d` Burn-Free Window · `+3.01 t C/ha` SOC · `3.5–4.1` Urea Bags Saved. |
+| **00:26 – 00:30** | **Global Reach & Outro:** Montage pans from India across USA, France, Brazil, Kenya, and Australia golden hubs (`13.0%` held-out 5-continent MAPE). | *"TerraLoop: turning NASA Earth science into climate-resilient, profitable crop rotations for farmers everywhere."* | **Logo:** TerraLoop ⟳ · Team: Ansh Surana & Naksh Joge · Space Apps 2026. |
 
 ---
 
-## 2. 7-Slide Pitch Deck (TASK-S03)
+## 2. 7-Slide Pitch Deck Structure (`docs/TerraLoop_NASA_Space_Apps_2026_Deck.pptx`)
 
-### Slide 1: Title & The Vision
-- **Header:** TerraLoop ⟳
-- **Subheader:** Adaptive Crop-Rotation Decision Support for Indian Farmers with NASA Earth Observations
-- **Visual:** High-resolution satellite view of the Indo-Gangetic Plains and Peninsular India overlaid with NASA GRACE regional water storage vectors and ICAR Agro-Climatic Zones.
-- **Key Takeaway:** Turning NASA satellite observations into grounded, KVK-ready crop rotations measured in farmer-native units (`/Acre (Killa)`, 45-kg Urea bags saved, borewell pumping hours saved, and Kharif-to-Rabi turnaround days).
+> Strictly honors the NASA Space Apps **7-slide maximum (including title & intro slides)**.
 
-### Slide 2: The Core Problem (Visible from Space)
-- **Header:** The Triple Crisis: Vanishing Aquifers, 11-Day Stubble Fires & March Terminal Heat
-- **Data Points:**
-  - **-3.85 cm/year:** Regional Terrestrial Water Storage (TWS) decline detected by NASA GRACE/GRACE-FO across Northwest India.
-  - **11-Day Window:** Late-maturing puddled rice (`Pusa-44`, 126 field days) harvested late October leaves only 11 days before optimal wheat sowing (Nov 15), forcing stubble burning detected by NASA FIRMS.
-  - **-16.7% Yield Loss:** Unmulched Rabi wheat suffers severe grain-filling loss during `+4.5°C` March terminal heatwaves (`Tmax > 32°C`), buffered to **-10.8%** under Happy Seeder residue mulch.
+### Slide 1: TerraLoop ⟳ — Title, Challenge Fit & Team
+- **Header:** TerraLoop ⟳ — Adaptive Crop-Rotation Decision Support Powered by NASA Earth Observations
+- **Challenge Alignment:** Translating NASA EO + local soils + crop traits + farmer priorities into profitable, water-saving, soil-regenerating rotations worldwide.
+- **Team:** **Ansh Surana** (Team Leader, 11 AS LVL) · **Naksh Joge** (11 AS LVL)
+- **At-a-Glance Metrics:** `10` NASA Data Products · `40` Crops · `11` Global Benchmarks (6 Continents) · `13.0%` Held-Out 5-Continent MAPE · `124/124` Passing Offline Tests.
 
-### Slide 3: What TerraLoop Does
-- **Header:** End-to-End Decision Support: Pin to KVK Field Prescription
-- **Workflow Architecture:**
-  1. **Field Profiler & SHC Override:** Combines NASA POWER, GPM IMERG, SMAP L4, GRACE, NASADEM, FIRMS, and HLS with optional **Government of India Soil Health Card (SHC)** lab overrides (`pH`, `OC %`, `Available N/P/K`).
-  2. **23-Crop Indian Knowledge Base:** Curated ICAR/PAU parameters including Short-Duration Rice (`PR-126`), DSR Rice, Sunflower, Urad, Groundnut, Tur, Gram, Mustard, Cotton, Soybean, and Millets with state-level CACP 2024–25 MSP vs. mandi price volatility across Punjab, Haryana, UP, Maharashtra, and Tamil Nadu.
-  3. **Coupled Process Simulation:** Daily FAO-56 / FAO-33 root-zone water balance (`TAW`/`RAW`, `Dr`, `Ks`, percolation, reproductive heat sterilization) + 10-year RothC-26.3 soil carbon & symbiotic N mass balance.
-  4. **6-Objective Optimization:** Evaluates profit, irrigation savings, soil health, climate downside risk ($CVaR_{10}$), low labour constraints, and nutritional food security (`food_security`).
+### Slide 2: The Crisis Visible from Space (Why Static Calendars Fail)
+- **Shifting Temperatures:** `+4.5°C` March terminal heatwaves (`Tmax > 32°C`) slash conventional wheat yields by **`-16.7%`** (`4.90 → 4.08 t/ha`), buffered to **`-10.8%`** (`4.37 t/ha`) under Happy Seeder mulch (`-1.0°C` canopy cooling).
+- **Water Shortages:** NASA GRACE/GRACE-FO detects **`-4.15 cm/yr`** aquifer drawdown across Central Punjab (`-3.85 cm/yr` zone baseline), automatically scaling optimization `water_savings` urgency up to `1.50×`.
+- **Extreme Weather & Stubble Fires:** Long-duration puddled rice leaves an **11-day** Kharif→Rabi turnaround, triggering NASA FIRMS post-harvest burning and **`-1.92 t C/ha/10yr`** RothC soil carbon loss.
 
-### Slide 4: Reproducible Engine Results (`scripts/run_validation_benchmarks.py`)
-- **Header:** Verified Impact Across Sangrur Hero Field (All Engine-Computed, Zero Hardcoded Numbers)
-- **Comparison Table (from `data/golden/sangrur/recommendations.json` & `docs/BENCHMARKS.md`):**
-  | Metric | Baseline (`Puddled Rice ➔ Wheat`) | Rank #1 (`DSR Rice ➔ Sunflower ➔ Moong`) | Rank #2 (`Maize ➔ Sunflower ➔ Moong`) | Rank #3 (`Moong ➔ Wheat ➔ Blackgram`) |
+### Slide 3: End-to-End Architecture & NASA Earth Observation Stack
+- **Data Ingestion (10 NASA Streams + Local Overrides):** NASA POWER, GPM IMERG V07, SMAP L4, GRACE/GRACE-FO, NASADEM, FIRMS, HLS L30/S30, NEX-GDDP-CMIP6, NASA GIBS WMTS (`context only`), plus ISRIC SoilGrids 2.0, Govt Soil Health Card lab overrides, ESA WorldCereal 10 m, Köppen-Geiger 0.5° AEZs, and Meteomatics 90 m hydrology & agro-hazards.
+- **Coupled Science Engine:** Penman–Monteith ET0 + Saxton–Rawls hydraulics + FAO-56/33 water & thermal balance + RothC-26.3 5-pool carbon + Species BNF N balance + Kinetic RUSLE $EI_{30}$ + ICMR-NIN / USDA FDC nutrition + Regional enterprise budgets.
+- **Multi-Objective Optimization:** 6-objective NSGA-II Pareto sorting with `MIN_SPREADS` noise guards, `CVaR-10` drought-tail risk, Polynomial Ridge Surrogate (`>85` candidates), and a 3-tier global honesty gate.
+
+### Slide 4: Hero Field Transformation — Sangrur, Punjab (`data/golden/sangrur/recommendations.json`)
+- **Direct Comparison Chart (`Baseline` vs. Top-3 NSGA-II Recommendations):**
+  | Metric | Baseline (`Puddled Rice → Wheat`) | Rank #1 (`DSR Rice → Sunflower → Mung bean`) | Rank #2 (`Maize → Sunflower → Mung bean`) | Rank #3 (`Mung bean → Wheat → Blackgram`) |
   |---|---|---|---|---|
-  | **Net Irrigation** | 1,168 mm/yr | **962 mm/yr (-17.6% H₂O)** | **466 mm/yr (-60.1% H₂O)** | **584 mm/yr (-50.0% H₂O)** |
-  | **Borewell Savings** | Baseline | **3 Irrigations / 113 Pump Hrs/ha saved** | **9 Irrigations / 386 Pump Hrs/ha saved** | **8 Irrigations / 321 Pump Hrs/ha saved** |
-  | **Kharif→Rabi Window** | 11 days (High Burn Risk) | **26 days (Happy Seeder Window)** | **34 days (Zero Burning Needed)** | **34 days (Zero Burning Needed)** |
-  | **10-Yr Soil Carbon** | -1.92 t C/ha | **+3.01 t C/ha (+4.93 t C/ha vs Base)** | **+3.29 t C/ha (+5.21 t C/ha vs Base)** | **+1.42 t C/ha (+3.34 t C/ha vs Base)** |
-  | **45-kg Urea Saved** | 0 bags | **3.5 bags/ha (1.4 bags/acre)** | **3.5 bags/ha (1.4 bags/acre)** | **4.1 bags/ha (1.7 bags/acre)** |
-  | **Median Net Profit** | ₹1,70,334 /ha (₹68,932 /acre) | **₹2,71,978 /ha (₹1,10,066 /acre)** | **₹2,30,542 /ha (₹93,297 /acre)** | **₹2,14,188 /ha (₹86,679 /acre)** |
+  | **Irrigation Savings** | `1,128.6 mm/yr` (Baseline) | **-17.6%** (`3 irr.`, `113 pump hrs/ha`) | **-60.1%** (`9 irr.`, `386 pump hrs/ha`) | **-50.0%** (`8 irr.`, `321 pump hrs/ha`) |
+  | **Kharif→Rabi Window** | `11 days` (Burn crunch) | **`26 days`** (Burn-free) | **`34 days`** (Zero-till ready) | **`34 days`** (Zero-till ready) |
+  | **10-Yr Soil Carbon** | `-1.92 t C/ha` (`22.3/100`) | **`+3.01 t C/ha`** (`87.7/100`) | **`+3.29 t C/ha`** (`85.2/100`) | **`+1.42 t C/ha`** (`78.1/100`) |
+  | **45-kg Urea Saved** | `0 bags` | **`3.5 bags/ha`** | **`3.5 bags/ha`** | **`4.1 bags/ha`** |
+  | **Profit (`P50` / `CVaR-10`)** | `₹170,334` / `₹77,208` | **`₹271,978`** / **`₹217,384`** | `₹230,542` / `₹165,596` | `₹214,188` / `₹196,628` |
 
-### Slide 5: Scientific Integrity & Provenance
-- **Header:** Transparent Provenance & Reproducible Benchmarks
-- **Highlights:**
-  - **Every Number Has Provenance (`mode: "observed"` vs `"regional_climatology"` vs `"unknown"`):** Provenance badges display clickable DOIs, live GEE observation status, and an explicit UI fallback banner when offline/regional climatology is active.
-  - **Soil Texture & Mulch Physics:** Rainfed wheat yields `1.29 t/ha` on Coarse Loamy Sand vs `2.30 t/ha` on Alluvial Loam; Happy Seeder residue mulch (`residue_retained`) cuts soil evaporation by 10% and buffers `+4.5°C` March heatwave yield loss from `-16.7%` to `-10.8%`.
-  - **Reproducible Benchmark Script:** Anyone can run `uv run python scripts/run_validation_benchmarks.py --write-docs` offline to verify every table in `docs/BENCHMARKS.md`.
+### Slide 5: Global Multi-Continent Validation & 3-Tier Scientific Honesty
+- **Held-Out Empirical Accuracy (`docs/BENCHMARKS.md`):**
+  - **India Calibration & Held-Out Sites:** Sangrur wheat `+3.4%`, paddy `+2.5%`; held-out Ludhiana `+4.9%–5.0%`, Bathinda `+4.8%`, Thanjavur `+7.4%` (while transparently documenting rainfed peninsular biotic yield gaps).
+  - **5-Continent Global Breadbaskets (`13.0%` MAPE across 14 held-out crop-hub pairs):** Iowa Soybean `-0.3%` & Corn `-7.9%`; France Beauce Barley `+3.0%` & Colza `+6.5%`; Brazil Safrinha Corn `-6.2%`; Kenya Highland Maize `+1.3%` & Potato `+3.4%`; Australia Canola `+15.5%` & Wheat `+18.4%`.
+- **3-Tier Global Honesty Gate:** `validated_india` (17 ICAR zones, 5 CACP states) · `validated_regional` (5 global hubs in local currencies + schemes) · `biophysical_global` (disables uncalibrated economic ranking globally so only water, soil health, and nutrition steer ranks).
 
-### Slide 6: Built for Real Indian Farmers
-- **Header:** Killa/Acre Units, Government Schemes & Trilingual Advisory
-- **Features:**
-  - **1-Click `/Acre (Killa)` vs `/Ha` Toggle:** Translates all financial margins, Urea bags, and pumping hours into farmer-native units (`1 ha = 2.47105 acres`).
-  - **Government Scheme Matcher:** Automatically links rotations to *Mera Pani Meri Virasat* (`₹17,500/ha`), *CRM Happy Seeder Subsidy* (`50–80%`), *NFSM / NAFED e-Samridhi Pulses*, and *NMEO-Oilseeds*.
-  - **English, Hindi (`हिन्दी`) & Punjabi (`ਪੰਜਾਬੀ`):** Localized UI and native engine-generated Why-Cards & KVK narrative advisories.
+### Slide 6: Farmer-First Design & Priority Control
+- **Farmer Priorities Steer Every Rank:** Verified by 200-vector Monte Carlo monotonicity sweep (`0` violations across 1,200 checks) + CMIP6 (`SSP2-4.5` & `SSP5-8.5`) & drought/price Stress Lab.
+- **Built for Field Accessibility:** Trilingual UI (`English` / `हिन्दी` / `ਪੰਜਾਬੀ`, `780` synchronized keys), 1-click `/Acre (Killa)` vs `/Ha` toggle, Soil Health Card (`pH`, `SOC`, `N`, `P`, `K`) override, printable KVK Brief, and automatic matching across **26 Central, State & Global Conservation Schemes** (e.g., Punjab DSR, CRM Happy Seeder, USDA EQIP/CSP, EU CAP Eco-Schemes, Brazil Plano ABC+, Kenya KCSAP, Australia ACCU).
 
-### Slide 7: Pan-India Coverage Across 6 Benchmark Agro-Climatic Zones
-- **Header:** Tailored for India's Diverse Agro-Ecology
-- **6 Golden Fields Ready Offline:**
-  1. **Sangrur, Punjab:** Trans-Gangetic Plains (Sweet-water over-exploited tube-well zone).
-  2. **Ludhiana, Punjab:** Central Alluvial Plains (PAU benchmark).
-  3. **Bathinda, Punjab:** South-Western Semi-Arid Cotton & Brackish-Water Belt.
-  4. **Yavatmal (Vidarbha), Maharashtra:** Central Plateau Rainfed Vertisol Cotton–Soybean–Tur Belt.
-  5. **Jhansi (Bundelkhand), Uttar Pradesh:** Semi-Arid Pulse–Oilseed Belt.
-  6. **Thanjavur (Cauvery Delta), Tamil Nadu:** Southern Coastal Alluvial Rice–Urad Pulse Relay Belt.
+### Slide 7: Engineering Proof, Reproducibility & Adoption Path
+- **Production-Grade Verification:** `124/124` offline pytest cases passing, `0` Ruff / TypeScript / ESLint errors, deterministic CI diff guard (`git diff --exit-code docs/BENCHMARKS.md`), strict provenance (`observed` vs `hybrid_regional` vs `demo_snapshot` with zero fabricated satellite numbers), and `0.03s–8.5s` async CMIP6 execution.
+- **Open-Source Impact & Next Steps:** MIT-licensed full-stack platform (FastAPI + Next.js 16 + MapLibre 6 + Vercel/Docker ready) poised for KVK, FPO, and extension-advisor pilots worldwide.
 
 ---
 
-## 3. Reproducibility & Verification Commands
+## 3. Portal "References" Field (Ready to Copy-Paste for Space Apps Submission)
+
+> NASA Space Apps Eligibility requires listing **all external data, code, APIs, text, and visual resources** in the project's References field. See [`docs/DATA_SOURCES_AND_PARTNER_LINKS.md`](DATA_SOURCES_AND_PARTNER_LINKS.md) for all 64 verified URLs and the complete internal dataset inventory:
+
+- **NASA Earth Observations & Tools:** NASA POWER Agroclimatology API (`https://power.larc.nasa.gov/`); NASA GPM IMERG V07 (`https://doi.org/10.5067/GPM/IMERG/3B-HH/07`); NASA SMAP L4 Root-Zone Soil Moisture `SPL4SMGP V008` (`https://doi.org/10.5067/T5RUATAQREF8`); NASA GRACE / GRACE-FO Mascon CRI RL06 V04 (`https://doi.org/10.5067/TEMSC-3MJ62`); NASA NASADEM 30 m (`https://doi.org/10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001`); NASA FIRMS Active Fire Data (`https://firms.modaps.eosdis.nasa.gov/`); NASA Harmonized Landsat Sentinel-2 HLS L30/S30 v002 (`https://doi.org/10.5067/HLS/HLSL30.002`, `https://doi.org/10.5067/HLS/HLSS30.002`); NASA NEX-GDDP-CMIP6 (`https://www.nccs.nasa.gov/data-collections/nex-gddp-cmip6/`); NASA GIBS WMTS (`https://nasa-gibs.github.io/gibs-api-docs/`); NASA SRTM (`https://www.earthdata.nasa.gov/data/instruments/srtm`).
+- **Sponsor, Soil & Satellite Land Cover APIs:** Meteomatics 90 m Weather, 4-Layer Soil Hydrology, Agro-Hazards & MRI-ESM2.0 API (`meteomatics.com`); ISRIC SoilGrids 2.0 (`https://doi.org/10.5194/soil-7-217-2021`); ESA WorldCereal 10 m v100 (`https://doi.org/10.5281/zenodo.7875105`); Google Earth Engine (`https://earthengine.google.com/`); Natural Earth Vector (`https://www.naturalearthdata.com/`); Köppen-Geiger Climate Grid (`https://www.gloh2o.org/koppen/`).
+- **Agronomic, Nutritional & Economic Ground Truth:** FAO Irrigation & Drainage Papers 56 & 33 (`https://www.fao.org/4/x0490e/x0490e00.htm`); Saxton & Rawls (2006, `https://doi.org/10.2136/sssaj2005.0117`); RothC-26.3 (`https://doi.org/10.1007/978-3-642-61094-3_17`); Ambika & Mishra (2019, `https://doi.org/10.1029/2019GL084367`); ICMR-NIN (`https://www.nin.res.in/`) & USDA FoodData Central (`https://fdc.nal.usda.gov/`); Soil Health Card, CACP, UPAg, DES, ICAR-NBSS&LUP, India-WRIS, ICRISAT, NAFED & State Agriculture Portals; USDA NASS, Agreste, ARVALIS, EU CAP, IBGE SIDRA, IMEA, Plano ABC+, GRDC, CER, KALRO, KNBS, and NPCK.
+- **Open-Source Software & Basemaps:** Python, FastAPI, Pydantic v2, NumPy, pandas, Next.js, React, Tailwind CSS, MapLibre GL JS, Esri World Imagery, OpenStreetMap / Nominatim, AWS Terrain Tiles, Google Gemini API, and Canva.
+
+---
+
+## 4. Reproducibility & Verification Commands
 
 ```powershell
-uv run pytest -q -m "not network"                          # Offline unit & biophysical tests
-uv run ruff check .                                        # Zero lint errors
-uv run python scripts/precompute_golden.py                 # Rebuild all 6 Indian golden fields + sync to web
+uv run pytest -q -m "not network"                                # 124 offline unit & biophysical tests
+uv run ruff check .                                              # Zero Python lint errors
+uv run python scripts/precompute_golden.py                       # Rebuild all 11 golden fields + sync to web
 uv run python scripts/run_validation_benchmarks.py --write-docs  # Regenerate docs/BENCHMARKS.md from engine
-cd apps/web; npm run build                                 # Verify Next.js production build
+git diff --exit-code docs/BENCHMARKS.md                          # CI benchmark reproducibility guard
+cd apps/web; npx tsc --noEmit; npm run lint; npm run build       # Verify TypeScript, ESLint & production build
 ```

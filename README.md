@@ -8,18 +8,20 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-10B981?style=for-the-badge)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](pyproject.toml)
 [![Next.js 16 + React 19](https://img.shields.io/badge/Next.js_16-React_19_+_MapLibre_6-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](apps/web/package.json)
-[![Offline Tests](https://img.shields.io/badge/Pytest_Offline-114_Passing-059669?style=for-the-badge&logo=pytest&logoColor=white)](tests/)
+[![Offline Tests](https://img.shields.io/badge/Pytest_Offline-124_Passing-059669?style=for-the-badge&logo=pytest&logoColor=white)](tests/)
 [![Trilingual](https://img.shields.io/badge/Languages-English_%7C_%E0%A4%B9%E0%A4%BF%E0%A4%A8%E0%A5%8D%E0%A4%A6%E0%A5%80_%7C_%E0%A8%AA%E0%A9%B0%E0%A8%9C%E0%A8%BE%E0%A8%AC%E0%A9%80-F59E0B?style=for-the-badge)](apps/web/src/i18n/)
 
-**Turning orbital satellite observations—GRACE-FO, SMAP L4, GPM IMERG, FIRMS, HLS 30 m, NASADEM, POWER & NEX-GDDP-CMIP6—plus 90 m Meteomatics hydrology into profitable, water-saving, burn-free crop rotations expressed in farmer-native units.**
+**Turning orbital satellite observations—GRACE-FO, SMAP L4, GPM IMERG, FIRMS, HLS 30 m, NASADEM, POWER & NEX-GDDP-CMIP6—plus ESA WorldCereal 10 m and 90 m Meteomatics hydrology into profitable, water-saving, burn-free crop rotations worldwide.**
 
-[Overview & Challenge Fit](#-why-terraloop--direct-alignment-with-the-nasa-challenge) •
-[Golden Field Results](#-hero-case-study--six-indian-golden-benchmark-fields) •
-[Satellite & Sponsor Data](#-nasa-earth-observations-sponsor-meteomatics--ancillary-datasets) •
-[Science Engine](#-biophysical--optimization-engine-deep-dive) •
-[Web App Tour](#-farmer-first-web-platform-nextjs-16--maplibre-6) •
-[API & Quickstart](#-quick-start--local-development) •
-[Benchmarks](#-empirical-calibration--reproducible-benchmarks)
+**Team:** **Ansh Surana** (Team Leader, 11 AS LVL) · **Naksh Joge** (11 AS LVL)
+
+[Overview & Challenge Fit](#-1-why-terraloop--direct-alignment-with-the-nasa-challenge) •
+[11 Global & Indian Benchmarks](#-2-hero-case-study--11-global--indian-golden-benchmark-fields) •
+[Satellite & Sponsor Data](#-3-nasa-earth-observations-sponsor-meteomatics--ancillary-datasets) •
+[Science Engine](#-5-biophysical--optimization-engine-deep-dive) •
+[Web App Tour](#-8-farmer-first-web-platform-nextjs-16--maplibre-6) •
+[API & Quickstart](#-10-quick-start--local-development) •
+[Benchmarks](#-7-empirical-calibration--reproducible-benchmarks)
 
 </div>
 
@@ -28,11 +30,11 @@
 ## Table of Contents
 
 1. [The Problem TerraLoop Solves](#1-why-terraloop--direct-alignment-with-the-nasa-challenge)
-2. [Hero Case Study & Six Indian Golden Benchmark Fields](#2-hero-case-study--six-indian-golden-benchmark-fields)
+2. [Hero Case Study & 11 Global + Indian Golden Benchmark Fields](#2-hero-case-study--11-global--indian-golden-benchmark-fields)
 3. [NASA Earth Observations, Sponsor Meteomatics & Ancillary Datasets](#3-nasa-earth-observations-sponsor-meteomatics--ancillary-datasets)
 4. [System Architecture & End-to-End Data Flow](#4-system-architecture--end-to-end-data-flow)
 5. [Biophysical & Optimization Engine Deep Dive](#5-biophysical--optimization-engine-deep-dive)
-6. [Agronomic Knowledge Base, Zones & Government Schemes](#6-agronomic-knowledge-base-zones--government-schemes)
+6. [Agronomic Knowledge Base, Global Zones & Government Schemes](#6-agronomic-knowledge-base-global-zones--government-schemes)
 7. [Empirical Calibration & Reproducible Benchmarks](#7-empirical-calibration--reproducible-benchmarks)
 8. [Farmer-First Web Platform (Next.js 16 + MapLibre 6)](#8-farmer-first-web-platform-nextjs-16--maplibre-6)
 9. [FastAPI Backend & Shared Schemas](#9-fastapi-backend--shared-schemas)
@@ -46,21 +48,21 @@
 
 ## 1. Why TerraLoop? — Direct Alignment with the NASA Challenge
 
-Farmers across India and climate-stressed agricultural basins navigate compounding environmental shocks simultaneously: groundwater depletion, erratic monsoons, late-season terminal heatwaves, post-harvest burning windows, and declining soil organic carbon. **TerraLoop** bridges NASA satellite Earth science and farm-gate economics inside one fast, transparent decision-support platform.
+Farmers around the world navigate compounding climate and resource pressures simultaneously: shifting temperatures, changing rainfall patterns, groundwater depletion, extreme weather, and declining soil organic carbon. **TerraLoop** bridges NASA satellite Earth science, local soil testing, crop characteristics, and farmer priorities inside one fast, transparent decision-support platform validated across India and five global breadbaskets.
 
 | Challenge Pressure | Orbital / Local Signal Used | Biophysical Mechanism Modeled | Actionable Farmer Output |
 | :--- | :--- | :--- | :--- |
-| **Shifting Temperatures** | NASA POWER (`T2M_MAX/MIN`) + IMD/MERRA-2 IGP bias lookup | Grain-filling thermal sterility ($T_{\max} > 32.0^\circ\text{C}$, final 35% of Rabi cycle) + Happy Seeder canopy cooling ($-1.0^\circ\text{C}$) | Cuts `+4.5°C` March heatwave wheat yield loss from **-16.7% to -10.8%** |
-| **Changing Rainfall Patterns** | GPM IMERG V07 (`0.1°`) + Meteomatics 90m `precip_30min` | Monsoon onset, longest dry spells, extreme rain days (`>50 mm`), kinetic RUSLE erosivity ($EI_{30}$) | Schedules resilient crops & warns on heavy convective storm erosion |
+| **Shifting Temperatures** | NASA POWER (`T2M_MAX/MIN`) + IMD/MERRA-2 IGP bias lookup + NEX-GDDP-CMIP6 | Grain-filling thermal sterility ($T_{\max} > 32.0^\circ\text{C}$, final 35% of wheat cycle), vernalization/frost kill & Happy Seeder cooling (`-1.0°C`) | Cuts `+4.5°C` March heatwave wheat yield loss from **-16.7% to -10.8%** |
+| **Changing Rainfall Patterns** | GPM IMERG V07 (`0.1°`) + Meteomatics 90m `precip_30min` | Monsoon/seasonal onset, longest dry spells, extreme rain days (`>50 mm`), kinetic RUSLE erosivity ($EI_{30}$) | Schedules resilient crops & warns on convective storm soil loss |
 | **Water Shortages & Aquifers** | NASA GRACE/GRACE-FO mascons + NASA SMAP L4 (`SPL4SMGP V008`) | Aquifer depletion urgency scaler ($1.0\times\text{–}1.5\times$), PTR ponded percolation (`3.5 mm/d`) vs DSR+AWD (`2.55 mm/d`) | Cuts irrigation **17.6–60.1%**; displays **borewell pumping hours** & **75 mm irrigations saved** |
-| **Extreme Weather & Stubble Burning** | NASA FIRMS (MODIS/VIIRS fires) + HLS 30 m phenology | Harvest-to-sowing turnaround math (`rice_puddled` 11 d vs `rice_dsr` 26 d vs `rice_short` PR-126 30 d vs maize/pulses 34 d) | Eliminates forced October stubble burning via 26–34 d zero-till windows |
+| **Extreme Weather & Stubble Burning** | NASA FIRMS (MODIS/VIIRS fires) + HLS 30 m + ESA WorldCereal 10 m | Harvest-to-sowing turnaround math (`rice_puddled` 11 d vs `rice_dsr` 26 d vs `rice_short` PR-126 30 d vs maize/pulses 34 d) | Eliminates forced post-harvest burning via 26–34 d zero-till windows |
 | **Declining Soil Health** | ISRIC SoilGrids 2.0 (250 m) + Govt Soil Health Card (`N/P/K/pH/SOC`) | 10-year 5-pool **RothC-lite 26.3** SOC dynamics + species-specific legume BNF + residue N balance + 0–100 NRCS Soil Health Index | Forecasts 10-yr soil carbon accretion & **45-kg Urea bags saved/ha** |
-| **Local Soil & Crop Reality** | 23 Crop YAMLs + 9 AquaCrop params + 36 Indian States/UTs + 17 Zones | Saxton–Rawls (`FC`/`WP`), USDA 12-class texture, 5-state CACP 2024–25 A2+FL costs, 16 Central/State subsidies | Recommends exact crops, sowing dates, Happy Seeder practices & matched subsidies |
-| **Farmer Priorities & Downside Risk** | 6 farmer priority weights + 30-yr / NEX-GDDP-CMIP6 ensembles | Pure-NumPy **NSGA-II** Pareto frontier, diversity filtering, and drought-tail **$CVaR_{10}$** downside profit | Ranked top-3 strategies with `/Acre (Killa)` toggle & **English / हिन्दी / ਪੰਜਾਬੀ** UI |
+| **Local Soil & Crop Reality** | 40 Crop YAMLs + 21 AquaCrop params + 10 economic budgets + 17 Indian ICAR zones + 5 global hubs + 9 Köppen-Geiger AEZs | Saxton–Rawls (`FC`/`WP`), USDA 12-class texture, regional enterprise budgets, 26 support/conservation schemes | Recommends exact crops, sowing dates, tillage practices & matched subsidies |
+| **Farmer Priorities & Downside Risk** | 6 farmer priority weights + 30-yr / NEX-GDDP-CMIP6 + `MRI-ESM2.0` ensembles | Pure-NumPy **NSGA-II** Pareto frontier, diversity filtering, and drought-tail **$CVaR_{10}$** downside profit | Ranked top-3 strategies with `/Acre (Killa)` toggle & **English / हिन्दी / ਪੰਜਾਬੀ** UI |
 
 ---
 
-## 2. Hero Case Study & Six Indian Golden Benchmark Fields
+## 2. Hero Case Study & 11 Global + Indian Golden Benchmark Fields
 
 ### Hero Story: Sangrur, Punjab (`30.19°N, 75.78°E`)
 
@@ -70,15 +72,16 @@ All strategies below are computed directly by `terraloop_engine` and persisted i
 
 | Strategy | Net Irrigation (mm/yr) | Water & Borewell Savings vs Baseline | Kharif→Rabi Turnaround | 10-Yr SOC Delta (RothC) | Soil Health Score | 45-kg Urea Saved/ha | Median Net Profit (`P50`) | Drought Tail (`CVaR-10`) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Baseline:** `Puddled Rice → Wheat → Fallow` | `1,168.0` | Baseline (`0%`) | `11 days` (High burn risk) | **`-1.92 t C/ha`** | `22.3 / 100` | `0.0 bags` | `₹170,334 /ha` | `₹77,208 /ha` |
-| **Rank #1:** `DSR Rice → Sunflower → Mung bean` | **`962.1`** | **-17.6%** (`3 irr.`, `113 pump hrs/ha`) | **`26 days`** (Burn-free) | **`+3.01 t C/ha`** | **`87.7 / 100`** | **`3.5 bags`** | **`₹271,978 /ha`** | **`₹217,384 /ha`** |
-| **Rank #2:** `Maize → Sunflower → Mung bean` | **`466.3`** | **-60.1%** (`9 irr.`, `386 pump hrs/ha`) | **`34 days`** (Burn-free) | **`+3.29 t C/ha`** | **`85.2 / 100`** | **`3.5 bags`** | `₹230,542 /ha` | `₹165,596 /ha` |
-| **Rank #3:** `Mung bean → Wheat → Blackgram` | **`584.4`** | **-50.0%** (`8 irr.`, `321 pump hrs/ha`) | **`34 days`** (Burn-free) | **`+1.42 t C/ha`** | **`78.1 / 100`** | **`4.1 bags`** | `₹214,188 /ha` | `₹196,628 /ha` |
+| **Baseline:** `Puddled Rice → Wheat → Fallow` | `1,128.6` | Baseline (`0%`) | `11 days` (High burn risk) | **`-1.92 t C/ha`** | `22.3 / 100` | `0.0 bags` | `₹170,334 /ha` | `₹77,208 /ha` |
+| **Rank #1:** `DSR Rice → Sunflower → Mung bean` | **`968.3`** | **-17.6%** (`3 irr.`, `113 pump hrs/ha`) | **`26 days`** (Burn-free) | **`+3.01 t C/ha`** | **`87.7 / 100`** | **`3.5 bags`** | **`₹271,978 /ha`** | **`₹217,384 /ha`** |
+| **Rank #2:** `Maize → Sunflower → Mung bean` | **`498.9`** | **-60.1%** (`9 irr.`, `386 pump hrs/ha`) | **`34 days`** (Burn-free) | **`+3.29 t C/ha`** | **`85.2 / 100`** | **`3.5 bags`** | `₹230,542 /ha` | `₹165,596 /ha` |
+| **Rank #3:** `Mung bean → Wheat → Blackgram` | **`583.7`** | **-50.0%** (`8 irr.`, `321 pump hrs/ha`) | **`34 days`** (Burn-free) | **`+1.42 t C/ha`** | **`78.1 / 100`** | **`4.1 bags`** | `₹214,188 /ha` | `₹196,628 /ha` |
 
-### Six Precomputed Indian Benchmark Fields (`data/golden/<id>/`)
+### Eleven Precomputed Golden Benchmark Fields (`data/golden/<id>/`)
 
-All six agro-climatically distinct benchmark parcels work **100% offline** in both FastAPI and Next.js:
+All **11 benchmark parcels** across **6 continents** work **100% offline** in both FastAPI and Next.js:
 
+#### Six Indian Agro-Climatic Fields (`validated_india`)
 | Field ID & Location | Agro-Climatic Zone | Soil & Climate Summary | GRACE TWS Trend | Baseline Strategy | Rank #1 Recommended Strategy | Irrigation Change | Median Profit (`₹/ha`) | 10-Yr SOC Δ (`t C/ha`) | Soil Health |
 | :--- | :--- | :--- | :---: | :--- | :--- | :---: | :---: | :---: | :---: |
 | **`sangrur`** Punjab (`30.19, 75.78`) | Trans-Gangetic Alluvial Plains | Loam (pH 8.0) · 648 mm rain · 1,762 mm ET0 | `-4.15 cm/yr` | `Puddled Rice → Wheat → Fallow` | `DSR Rice → Sunflower → Mung bean` | **-17.6%** | `₹271,978` | `+3.01` | `87.7/100` |
@@ -88,11 +91,20 @@ All six agro-climatically distinct benchmark parcels work **100% offline** in bo
 | **`vidarbha`** Yavatmal, MH (`20.39, 78.13`) | Western/Central Deccan Vertisol | Clay (43% clay, pH 6.9) · 1,025 mm rain · 1,905 mm ET0 | `+1.11 cm/yr` | `Cotton → Chickpea → Fallow` | `Maize → Chickpea → Fallow` | `0.0%` (Rainfed) | `₹119,939` | `+0.69` | `63.5/100` |
 | **`thanjavur`** Cauvery Delta, TN (`10.72, 79.25`) | East Coast Plains & Deltas | Clay loam (pH 6.7) · 1,019 mm rain · 1,900 mm ET0 | `+0.55 cm/yr` | `Puddled Rice → Puddled Rice → Blackgram` | `Groundnut → DSR Rice → Blackgram` | **-56.2%** | `₹292,517` | `+2.29` | `83.5/100` |
 
+#### Five Global Breadbasket Hubs (`validated_regional`)
+| Field ID & Location | Agro-Ecological Zone | GRACE TWS Trend | Baseline Strategy | Rank #1 Recommended Strategy | Median Profit (Local/ha) | 10-Yr SOC Δ (`t C/ha`) | Soil Health |
+| :--- | :--- | :---: | :--- | :--- | :---: | :---: | :---: |
+| **`us_corn_belt`** Ames, Iowa, USA (`42.03, -93.62`) | US Midwest Corn–Soybean Belt (`Dfa`) | `-0.14 cm/yr` | `Soybean → Winter Cereal Rye → Fallow` | `Soybean → Triticale → Fallow` | **`$847`** | `+0.52` | `66.5/100` |
+| **`eu_maritime_west`** Chartres, France (`48.44, 1.49`) | EU Atlantic Maritime Beauce (`Cfb`) | `-0.45 cm/yr` | `Winter Wheat → Crimson Clover / Hairy Vetch → Fallow` | `Faba Bean → Sugar Beet → Fallow` | **`€1,746`** | `+3.33` | `80.1/100` |
+| **`brazil_cerrado`** Sorriso, Mato Grosso (`-12.55, -55.72`) | Brazilian Cerrado Double-Cropping (`Aw`) | `-0.26 cm/yr` | `Soybean → Maize → Fallow` | `Upland Rice → Common bean → Brachiaria / Urochloa` | **`R$8,923`** | `+1.81` | `74.3/100` |
+| **`east_africa_highlands`** Nakuru, Kenya (`-0.30, 36.07`) | East African Highland Bimodal (`Cfb`) | `+2.55 cm/yr` | `Maize → Crimson Clover / Hairy Vetch → Fallow` | `Common bean → Fallow → Field Pea` | **`KSh 210,544`** | `+0.49` | `54.9/100` |
+| **`australia_wheat_belt`** Wagga Wagga, NSW (`-35.12, 147.37`) | Australian Southern Grain Belt (`Cfa/Cfb`) | `+0.68 cm/yr` | `Field Pea → Maize → Fallow` | `Faba Bean → Fallow → Fallow` | **`A$806`** | `+0.07` | `45.1/100` |
+
 ---
 
 ## 3. NASA Earth Observations, Sponsor Meteomatics & Ancillary Datasets
 
-Every number exposed by TerraLoop carries a structured `DataProvenance` object (`source`, `product`, `period`, `resolution`, `doi`, `url`, `mode`), tracked in [`docs/DATASETS.md`](docs/DATASETS.md).
+Every number exposed by TerraLoop carries a structured `DataProvenance` object (`source`, `product`, `period`, `resolution`, `doi`, `url`, `mode`), tracked in [`docs/DATASETS.md`](docs/DATASETS.md) and our complete 64-link registry [`docs/DATA_SOURCES_AND_PARTNER_LINKS.md`](docs/DATA_SOURCES_AND_PARTNER_LINKS.md).
 
 ### NASA Earth Observations & Earthdata Products
 
@@ -100,13 +112,13 @@ Every number exposed by TerraLoop carries a structured `DataProvenance` object (
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **NASA POWER** | REST `temporal/daily/point` (`AG` community) | `0.5° × 0.625°`, daily (1981+) | Tmax/Tmin, solar radiation, RH, wind → Penman–Monteith ET0, GDD, climate ensembles | `data/nasa_power.py` | [`power.larc.nasa.gov`](https://power.larc.nasa.gov/) |
 | **GPM IMERG V07** | `NASA/GPM_L3/IMERG_V07` | `0.1°`, 30-min → daily (2000–2024) | Homogeneous rainfall totals, longest dry spells, extreme rain days (`>50 mm`), RUSLE $R$ | `data/gee.py::imerg_daily` | `10.5067/GPM/IMERG/3B-HH/07` |
-| **SMAP L4** | `NASA/SMAP/SPL4SMGP/008` | `9 km`, 3-hourly (2015–2024) | Root-zone moisture percentiles (Rabi/post-monsoon suitability modulation `>60%` / `<35%`) | `data/gee.py::smap_rootzone` | `10.5067/K2VT90DE20GV` |
+| **SMAP L4** | `NASA/SMAP/SPL4SMGP/008` | `9 km`, 3-hourly (2015–2024) | Root-zone moisture percentiles (Rabi/post-monsoon suitability modulation `>60%` / `<35%`) | `data/gee.py::smap_rootzone` | `10.5067/T5RUATAQREF8` |
 | **GRACE / GRACE-FO** | `NASA/GRACE/MASS_GRIDS_V04/MASCON_CRI` | `~0.5°` grid (`~3°` native mascon), monthly | Aquifer TWS trend (`cm/yr`) → scales optimization `water_savings` weight `1.0x–1.5x` | `data/gee.py::grace_trend` | `10.5067/TEMSC-3MJ62` |
 | **NASADEM** | `NASA/NASADEM_HGT/001` | `30 m` | Elevation & terrain slope % → RUSLE $LS$ slope-steepness factor | `data/gee.py::slope_pct` | `10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001` |
 | **FIRMS Active Fire** | `FIRMS` (MODIS / VIIRS) | `375 m – 1 km` (2019–2024) | Historical Oct–Nov crop-residue burning detection | `data/gee.py::fire_detections` | [`firms.modaps.eosdis.nasa.gov`](https://firms.modaps.eosdis.nasa.gov/) |
 | **HLS Landsat L30** | `NASA/HLS/HLSL30/v002` | `30 m`, 2–3 day composite | 30 m NDVI phenology curve extraction → baseline crop classification | `data/gee.py::ndvi_timeseries` | `10.5067/HLS/HLSL30.002` |
-| **HLS Sentinel-2 S30** | `NASA/HLS/HLSS30/v002` | `30 m`, 2–3 day composite | Harmonized high-cadence NDVI gap filling for Kharif/Rabi/Zaid seasons | `data/gee.py::ndvi_timeseries` | `10.5067/HLS/HLSL30.002` |
-| **NEX-GDDP-CMIP6** | `NASA/GDDP-CMIP6` | `0.25°`, daily (2015–2100) | 5 downscaled GCMs under SSP2-4.5 & SSP5-8.5 (2030s & 2050s stress lab) | `data/gee.py::cmip6_daily` | `10.7917/OASIS/NEX-GDDP-CMIP6` |
+| **HLS Sentinel-2 S30** | `NASA/HLS/HLSS30/v002` | `30 m`, 2–3 day composite | Harmonized high-cadence NDVI gap filling for Kharif/Rabi/Zaid seasons | `data/gee.py::ndvi_timeseries` | `10.5067/HLS/HLSS30.002` |
+| **NEX-GDDP-CMIP6** | `NASA/GDDP-CMIP6` | `0.25°`, daily (2015–2100) | 5 downscaled GCMs under SSP2-4.5 & SSP5-8.5 (2030s & 2050s stress lab) | `data/gee.py::cmip6_daily` | [`nccs.nasa.gov/data-collections/nex-gddp-cmip6`](https://www.nccs.nasa.gov/data-collections/nex-gddp-cmip6/) |
 | **NASA GIBS WMTS** | `VIIRS_SNPP_CorrectedReflectance_TrueColor`, `SMAP_L4_Analyzed_Root_Zone_Soil_Moisture`, `MODIS_Terra_NDVI_8Day` | `250 m – 9 km` (`EPSG:3857` WMTS) | Interactive **context only** satellite raster overlays inside `FieldMap.tsx` | `apps/web/src/components/FieldMap.tsx` | [`nasa-gibs.github.io`](https://nasa-gibs.github.io/gibs-api-docs/) |
 
 ### Meteomatics 90 m Sponsor API (`data/meteomatics.py`)
@@ -126,17 +138,20 @@ When `METEOMATICS_USERNAME` and `METEOMATICS_PASSWORD` are configured, TerraLoop
 | :--- | :--- | :--- |
 | **ISRIC SoilGrids 2.0 (250 m)** | Topsoil depth-weighted (`0–5`, `5–15`, `15–30 cm`) clay, sand, silt, SOC, pH, bulk density, CEC & N; includes 3 km rural offset search + GEE fallback | `data/soilgrids.py` (`10.5194/soil-7-217-2021`) |
 | **Govt Soil Health Card (SHC)** | Farmer lab input overrides (`ph`, `soc_pct`, `available_n_kg_ha`, `available_p_kg_ha`, `available_k_kg_ha`) overriding satellite priors | `profiler.py`, `suitability.py`, `ReportCard.tsx` |
-| **ESA WorldCereal 10 m** | Regional phenology reference curves for `PhenologyCropClassifier` | `eo/classifier.py`, `eo/phenology.py` |
-| **DES & ICRISAT DLD** | Published 5-year district yield ground truth across 6 Indian districts | `data/benchmarks/district_ground_truth.csv` |
+| **ESA WorldCereal 10 m** | Active temporary cropland, winter/spring cereals, maize & irrigation classification priors (`ESA/WorldCereal/2021/MODELS/v100`) | `data/gee.py::worldcereal_priors`, `eo/classifier.py`, `eo/phenology.py` |
+| **Köppen-Geiger & Natural Earth** | Global 0.5° AEZ climate biomes, seasonal calendars, Admin-0 sovereign borders & 50m Admin-1 provinces | `region_registry.py`, `packages/crop-kb/regions/` |
+| **DES, ICRISAT & Global Agencies** | District/county yield benchmarks across 6 Indian districts + 5 global hubs (USDA NASS, Agreste, CONAB/IBGE, KALRO/KNBS, ABARES/GRDC) | `data/benchmarks/district_ground_truth.csv`, `global_ground_truth.csv` |
 | **CGWB / India-WRIS** | Aquifer observation baseline cross-validating GRACE-FO groundwater trends | `data/gee.py::grace_trend` |
-| **FAO-56, FAO-33 & CACP 2024–25** | Dual Kc, $K_y$, Saxton–Rawls, PAU Package of Practices, MSP & A2+FL cultivation budgets | `packages/crop-kb/`, `models/` |
+| **FAO-56, FAO-33 & Regional Budgets** | Dual Kc, $K_y$, Saxton–Rawls, PAU Package of Practices, CACP 2024–25 A2+FL + ISU/ARVALIS/CONAB/KALRO/ABARES budgets | `packages/crop-kb/`, `models/` |
+| **ICMR-NIN (2020) & USDA FDC** | Energy (`kcal/100g`) and protein (`g/100g`) across all 40 crops for `food_security_score` | `models/nutrition.py` |
 
-### Four-Tier Provenance & Global Honesty Modes
+### Three-Tier Validation & Four Provenance Data Modes
 
-- **`observed`:** Live NASA/GEE/Meteomatics/ISRIC telemetry for the coordinate.
-- **`hybrid`:** Partial live observations supplemented cleanly with regional baselines where an individual sensor timed out.
-- **`regional_climatology` / `demo_snapshot`:** Validated ICAR/PAU zone climatology or precomputed golden snapshots (`is_fallback=True` flagged visually on degraded profiles).
-- **`unvalidated_global` (Outside India):** Locations outside the 36 Indian States/UTs polygon display global latitude-band climatology and proxy USD currencies; `selection.select_top(..., allow_economic_ranking=False)` zeros India-proxy economic objectives (`profit`, `low_risk`, `low_labour`) so ranking is governed purely by **water savings, soil health, and food security** alongside explicit frontend scope banners.
+- **Validation Tiers (`validation_status`):**
+  - **`validated_india`:** 36 Indian States/UTs across 17 named ICAR zones + 5 CACP 2024–25 state economic schedules (with explicit `punjab_proxy` badge outside those 5 states).
+  - **`validated_regional`:** 5 calibrated global breadbasket hubs (`us_corn_belt`, `eu_maritime_west`, `brazil_cerrado`, `east_africa_highlands`, `australia_wheat_belt`) with local currency enterprise budgets, conservation schemes, and agency yield validation.
+  - **`biophysical_global`** *(backward-compatible alias `unvalidated_global`)*: Any other global coordinate resolves its Köppen-Geiger AEZ biome, hemisphere calendar (`NH`/`SH`), NASA EO, and SoilGrids 2.0 profile; `selection.select_top(..., allow_economic_ranking=False)` zeros proxy economic objectives (`profit`, `low_risk`, `low_labour`) so ranking is governed purely by **water savings, soil health, and food security** alongside explicit frontend scope banners.
+- **Data Modes (`data_mode`):** `observed` (live NASA/GEE/Meteomatics/ISRIC), `hybrid_regional` (live weather/EO supplemented with regional baselines for an individual missing layer), `regional_climatology` / `demo_snapshot` (precomputed or offline fallback).
 
 ---
 
@@ -145,21 +160,21 @@ When `METEOMATICS_USERNAME` and `METEOMATICS_PASSWORD` are configured, TerraLoop
 ```mermaid
 flowchart TB
     UI["Next.js 16 + React 19 UI (apps/web)<br/>7 Routes · MapLibre 6 · GIBS WMTS · 5-Layer SoilColumn3D · EN/HI/PA"]
-    API["FastAPI v0.2.0 (apps/api/terraloop_api/main.py)<br/>/api Dual Prefix · 60 req/min Rate Limit · Sync & Async Job Queue"]
+    API["FastAPI v0.2.0 (apps/api/terraloop_api/main.py)<br/>14 Endpoints · /api Dual Prefix · 60 req/min Rate Limit · Async Job Queue"]
 
     subgraph ENGINE["Pure-Python Biophysical & Optimization Engine (packages/engine)"]
         direction TB
         PROF["Field Profiler (profiler.py)<br/>12-Future Parallel Pool · 24s Cap · Single-Flight Dedup · SHC Overrides"]
         ENS["Climate Ensembles (ensembles.py)<br/>30-yr Moving Blocks · 5 GEE CMIP6 + MRI-ESM2.0 · Tail Quantile Mapping"]
-        EO["EO Phenology & Classifier (eo/)<br/>Savitzky-Golay HLS NDVI · Adaptive Dryland Peaks · Gaussian ML"]
+        EO["EO Phenology & Classifier (eo/)<br/>Savitzky-Golay HLS NDVI · ESA WorldCereal 10m · Gaussian ML"]
         SUIT["Suitability Screening (suitability.py)<br/>Thermal/Water Fit · SMAP L4 · GRACE · SHC N/P/K/pH · Meteomatics Hazards"]
-        GEN["Rotation Generator & Surrogate<br/>Kharif/Rabi/Zaid Rules · PolynomialRidgeSurrogate (>85 candidates)"]
-        SIM["Coupled Process Models (models/)<br/>FAO-56/33 Water & March Heat · RothC-26.3 SOC & N · Kinetic RUSLE · CACP Economics · ICMR-NIN Nutrition"]
-        OPT["NSGA-II Selection & Explainers<br/>Pareto Sorting · Global Biophysical Gate · Why-Cards + 16 Schemes + Grounded Gemini"]
+        GEN["Rotation Generator & Surrogate<br/>NH/SH Seasonal Calendars · PolynomialRidgeSurrogate (>85 candidates)"]
+        SIM["Coupled Process Models (models/)<br/>FAO-56/33 Water & Heat · RothC-26.3 SOC & N · Kinetic RUSLE · Regional Economics · Nutrition"]
+        OPT["NSGA-II Selection & Explainers<br/>Pareto Sorting · Global Biophysical Gate · Why-Cards + 26 Schemes + Grounded Gemini"]
     end
 
-    KB["YAML & GeoJSON KB (packages/crop-kb)<br/>23 Crops · 9 AquaCrop Params · 5 State Economics · 17 ICAR Zones · 36 States · 16 Schemes"]
-    CACHE["@disk_cache + Golden Snapshots<br/>6 Precomputed Districts · /tmp Fallback"]
+    KB["YAML & GeoJSON KB (packages/crop-kb)<br/>40 Crops · 21 AquaCrop Params · 10 Regional Economics · 17 ICAR + 5 Global Hubs + 9 AEZs · 26 Schemes"]
+    CACHE["@disk_cache + Golden Snapshots<br/>11 Precomputed Fields (6 India + 5 Global) · /tmp Fallback"]
 
     UI <-->|"JSON Contracts (Pydantic v2 ↔ TypeScript)"| API
     API --> PROF
@@ -198,29 +213,25 @@ All process models in [`packages/engine/terraloop_engine/models/`](packages/engi
 
 ---
 
-## 6. Agronomic Knowledge Base, Zones & Government Schemes
+## 6. Agronomic Knowledge Base, Global Zones & Government Schemes
 
 All crop, regional, economic, and policy data is declarative YAML/GeoJSON inside [`packages/crop-kb/`](packages/crop-kb/):
 
-### 23 Supported Crops (`packages/crop-kb/crops/*.yaml` + 9 `aquacrop_params/*.yaml` overrides)
+### 40 Supported Crops (`packages/crop-kb/crops/*.yaml` + 21 `aquacrop_params/*.yaml` overrides)
 
-- **Cereals (9):** Puddled Rice (`rice_puddled`), Short-Duration PR-126 Rice (`rice_short`), Direct-Seeded Rice (`rice_dsr`), Basmati (`basmati`), Wheat (`wheat`), Kharif Maize (`maize`), Pearl Millet / Bajra (`pearl_millet`), Sorghum / Jowar (`sorghum`), Barley (`barley`)
-- **Legumes / Pulses (7, fixing 45–80 kg N/ha):** Chickpea (`chickpea`, `60 kg N`), Mung Bean / Moong (`moong`, `50 kg N`), Blackgram / Urad (`urad`, `55 kg N`), Pigeon Pea / Arhar (`pigeon_pea`, `60 kg N`), Lentil (`lentil`, `50 kg N`), Soybean (`soybean`, `80 kg N`), Common Bean / Rajma (`common_bean`, `45 kg N`)
-- **Oilseeds (3):** Mustard (`mustard`), Sunflower (`sunflower`), Groundnut (`groundnut`, fixing `65 kg N/ha`)
-- **Fibre, Tuber, Fodder & Green Manure (4):** Cotton (`cotton`), Autumn Potato (`potato`), Berseem Clover (`berseem`, `100 kg N/ha`), Dhaincha Green Manure (`dhaincha`, `80 kg N/ha`)
+- **Cereals & Grasses (17 `Poaceae`):** Puddled Rice (`rice_puddled`), Short-Duration PR-126 Rice (`rice_short`), Direct-Seeded Rice (`rice_dsr`), Temperate Japonica Rice (`rice_japonica_temperate`), Aerobic Upland Rice (`rice_upland`), Basmati (`basmati`), Wheat (`wheat`), Winter Wheat (`wheat_winter`), Spring Wheat (`wheat_spring`), Kharif/Grain Maize (`maize`), Pearl Millet / Bajra (`pearl_millet`), Sorghum / Jowar (`sorghum`), Barley (`barley`), Oats (`oats`), Triticale (`triticale`), Winter Cereal Rye (`rye_winter`), Brachiaria / Urochloa cover (`brachiaria_cover`)
+- **Legumes, Pulses & N-Fixing Covers (15 `Fabaceae`, fixing 45–180 kg N/ha):** Chickpea (`chickpea`, `60 kg N`), Mung Bean / Moong (`moong`, `50 kg N`), Blackgram / Urad (`urad`, `55 kg N`), Pigeon Pea / Arhar (`pigeon_pea`, `60 kg N`), Lentil (`lentil`, `50 kg N`), Soybean (`soybean`, `80 kg N`), Common Bean / Rajma (`common_bean`, `45 kg N`), Groundnut (`groundnut`, `65 kg N`), Field Pea (`field_pea`, `75 kg N`), Faba Bean (`faba_bean`, `95 kg N`), Lupin (`lupin`, `90 kg N`), Crimson Clover / Hairy Vetch (`crimson_clover_vetch`, `95 kg N`), Berseem Clover (`berseem`, `100 kg N`), Alfalfa / Lucerne (`alfalfa`, `180 kg N`), Dhaincha Green Manure (`dhaincha`, `80 kg N`)
+- **Oilseeds, Fibre, Roots & Industrial Crops (8):** Mustard (`mustard`), Rapeseed / Canola (`rapeseed_canola`), Sunflower (`sunflower`), Cotton (`cotton`), Autumn Potato (`potato`), Sugar Beet (`sugar_beet`), Cassava (`cassava`), Sweet Potato (`sweet_potato`)
 
-### Pan-India Zones, State Budgets & 16 Matched Schemes
+### Global & Indian Agro-Zones, 10 Regional Budgets & 26 Matched Schemes
 
-- **36 Indian States & Union Territories** resolved via point-in-polygon + `0.04°` coastal boundary snap (`packages/crop-kb/regions/india_states.geojson`).
-- **17 Named ICAR Agro-Climatic Zones** (+ `default_zone`): `punjab_central`, `punjab_southwest`, `haryana`, `bundelkhand`, `vidarbha`, `western_maharashtra`, `western_up`, `cauvery`, `rajasthan_arid`, `gujarat`, `eastern_gangetic`, `southern_hills`, `west_coast`, `himalayan`, `eastern_himalayan`, `central_malwa`, `islands`.
-- **5 State CACP 2024–25 Economic Tables** (covering all 23 crops per state): `punjab.yaml`, `haryana.yaml`, `uttar_pradesh.yaml`, `maharashtra.yaml`, `tamil_nadu.yaml`.
-- **16 Central & State Government Subsidies (`packages/crop-kb/schemes/*.yaml`):**
-  - *Central (4):* `PM-PRANAM`, `NFSM-Pulses & NAFED e-Samridhi`, `NMEO-Oilseeds`, `SMAM Mechanization`
-  - *Punjab (3):* `Punjab DSR Promotion`, `Punjab Crop Diversification`, `CRM Happy Seeder / Super Seeder`
-  - *Uttar Pradesh (4):* `Bundelkhand Drought & Pulses Package`, `UP CRM`, `UP Pulses/Oilseeds Minikit`, `UP DSR Diversification`
-  - *Maharashtra (2):* `Maharashtra PoCRA`, `In-Situ Moisture Conservation`
-  - *Tamil Nadu (2):* `Kalaignarin Rice Fallow Pulses Mission`, `Sustainable Dryland & Water Conservation`
-  - *Haryana (1):* `Mera Pani Meri Virasat`
+- **Boundaries & Global AEZs (`packages/crop-kb/regions/`):** `india_states.geojson` (36 Indian States/UTs with `0.04°` coastal snap), `global_countries.geojson` + `global_admin1.geojson` (Natural Earth borders), `zones.yaml` (**17 Indian ICAR zones** + **5 global breadbasket hubs** + **9 Köppen-Geiger AEZ archetypes** + `default_zone`), and `calendars.yaml` (NH & SH seasonal calendars).
+- **10 Regional Economic Schedules (`packages/crop-kb/economics/*.yaml`):**
+  - *India (5 CACP 2024–25 A2+FL states):* `punjab.yaml`, `haryana.yaml`, `uttar_pradesh.yaml`, `maharashtra.yaml`, `tamil_nadu.yaml`
+  - *Global Hubs (5 agency budgets):* `usa_iowa.yaml` (ISU/USDA), `france.yaml` (Agreste/ARVALIS), `brazil_mt.yaml` (CONAB/IMEA), `kenya.yaml` (KALRO/MoALD), `australia_nsw.yaml` (ABARES/GRDC)
+- **26 Central, State & International Support Schemes (`packages/crop-kb/schemes/*.yaml`):**
+  - *India Central & State (16):* `central.yaml` (4: PM-PRANAM, NFSM-Pulses/NAFED e-Samridhi, NMEO-Oilseeds, SMAM), `punjab.yaml` (3), `uttar_pradesh.yaml` (4), `maharashtra.yaml` (2), `tamil_nadu.yaml` (2), `haryana.yaml` (1: Mera Pani Meri Virasat)
+  - *International Hubs (10):* `us_usda.yaml` (2: NRCS EQIP & CSP), `eu_cap.yaml` (2: Eco-Schemes & Legume Diversification), `brazil.yaml` (2: Plano ABC+ & ZARC), `kenya.yaml` (2: KCSAP & Fertilizer/Seed Subsidy), `australia.yaml` (2: ACCU Soil Carbon & GRDC Double-Break)
 
 ---
 
@@ -242,6 +253,18 @@ All crop, regional, economic, and policy data is declarative YAML/GeoJSON inside
 | **Held-Out** | Yavatmal, Maharashtra | Rabi Gram (Rainfed) | `1.15` | **`0.77`** | `-33.5%` | DES APY |
 | **Held-Out** | Jhansi, Uttar Pradesh | Kharif Sorghum (Rainfed) | `1.32` | **`1.70`** | `+28.8%` | DES APY (*marginal unfertilized subsoils / bird loss*) |
 
+### Held-Out Global Multi-Continent Breadbasket Evaluation (`global_ground_truth.csv`)
+
+Across **14 held-out rainfed crop-hub pairs on 5 continents** (`docs/BENCHMARKS.md` Section 8), frozen engine parameters achieve a **13.0% Mean Absolute Percentage Error (MAPE)**:
+
+| Global Hub | Crop & Regime | Observed Mean (t/ha) | Simulated Median (t/ha) | Relative Error | Statistical Agency |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| **Ames, Iowa, USA** | Rainfed Grain Corn / Soybean / Oats | `12.02` / `3.77` / `2.68` | **`11.07` / `3.76` / `4.12`** | `-7.9%` / **`-0.3%`** / `+53.5%` | USDA NASS / ISU Extension |
+| **Chartres (Beauce), France** | Winter Wheat / Colza / Barley | `7.50` / `3.68` / `7.68` | **`8.37` / `3.92` / `7.91`** | `+11.6%` / `+6.5%` / **`+3.0%`** | Agreste / Chambre 28 |
+| **Sorriso, Mato Grosso, Brazil** | Rainfed Soy / Safrinha Corn | `3.63` / `6.75` | **`4.06` / `6.33`** | `+12.0%` / **`-6.2%`** | IBGE PAM / CONAB / IMEA |
+| **Nakuru, Rift Valley, Kenya** | Maize / Common Bean / Potato | `3.10` / `1.05` / `12.00` | **`3.14` / `1.14` / `12.41`** | **`+1.3%`** / `+8.6%` / **`+3.4%`** | KNBS / KALRO / NPCK |
+| **Wagga Wagga, NSW, Australia** | Dryland Wheat / Canola / Chickpea | `2.90` / `1.68` / `1.78` | **`3.44` / `1.94` / `1.19`** | `+18.4%` / `+15.5%` / `-33.4%` | ABARES / GRDC |
+
 ### Key Process Sensitivity Highlights (`docs/BENCHMARKS.md`)
 
 - **Soil Texture Hydraulics:** Rainfed wheat responds sharply from **`1.29 t/ha`** on Coarse Loamy Sand (`FC 0.129`) to **`2.30 t/ha`** on Alluvial Loam (`FC 0.254`) and **`2.37 t/ha`** on Deccan Vertisol Clay (`FC 0.424`), while DSR irrigation ranges from `1,162 mm` on sand to `691 mm` on loam.
@@ -254,7 +277,7 @@ All crop, regional, economic, and policy data is declarative YAML/GeoJSON inside
 
 ## 8. Farmer-First Web Platform (Next.js 16 + MapLibre 6)
 
-Designed for mid-range Android devices over low-bandwidth connections, with **739 synchronized i18n keys** across **English (`en`)**, **Hindi (`hi` — हिन्दी)**, and **Punjabi (`pa` — ਪੰਜਾਬੀ)** plus a 1-click **`/Acre (Killa)` vs `/Ha`** unit switcher.
+Designed for mid-range Android devices over low-bandwidth connections, with **780 synchronized i18n keys** across **English (`en`)**, **Hindi (`hi` — हिन्दी)**, and **Punjabi (`pa` — ਪੰਜਾਬੀ)** plus a 1-click **`/Acre (Killa)` vs `/Ha`** unit switcher.
 
 ### 7 Dedicated Application Routes (`apps/web/src/app/`)
 
@@ -262,8 +285,8 @@ Designed for mid-range Android devices over low-bandwidth connections, with **73
 2. **`/diagnostics` — Satellite & Lab Soil Report Card:** Monthly rainfall hyetograph, Saxton–Rawls hydraulic curve, GRACE aquifer gauge, Meteomatics blight/hail/fire hazards, HLS NDVI EO baseline crop confirmation, and **Government Soil Health Card (SHC)** lab entry form (`pH`, `SOC %`, `N`, `P`, `K`).
 3. **`/rotations` — Multi-Objective Rotation Explorer:** 5 quick priority personas (*Balanced*, *Profit Max*, *Water Saver*, *Soil Regeneration*, *Climate Resilient*), fine-grained priority weights, `1/2/3-year` planning horizons, irrigation/must-grow/exclude/livestock constraints, async simulation progress ring, Seasonal Gantt calendar (NH & SH seasons), and 6-axis USDA Soil Health Radar + component audit table.
 4. **`/lab` — Pareto Frontier & Climate/Price Stress Lab:** Switch between 2D/3D interactive Pareto trade-off plots (`Profit × Water × Soil Health`) and the What-If Shock Simulator pairing historical moving blocks or NEX-GDDP-CMIP6 (`SSP2-4.5` & `SSP5-8.5` for 2030s/2050s) with custom drought (`%`), harvest price (`%`), and urea cost (`%`) shocks.
-5. **`/crops` — 23-Crop Agronomic Atlas:** Filterable botanical library with dual-$K_c$ transpiration curves, GDD ceilings, thermal tolerance bands, N fixation vs N demand balances, and good/bad predecessor compatibility pills.
-6. **`/brief` — Printable KVK Agronomic Prescription:** Print/PDF-ready farmer field brief featuring a holding-size scaler (Marginal `0.5 ha` to FPO Co-op), total Urea bags & pumping hours saved, localized why-cards, unmodeled risks disclosure, and automatically matched Central/State subsidy cards.
+5. **`/crops` — 40-Crop Agronomic Atlas:** Filterable botanical library with dual-$K_c$ transpiration curves, GDD ceilings, thermal tolerance bands, N fixation vs N demand balances, and good/bad predecessor compatibility pills.
+6. **`/brief` — Printable KVK Agronomic Prescription:** Print/PDF-ready farmer field brief featuring a holding-size scaler (Marginal `0.5 ha` to FPO Co-op), total Urea bags & pumping hours saved, localized why-cards, unmodeled risks disclosure, and automatically matched Central/State/Global subsidy cards.
 7. **`/methodology` — Open-Science Provenance & Equations Reference:** Transparent ledger of every NASA/Meteomatics/ancillary DOI, resolution, governing equation, and validation scope note.
 
 ---
@@ -272,23 +295,25 @@ Designed for mid-range Android devices over low-bandwidth connections, with **73
 
 All API contracts live in [`packages/schemas/terraloop_schemas/models.py`](packages/schemas/terraloop_schemas/models.py) (Pydantic v2) and mirror [`apps/web/src/types/api.ts`](apps/web/src/types/api.ts), verified by `test_schema_typescript_interface_parity`.
 
-### 12 Endpoints (`apps/api/terraloop_api/main.py`)
+### 14 Endpoints (`apps/api/terraloop_api/main.py`)
 
-Routes are dual-served both at root (`/...`) and `/api/...` via `_PathPrefixMiddleware`, protected by a sliding-window per-IP rate limiter (`TERRALOOP_RATE_LIMIT_PER_MIN=60`) on `/recommend`, `/profile`, `/tactical-advisory`, `/suitability`, and `/geocode`:
+Routes are dual-served both at root (`/...`) and `/api/...` via `_PathPrefixMiddleware`, protected by a sliding-window per-IP rate limiter (`TERRALOOP_RATE_LIMIT_PER_MIN=60`) on `/recommend`, `/profile`, `/tactical-advisory`, `/suitability`, and `/geocode` (polling `/recommend/jobs/*` and `/profile/jobs/*` are exempt):
 
 | Method & Path | Description |
 | :--- | :--- |
 | `GET /health` | Service health check (`status`, `version`, `crops_loaded`, `gee_live`, `meteomatics_configured`) |
 | `GET /tactical-advisory` | Live 7-day sowing, irrigation & spray window advisory for `lat`, `lon` (Meteomatics 90m or regional fallback) |
-| `GET /crops` | Returns all 23 `CropSpec` entries loaded from `packages/crop-kb/` |
-| `GET /golden` | Lists all 6 Indian benchmark parcel summaries |
+| `GET /crops` | Returns all 40 `CropSpec` entries loaded from `packages/crop-kb/` |
+| `GET /golden` | Lists all 11 benchmark parcel summaries (6 Indian + 5 global hubs) |
 | `GET /golden/{field_id}/profile` | Instant precomputed `FieldProfile` snapshot for a benchmark parcel |
 | `GET /golden/{field_id}/recommendations` | Instant precomputed baseline + top-3 `StrategyRecommendation` bundle |
 | `GET /geocode?q=...` | Parses coordinates, Google Maps URLs offline, or geocodes via Nominatim (1 req/s rate-throttled) |
 | `POST /profile` | Builds full `FieldProfile` (`FieldGeometry`, polygon `<=500` pts / `<=10,000 ha`), SHC overrides optional |
+| `POST /profile/async` | Asynchronous background `/profile` job submission returning `job_id` immediately |
+| `GET /profile/jobs/{job_id}` | Polls asynchronous `/profile` job status and completed `FieldProfile` |
 | `POST /suitability` | Ranks candidate crops (`SuitabilityItem[]`) using SMAP, GRACE, SHC N/P/K/pH & Meteomatics biotic hazards |
 | `POST /recommend` | Full synchronous end-to-end rotation optimization returning `[Baseline, #1, #2, #3]` |
-| `POST /recommend/async` | Asynchronous background job submission (up to 8 concurrent threads persisted to `data/jobs/`; executes synchronously on `VERCEL`) |
+| `POST /recommend/async` | Asynchronous background job submission (persisted to `data/jobs/`; executes synchronously on `VERCEL`) |
 | `GET /recommend/jobs/{job_id}` | Polls progress stages (`profile` → `weather` → `generating` → `simulating` → `selecting` → `explaining` → `done`) |
 
 ---
@@ -301,8 +326,8 @@ Routes are dual-served both at root (`/...`) and `/api/...` via `_PathPrefixMidd
 
 ### 1. Install Dependencies & Configure Environment
 ```powershell
-git clone https://github.com/Anshsurana123/nasa-farm-hack.git
-cd nasa-farm-hack
+git clone https://github.com/Anshsurana123/nasa-farm-hackathon.git
+cd nasa-farm-hackathon
 
 # Install Python workspace packages & dev tools
 uv sync
@@ -361,7 +386,7 @@ All variables are optional for offline/golden benchmark operation; supply creden
 ### Scripts (`scripts/`)
 ```powershell
 uv run python scripts/run_validation_benchmarks.py --write-docs  # Regenerate docs/BENCHMARKS.md from engine
-uv run python scripts/precompute_golden.py                       # Recompute all 6 golden fields + sync apps/web/public/golden/
+uv run python scripts/precompute_golden.py                       # Recompute all 11 golden fields + sync apps/web/public/golden/
 uv run python scripts/warm_cache.py --offline-check              # Verify 8-hub POWER cell snapping offline
 uv run python scripts/check_api_health.py                        # Audit live reachability of NASA POWER, SoilGrids & API
 uv run --with python-docx python scripts/md_to_docx.py docs/BUILD_PLAN.md docs/BUILD_PLAN.docx
@@ -369,7 +394,7 @@ uv run --with python-docx python scripts/md_to_docx.py docs/BUILD_PLAN.md docs/B
 
 ### Testing & CI Verification Gates (`.github/workflows/ci.yml`)
 
-The offline suite executes **114 deterministic tests** across [`tests/test_deploy.py`](tests/test_deploy.py) (4), [`tests/test_engine.py`](tests/test_engine.py) (89), and [`tests/test_models.py`](tests/test_models.py) (16 functions / 21 parametrized cases) covering biophysical equations, FAO-56 Annex worked examples, 200-vector priority monotonicity sweeps, schema↔TypeScript parity, i18n 739-key parity, LLM numeric grounding, Meteomatics fallbacks, and rate limiting:
+The offline suite executes **124 deterministic tests** across [`tests/test_deploy.py`](tests/test_deploy.py) (4), [`tests/test_engine.py`](tests/test_engine.py) (97), and [`tests/test_models.py`](tests/test_models.py) (23 parametrized cases across 18 functions) covering biophysical equations, FAO-56 Annex worked examples, 200-vector priority monotonicity sweeps, schema↔TypeScript parity, i18n 780-key parity, LLM numeric grounding, Meteomatics fallbacks, and rate limiting:
 
 ```powershell
 uv run ruff check .
@@ -400,12 +425,12 @@ npm run build
 .
 ├── api/index.py                         Vercel serverless FastAPI entry exporting terraloop_api.main.app
 ├── apps/
-│   ├── api/terraloop_api/main.py        FastAPI v0.2.0 app (12 endpoints, rate limiter, async job store)
+│   ├── api/terraloop_api/main.py        FastAPI v0.2.0 app (14 endpoints, rate limiter, async job store)
 │   └── web/src/
 │       ├── app/                         7 Next.js 16 App Router pages (/, diagnostics, rotations, lab, crops, brief, methodology)
 │       ├── components/                  10 UI modules (AppShell, Navbar, TelemetryBar, FieldMap, SoilColumn3D, ReportCard, RotationExplorer, AgronomicBrief, ProgressRing, ProvenanceChip)
 │       ├── context/FieldContext.tsx     Global active parcel, priorities, constraints, SHC & unit-system state
-│       ├── i18n/{en,hi,pa}.json         739 synchronized trilingual translation keys + I18nProvider
+│       ├── i18n/{en,hi,pa}.json         780 synchronized trilingual translation keys + I18nProvider
 │       ├── lib/{api,ui,fallback*}.ts    API client, async poller, unit formatters & offline golden resilience
 │       └── types/api.ts                 TypeScript interfaces mirroring Pydantic v2 contracts
 ├── packages/
@@ -419,17 +444,17 @@ npm run build
 │   │   ├── explain/why_cards.py         Trilingual why-cards & numeric-grounded Gemini synthesis
 │   │   ├── profiler.py, suitability.py, crop_kb.py, region_registry.py, scheme_kb.py, cache.py
 │   └── crop-kb/
-│       ├── crops/*.yaml (+ _template)   23 crop YAMLs + schema template
-│       ├── aquacrop_params/*.yaml       9 calibrated legume/oilseed/fodder overrides
-│       ├── economics/*.yaml             5 CACP 2024-25 state crop budgets
-│       ├── regions/                     india_states.geojson (36 States/UTs), zones.yaml (17 + default), soils.yaml, synthetic_weather.yaml
-│       └── schemes/*.yaml               16 Central + State subsidy & procurement specs
+│       ├── crops/*.yaml (+ _template)   40 crop YAMLs + schema template
+│       ├── aquacrop_params/*.yaml       21 calibrated legume/oilseed/cereal/cover overrides
+│       ├── economics/*.yaml             10 regional crop budgets (5 Indian states + 5 global hubs)
+│       ├── regions/                     india_states.geojson (36 States/UTs), global_countries/admin1, aez_global_grid.json, zones.yaml, calendars.yaml, soils.yaml, synthetic_weather.yaml
+│       └── schemes/*.yaml               26 Central, State & International subsidy & conservation specs
 ├── data/
-│   ├── benchmarks/district_ground_truth.csv   DES & ICRISAT published district yield validation targets
-│   └── golden/<id>/                     Precomputed profile.json, recommendations.json & weather.json (6 fields)
-├── docs/                                BUILD_PLAN, METHODOLOGY, BENCHMARKS, DATASETS, NOTES, AUDIT*, FARMER_GUIDE, JUDGE_QA, MAGIC_NUMBERS, SUBMISSION
+│   ├── benchmarks/                      district_ground_truth.csv (India) & global_ground_truth.csv (5 continents)
+│   └── golden/<id>/                     Precomputed profile.json, recommendations.json & weather.json (11 fields)
+├── docs/                                BUILD_PLAN, METHODOLOGY, BENCHMARKS, DATASETS, DATA_SOURCES_AND_PARTNER_LINKS, NOTES, AUDIT*, FARMER_GUIDE, JUDGE_QA, MAGIC_NUMBERS, SUBMISSION
 ├── scripts/                             run_validation_benchmarks.py, precompute_golden.py, warm_cache.py, check_api_health.py, md_to_docx.py
-├── tests/                               test_engine.py (89), test_models.py (16 / 21 cases), test_deploy.py (4)
+├── tests/                               test_engine.py (97), test_models.py (23 cases), test_deploy.py (4)
 ├── .github/workflows/ci.yml             GitHub Actions quality, pytest, benchmark diff & frontend gates
 ├── Dockerfile / vercel.json / pyproject.toml / requirements.txt / LICENSE
 ```
@@ -439,10 +464,10 @@ npm run build
 ## 14. Honest Limitations, Scientific Boundaries & References
 
 ### Explicit Model Boundaries (Surfaced Openly to Users)
-1. **Abiotic Simulation Scope:** `fao56_runner.py` simulates soil-water deficit, percolation, and reproductive thermal stress; while `suitability.py` screens biotic blight/wetness/hail risk from Meteomatics indices, dynamic in-season insect/disease yield losses (e.g., pink bollworm in rainfed cotton, rice blast) and episodic hail/cyclone lodging are not deducted from simulated crop yields.
-2. **Market Volatility & Policy Shifts:** CACP MSP & A2+FL cultivation budgets (`2024–25`) across 5 validated Indian states are modeled alongside user shock sliders (`±%` mandi price / fertilizer cost), but localized perishable price crashes (e.g., autumn potato gluts) cannot be forecast deterministically.
+1. **Abiotic Simulation Scope:** `fao56_runner.py` simulates soil-water deficit, percolation, vernalization/frost kill, and reproductive thermal stress; while `suitability.py` screens biotic blight/wetness/hail risk from Meteomatics indices, dynamic in-season insect/disease yield losses (e.g., pink bollworm in rainfed cotton, rice blast) and episodic hail/cyclone lodging are not deducted from simulated crop yields.
+2. **Market Volatility & Policy Shifts:** CACP MSP & A2+FL cultivation budgets (`2024–25`) across 5 validated Indian states plus 5 international agency enterprise budgets (`USA Iowa`, `France Beauce`, `Brazil Mato Grosso`, `Kenya Highlands`, `Australia NSW`) are modeled alongside user shock sliders (`±%` price / fertilizer cost), but localized perishable price crashes cannot be forecast deterministically.
 3. **Satellite Footprint vs. Parcel Scale:** GRACE-FO TWS (`~3°` native mascon), NASA POWER (`0.5°×0.625°`), SMAP L4 (`9 km`), and ISRIC SoilGrids (`250 m`) capture regional and landscape gradients; farmer **Soil Health Card** laboratory overrides exist specifically to anchor decisions at field scale.
-4. **India Validation Boundary (`unvalidated_global`):** Crop parameters, sowing calendars, and CACP economic tables are calibrated and checked for **India**. Global non-India coordinates deliberately zero out India-proxy economic objectives and operate in transparent biophysical-only ranking mode (`allow_economic_ranking=False`).
+4. **Global Calibration Boundaries (`biophysical_global` / `unvalidated_global`):** Crop parameters and enterprise budgets are calibrated and empirically checked across India (`validated_india`) and 5 global breadbasket hubs (`validated_regional`, 13.0% rainfed MAPE). Coordinates outside calibrated economic hubs operate in transparent biophysical-only ranking mode (`allow_economic_ranking=False`), zeroing out economic ranking weights so recommendations reflect pure water, soil health, and nutrition physics.
 
 ### Core Scientific Citations
 - **Allen, R.G. et al. (1998):** *Crop Evapotranspiration (FAO Irrigation & Drainage Paper No. 56)* — Penman–Monteith ET0, Dual-$K_c$, $\text{TAW}/\text{RAW}/K_s$.
